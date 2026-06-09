@@ -1,5 +1,6 @@
 import { useAuth } from "../../hooks/useAuth";
 import { logoutUser } from "../../services/authService";
+import ScheduleManagement from "./ScheduleManagement";
 
 
 export default function Dashboard() {
@@ -12,6 +13,8 @@ export default function Dashboard() {
       <p>Email: {user?.email}</p>
 
       <p>Role: {role}</p>
+
+      <ScheduleManagement />
       <button onClick={async () => { await logoutUser(); }}> Logout </button>
     </div>
   );
