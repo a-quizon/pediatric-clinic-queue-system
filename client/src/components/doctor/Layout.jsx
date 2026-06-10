@@ -59,7 +59,7 @@ export default function Layout() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-20 bg-gray-50 md:bg-transparent">
+      <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-24 bg-gray-50 md:bg-transparent h-full relative">
         {/* Mobile Header */}
         <header className="md:hidden bg-white shadow-sm sticky top-0 z-30 p-4 border-b border-gray-100">
           <div className="flex items-center justify-center">
@@ -68,7 +68,7 @@ export default function Layout() {
           </div>
         </header>
 
-        <div className="p-4 md:p-8 lg:p-10 max-w-5xl mx-auto h-full">
+        <div className="p-4 md:p-8 lg:p-10 max-w-5xl mx-auto min-h-full">
           <Outlet />
         </div>
       </main>

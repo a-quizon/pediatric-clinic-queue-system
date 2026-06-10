@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createSchedule, updateSchedule, scheduleExists } from '../../services/scheduleService';
 import { useAuth } from '../../hooks/useAuth';
+import { X, AlertCircle } from 'lucide-react';
 
 export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSuccess }) {
   const { user } = useAuth();
@@ -105,147 +106,169 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
   };
 
   return (
-    <div style={{
-      position: "fixed", top: 0, left: 0, width: "100%", height: "100%", 
-      backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000
-    }}>
-      <div style={{ 
-        backgroundColor: "white", padding: "20px", borderRadius: "8px", width: "100%", maxWidth: "500px", 
-        maxHeight: "90vh", overflowY: "auto", position: "relative", textAlign: "left"
-      }}>
-        <button 
-          onClick={onClose} 
-          style={{ position: "absolute", top: "15px", right: "15px", cursor: "pointer", background: "none", border: "none", fontSize: "20px" }}
-        >
-          ✖
-        </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
         
-        <h2 style={{ marginTop: 0 }}>{mode === "create" ? "Create Schedule" : "Edit Schedule"}</h2>
-        
-        {error && <p style={{ color: "red" }}>{error}</p>}
+        {/* Header (Sticky) */}
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-white">
+          <h2 className="text-xl font-bold text-gray-800">
+            {mode === "create" ? "Create Schedule" : "Edit Schedule"}
+          </h2>
+          <button 
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-        {mode === "edit" && schedule?.status === "published" && (
-          <div style={{ backgroundColor: "#fff3cd", color: "#856404", padding: "10px", borderRadius: "4px", marginBottom: "15px", border: "1px solid #ffeeba" }}>
-            <strong>Notice:</strong> Branch and Clinic Date can no longer be changed after publication.
-          </div>
-        )}
+        {/* Body (Scrollable) */}
+        <div className="p-5 overflow-y-auto flex-1">
+          {error && (
+            <div className="mb-5 p-4 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-medium flex items-start">
+              <AlertCircle className="w-5 h-5 mr-2 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: "15px" }}>
-            <label htmlFor="branch" style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Branch</label>
-            <select
-              id="branch"
-              name="branch"
-              value={formData.branch}
-              onChange={handleChange}
-              required
-              disabled={loading || (mode === "edit" && schedule?.status === "published")}
-              style={{ width: "100%", padding: "8px", boxSizing: "border-box", backgroundColor: (mode === "edit" && schedule?.status === "published") ? "#e9ecef" : "white" }}
-            >
-              <option value="">Select Branch</option>
-              <option value="Angeles">Angeles</option>
-              <option value="Magalang">Magalang</option>
-            </select>
-          </div>
+          {mode === "edit" && schedule?.status === "published" && (
+            <div className="mb-5 p-4 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-sm font-medium">
+              <strong>Notice:</strong> Branch and Clinic Date can no longer be changed after publication.
+            </div>
+          )}
 
-          <div style={{ marginBottom: "15px" }}>
-            <label htmlFor="clinicDate" style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Clinic Date</label>
-            <input
-              type="date"
-              min={new Date().toISOString().split("T")[0]}
-              id="clinicDate"
-              name="clinicDate"
-              value={formData.clinicDate}
-              onChange={handleChange}
-              required
-              disabled={loading || (mode === "edit" && schedule?.status === "published")}
-              style={{ width: "100%", padding: "8px", boxSizing: "border-box", backgroundColor: (mode === "edit" && schedule?.status === "published") ? "#e9ecef" : "white" }}
-            />
-          </div>
-
-          <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
-            <div style={{ flex: 1 }}>
-              <label htmlFor="openingTime" style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Opening Time</label>
-              <input
-                type="time"
-                id="openingTime"
-                name="openingTime"
-                value={formData.openingTime}
+          <form id="schedule-form" onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="branch" className="block text-sm font-semibold text-gray-700 mb-1.5">Branch</label>
+              <select
+                id="branch"
+                name="branch"
+                value={formData.branch}
                 onChange={handleChange}
                 required
-                disabled={loading}
-                style={{ width: "100%", padding: "8px", boxSizing: "border-box" }}
-              />
+                disabled={loading || (mode === "edit" && schedule?.status === "published")}
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 disabled:bg-gray-100 text-gray-800"
+              >
+                <option value="">Select Branch</option>
+                <option value="Angeles">Angeles</option>
+                <option value="Magalang">Magalang</option>
+              </select>
             </div>
-            <div style={{ flex: 1 }}>
-              <label htmlFor="queueStartTime" style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Queue Start Time</label>
+
+            <div>
+              <label htmlFor="clinicDate" className="block text-sm font-semibold text-gray-700 mb-1.5">Clinic Date</label>
               <input
-                type="time"
-                id="queueStartTime"
-                name="queueStartTime"
-                value={formData.queueStartTime}
+                type="date"
+                min={new Date().toISOString().split("T")[0]}
+                id="clinicDate"
+                name="clinicDate"
+                value={formData.clinicDate}
                 onChange={handleChange}
                 required
-                disabled={loading}
-                style={{ width: "100%", padding: "8px", boxSizing: "border-box" }}
+                disabled={loading || (mode === "edit" && schedule?.status === "published")}
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 disabled:bg-gray-100 text-gray-800"
               />
             </div>
-          </div>
 
-          <div style={{ marginBottom: "15px" }}>
-            <label htmlFor="slotCapacity" style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Slot Capacity (Patients)</label>
-            <input
-              type="number"
-              id="slotCapacity"
-              name="slotCapacity"
-              value={formData.slotCapacity}
-              onChange={handleChange}
-              required
-              min="1"
-              disabled={loading}
-              style={{ width: "100%", padding: "8px", boxSizing: "border-box" }}
-            />
-          </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="openingTime" className="block text-sm font-semibold text-gray-700 mb-1.5">Opening Time</label>
+                <input
+                  type="time"
+                  id="openingTime"
+                  name="openingTime"
+                  value={formData.openingTime}
+                  onChange={handleChange}
+                  required
+                  disabled={loading}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 text-gray-800"
+                />
+              </div>
+              <div>
+                <label htmlFor="queueStartTime" className="block text-sm font-semibold text-gray-700 mb-1.5">Queue Start Time</label>
+                <input
+                  type="time"
+                  id="queueStartTime"
+                  name="queueStartTime"
+                  value={formData.queueStartTime}
+                  onChange={handleChange}
+                  required
+                  disabled={loading}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 text-gray-800"
+                />
+              </div>
+            </div>
 
-          <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
-            <div style={{ flex: 1 }}>
-              <label htmlFor="validationWindow" style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Validation Window (mins)</label>
+            <div>
+              <label htmlFor="slotCapacity" className="block text-sm font-semibold text-gray-700 mb-1.5">Slot Capacity (Patients)</label>
               <input
                 type="number"
-                id="validationWindow"
-                name="validationWindow"
-                value={formData.validationWindow}
+                id="slotCapacity"
+                name="slotCapacity"
+                value={formData.slotCapacity}
                 onChange={handleChange}
                 required
-                min="0"
+                min="1"
                 disabled={loading}
-                style={{ width: "100%", padding: "8px", boxSizing: "border-box" }}
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 text-gray-800"
               />
             </div>
-            <div style={{ flex: 1 }}>
-              <label htmlFor="lateLimit" style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Late Limit (Times Allowed)</label>
-              <input
-                type="number"
-                id="lateLimit"
-                name="lateLimit"
-                value={formData.lateLimit}
-                onChange={handleChange}
-                required
-                min="0"
-                disabled={loading}
-                style={{ width: "100%", padding: "8px", boxSizing: "border-box" }}
-              />
-            </div>
-          </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="validationWindow" className="block text-sm font-semibold text-gray-700 mb-1.5">Validation Window (mins)</label>
+                <input
+                  type="number"
+                  id="validationWindow"
+                  name="validationWindow"
+                  value={formData.validationWindow}
+                  onChange={handleChange}
+                  required
+                  min="0"
+                  disabled={loading}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 text-gray-800"
+                />
+              </div>
+              <div>
+                <label htmlFor="lateLimit" className="block text-sm font-semibold text-gray-700 mb-1.5">Late Limit (Times Allowed)</label>
+                <input
+                  type="number"
+                  id="lateLimit"
+                  name="lateLimit"
+                  value={formData.lateLimit}
+                  onChange={handleChange}
+                  required
+                  min="0"
+                  disabled={loading}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 text-gray-800"
+                />
+              </div>
+            </div>
+          </form>
+        </div>
+
+        {/* Footer (Sticky) */}
+        <div className="p-5 border-t border-gray-100 bg-gray-50 shrink-0 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="px-5 py-2.5 text-gray-600 font-semibold rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
           <button
             type="submit"
+            form="schedule-form"
             disabled={loading}
-            style={{ width: "100%", padding: "10px", fontWeight: "bold", cursor: loading ? "not-allowed" : "pointer", marginTop: "10px" }}
+            className={`px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-sm transition-all ${
+              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700 hover:shadow"
+            }`}
           >
             {loading ? (mode === "create" ? "Creating..." : "Updating...") : (mode === "create" ? "Create Schedule" : "Update Schedule")}
           </button>
-        </form>
+        </div>
+
       </div>
     </div>
   );

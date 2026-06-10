@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { loginUser } from "../../services/authService";
 import { ref, get } from "firebase/database";
 import { database } from "../../firebase/database";
+import { Activity, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -65,59 +66,96 @@ export default function Login() {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '400px', margin: '0 auto' }}>
-      <h1>Login</h1>
-      {error && <p style={{ color: 'red' }} id="error-message">{error}</p>}
-      {success && <p style={{ color: 'green' }} id="success-message">Login successful! Redirecting...</p>}
-
-      <form onSubmit={handleSubmit} id="login-form">
-        <div style={{ marginBottom: '10px' }}>
-          <label htmlFor="email" style={{ display: 'block' }}>Email</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            disabled={loading}
-            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-          />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 font-sans">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Header Section */}
+        <div className="pt-10 pb-6 px-8 text-center border-b border-gray-50">
+          <div className="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-blue-100">
+            <Activity className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Pediatric Clinic Queue System</h1>
+          <p className="text-gray-500 font-medium mt-2">Clinic Queue Management</p>
         </div>
 
-        <div style={{ marginBottom: '10px' }}>
-          <label htmlFor="password" style={{ display: 'block' }}>Password</label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            disabled={loading}
-            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-          />
+        {/* Form Section */}
+        <div className="p-8">
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-medium flex items-start">
+              <AlertCircle className="w-5 h-5 mr-3 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+          {success && (
+            <div className="mb-6 p-4 bg-green-50 text-green-700 border border-green-100 rounded-xl text-sm font-medium flex items-start">
+              <CheckCircle2 className="w-5 h-5 mr-3 shrink-0" />
+              <span>Login successful! Redirecting...</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5" id="login-form">
+            <div>
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  disabled={loading || success}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                  placeholder="Enter your email"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  disabled={loading || success}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                  placeholder="Enter your password"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              id="login-submit-btn"
+              disabled={loading || success}
+              className={`w-full flex items-center justify-center py-3.5 px-4 bg-blue-600 text-white font-bold rounded-xl shadow-sm transition-all mt-2 ${
+                loading || success ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700 hover:shadow"
+              }`}
+            >
+              {loading ? 'Authenticating...' : success ? 'Redirecting...' : 'Sign In'}
+              {!loading && !success && <ArrowRight className="w-5 h-5 ml-2" />}
+            </button>
+          </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-gray-500 text-sm">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-blue-600 font-semibold hover:underline transition-all">
+                Create Account
+              </Link>
+            </p>
+          </div>
         </div>
-
-        <button
-          type="submit"
-          id="login-submit-btn"
-          disabled={loading}
-          style={{ padding: '10px 20px', cursor: loading ? 'not-allowed' : 'pointer' }}
-        >
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
-
-        <button
-          type="button"
-          id="login-register-btn"
-          disabled={loading}
-          onClick={() => navigate('/register')}
-          style={{ padding: '10px 20px', marginLeft: '10px', cursor: loading ? 'not-allowed' : 'pointer' }}
-        >
-          Register
-        </button>
-      </form>
+      </div>
     </div>
   );
 }
