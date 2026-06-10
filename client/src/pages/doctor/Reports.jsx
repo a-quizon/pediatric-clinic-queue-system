@@ -1,80 +1,50 @@
-import { BarChart3, TrendingUp, Users, Clock, AlertCircle, PieChart, Activity, Settings } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Clock, AlertCircle, PieChart, Activity } from "lucide-react";
 
 export default function Reports() {
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out pb-6">
+    <div className="space-y-6 pb-6 relative">
       {/* Header */}
-      <div className="bg-white rounded-3xl p-6 md:p-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)] border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center space-x-5">
-          <div className="bg-violet-50 p-4 rounded-2xl shadow-sm border border-violet-100/50">
-            <BarChart3 className="w-8 h-8 text-violet-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Reports & Analytics</h1>
-            <p className="text-slate-500 font-medium mt-1">
-              View clinic statistics and performance metrics.
-            </p>
-          </div>
-        </div>
-        <div className="hidden md:flex items-center justify-center px-4 py-2 bg-slate-50 text-slate-500 font-medium rounded-xl border border-slate-200 shadow-sm">
-           <span className="mr-2">🚧</span> Under Construction
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-800">Reports & Analytics</h1>
+        <p className="text-gray-500 mt-1">
+          View clinic statistics and performance metrics.
+        </p>
       </div>
 
-      {/* Analytics Dashboard Placeholder */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 opacity-60 pointer-events-none select-none">
-        {[
-          { label: "Total Patients", value: "0", icon: Users, color: "blue" },
-          { label: "Completed Consults", value: "0", icon: TrendingUp, color: "emerald" },
-          { label: "Avg Wait Time", value: "--:--", icon: Clock, color: "amber" },
-          { label: "Forfeitures", value: "0", icon: AlertCircle, color: "red" },
-        ].map((stat, idx) => (
-          <div key={idx} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-            <div className={`absolute -right-4 -top-4 w-16 h-16 rounded-full bg-${stat.color}-50`}></div>
-            <div className="flex items-center justify-between mb-4">
-              <span className="font-medium text-slate-500">{stat.label}</span>
-              <stat.icon className={`w-5 h-5 text-${stat.color}-500 relative z-10`} />
+      {/* Coming Soon Card */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="p-8 md:p-12 text-center">
+          <div className="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-6">
+            <span className="text-2xl">🚧</span>
+          </div>
+          
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Feature Under Development</h2>
+          <p className="text-gray-500 mb-10 max-w-lg mx-auto text-sm">
+            Analytics are currently being built to provide insights into your clinic operations.
+          </p>
+
+          <div className="bg-gray-50 rounded-2xl p-6 md:p-8 text-left border border-gray-100 max-w-2xl mx-auto">
+            <h3 className="font-bold text-gray-800 mb-4 flex items-center text-[15px]">
+              <Activity className="w-5 h-5 mr-2 text-blue-600" />
+              Future Analytics Features
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { label: "Total Patient Volume", icon: Users },
+                { label: "Consultation Trends", icon: TrendingUp },
+                { label: "Average Wait Times", icon: Clock },
+                { label: "Patient Demographics", icon: PieChart },
+                { label: "Forfeiture Rates", icon: AlertCircle },
+              ].map((feature, idx) => (
+                <div key={idx} className="flex items-center bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                  <div className="bg-blue-50 p-2 rounded-lg mr-3">
+                     <feature.icon className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <span className="text-sm font-semibold text-gray-700">{feature.label}</span>
+                </div>
+              ))}
             </div>
-            <p className="text-3xl font-bold text-slate-800">{stat.value}</p>
           </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 opacity-60 pointer-events-none select-none">
-        {/* Chart 1 Placeholder */}
-        <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-slate-100 shadow-sm min-h-[300px] flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-slate-700">Patient Volume</h3>
-            <Activity className="w-5 h-5 text-slate-400" />
-          </div>
-          <div className="flex-1 border-b-2 border-l-2 border-slate-100 relative flex items-end justify-between px-4 pb-2 pt-10">
-            {/* Mock Chart Bars */}
-            {[40, 70, 30, 80, 50, 90, 60].map((h, i) => (
-              <div key={i} className="w-1/12 bg-violet-100 rounded-t-sm" style={{ height: `${h}%` }}></div>
-            ))}
-          </div>
-        </div>
-
-        {/* Chart 2 Placeholder */}
-        <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm min-h-[300px] flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-slate-700">Demographics</h3>
-            <PieChart className="w-5 h-5 text-slate-400" />
-          </div>
-          <div className="flex-1 flex items-center justify-center">
-            <div className="w-32 h-32 rounded-full border-8 border-slate-100 border-t-violet-200 border-r-blue-200 border-b-emerald-200"></div>
-          </div>
-        </div>
-      </div>
-
-      {/* Development Banner Overlay */}
-      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center space-x-4 max-w-sm w-full z-50 animate-in slide-in-from-bottom-10 fade-in duration-500">
-        <div className="bg-amber-500/20 p-2 rounded-xl border border-amber-500/30">
-          <span className="text-xl">🚧</span>
-        </div>
-        <div>
-          <h4 className="font-bold text-sm">Reports Coming Soon</h4>
-          <p className="text-xs text-slate-300">Analytics are currently under development.</p>
         </div>
       </div>
     </div>

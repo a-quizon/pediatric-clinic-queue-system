@@ -1,41 +1,90 @@
 import React from 'react';
+import { Calendar, Clock, MapPin, Users, CheckCircle2, AlertCircle, PlayCircle } from 'lucide-react';
+
 export default function ScheduleCard({ schedule, onEdit, onDelete, onPublish, onComplete }) {
+  const isCompleted = schedule.status === 'completed';
+  const isDraft = schedule.status === 'draft';
+  const isPublished = schedule.status === 'published';
+
   return (
-    <div style={{ border: "1px solid #ccc", padding: "15px", marginBottom: "15px", borderRadius: "8px" }}>
-      <h3 style={{ marginTop: 0, marginBottom: "10px" }}>{schedule.branch} Branch</h3>
-      <p style={{ margin: "5px 0" }}><strong>Date:</strong> {schedule.clinicDate}</p>
-      <p style={{ margin: "5px 0" }}><strong>Opening Time:</strong> {schedule.openingTime}</p>
-      <p style={{ margin: "5px 0" }}><strong>Queue Start:</strong> {schedule.queueStartTime}</p>
-      <p style={{ margin: "5px 0" }}><strong>Capacity:</strong> {schedule.slotCapacity}</p>
-      <p style={{ margin: "5px 0" }}>
-        <strong>Status:</strong>{" "}
-        <span style={{
-          padding: "4px 8px",
-          borderRadius: "12px",
-          backgroundColor: schedule.status === "completed" ? "#2196F3" : schedule.status === "published" ? "#4CAF50" : "#ff9800",
-          color: "white",
-          fontSize: "0.85em",
-          fontWeight: "bold",
-          textTransform: "capitalize"
-        }}>
-          {schedule.status}
-        </span>
-      </p>
-      
-      {schedule.status !== "completed" && (
-        <button onClick={() => onEdit(schedule)} style={{ marginTop: "10px", padding: "8px 16px", cursor: "pointer", fontWeight: "bold" }}>Edit</button>
-      )}
+    <div className={`bg-white rounded-2xl border p-5 transition-all ${
+      isCompleted 
+        ? "border-gray-100 opacity-70" 
+        : "border-gray-200 shadow-sm hover:shadow-md hover:border-blue-100"
+    }`}>
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className={`text-lg font-bold flex items-center ${isCompleted ? "text-gray-600" : "text-gray-800"}`}>
+            <MapPin className="w-5 h-5 mr-2 text-gray-400" />
+            {schedule.branch} Branch
+          </h3>
+        </div>
+        <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center ${
+          isCompleted ? "bg-gray-100 text-gray-600" :
+          isPublished ? "bg-green-50 text-green-700" :
+          "bg-amber-50 text-amber-700"
+        }`}>
+          {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />}
+          {isPublished && <PlayCircle className="w-3.5 h-3.5 mr-1.5" />}
+          {isDraft && <AlertCircle className="w-3.5 h-3.5 mr-1.5" />}
+          <span className="capitalize">{schedule.status}</span>
+        </div>
+      </div>
 
-      {schedule.status === "draft" && (
-        <button onClick={() => onDelete(schedule.id)} style={{ marginTop: "10px", padding: "8px 16px", cursor: "pointer", fontWeight: "bold", backgroundColor: "#f44336", marginLeft: "10px" }}>Delete</button>
-      )}
+      <div className="grid grid-cols-2 gap-y-3 mb-5">
+        <div className="flex items-center text-sm">
+          <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+          <span className="text-gray-600">{schedule.clinicDate}</span>
+        </div>
+        <div className="flex items-center text-sm">
+          <Users className="w-4 h-4 mr-2 text-gray-400" />
+          <span className="text-gray-600">Cap: {schedule.slotCapacity}</span>
+        </div>
+        <div className="flex items-center text-sm">
+          <Clock className="w-4 h-4 mr-2 text-gray-400" />
+          <span className="text-gray-600">Opens: {schedule.openingTime}</span>
+        </div>
+        <div className="flex items-center text-sm">
+          <Clock className="w-4 h-4 mr-2 text-gray-400" />
+          <span className="text-gray-600">Queue: {schedule.queueStartTime}</span>
+        </div>
+      </div>
 
-      {schedule.status === "draft" && (
-        <button onClick={() => onPublish(schedule.id)} style={{ marginTop: "10px", padding: "8px 16px", cursor: "pointer", fontWeight: "bold", backgroundColor: "#4CAF50", marginLeft: "10px" }}>Publish</button>
-      )}
+      {!isCompleted && (
+        <div className="flex items-center gap-2 pt-4 border-t border-gray-50">
+          <button 
+            onClick={() => onEdit(schedule)} 
+            className="flex-1 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors"
+          >
+            Edit
+          </button>
+          
+          {isDraft && (
+            <>
+              <button 
+                onClick={() => onDelete(schedule.id)} 
+                className="flex-1 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-100 transition-colors"
+              >
+                Delete
+              </button>
+              <button 
+                onClick={() => onPublish(schedule.id)} 
+                className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors"
+              >
+                Publish
+              </button>
+            </>
+          )}
 
-      {schedule.status === "published" && (
-        <button onClick={() => onComplete(schedule.id)} style={{ marginTop: "10px", padding: "8px 16px", cursor: "pointer", fontWeight: "bold", backgroundColor: "#2196F3", marginLeft: "10px", color: "white" }}>Complete Schedule</button>
+          {isPublished && (
+            <button 
+              onClick={() => onComplete(schedule.id)} 
+              className="flex-1 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              Complete
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
