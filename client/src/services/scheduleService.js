@@ -1,5 +1,5 @@
 import { database } from "../firebase/database";
-import { ref, push, set, get, update, remove } from "firebase/database";
+import { ref, push, set, get, update, remove, onValue } from "firebase/database";
 
 export const createSchedule = async ( scheduleData ) => {
   const scheduleRef = push(ref(database, "schedules"));
@@ -53,4 +53,20 @@ export const publishSchedule = async ( scheduleId ) => {
 
 export const completeSchedule = async ( scheduleId ) => {
   await update( ref(database, `schedules/${scheduleId}`), {status: "completed", completedAt: Date.now(),});
+};
+
+export const subscribeToPublishedSchedules = ( callback ) => {
+  const schedulesRef = ref( database, "schedules" );
+  return onValue( schedulesRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        callback([]);
+        return;
+      }
+
+      const data = snapshot.val();
+
+      const schedules = Object.entries(data).map(([id, value]) => ({ id, ...value,})).filter((schedule) => schedule.status === "published");
+      callback(schedules);
+    }
+  );
 };

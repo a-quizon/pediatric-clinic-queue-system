@@ -5,7 +5,13 @@ import ProtectedRoute from "./ProtectedRoute";
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 
+// Parent Layout and Pages
+import ParentLayout from "../components/parent/ParentLayout";
 import ParentDashboard from "../pages/parent/Dashboard";
+import ParentReserveQueue from "../pages/parent/ReserveQueue";
+import ParentMyReservations from "../pages/parent/MyReservations";
+import ParentProfile from "../pages/parent/Profile";
+
 import SecretaryDashboard from "../pages/secretary/Dashboard";
 
 // Doctor Layout and Pages
@@ -25,7 +31,15 @@ export default function AppRoutes() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/parent" element={<ProtectedRoute> <RoleRoute allowedRole="parent"><ParentDashboard /></RoleRoute> </ProtectedRoute>} />
+        
+        {/* Parent Routes */}
+        <Route path="/parent" element={<ProtectedRoute> <RoleRoute allowedRole="parent"><ParentLayout /></RoleRoute> </ProtectedRoute>}>
+          <Route index element={<ParentDashboard />} />
+          <Route path="reserve" element={<ParentReserveQueue />} />
+          <Route path="reservations" element={<ParentMyReservations />} />
+          <Route path="profile" element={<ParentProfile />} />
+        </Route>
+
         <Route path="/secretary" element={<ProtectedRoute> <RoleRoute allowedRole="secretary"><SecretaryDashboard /></RoleRoute> </ProtectedRoute>} />
         
         {/* Doctor Routes */}
