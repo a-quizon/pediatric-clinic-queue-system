@@ -1,5 +1,5 @@
 import { database } from "../firebase/database";
-import { ref, push, set, get, onValue } from "firebase/database";
+import { ref, push, set, get, onValue, remove } from "firebase/database";
 
 export const createReservation = async (reservationData) => {
   const reservationRef = push(ref(database, "reservations"));
@@ -50,4 +50,8 @@ export const subscribeToAllReservations = (callback) => {
     const reservations = Object.entries(data).map(([id, value]) => ({ id, ...value }));
     callback(reservations);
   });
+};
+
+export const cancelReservation = async (reservationId) => {
+  await remove(ref(database, `reservations/${reservationId}`));
 };

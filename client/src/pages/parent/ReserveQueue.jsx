@@ -5,9 +5,12 @@ import {
   subscribeToAllReservations, 
   createReservation, 
   checkExistingGlobalReservation, 
-  generateQueueNumber 
+  generateQueueNumber,
+  cancelReservation
 } from "../../services/reservationService";
 import { useAuth } from "../../hooks/useAuth";
+import ConfirmationModal from "../../components/common/ConfirmationModal";
+import MessageModal from "../../components/common/MessageModal";
 
 export default function ReserveQueue() {
   const { user } = useAuth();
@@ -15,6 +18,7 @@ export default function ReserveQueue() {
   const [schedules, setSchedules] = useState([]);
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [parentReservation, setParentReservation] = useState(null);
 
   // Modal States
   const [selectedSchedule, setSelectedSchedule] = useState(null);
@@ -22,7 +26,16 @@ export default function ReserveQueue() {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [generatedQueueNumber, setGeneratedQueueNumber] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+
+  // New Modals
+  const [messageModalState, setMessageModalState] = useState({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  });
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const formatTime = (time) => {
     if (!time) return '';
@@ -42,34 +55,49 @@ export default function ReserveQueue() {
 
     const unsubReservations = subscribeToAllReservations((data) => {
       setReservations(data);
+      // Status Detection
+      if (user) {
+        const activeRes = data.find(res => 
+          res.parentId === user.uid && 
+          res.status !== "cancelled" && 
+          res.status !== "completed"
+        );
+        setParentReservation(activeRes || null);
+      }
     });
 
     return () => {
       unsubSchedules();
       unsubReservations();
     };
-  }, []);
+  }, [user]);
 
   const getReservationCount = (scheduleId) => {
     return reservations.filter(r => r.scheduleId === scheduleId && r.status !== "cancelled").length;
   };
 
   const handleReserveClick = async (schedule) => {
-    setErrorMsg("");
-    
     // Check Capacity
     const currentCount = getReservationCount(schedule.id);
     if (currentCount >= schedule.slotCapacity) {
-      setErrorMsg("Schedule is already full.");
-      setTimeout(() => setErrorMsg(""), 3000);
+      setMessageModalState({
+        isOpen: true,
+        type: 'error',
+        title: 'Schedule Full',
+        message: 'This schedule is already full.'
+      });
       return;
     }
 
     // Check Duplicate
     const hasExisting = await checkExistingGlobalReservation(user.uid);
     if (hasExisting) {
-      setErrorMsg("You already have an active reservation. Please cancel your current reservation before reserving another slot.");
-      setTimeout(() => setErrorMsg(""), 5000);
+      setMessageModalState({
+        isOpen: true,
+        type: 'warning',
+        title: 'Active Reservation Exists',
+        message: 'You already have an active reservation. Please cancel your current reservation before reserving another slot.'
+      });
       return;
     }
 
@@ -86,8 +114,12 @@ export default function ReserveQueue() {
       const hasExisting = await checkExistingGlobalReservation(user.uid);
       if (hasExisting) {
         setIsConfirmModalOpen(false);
-        setErrorMsg("You already have an active reservation. Please cancel your current reservation before reserving another slot.");
-        setTimeout(() => setErrorMsg(""), 5000);
+        setMessageModalState({
+          isOpen: true,
+          type: 'warning',
+          title: 'Active Reservation Exists',
+          message: 'You already have an active reservation. Please cancel your current reservation before reserving another slot.'
+        });
         return;
       }
 
@@ -106,8 +138,40 @@ export default function ReserveQueue() {
       setIsSuccessModalOpen(true);
     } catch (error) {
       console.error("Failed to create reservation", error);
+      setMessageModalState({
+        isOpen: true,
+        type: 'error',
+        title: 'Reservation Failed',
+        message: 'There was an error processing your reservation. Please try again.'
+      });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCancelReservation = async () => {
+    if (!parentReservation) return;
+    setIsCancelling(true);
+    try {
+      await cancelReservation(parentReservation.id);
+      setIsCancelConfirmOpen(false);
+      setMessageModalState({
+        isOpen: true,
+        type: 'success',
+        title: 'Reservation Cancelled',
+        message: 'Your reservation has been cancelled successfully.'
+      });
+    } catch (error) {
+      console.error(error);
+      setIsCancelConfirmOpen(false);
+      setMessageModalState({
+        isOpen: true,
+        type: 'error',
+        title: 'Cancellation Failed',
+        message: 'There was an error cancelling your reservation. Please try again.'
+      });
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -127,12 +191,46 @@ export default function ReserveQueue() {
         </p>
       </div>
 
-      {errorMsg && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center shadow-sm">
-          <AlertCircle className="w-5 h-5 mr-3 text-red-600" />
-          <span className="font-medium text-sm">{errorMsg}</span>
-        </div>
-      )}
+      {/* Your Reservation Card */}
+      {parentReservation && (() => {
+        const schedule = schedules.find(s => s.id === parentReservation.scheduleId);
+        if (!schedule) return null;
+        
+        return (
+          <div className="bg-white rounded-2xl border border-blue-100 shadow-md p-5 mb-6 animate-in fade-in slide-in-from-top-4">
+            <h2 className="text-sm font-bold text-blue-600 uppercase tracking-wider mb-4 flex items-center">
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Your Reservation
+            </h2>
+            
+            <div className="bg-gray-50 rounded-xl p-4 mb-5 border border-gray-100">
+              <div className="grid grid-cols-2 gap-y-3 text-sm">
+                <div className="text-gray-500">Branch</div>
+                <div className="font-bold text-gray-800 text-right">{schedule.branch}</div>
+                
+                <div className="text-gray-500">Date</div>
+                <div className="font-bold text-gray-800 text-right">{new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>
+                
+                <div className="text-gray-500">Opening Time</div>
+                <div className="font-bold text-gray-800 text-right">{formatTime(schedule.openingTime)}</div>
+                
+                <div className="text-gray-500">Queue #</div>
+                <div className="font-bold text-blue-600 text-right text-lg">{parentReservation.queueNumber}</div>
+                
+                <div className="text-gray-500 pt-3 border-t border-gray-200">Status</div>
+                <div className="font-bold text-gray-800 text-right pt-3 border-t border-gray-200 capitalize">{parentReservation.status}</div>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => setIsCancelConfirmOpen(true)}
+              className="w-full py-2.5 font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
+            >
+              Cancel Reservation
+            </button>
+          </div>
+        );
+      })()}
 
       {loading ? (
         <div className="flex justify-center items-center py-20">
@@ -144,6 +242,8 @@ export default function ReserveQueue() {
             const currentReservations = getReservationCount(schedule.id);
             const availableSlots = schedule.slotCapacity - currentReservations;
             const isFull = availableSlots <= 0;
+            const hasReserved = !!parentReservation;
+            const buttonDisabled = isFull || hasReserved;
 
             return (
               <div key={schedule.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-100 transition-all p-5 flex flex-col">
@@ -185,16 +285,22 @@ export default function ReserveQueue() {
 
                 <button 
                   onClick={() => handleReserveClick(schedule)}
-                  disabled={isFull}
+                  disabled={buttonDisabled}
                   className={`w-full py-2.5 font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center ${
-                    isFull 
-                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed text-xs px-3 leading-snug' 
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                    hasReserved 
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : isFull 
+                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed text-xs px-3 leading-snug' 
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
-                  <CalendarPlus className={`w-4 h-4 mr-2 flex-shrink-0 ${isFull ? 'hidden' : ''}`} />
+                  {!hasReserved && <CalendarPlus className={`w-4 h-4 mr-2 flex-shrink-0 ${isFull ? 'hidden' : ''}`} />}
                   <span>
-                    {isFull ? 'Slots are currently full. Please wait until additional slots become available or a new clinic schedule is opened.' : 'Reserve Slot'}
+                    {hasReserved 
+                      ? 'You have reserved a slot'
+                      : isFull 
+                        ? 'Slots are currently full. Please wait until additional slots become available or a new clinic schedule is opened.' 
+                        : 'Reserve Slot'}
                   </span>
                 </button>
               </div>
@@ -271,14 +377,14 @@ export default function ReserveQueue() {
 
       {/* Success Modal */}
       {isSuccessModalOpen && selectedSchedule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden flex flex-col text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden flex flex-col text-center animate-in zoom-in-95 duration-200">
             <div className="p-8">
               <div className="mx-auto w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mb-5">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
               <h2 className="text-xl font-bold text-gray-800 mb-2">Reservation Successful</h2>
-              <p className="text-gray-500 text-sm mb-6">Your reservation has been created.</p>
+              <p className="text-gray-500 text-sm mb-6">You have successfully reserved a slot.</p>
               
               <div className="bg-gray-50 rounded-xl p-5 border border-gray-100 mb-6">
                 <div className="text-sm text-gray-500 mb-1">Queue Number</div>
@@ -298,14 +404,35 @@ export default function ReserveQueue() {
 
               <button 
                 onClick={closeSuccessModal}
-                className="w-full py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors"
+                className="w-full py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
               >
-                Close
+                Okay
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Cancel Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={isCancelConfirmOpen}
+        title="Cancel Reservation?"
+        message={`Your reserved slot will be released and other parents may take it.\n\nDo you want to continue?`}
+        confirmText="Cancel Reservation"
+        cancelText="Keep Reservation"
+        onConfirm={handleCancelReservation}
+        onCancel={() => setIsCancelConfirmOpen(false)}
+        loading={isCancelling}
+      />
+
+      {/* Global Message Modal */}
+      <MessageModal
+        isOpen={messageModalState.isOpen}
+        type={messageModalState.type}
+        title={messageModalState.title}
+        message={messageModalState.message}
+        onClose={() => setMessageModalState(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }
