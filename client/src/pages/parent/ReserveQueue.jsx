@@ -5,11 +5,9 @@ import {
   subscribeToAllReservations, 
   createReservation, 
   checkExistingGlobalReservation, 
-  generateQueueNumber,
-  cancelReservation
+  generateQueueNumber
 } from "../../services/reservationService";
 import { useAuth } from "../../hooks/useAuth";
-import ConfirmationModal from "../../components/common/ConfirmationModal";
 import MessageModal from "../../components/common/MessageModal";
 
 export default function ReserveQueue() {
@@ -27,15 +25,12 @@ export default function ReserveQueue() {
   const [generatedQueueNumber, setGeneratedQueueNumber] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // New Modals
   const [messageModalState, setMessageModalState] = useState({
     isOpen: false,
     type: 'info',
     title: '',
     message: ''
   });
-  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
 
   const formatTime = (time) => {
     if (!time) return '';
@@ -149,32 +144,6 @@ export default function ReserveQueue() {
     }
   };
 
-  const handleCancelReservation = async () => {
-    if (!parentReservation) return;
-    setIsCancelling(true);
-    try {
-      await cancelReservation(parentReservation.id);
-      setIsCancelConfirmOpen(false);
-      setMessageModalState({
-        isOpen: true,
-        type: 'success',
-        title: 'Reservation Cancelled',
-        message: 'Your reservation has been cancelled successfully.'
-      });
-    } catch (error) {
-      console.error(error);
-      setIsCancelConfirmOpen(false);
-      setMessageModalState({
-        isOpen: true,
-        type: 'error',
-        title: 'Cancellation Failed',
-        message: 'There was an error cancelling your reservation. Please try again.'
-      });
-    } finally {
-      setIsCancelling(false);
-    }
-  };
-
   const closeSuccessModal = () => {
     setIsSuccessModalOpen(false);
     setSelectedSchedule(null);
@@ -191,46 +160,6 @@ export default function ReserveQueue() {
         </p>
       </div>
 
-      {/* Your Reservation Card */}
-      {parentReservation && (() => {
-        const schedule = schedules.find(s => s.id === parentReservation.scheduleId);
-        if (!schedule) return null;
-        
-        return (
-          <div className="bg-white rounded-2xl border border-blue-100 shadow-md p-5 mb-6 animate-in fade-in slide-in-from-top-4">
-            <h2 className="text-sm font-bold text-blue-600 uppercase tracking-wider mb-4 flex items-center">
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              Your Reservation
-            </h2>
-            
-            <div className="bg-gray-50 rounded-xl p-4 mb-5 border border-gray-100">
-              <div className="grid grid-cols-2 gap-y-3 text-sm">
-                <div className="text-gray-500">Branch</div>
-                <div className="font-bold text-gray-800 text-right">{schedule.branch}</div>
-                
-                <div className="text-gray-500">Date</div>
-                <div className="font-bold text-gray-800 text-right">{new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>
-                
-                <div className="text-gray-500">Opening Time</div>
-                <div className="font-bold text-gray-800 text-right">{formatTime(schedule.openingTime)}</div>
-                
-                <div className="text-gray-500">Queue #</div>
-                <div className="font-bold text-blue-600 text-right text-lg">{parentReservation.queueNumber}</div>
-                
-                <div className="text-gray-500 pt-3 border-t border-gray-200">Status</div>
-                <div className="font-bold text-gray-800 text-right pt-3 border-t border-gray-200 capitalize">{parentReservation.status}</div>
-              </div>
-            </div>
-            
-            <button
-              onClick={() => setIsCancelConfirmOpen(true)}
-              className="w-full py-2.5 font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors"
-            >
-              Cancel Reservation
-            </button>
-          </div>
-        );
-      })()}
 
       {loading ? (
         <div className="flex justify-center items-center py-20">
@@ -299,7 +228,7 @@ export default function ReserveQueue() {
                     {hasReserved 
                       ? 'You have reserved a slot'
                       : isFull 
-                        ? 'Slots are currently full. Please wait until additional slots become available or a new clinic schedule is opened.' 
+                        ? 'Slots are currently full. Please wait until a slot becomes available.' 
                         : 'Reserve Slot'}
                   </span>
                 </button>
@@ -413,17 +342,6 @@ export default function ReserveQueue() {
         </div>
       )}
 
-      {/* Cancel Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={isCancelConfirmOpen}
-        title="Cancel Reservation?"
-        message={`Your reserved slot will be released and other parents may take it.\n\nDo you want to continue?`}
-        confirmText="Cancel Reservation"
-        cancelText="Keep Reservation"
-        onConfirm={handleCancelReservation}
-        onCancel={() => setIsCancelConfirmOpen(false)}
-        loading={isCancelling}
-      />
 
       {/* Global Message Modal */}
       <MessageModal

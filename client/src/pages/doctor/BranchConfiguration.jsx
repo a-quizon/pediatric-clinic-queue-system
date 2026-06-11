@@ -7,6 +7,8 @@ import {
   deleteBranch,
   checkBranchInUse
 } from '../../services/branchConfigurationService';
+import ConfirmationModal from "../../components/common/ConfirmationModal";
+import MessageModal from "../../components/common/MessageModal";
 import { 
   MapPin, Plus, Edit2, Trash2, Clock, AlertCircle, X, CheckCircle2 
 } from 'lucide-react';
@@ -36,6 +38,10 @@ export default function BranchConfiguration() {
   
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, branchId: null, title: "", message: "" });
+  const [messageModal, setMessageModal] = useState({ isOpen: false, type: "info", title: "", message: "" });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const loadBranches = async () => {
@@ -134,6 +140,12 @@ export default function BranchConfiguration() {
       const updatedData = await getBranchConfigurations();
       setBranches(updatedData);
       setIsModalOpen(false);
+      setMessageModal({
+        isOpen: true,
+        type: "success",
+        title: "Success",
+        message: modalMode === 'add' ? "Branch has been successfully created." : "Branch has been successfully updated."
+      });
     } catch (err) {
       console.error(err);
       setErrorMsg('An error occurred while saving the branch.');
@@ -142,23 +154,62 @@ export default function BranchConfiguration() {
     }
   };
 
-  const handleDelete = async (branch) => {
+  const handleDeleteClick = async (branch) => {
     try {
       const { hasPublishedSchedules, hasActiveReservations } = await checkBranchInUse(branch.name);
       
       if (hasPublishedSchedules || hasActiveReservations) {
-        alert("This branch cannot be removed because it has active schedules or reservations.");
+        setMessageModal({
+          isOpen: true,
+          type: "error",
+          title: "Cannot Delete Branch",
+          message: "This branch cannot be removed because it has active schedules or reservations."
+        });
         return;
       }
       
-      if (window.confirm(`Are you sure you want to delete the ${branch.name} branch?`)) {
-        await deleteBranch(branch.id);
-        const updatedData = await getBranchConfigurations();
-        setBranches(updatedData);
-      }
+      setConfirmModal({
+        isOpen: true,
+        branchId: branch.id,
+        title: "Delete Branch?",
+        message: `Are you sure you want to delete the ${branch.name} branch?`
+      });
     } catch (err) {
       console.error(err);
-      alert('Failed to delete branch.');
+      setMessageModal({
+        isOpen: true,
+        type: "error",
+        title: "Error",
+        message: "Failed to check branch status."
+      });
+    }
+  };
+
+  const executeDelete = async () => {
+    if (!confirmModal.branchId) return;
+    setIsProcessing(true);
+    try {
+      await deleteBranch(confirmModal.branchId);
+      const updatedData = await getBranchConfigurations();
+      setBranches(updatedData);
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      setMessageModal({
+        isOpen: true,
+        type: "success",
+        title: "Branch Deleted",
+        message: "The branch has been successfully removed."
+      });
+    } catch (err) {
+      console.error(err);
+      setMessageModal({
+        isOpen: true,
+        type: "error",
+        title: "Action Failed",
+        message: "Failed to delete branch."
+      });
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -252,7 +303,7 @@ export default function BranchConfiguration() {
                 Edit
               </button>
               <button 
-                onClick={() => handleDelete(branch)}
+                onClick={() => handleDeleteClick(branch)}
                 className="flex-1 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center"
               >
                 <Trash2 className="w-4 h-4 mr-1.5" />
@@ -371,6 +422,25 @@ export default function BranchConfiguration() {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={executeDelete}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        loading={isProcessing}
+      />
+
+      <MessageModal
+        isOpen={messageModal.isOpen}
+        type={messageModal.type}
+        title={messageModal.title}
+        message={messageModal.message}
+        onClose={() => setMessageModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

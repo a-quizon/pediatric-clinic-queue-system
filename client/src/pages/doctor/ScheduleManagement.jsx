@@ -3,6 +3,8 @@ import { getSchedules, deleteSchedule, publishSchedule, completeSchedule } from 
 import { subscribeToAllReservations } from "../../services/reservationService";
 import ScheduleCard from "../../components/schedule/ScheduleCard";
 import ScheduleFormModal from "../../components/schedule/ScheduleFormModal";
+import ConfirmationModal from "../../components/common/ConfirmationModal";
+import MessageModal from "../../components/common/MessageModal";
 import { Plus } from "lucide-react";
 
 export default function ScheduleManagement() {
@@ -10,9 +12,11 @@ export default function ScheduleManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create");
   const [selectedSchedule, setSelectedSchedule] = useState(null);
-  const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("active"); // 'active' or 'completed'
   const [reservations, setReservations] = useState([]);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, scheduleId: null, title: "", message: "", confirmText: "Confirm" });
+  const [messageModal, setMessageModal] = useState({ isOpen: false, type: "info", title: "", message: "" });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeToAllReservations((data) => {
@@ -64,41 +68,77 @@ export default function ScheduleManagement() {
   };
 
   const handleSuccess = async (successMessage) => {
-    setMessage(successMessage);
     await loadSchedules();
-    setTimeout(() => setMessage(""), 5000);
+    setMessageModal({
+      isOpen: true,
+      type: "success",
+      title: "Success",
+      message: successMessage
+    });
   };
 
-  const handleDelete = async (scheduleId) => {
-    const confirmed = window.confirm("Delete this schedule?");
-    if (!confirmed) return;
-    try {
-      await deleteSchedule(scheduleId);
-      await loadSchedules();
-    } catch (error) {
-      console.error(error);
-    }
+  const handleDelete = (scheduleId) => {
+    setConfirmModal({
+      isOpen: true,
+      action: "delete",
+      scheduleId,
+      title: "Delete Schedule?",
+      message: "Are you sure you want to delete this schedule?",
+      confirmText: "Delete"
+    });
   };
 
-  const handlePublish = async (scheduleId) => {
-    const confirmed = window.confirm("Publish this schedule?");
-    if (!confirmed) return;
-    try {
-      await publishSchedule(scheduleId);
-      await loadSchedules();
-    } catch (error) {
-      console.error(error);
-    }
+  const handlePublish = (scheduleId) => {
+    setConfirmModal({
+      isOpen: true,
+      action: "publish",
+      scheduleId,
+      title: "Publish Schedule?",
+      message: "This schedule will become visible to parents and reservations can begin.",
+      confirmText: "Publish"
+    });
   };
 
-  const handleComplete = async (scheduleId) => {
-    const confirmed = window.confirm("Complete this schedule? No new reservations will be allowed.");
-    if (!confirmed) return;
+  const handleComplete = (scheduleId) => {
+    setConfirmModal({
+      isOpen: true,
+      action: "complete",
+      scheduleId,
+      title: "Complete Schedule?",
+      message: "No new reservations will be allowed and this clinic session will be closed.",
+      confirmText: "Complete"
+    });
+  };
+
+  const executeConfirmAction = async () => {
+    if (!confirmModal.scheduleId || !confirmModal.action) return;
+    setIsProcessing(true);
     try {
-      await completeSchedule(scheduleId);
-      await loadSchedules();
+      if (confirmModal.action === "delete") {
+        await deleteSchedule(confirmModal.scheduleId);
+        await loadSchedules();
+      } else if (confirmModal.action === "publish") {
+        await publishSchedule(confirmModal.scheduleId);
+        await loadSchedules();
+        setMessageModal({
+          isOpen: true, type: "success", title: "Schedule Published", message: "The schedule is now visible to parents."
+        });
+      } else if (confirmModal.action === "complete") {
+        await completeSchedule(confirmModal.scheduleId);
+        await loadSchedules();
+        setMessageModal({
+          isOpen: true, type: "success", title: "Schedule Completed", message: "The schedule has been successfully closed."
+        });
+      }
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
     } catch (error) {
       console.error(error);
+      setMessageModal({
+        isOpen: true, type: "error", title: "Action Failed", message: "An error occurred while processing your request."
+      });
+      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -149,11 +189,7 @@ export default function ScheduleManagement() {
         )}
       </div>
 
-      {message && (
-        <div className="mb-6 p-4 bg-green-50 text-green-700 border border-green-100 rounded-xl text-sm font-medium">
-          {message}
-        </div>
-      )}
+      {/* Removed simple message block */}
 
       {/* Tabs Content */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -204,6 +240,25 @@ export default function ScheduleManagement() {
         mode={modalMode}
         schedule={selectedSchedule}
         onSuccess={handleSuccess}
+      />
+
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText="Cancel"
+        onConfirm={executeConfirmAction}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        loading={isProcessing}
+      />
+
+      <MessageModal
+        isOpen={messageModal.isOpen}
+        type={messageModal.type}
+        title={messageModal.title}
+        message={messageModal.message}
+        onClose={() => setMessageModal(prev => ({ ...prev, isOpen: false }))}
       />
     </div>
   );
