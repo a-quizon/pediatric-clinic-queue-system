@@ -22,7 +22,15 @@ export const getReservationsBySchedule = async (scheduleId) => {
 
 export const checkExistingReservation = async (scheduleId, parentId) => {
   const reservations = await getReservationsBySchedule(scheduleId);
-  return reservations.some((res) => res.parentId === parentId && res.status !== "cancelled");
+  return reservations.some((res) => res.parentId === parentId && res.status !== "cancelled" && res.status !== "completed");
+};
+
+export const checkExistingGlobalReservation = async (parentId) => {
+  const snapshot = await get(ref(database, "reservations"));
+  if (!snapshot.exists()) return false;
+
+  const data = snapshot.val();
+  return Object.values(data).some((res) => res.parentId === parentId && res.status !== "cancelled" && res.status !== "completed");
 };
 
 export const generateQueueNumber = async (scheduleId) => {

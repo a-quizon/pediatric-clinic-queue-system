@@ -22,6 +22,7 @@ import DoctorQueue from "../pages/doctor/Queue";
 import DoctorConsultations from "../pages/doctor/Consultations";
 import DoctorReports from "../pages/doctor/Reports";
 import DoctorProfile from "../pages/doctor/Profile";
+import DoctorBranchConfig from "../pages/doctor/BranchConfiguration";
 
 import RoleRoute from "./RoleRoute";
 
@@ -49,6 +50,7 @@ export default function AppRoutes() {
           <Route path="queue" element={<DoctorQueue />} />
           <Route path="consultations" element={<DoctorConsultations />} />
           <Route path="reports" element={<DoctorReports />} />
+          <Route path="branch-config" element={<DoctorBranchConfig />} />
           <Route path="profile" element={<DoctorProfile />} />
         </Route>
       </Routes>

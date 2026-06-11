@@ -59,23 +59,43 @@ export default function Profile() {
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 px-1">
           Tools & Insights
         </h3>
-        <Link 
-          to="/doctor/reports" 
-          className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:border-blue-100 hover:shadow-md transition-all flex items-center group"
-        >
-          <div className="bg-blue-50 p-3 rounded-xl mr-4 group-hover:bg-blue-100 transition-colors">
-            <BarChart3 className="w-6 h-6 text-blue-600" />
-          </div>
-          <div className="flex-1">
-            <h4 className="text-[15px] font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
-              Reports & Analytics
-            </h4>
-            <p className="text-sm text-gray-500">
-              View clinic statistics, consultation summaries, and queue performance metrics.
-            </p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-600 transition-colors" />
-        </Link>
+        <div className="space-y-3">
+          <Link 
+            to="/doctor/branch-config" 
+            className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:border-blue-100 hover:shadow-md transition-all flex items-center group"
+          >
+            <div className="bg-blue-50 p-3 rounded-xl mr-4 group-hover:bg-blue-100 transition-colors">
+              <Settings className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-[15px] font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
+                Branch Configuration
+              </h4>
+              <p className="text-sm text-gray-500">
+                Manage clinic branches, opening times, and schedule patterns.
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-600 transition-colors" />
+          </Link>
+
+          <Link 
+            to="/doctor/reports" 
+            className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:border-blue-100 hover:shadow-md transition-all flex items-center group"
+          >
+            <div className="bg-blue-50 p-3 rounded-xl mr-4 group-hover:bg-blue-100 transition-colors">
+              <BarChart3 className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-[15px] font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
+                Reports & Analytics
+              </h4>
+              <p className="text-sm text-gray-500">
+                View clinic statistics, consultation summaries, and queue performance metrics.
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-600 transition-colors" />
+          </Link>
+        </div>
       </div>
 
       {/* Actions */}

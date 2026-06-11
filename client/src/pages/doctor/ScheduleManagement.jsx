@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getSchedules, deleteSchedule, publishSchedule, completeSchedule } from "../../services/scheduleService";
+import { subscribeToAllReservations } from "../../services/reservationService";
 import ScheduleCard from "../../components/schedule/ScheduleCard";
 import ScheduleFormModal from "../../components/schedule/ScheduleFormModal";
 import { Plus } from "lucide-react";
@@ -11,6 +12,19 @@ export default function ScheduleManagement() {
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("active"); // 'active' or 'completed'
+  const [reservations, setReservations] = useState([]);
+
+  useEffect(() => {
+    const unsub = subscribeToAllReservations((data) => {
+      setReservations(data);
+    });
+    return () => unsub();
+  }, []);
+
+  const getAvailableSlots = (schedule) => {
+    const count = reservations.filter(r => r.scheduleId === schedule.id && r.status !== 'cancelled').length;
+    return schedule.slotCapacity - count;
+  };
 
   const loadSchedules = async () => {
     try {
@@ -153,6 +167,7 @@ export default function ScheduleManagement() {
               <ScheduleCard
                 key={schedule.id}
                 schedule={schedule}
+                availableSlots={getAvailableSlots(schedule)}
                 onEdit={handleOpenEditModal}
                 onDelete={handleDelete}
                 onPublish={handlePublish}
@@ -172,6 +187,7 @@ export default function ScheduleManagement() {
               <ScheduleCard
                 key={schedule.id}
                 schedule={schedule}
+                availableSlots={0}
                 onEdit={handleOpenEditModal}
                 onDelete={handleDelete}
                 onPublish={handlePublish}

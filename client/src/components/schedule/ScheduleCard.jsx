@@ -1,10 +1,19 @@
 import React from 'react';
 import { Calendar, Clock, MapPin, Users, CheckCircle2, AlertCircle, PlayCircle } from 'lucide-react';
 
-export default function ScheduleCard({ schedule, onEdit, onDelete, onPublish, onComplete }) {
+export default function ScheduleCard({ schedule, availableSlots, onEdit, onDelete, onPublish, onComplete }) {
   const isCompleted = schedule.status === 'completed';
   const isDraft = schedule.status === 'draft';
   const isPublished = schedule.status === 'published';
+
+  const formatTime = (time) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const h = parseInt(hours, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const formattedH = h % 12 || 12;
+    return `${formattedH}:${minutes} ${ampm}`;
+  };
 
   return (
     <div className={`bg-white rounded-2xl border p-5 transition-all ${
@@ -42,11 +51,11 @@ export default function ScheduleCard({ schedule, onEdit, onDelete, onPublish, on
         </div>
         <div className="flex items-center text-sm">
           <Clock className="w-4 h-4 mr-2 text-gray-400" />
-          <span className="text-gray-600">Opens: {schedule.openingTime}</span>
+          <span className="text-gray-600">Hours: {formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}</span>
         </div>
         <div className="flex items-center text-sm">
-          <Clock className="w-4 h-4 mr-2 text-gray-400" />
-          <span className="text-gray-600">Queue: {schedule.queueStartTime}</span>
+          <Users className="w-4 h-4 mr-2 text-gray-400" />
+          <span className="text-gray-600">Available: <span className="font-bold">{availableSlots !== undefined ? availableSlots : schedule.slotCapacity}</span></span>
         </div>
       </div>
 

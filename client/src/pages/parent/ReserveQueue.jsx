@@ -4,7 +4,7 @@ import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { 
   subscribeToAllReservations, 
   createReservation, 
-  checkExistingReservation, 
+  checkExistingGlobalReservation, 
   generateQueueNumber 
 } from "../../services/reservationService";
 import { useAuth } from "../../hooks/useAuth";
@@ -23,6 +23,15 @@ export default function ReserveQueue() {
   const [generatedQueueNumber, setGeneratedQueueNumber] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  const formatTime = (time) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const h = parseInt(hours, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const formattedH = h % 12 || 12;
+    return `${formattedH}:${minutes} ${ampm}`;
+  };
 
   useEffect(() => {
     const unsubSchedules = subscribeToPublishedSchedules((data) => {
@@ -57,10 +66,10 @@ export default function ReserveQueue() {
     }
 
     // Check Duplicate
-    const hasExisting = await checkExistingReservation(schedule.id, user.uid);
+    const hasExisting = await checkExistingGlobalReservation(user.uid);
     if (hasExisting) {
-      setErrorMsg("You already have a reservation for this schedule.");
-      setTimeout(() => setErrorMsg(""), 3000);
+      setErrorMsg("You already have an active reservation. Please cancel your current reservation before reserving another slot.");
+      setTimeout(() => setErrorMsg(""), 5000);
       return;
     }
 
@@ -74,11 +83,11 @@ export default function ReserveQueue() {
     setIsSubmitting(true);
     try {
       // Double check duplicate just in case
-      const hasExisting = await checkExistingReservation(selectedSchedule.id, user.uid);
+      const hasExisting = await checkExistingGlobalReservation(user.uid);
       if (hasExisting) {
         setIsConfirmModalOpen(false);
-        setErrorMsg("You already have a reservation for this schedule.");
-        setTimeout(() => setErrorMsg(""), 3000);
+        setErrorMsg("You already have an active reservation. Please cancel your current reservation before reserving another slot.");
+        setTimeout(() => setErrorMsg(""), 5000);
         return;
       }
 
@@ -161,14 +170,7 @@ export default function ReserveQueue() {
                     <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center mr-3">
                       <Clock className="w-4 h-4 text-gray-500" />
                     </div>
-                    <span className="text-gray-600 font-medium">Opening Time: <span className="text-gray-800">{schedule.openingTime}</span></span>
-                  </div>
-
-                  <div className="flex items-center text-sm">
-                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center mr-3">
-                      <Clock className="w-4 h-4 text-blue-500" />
-                    </div>
-                    <span className="text-gray-600 font-medium">Queue Start Time: <span className="text-blue-700 font-bold">{schedule.queueStartTime}</span></span>
+                    <span className="text-gray-600 font-medium">Clinic Hours: <span className="text-gray-800">{formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}</span></span>
                   </div>
 
                   <div className="flex items-center text-sm">
@@ -186,12 +188,14 @@ export default function ReserveQueue() {
                   disabled={isFull}
                   className={`w-full py-2.5 font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center ${
                     isFull 
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed text-xs px-3 leading-snug' 
                       : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
-                  <CalendarPlus className="w-4 h-4 mr-2" />
-                  {isFull ? 'Schedule Full' : 'Reserve Slot'}
+                  <CalendarPlus className={`w-4 h-4 mr-2 flex-shrink-0 ${isFull ? 'hidden' : ''}`} />
+                  <span>
+                    {isFull ? 'Slots are currently full. Please wait until additional slots become available or a new clinic schedule is opened.' : 'Reserve Slot'}
+                  </span>
                 </button>
               </div>
             );

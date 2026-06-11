@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createSchedule, updateSchedule, scheduleExists } from '../../services/scheduleService';
+import { getBranchConfigurations, getClinicHours } from '../../services/branchConfigurationService';
 import { useAuth } from '../../hooks/useAuth';
-import { X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle, Clock } from 'lucide-react';
 
 export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSuccess }) {
   const { user } = useAuth();
@@ -10,7 +11,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
     branch: "",
     clinicDate: "",
     openingTime: "",
-    queueStartTime: "",
+    closingTime: "",
     slotCapacity: "",
     validationWindow: "",
     lateLimit: "",
@@ -19,6 +20,11 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
   const [formData, setFormData] = useState(initialFormState);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [branches, setBranches] = useState([]);
+
+  useEffect(() => {
+    getBranchConfigurations().then(setBranches);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -27,7 +33,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
           branch: schedule.branch || "",
           clinicDate: schedule.clinicDate || "",
           openingTime: schedule.openingTime || "",
-          queueStartTime: schedule.queueStartTime || "",
+          closingTime: schedule.closingTime || "",
           slotCapacity: schedule.slotCapacity || "",
           validationWindow: schedule.validationWindow || "",
           lateLimit: schedule.lateLimit || "",
@@ -39,6 +45,22 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
     }
   }, [isOpen, mode, schedule]);
 
+  useEffect(() => {
+    const fetchHours = async () => {
+      if (formData.branch && formData.clinicDate && mode === "create") {
+        const hours = await getClinicHours(formData.branch, formData.clinicDate);
+        if (hours) {
+          setFormData(prev => ({ ...prev, openingTime: hours.openingTime, closingTime: hours.closingTime }));
+          setError("");
+        } else {
+          setFormData(prev => ({ ...prev, openingTime: "", closingTime: "" }));
+          setError("This branch is closed on the selected date.");
+        }
+      }
+    };
+    fetchHours();
+  }, [formData.branch, formData.clinicDate, mode]);
+  
   if (!isOpen) return null;
 
   const handleChange = (e) => {
@@ -46,13 +68,22 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const formatTime = (time) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const h = parseInt(hours, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const formattedH = h % 12 || 12;
+    return `${formattedH}:${minutes} ${ampm}`;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    if (formData.queueStartTime <= formData.openingTime) {
-      setError("Queue start time must be after opening time.");
+    if (!formData.openingTime || !formData.closingTime) {
+      setError("No schedule pattern found for this branch and date. Please check Branch Configuration.");
       setLoading(false);
       return;
     }
@@ -81,7 +112,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
         branch: formData.branch,
         clinicDate: formData.clinicDate,
         openingTime: formData.openingTime,
-        queueStartTime: formData.queueStartTime,
+        closingTime: formData.closingTime,
         slotCapacity: Number(formData.slotCapacity),
         validationWindow: Number(formData.validationWindow),
         lateLimit: Number(formData.lateLimit),
@@ -150,8 +181,9 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 disabled:bg-gray-100 text-gray-800"
               >
                 <option value="">Select Branch</option>
-                <option value="Angeles">Angeles</option>
-                <option value="Magalang">Magalang</option>
+                {branches.map(b => (
+                  <option key={b.id} value={b.name}>{b.name}</option>
+                ))}
               </select>
             </div>
 
@@ -170,32 +202,13 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="openingTime" className="block text-sm font-semibold text-gray-700 mb-1.5">Opening Time</label>
-                <input
-                  type="time"
-                  id="openingTime"
-                  name="openingTime"
-                  value={formData.openingTime}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 text-gray-800"
-                />
-              </div>
-              <div>
-                <label htmlFor="queueStartTime" className="block text-sm font-semibold text-gray-700 mb-1.5">Queue Start Time</label>
-                <input
-                  type="time"
-                  id="queueStartTime"
-                  name="queueStartTime"
-                  value={formData.queueStartTime}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 text-gray-800"
-                />
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Clinic Hours</label>
+              <div className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-gray-600 flex items-center font-medium">
+                <Clock className="w-4 h-4 mr-2" />
+                {formData.openingTime && formData.closingTime 
+                  ? `${formatTime(formData.openingTime)} - ${formatTime(formData.closingTime)}` 
+                  : "Select branch and date to view hours"}
               </div>
             </div>
 
@@ -260,9 +273,11 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
           <button
             type="submit"
             form="schedule-form"
-            disabled={loading}
-            className={`px-6 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-sm transition-all ${
-              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700 hover:shadow"
+            disabled={loading || (mode === "create" && (!formData.openingTime || !formData.closingTime))}
+            className={`px-6 py-2.5 font-bold rounded-xl shadow-sm transition-all ${
+              loading || (mode === "create" && (!formData.openingTime || !formData.closingTime))
+                ? "bg-blue-400 text-white opacity-70 cursor-not-allowed" 
+                : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow"
             }`}
           >
             {loading ? (mode === "create" ? "Creating..." : "Updating...") : (mode === "create" ? "Create Schedule" : "Update Schedule")}
