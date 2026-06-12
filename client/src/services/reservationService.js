@@ -1,11 +1,22 @@
 import { database } from "../firebase/database";
 import { ref, push, set, get, onValue, update } from "firebase/database";
 
+const generateReservationCode = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
 export const createReservation = async (reservationData) => {
   const reservationRef = push(ref(database, "reservations"));
   const now = Date.now();
   await set(reservationRef, {
     ...reservationData,
+    reservationCode: generateReservationCode(),
+    checkedIn: false,
     createdAt: now,
     reservationCreatedAt: now,
   });

@@ -11,6 +11,7 @@ import ParentDashboard from "../pages/parent/Dashboard";
 import ParentReserveQueue from "../pages/parent/ReserveQueue";
 import ParentMyReservations from "../pages/parent/MyReservations";
 import ParentProfile from "../pages/parent/Profile";
+import ParentQRCode from "../pages/parent/ParentQRCode";
 
 import SecretaryDashboard from "../pages/secretary/Dashboard";
 
@@ -38,6 +39,7 @@ export default function AppRoutes() {
           <Route index element={<ParentDashboard />} />
           <Route path="reserve" element={<ParentReserveQueue />} />
           <Route path="reservations" element={<ParentMyReservations />} />
+          <Route path="reservations/:id/qr" element={<ParentQRCode />} />
           <Route path="profile" element={<ParentProfile />} />
         </Route>
 
