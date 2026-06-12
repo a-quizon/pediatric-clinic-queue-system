@@ -16,10 +16,12 @@ export default function ScheduleCard({ schedule, availableSlots, reservedCount, 
   };
 
   return (
-    <div className={`bg-white rounded-2xl border p-5 transition-all ${
+    <div 
+      onClick={() => onViewDetails(schedule)}
+      className={`bg-white rounded-2xl border p-5 transition-all cursor-pointer ${
       isCompleted 
-        ? "border-gray-100 opacity-70" 
-        : "border-gray-200 shadow-sm hover:shadow-md hover:border-blue-100"
+        ? "border-gray-100 opacity-70 hover:opacity-100" 
+        : "border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300"
     }`}>
       <div className="flex justify-between items-start mb-4">
         <div>
@@ -59,49 +61,42 @@ export default function ScheduleCard({ schedule, availableSlots, reservedCount, 
         </div>
       </div>
 
-      <div className="flex items-center gap-2 pt-4 border-t border-gray-50 flex-wrap">
-        <button 
-          onClick={() => onViewDetails(schedule)} 
-          className="flex-1 py-2 bg-blue-50 text-blue-700 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors"
-        >
-          View Details
-        </button>
-
-        {!isCompleted && (
+      {!isCompleted && (
+        <div className="flex items-center gap-2 pt-4 border-t border-gray-50 flex-wrap">
           <button 
-            onClick={() => onEdit(schedule)} 
+            onClick={(e) => { e.stopPropagation(); onEdit(schedule); }} 
             className="flex-1 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors"
           >
             Edit
           </button>
-        )}
-        
-        {!isCompleted && isDraft && (
-          <>
-            <button 
-              onClick={() => onDelete(schedule.id)} 
-              className="flex-1 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-100 transition-colors"
-            >
-              Delete
-            </button>
-            <button 
-              onClick={() => onPublish(schedule.id)} 
-              className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors"
-            >
-              Publish
-            </button>
-          </>
-        )}
+          
+          {isDraft && (
+            <>
+              <button 
+                onClick={(e) => { e.stopPropagation(); onDelete(schedule.id); }} 
+                className="flex-1 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-100 transition-colors"
+              >
+                Delete
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); onPublish(schedule.id); }} 
+                className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors"
+              >
+                Publish
+              </button>
+            </>
+          )}
 
-        {!isCompleted && isPublished && (
-          <button 
-            onClick={() => onComplete(schedule.id)} 
-            className="flex-1 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            Complete
-          </button>
-        )}
-      </div>
+          {isPublished && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onComplete(schedule.id); }} 
+              className="flex-1 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              Complete
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

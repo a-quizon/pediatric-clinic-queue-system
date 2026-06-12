@@ -4,8 +4,8 @@ import { getSchedules } from "../../services/scheduleService";
 import { subscribeToAllReservations, cancelReservation } from "../../services/reservationService";
 import { useAuth } from "../../hooks/useAuth";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
-import MessageModal from "../../components/common/MessageModal";
 import ReservationDetailsModal from "../../components/parent/ReservationDetailsModal";
+import toast from "react-hot-toast";
 
 export default function MyReservations() {
   const { user } = useAuth();
@@ -26,10 +26,6 @@ export default function MyReservations() {
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState(null);
-
-  const [messageModalState, setMessageModalState] = useState({
-    isOpen: false, type: 'info', title: '', message: ''
-  });
 
   useEffect(() => {
     const fetchSchedules = async () => {
@@ -74,16 +70,12 @@ export default function MyReservations() {
     try {
       await cancelReservation(reservationToCancel.id);
       setIsCancelConfirmOpen(false);
-      setMessageModalState({
-        isOpen: true, type: 'success', title: 'Reservation Cancelled', message: 'Your reservation has been cancelled successfully.'
-      });
+      toast.success('Your reservation has been cancelled successfully.');
       setReservationToCancel(null);
     } catch (error) {
       console.error(error);
       setIsCancelConfirmOpen(false);
-      setMessageModalState({
-        isOpen: true, type: 'error', title: 'Cancellation Failed', message: 'There was an error cancelling your reservation.'
-      });
+      toast.error('There was an error cancelling your reservation.');
     } finally {
       setIsCancelling(false);
     }
@@ -181,6 +173,9 @@ export default function MyReservations() {
                       
                       <div className="text-gray-500 pt-4 border-t border-gray-200 pl-6">Queue Position</div>
                       <div className="font-bold text-blue-600 text-right text-2xl pt-4 border-t border-gray-200">{currentReservation.queuePosition}</div>
+                      
+                      <div className="text-gray-500 pt-2 pl-6">Patients Ahead</div>
+                      <div className="font-bold text-orange-500 text-right text-2xl pt-2">{Math.max(0, currentReservation.queuePosition - 1)}</div>
                       
                       <div className="text-gray-500 pt-2 pl-6">Status</div>
                       <div className="font-bold text-gray-800 text-right pt-2 capitalize">{currentReservation.status}</div>
@@ -332,15 +327,6 @@ export default function MyReservations() {
         onConfirm={handleCancelReservation}
         onCancel={() => setIsCancelConfirmOpen(false)}
         loading={isCancelling}
-      />
-
-      {/* Global Message Modal */}
-      <MessageModal
-        isOpen={messageModalState.isOpen}
-        type={messageModalState.type}
-        title={messageModalState.title}
-        message={messageModalState.message}
-        onClose={() => setMessageModalState(prev => ({ ...prev, isOpen: false }))}
       />
     </div>
   );

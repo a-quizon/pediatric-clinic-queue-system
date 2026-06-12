@@ -22,14 +22,24 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
     }
   };
 
-  // Filter only active reservations for this schedule
-  const activeStatuses = ["reserved", "validated", "waiting"];
-  const scheduleReservations = reservations
-    .filter(r => r.scheduleId === schedule.id && activeStatuses.includes(r.status))
-    .sort((a, b) => (a.queuePosition || 0) - (b.queuePosition || 0));
+  const isCompletedSchedule = schedule.status === 'completed';
 
-  const reservedCount = scheduleReservations.length;
-  const availableSlots = schedule.slotCapacity - reservedCount;
+  // Filter reservations for this schedule
+  const scheduleReservations = reservations.filter(r => r.scheduleId === schedule.id);
+
+  const activeStatuses = ["reserved", "validated", "waiting"];
+  
+  const displayReservations = isCompletedSchedule 
+    ? scheduleReservations.filter(r => r.status === 'completed' || r.status === 'cancelled').sort((a, b) => (a.queuePosition || 0) - (b.queuePosition || 0))
+    : scheduleReservations.filter(r => activeStatuses.includes(r.status)).sort((a, b) => (a.queuePosition || 0) - (b.queuePosition || 0));
+
+  const activeCount = scheduleReservations.filter(r => activeStatuses.includes(r.status)).length;
+  const availableSlots = schedule.slotCapacity - activeCount;
+
+  // Completed Stats
+  const totalReservations = scheduleReservations.length;
+  const patientsCheckedUp = scheduleReservations.filter(r => r.status === 'completed').length;
+  const cancelledReservations = scheduleReservations.filter(r => r.status === 'cancelled').length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -48,24 +58,45 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
         
         <div className="p-6 overflow-y-auto flex-1">
           {/* Schedule Statistics */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-              <div className="text-xs text-gray-500 mb-1 flex items-center"><Users className="w-3.5 h-3.5 mr-1"/> Capacity</div>
-              <div className="text-xl font-bold text-gray-800">{schedule.slotCapacity}</div>
+          {!isCompletedSchedule ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                <div className="text-xs text-gray-500 mb-1 flex items-center"><Users className="w-3.5 h-3.5 mr-1"/> Capacity</div>
+                <div className="text-xl font-bold text-gray-800">{schedule.slotCapacity}</div>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm">
+                <div className="text-xs text-blue-500 mb-1 flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1"/> Reserved</div>
+                <div className="text-xl font-bold text-blue-600">{activeCount}</div>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-green-100 shadow-sm">
+                <div className="text-xs text-green-500 mb-1 flex items-center"><Activity className="w-3.5 h-3.5 mr-1"/> Available</div>
+                <div className="text-xl font-bold text-green-600">{availableSlots}</div>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                <div className="text-xs text-gray-500 mb-1">Status</div>
+                <div className="text-sm font-bold text-gray-800 capitalize mt-1">{schedule.status}</div>
+              </div>
             </div>
-            <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm">
-              <div className="text-xs text-blue-500 mb-1 flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1"/> Reserved</div>
-              <div className="text-xl font-bold text-blue-600">{reservedCount}</div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                <div className="text-xs text-gray-500 mb-1 flex items-center"><Users className="w-3.5 h-3.5 mr-1"/> Total</div>
+                <div className="text-xl font-bold text-gray-800">{totalReservations}</div>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-green-100 shadow-sm">
+                <div className="text-xs text-green-500 mb-1 flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1"/> Checked Up</div>
+                <div className="text-xl font-bold text-green-600">{patientsCheckedUp}</div>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-red-100 shadow-sm">
+                <div className="text-xs text-red-500 mb-1 flex items-center"><X className="w-3.5 h-3.5 mr-1"/> Cancelled</div>
+                <div className="text-xl font-bold text-red-600">{cancelledReservations}</div>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                <div className="text-xs text-gray-500 mb-1">Status</div>
+                <div className="text-sm font-bold text-gray-800 capitalize mt-1">{schedule.status}</div>
+              </div>
             </div>
-            <div className="bg-white p-4 rounded-xl border border-green-100 shadow-sm">
-              <div className="text-xs text-green-500 mb-1 flex items-center"><Activity className="w-3.5 h-3.5 mr-1"/> Available</div>
-              <div className="text-xl font-bold text-green-600">{availableSlots}</div>
-            </div>
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-              <div className="text-xs text-gray-500 mb-1">Status</div>
-              <div className="text-sm font-bold text-gray-800 capitalize mt-1">{schedule.status}</div>
-            </div>
-          </div>
+          )}
 
           <div className="bg-gray-50 rounded-xl p-5 mb-8 border border-gray-100">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -88,19 +119,19 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
           <div>
             <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center">
               <Users className="w-5 h-5 mr-2 text-gray-500" />
-              Current Reservations
+              {isCompletedSchedule ? "Historical Records" : "Current Reservations"}
             </h3>
             
-            {scheduleReservations.length === 0 ? (
+            {displayReservations.length === 0 ? (
               <div className="bg-white rounded-xl border border-dashed border-gray-200 p-8 text-center">
                 <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
                   <Activity className="w-6 h-6 text-gray-400" />
                 </div>
-                <p className="text-gray-500 font-medium">No active reservations in the queue yet.</p>
+                <p className="text-gray-500 font-medium">{isCompletedSchedule ? "No historical records found." : "No active reservations in the queue yet."}</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {scheduleReservations.map((res) => (
+                {displayReservations.map((res) => (
                   <div key={res.id} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                       <div className="bg-blue-50 w-12 h-12 rounded-lg flex flex-col items-center justify-center flex-shrink-0 border border-blue-100">

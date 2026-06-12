@@ -5,8 +5,8 @@ import ScheduleCard from "../../components/schedule/ScheduleCard";
 import ScheduleFormModal from "../../components/schedule/ScheduleFormModal";
 import ScheduleDetailsModal from "../../components/doctor/ScheduleDetailsModal";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
-import MessageModal from "../../components/common/MessageModal";
 import { Plus } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function ScheduleManagement() {
   const [schedules, setSchedules] = useState([]);
@@ -17,7 +17,6 @@ export default function ScheduleManagement() {
   const [activeTab, setActiveTab] = useState("active"); // 'active' or 'completed'
   const [reservations, setReservations] = useState([]);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, scheduleId: null, title: "", message: "", confirmText: "Confirm" });
-  const [messageModal, setMessageModal] = useState({ isOpen: false, type: "info", title: "", message: "" });
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
@@ -80,12 +79,7 @@ export default function ScheduleManagement() {
 
   const handleSuccess = async (successMessage) => {
     await loadSchedules();
-    setMessageModal({
-      isOpen: true,
-      type: "success",
-      title: "Success",
-      message: successMessage
-    });
+    toast.success(successMessage);
   };
 
   const handleDelete = (scheduleId) => {
@@ -131,22 +125,16 @@ export default function ScheduleManagement() {
       } else if (confirmModal.action === "publish") {
         await publishSchedule(confirmModal.scheduleId);
         await loadSchedules();
-        setMessageModal({
-          isOpen: true, type: "success", title: "Schedule Published", message: "The schedule is now visible to parents."
-        });
+        toast.success("The schedule is now visible to parents.");
       } else if (confirmModal.action === "complete") {
         await completeSchedule(confirmModal.scheduleId);
         await loadSchedules();
-        setMessageModal({
-          isOpen: true, type: "success", title: "Schedule Completed", message: "The schedule has been successfully closed."
-        });
+        toast.success("The schedule has been successfully closed.");
       }
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
     } catch (error) {
       console.error(error);
-      setMessageModal({
-        isOpen: true, type: "error", title: "Action Failed", message: "An error occurred while processing your request."
-      });
+      toast.error("An error occurred while processing your request.");
       setConfirmModal(prev => ({ ...prev, isOpen: false }));
     } finally {
       setIsProcessing(false);
@@ -273,14 +261,6 @@ export default function ScheduleManagement() {
         onConfirm={executeConfirmAction}
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
         loading={isProcessing}
-      />
-
-      <MessageModal
-        isOpen={messageModal.isOpen}
-        type={messageModal.type}
-        title={messageModal.title}
-        message={messageModal.message}
-        onClose={() => setMessageModal(prev => ({ ...prev, isOpen: false }))}
       />
     </div>
   );

@@ -3,6 +3,7 @@ import { createSchedule, updateSchedule, scheduleExists } from '../../services/s
 import { getBranchConfigurations, getClinicHours } from '../../services/branchConfigurationService';
 import { useAuth } from '../../hooks/useAuth';
 import { X, AlertCircle, Clock } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSuccess }) {
   const { user } = useAuth();
@@ -19,7 +20,6 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
 
   const [formData, setFormData] = useState(initialFormState);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [branches, setBranches] = useState([]);
 
   useEffect(() => {
@@ -41,7 +41,6 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
       } else {
         setFormData(initialFormState);
       }
-      setError("");
     }
   }, [isOpen, mode, schedule]);
 
@@ -51,10 +50,9 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
         const hours = await getClinicHours(formData.branch, formData.clinicDate);
         if (hours) {
           setFormData(prev => ({ ...prev, openingTime: hours.openingTime, closingTime: hours.closingTime }));
-          setError("");
         } else {
           setFormData(prev => ({ ...prev, openingTime: "", closingTime: "" }));
-          setError("This branch is closed on the selected date.");
+          toast.error("This branch is closed on the selected date.");
         }
       }
     };
@@ -79,11 +77,10 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
 
     if (!formData.openingTime || !formData.closingTime) {
-      setError("No schedule pattern found for this branch and date. Please check Branch Configuration.");
+      toast.error("No schedule pattern found for this branch and date. Please check Branch Configuration.");
       setLoading(false);
       return;
     }
@@ -101,7 +98,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
       }
 
       if (isDuplicate) {
-        setError("A schedule already exists for this branch and date.");
+        toast.error("A schedule already exists for this branch and date.");
         setLoading(false);
         return;
       }
@@ -130,7 +127,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
       onClose();
     } catch (err) {
       console.error(err);
-      setError(`Failed to ${mode} schedule.`);
+      toast.error(`Failed to ${mode} schedule.`);
     } finally {
       setLoading(false);
     }
@@ -155,12 +152,6 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
 
         {/* Body (Scrollable) */}
         <div className="p-5 overflow-y-auto flex-1">
-          {error && (
-            <div className="mb-5 p-4 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-medium flex items-start">
-              <AlertCircle className="w-5 h-5 mr-2 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
 
           {mode === "edit" && schedule?.status === "published" && (
             <div className="mb-5 p-4 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-sm font-medium">
