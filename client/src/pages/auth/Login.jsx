@@ -3,7 +3,9 @@ import { useNavigate, Link } from 'react-router-dom';
 import { loginUser } from "../../services/authService";
 import { ref, get } from "firebase/database";
 import { database } from "../../firebase/database";
-import { Activity, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Activity, Mail, Lock, ArrowRight } from "lucide-react";
+import toast from "react-hot-toast";
+import { mapAuthError } from "../../utils/authErrors";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -12,9 +14,7 @@ export default function Login() {
     password: '',
   });
 
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -26,8 +26,6 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess(false);
     setLoading(true);
 
     try {
@@ -44,7 +42,11 @@ export default function Login() {
         }
       }
 
-      setSuccess(true);
+      if (role === 'doctor') {
+        toast.success('Welcome back, Doctor!');
+      } else {
+        toast.success('Welcome back!');
+      }
 
       // Redirect based on the user's role
       setTimeout(() => {
@@ -59,7 +61,7 @@ export default function Login() {
 
     } catch (err) {
       console.error('Login failed:', err);
-      setError(err.message || 'Invalid email or password. Please try again.');
+      toast.error(mapAuthError(err.code));
     } finally {
       setLoading(false);
     }
@@ -79,19 +81,6 @@ export default function Login() {
 
         {/* Form Section */}
         <div className="p-8">
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-medium flex items-start">
-              <AlertCircle className="w-5 h-5 mr-3 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-          {success && (
-            <div className="mb-6 p-4 bg-green-50 text-green-700 border border-green-100 rounded-xl text-sm font-medium flex items-start">
-              <CheckCircle2 className="w-5 h-5 mr-3 shrink-0" />
-              <span>Login successful! Redirecting...</span>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-5" id="login-form">
             <div>
               <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
@@ -106,7 +95,7 @@ export default function Login() {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  disabled={loading || success}
+                  disabled={loading}
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
                   placeholder="Enter your email"
                 />
@@ -126,7 +115,7 @@ export default function Login() {
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  disabled={loading || success}
+                  disabled={loading}
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
                   placeholder="Enter your password"
                 />
@@ -136,13 +125,13 @@ export default function Login() {
             <button
               type="submit"
               id="login-submit-btn"
-              disabled={loading || success}
+              disabled={loading}
               className={`w-full flex items-center justify-center py-3.5 px-4 bg-blue-600 text-white font-bold rounded-xl shadow-sm transition-all mt-2 ${
-                loading || success ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700 hover:shadow"
+                loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700 hover:shadow"
               }`}
             >
-              {loading ? 'Authenticating...' : success ? 'Redirecting...' : 'Sign In'}
-              {!loading && !success && <ArrowRight className="w-5 h-5 ml-2" />}
+              {loading ? 'Authenticating...' : 'Sign In'}
+              {!loading && <ArrowRight className="w-5 h-5 ml-2" />}
             </button>
           </form>
 

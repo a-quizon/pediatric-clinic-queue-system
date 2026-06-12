@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { registerUser } from "../../services/authService";
-import { Activity, Mail, Lock, User, Phone, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Activity, Mail, Lock, User, Phone, ArrowRight } from "lucide-react";
+import toast from "react-hot-toast";
+import { mapAuthError } from "../../utils/authErrors";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -13,9 +15,7 @@ export default function Register() {
     confirmPassword: '',
   });
 
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -27,11 +27,9 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess(false);
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
 
@@ -43,7 +41,7 @@ export default function Register() {
         formData.number,
         formData.password
       );
-      setSuccess(true);
+      toast.success('Account created successfully.');
       setFormData({
         name: '',
         email: '',
@@ -56,7 +54,7 @@ export default function Register() {
       }, 2000);
     } catch (err) {
       console.error('Registration failed:', err);
-      setError(err.message || 'An error occurred during registration. Please try again.');
+      toast.error(mapAuthError(err.code));
     } finally {
       setLoading(false);
     }
@@ -76,19 +74,6 @@ export default function Register() {
 
         {/* Form Section */}
         <div className="p-8">
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-medium flex items-start">
-              <AlertCircle className="w-5 h-5 mr-3 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-          {success && (
-            <div className="mb-6 p-4 bg-green-50 text-green-700 border border-green-100 rounded-xl text-sm font-medium flex items-start">
-              <CheckCircle2 className="w-5 h-5 mr-3 shrink-0" />
-              <span>Registration successful! Redirecting to login...</span>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4" id="register-form">
             <div>
               <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name</label>
@@ -103,7 +88,7 @@ export default function Register() {
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  disabled={loading || success}
+                  disabled={loading}
                   className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
                   placeholder="John Doe"
                 />
@@ -123,7 +108,7 @@ export default function Register() {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  disabled={loading || success}
+                  disabled={loading}
                   className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
                   placeholder="Enter your email"
                 />
@@ -143,7 +128,7 @@ export default function Register() {
                   value={formData.number}
                   onChange={handleChange}
                   required
-                  disabled={loading || success}
+                  disabled={loading}
                   className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
                   placeholder="09123456789"
                 />
@@ -163,7 +148,7 @@ export default function Register() {
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  disabled={loading || success}
+                  disabled={loading}
                   className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
                   placeholder="Create a password"
                 />
@@ -183,7 +168,7 @@ export default function Register() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
-                  disabled={loading || success}
+                  disabled={loading}
                   className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
                   placeholder="Confirm your password"
                 />
@@ -193,13 +178,13 @@ export default function Register() {
             <button
               type="submit"
               id="register-submit-btn"
-              disabled={loading || success}
+              disabled={loading}
               className={`w-full flex items-center justify-center py-3.5 px-4 bg-blue-600 text-white font-bold rounded-xl shadow-sm transition-all mt-4 ${
-                loading || success ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700 hover:shadow"
+                loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700 hover:shadow"
               }`}
             >
               {loading ? 'Creating Account...' : 'Register'}
-              {!loading && !success && <ArrowRight className="w-5 h-5 ml-2" />}
+              {!loading && <ArrowRight className="w-5 h-5 ml-2" />}
             </button>
           </form>
 
