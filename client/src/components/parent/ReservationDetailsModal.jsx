@@ -19,7 +19,9 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
         <div className="p-6 overflow-y-auto">
           {/* Status Badge */}
           <div className="flex justify-between items-center mb-6">
-            <div className="font-bold text-gray-800 text-lg">Queue #{reservation.queueNumber}</div>
+            <div className="font-bold text-gray-800 text-lg">
+              {reservation.queuePosition ? `Queue Position #${reservation.queuePosition}` : "Historical Record"}
+            </div>
             <div className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize flex items-center ${
               isCancelled ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
             }`}>

@@ -5,7 +5,7 @@ import {
   subscribeToAllReservations, 
   createReservation, 
   checkExistingGlobalReservation, 
-  generateQueueNumber
+  getReservationsBySchedule
 } from "../../services/reservationService";
 import { useAuth } from "../../hooks/useAuth";
 import MessageModal from "../../components/common/MessageModal";
@@ -22,7 +22,7 @@ export default function ReserveQueue() {
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [generatedQueueNumber, setGeneratedQueueNumber] = useState(null);
+  const [generatedQueuePosition, setGeneratedQueuePosition] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [messageModalState, setMessageModalState] = useState({
@@ -118,17 +118,19 @@ export default function ReserveQueue() {
         return;
       }
 
-      // Generate Queue Number and create reservation
-      const queueNumber = await generateQueueNumber(selectedSchedule.id);
-      await createReservation({
+      // Create reservation without static queue position
+      const reservationId = await createReservation({
         parentId: user.uid,
         parentEmail: user.email,
         scheduleId: selectedSchedule.id,
-        queueNumber,
         status: "reserved",
       });
 
-      setGeneratedQueueNumber(queueNumber);
+      // Fetch newly calculated dynamic position
+      const updatedReservations = await getReservationsBySchedule(selectedSchedule.id);
+      const newRes = updatedReservations.find(r => r.id === reservationId);
+
+      setGeneratedQueuePosition(newRes?.queuePosition || "Assigned");
       setIsConfirmModalOpen(false);
       setIsSuccessModalOpen(true);
     } catch (error) {
@@ -147,7 +149,7 @@ export default function ReserveQueue() {
   const closeSuccessModal = () => {
     setIsSuccessModalOpen(false);
     setSelectedSchedule(null);
-    setGeneratedQueueNumber(null);
+    setGeneratedQueuePosition(null);
   };
 
   return (
@@ -316,8 +318,8 @@ export default function ReserveQueue() {
               <p className="text-gray-500 text-sm mb-6">You have successfully reserved a slot.</p>
               
               <div className="bg-gray-50 rounded-xl p-5 border border-gray-100 mb-6">
-                <div className="text-sm text-gray-500 mb-1">Queue Number</div>
-                <div className="text-4xl font-black text-blue-600 mb-4">{generatedQueueNumber}</div>
+                <div className="text-sm text-gray-500 mb-1">Queue Position</div>
+                <div className="text-4xl font-black text-blue-600 mb-4">{generatedQueuePosition}</div>
                 
                 <div className="flex flex-col space-y-2 text-sm text-left">
                   <div className="flex justify-between border-t border-gray-200 pt-3">

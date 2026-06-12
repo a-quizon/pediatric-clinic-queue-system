@@ -18,7 +18,6 @@ export default function MyReservations() {
   // History State
   const [historyFilter, setHistoryFilter] = useState("All"); // 'All', 'Completed', 'Cancelled'
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortOrder, setSortOrder] = useState("Newest First"); // 'Newest First', 'Oldest First'
   const [selectedHistoryReservation, setSelectedHistoryReservation] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
@@ -110,7 +109,7 @@ export default function MyReservations() {
     .sort((a, b) => {
       const timeA = a.completedAt || a.cancelledAt || a.createdAt || 0;
       const timeB = b.completedAt || b.cancelledAt || b.createdAt || 0;
-      return sortOrder === "Newest First" ? timeB - timeA : timeA - timeB;
+      return timeB - timeA;
     });
 
   return (
@@ -179,8 +178,8 @@ export default function MyReservations() {
                       <div className="text-gray-500 pl-6">Opening Time</div>
                       <div className="font-bold text-gray-800 text-right">{formatTime(schedule.openingTime)}</div>
                       
-                      <div className="text-gray-500 pt-4 border-t border-gray-200 pl-6">Queue #</div>
-                      <div className="font-bold text-blue-600 text-right text-2xl pt-4 border-t border-gray-200">{currentReservation.queueNumber}</div>
+                      <div className="text-gray-500 pt-4 border-t border-gray-200 pl-6">Queue Position</div>
+                      <div className="font-bold text-blue-600 text-right text-2xl pt-4 border-t border-gray-200">{currentReservation.queuePosition}</div>
                       
                       <div className="text-gray-500 pt-2 pl-6">Status</div>
                       <div className="font-bold text-gray-800 text-right pt-2 capitalize">{currentReservation.status}</div>
@@ -221,14 +220,6 @@ export default function MyReservations() {
                       className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                     />
                   </div>
-                  <select
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value)}
-                    className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-gray-700 font-medium"
-                  >
-                    <option>Newest First</option>
-                    <option>Oldest First</option>
-                  </select>
                 </div>
 
                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
@@ -278,10 +269,12 @@ export default function MyReservations() {
                             <span>Date:</span>
                             <span className="font-medium text-gray-800">{schedule.clinicDate ? new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}</span>
                           </div>
-                          <div className="flex justify-between">
-                            <span>Queue #:</span>
-                            <span className="font-medium text-gray-800">{res.queueNumber}</span>
-                          </div>
+                          {res.queuePosition && (
+                            <div className="flex justify-between">
+                              <span>Queue Position:</span>
+                              <span className="font-medium text-gray-800">{res.queuePosition}</span>
+                            </div>
+                          )}
                           {(res.completedAt || res.cancelledAt) && (
                             <div className="flex justify-between text-xs text-gray-400 pt-2 border-t border-gray-100 mt-2">
                               <span>{isCancelled ? 'Cancelled On:' : 'Completed On:'}</span>

@@ -37,7 +37,7 @@ export default function Dashboard() {
             <div className="bg-gray-50 rounded-xl p-5 text-left border border-gray-100 max-w-lg mx-auto">
               <h3 className="font-bold text-gray-700 mb-3 text-sm">Future Information:</h3>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center"><Clock className="w-4 h-4 mr-2 text-blue-500" /> Current Queue Number</li>
+                <li className="flex items-center"><Clock className="w-4 h-4 mr-2 text-blue-500" /> Current Queue Position</li>
                 <li className="flex items-center"><User className="w-4 h-4 mr-2 text-blue-500" /> My Queue Position</li>
                 <li className="flex items-center"><Activity className="w-4 h-4 mr-2 text-blue-500" /> Queue Progress & Estimated Turn</li>
               </ul>

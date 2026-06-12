@@ -3,9 +3,11 @@ import { ref, push, set, get, onValue, update } from "firebase/database";
 
 export const createReservation = async (reservationData) => {
   const reservationRef = push(ref(database, "reservations"));
+  const now = Date.now();
   await set(reservationRef, {
     ...reservationData,
-    createdAt: Date.now(),
+    createdAt: now,
+    reservationCreatedAt: now,
   });
   return reservationRef.key;
 };
@@ -15,9 +17,10 @@ export const getReservationsBySchedule = async (scheduleId) => {
   if (!snapshot.exists()) return [];
 
   const data = snapshot.val();
-  return Object.entries(data)
+  const reservations = Object.entries(data)
     .map(([id, value]) => ({ id, ...value }))
     .filter((res) => res.scheduleId === scheduleId);
+  return calculateDynamicQueuePositions(reservations);
 };
 
 export const checkExistingReservation = async (scheduleId, parentId) => {
@@ -33,9 +36,29 @@ export const checkExistingGlobalReservation = async (parentId) => {
   return Object.values(data).some((res) => res.parentId === parentId && res.status !== "cancelled" && res.status !== "completed");
 };
 
-export const generateQueueNumber = async (scheduleId) => {
-  const reservations = await getReservationsBySchedule(scheduleId);
-  return reservations.length + 1;
+export const calculateDynamicQueuePositions = (reservations) => {
+  const groupedBySchedule = {};
+  reservations.forEach(r => {
+    if (!groupedBySchedule[r.scheduleId]) groupedBySchedule[r.scheduleId] = [];
+    groupedBySchedule[r.scheduleId].push(r);
+  });
+  
+  let processedReservations = [];
+  const activeStatuses = ["reserved", "validated", "waiting"];
+  
+  Object.values(groupedBySchedule).forEach(scheduleReservations => {
+    const active = scheduleReservations.filter(r => activeStatuses.includes(r.status)).sort((a, b) => a.createdAt - b.createdAt);
+    const inactive = scheduleReservations.filter(r => !activeStatuses.includes(r.status));
+    
+    const rankedActive = active.map((r, index) => ({
+      ...r,
+      queuePosition: index + 1
+    }));
+    
+    processedReservations = [...processedReservations, ...rankedActive, ...inactive];
+  });
+
+  return processedReservations;
 };
 
 export const subscribeToAllReservations = (callback) => {
@@ -48,7 +71,7 @@ export const subscribeToAllReservations = (callback) => {
 
     const data = snapshot.val();
     const reservations = Object.entries(data).map(([id, value]) => ({ id, ...value }));
-    callback(reservations);
+    callback(calculateDynamicQueuePositions(reservations));
   });
 };
 

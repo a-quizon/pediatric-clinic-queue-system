@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calendar, Clock, MapPin, Users, CheckCircle2, AlertCircle, PlayCircle } from 'lucide-react';
 
-export default function ScheduleCard({ schedule, availableSlots, onEdit, onDelete, onPublish, onComplete }) {
+export default function ScheduleCard({ schedule, availableSlots, reservedCount, onEdit, onDelete, onPublish, onComplete }) {
   const isCompleted = schedule.status === 'completed';
   const isDraft = schedule.status === 'draft';
   const isPublished = schedule.status === 'published';
@@ -55,7 +55,7 @@ export default function ScheduleCard({ schedule, availableSlots, onEdit, onDelet
         </div>
         <div className="flex items-center text-sm">
           <Users className="w-4 h-4 mr-2 text-gray-400" />
-          <span className="text-gray-600">Available: <span className="font-bold">{availableSlots !== undefined ? availableSlots : schedule.slotCapacity}</span></span>
+          <span className="text-gray-600">Reserved: <span className="font-bold">{reservedCount !== undefined ? reservedCount : (schedule.slotCapacity - (availableSlots || schedule.slotCapacity))} / {schedule.slotCapacity}</span></span>
         </div>
       </div>
 
