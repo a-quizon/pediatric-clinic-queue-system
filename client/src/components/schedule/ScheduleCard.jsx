@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calendar, Clock, MapPin, Users, CheckCircle2, AlertCircle, PlayCircle } from 'lucide-react';
 
-export default function ScheduleCard({ schedule, availableSlots, reservedCount, onEdit, onDelete, onPublish, onComplete }) {
+export default function ScheduleCard({ schedule, availableSlots, reservedCount, onEdit, onDelete, onPublish, onComplete, onViewDetails }) {
   const isCompleted = schedule.status === 'completed';
   const isDraft = schedule.status === 'draft';
   const isPublished = schedule.status === 'published';
@@ -59,42 +59,49 @@ export default function ScheduleCard({ schedule, availableSlots, reservedCount, 
         </div>
       </div>
 
-      {!isCompleted && (
-        <div className="flex items-center gap-2 pt-4 border-t border-gray-50">
+      <div className="flex items-center gap-2 pt-4 border-t border-gray-50 flex-wrap">
+        <button 
+          onClick={() => onViewDetails(schedule)} 
+          className="flex-1 py-2 bg-blue-50 text-blue-700 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors"
+        >
+          View Details
+        </button>
+
+        {!isCompleted && (
           <button 
             onClick={() => onEdit(schedule)} 
             className="flex-1 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors"
           >
             Edit
           </button>
-          
-          {isDraft && (
-            <>
-              <button 
-                onClick={() => onDelete(schedule.id)} 
-                className="flex-1 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-100 transition-colors"
-              >
-                Delete
-              </button>
-              <button 
-                onClick={() => onPublish(schedule.id)} 
-                className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors"
-              >
-                Publish
-              </button>
-            </>
-          )}
-
-          {isPublished && (
+        )}
+        
+        {!isCompleted && isDraft && (
+          <>
             <button 
-              onClick={() => onComplete(schedule.id)} 
-              className="flex-1 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+              onClick={() => onDelete(schedule.id)} 
+              className="flex-1 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-100 transition-colors"
             >
-              Complete
+              Delete
             </button>
-          )}
-        </div>
-      )}
+            <button 
+              onClick={() => onPublish(schedule.id)} 
+              className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors"
+            >
+              Publish
+            </button>
+          </>
+        )}
+
+        {!isCompleted && isPublished && (
+          <button 
+            onClick={() => onComplete(schedule.id)} 
+            className="flex-1 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            Complete
+          </button>
+        )}
+      </div>
     </div>
   );
 }

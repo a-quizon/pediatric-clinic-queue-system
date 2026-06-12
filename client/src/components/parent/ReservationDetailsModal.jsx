@@ -1,10 +1,32 @@
 import React from 'react';
-import { X, MapPin, CalendarDays, Clock, CheckCircle2, FileText, XCircle } from 'lucide-react';
+import { X, MapPin, CalendarDays, Clock, CheckCircle2, FileText, XCircle, User, Activity } from 'lucide-react';
 
 export default function ReservationDetailsModal({ isOpen, onClose, reservation, schedule }) {
   if (!isOpen || !reservation || !schedule) return null;
 
   const isCancelled = reservation.status === "cancelled";
+  const isCompleted = reservation.status === "completed";
+  const isActive = !isCancelled && !isCompleted;
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'reserved': return 'bg-blue-50 text-blue-600';
+      case 'waiting': return 'bg-orange-50 text-orange-600';
+      case 'validated': return 'bg-green-50 text-green-600';
+      case 'completed': return 'bg-gray-100 text-gray-600';
+      case 'cancelled': return 'bg-red-50 text-red-600';
+      default: return 'bg-gray-50 text-gray-600';
+    }
+  };
+
+  const formatTime = (time) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const h = parseInt(hours, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const formattedH = h % 12 || 12;
+    return `${formattedH}:${minutes} ${ampm}`;
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -22,9 +44,7 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
             <div className="font-bold text-gray-800 text-lg">
               {reservation.queuePosition ? `Queue Position #${reservation.queuePosition}` : "Historical Record"}
             </div>
-            <div className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize flex items-center ${
-              isCancelled ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
-            }`}>
+            <div className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize flex items-center ${getStatusColor(reservation.status)}`}>
               {isCancelled ? <XCircle className="w-4 h-4 mr-1.5" /> : <CheckCircle2 className="w-4 h-4 mr-1.5" />}
               {reservation.status}
             </div>
@@ -40,13 +60,45 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
               <span className="text-gray-500 flex items-center"><CalendarDays className="w-4 h-4 mr-2" />Clinic Date</span>
               <span className="font-bold text-gray-800">{new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
             </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500 flex items-center"><Clock className="w-4 h-4 mr-2" />Clinic Hours</span>
+              <span className="font-bold text-gray-800">{formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}</span>
+            </div>
+            
+            {reservation.createdAt && (
+              <div className="flex justify-between items-center text-sm pt-4 border-t border-gray-200">
+                <span className="text-gray-500 flex items-center"><CheckCircle2 className="w-4 h-4 mr-2" />Reserved On</span>
+                <span className="font-medium text-gray-700">{new Date(reservation.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+              </div>
+            )}
+            
             {(reservation.completedAt || reservation.cancelledAt) && (
               <div className="flex justify-between items-center text-sm pt-4 border-t border-gray-200">
                 <span className="text-gray-500 flex items-center"><Clock className="w-4 h-4 mr-2" />{isCancelled ? 'Cancelled On' : 'Completed On'}</span>
-                <span className="font-medium text-gray-700">{new Date(reservation.completedAt || reservation.cancelledAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
+                <span className="font-medium text-gray-700">{new Date(reservation.completedAt || reservation.cancelledAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}</span>
               </div>
             )}
           </div>
+
+          {/* Real-time Monitoring Data */}
+          {isActive && reservation.queuePosition && (
+            <div className="bg-blue-50/50 rounded-xl p-5 border border-blue-100 mb-6">
+              <h3 className="font-bold text-blue-800 mb-4 flex items-center text-sm">
+                <Activity className="w-4 h-4 mr-2" />
+                Live Queue Status
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white p-3 rounded-lg border border-blue-100 text-center shadow-sm">
+                  <div className="text-xs text-gray-500 mb-1">Queue Position</div>
+                  <div className="text-2xl font-black text-blue-600">{reservation.queuePosition}</div>
+                </div>
+                <div className="bg-white p-3 rounded-lg border border-blue-100 text-center shadow-sm">
+                  <div className="text-xs text-gray-500 mb-1">Patients Ahead</div>
+                  <div className="text-2xl font-black text-orange-500">{Math.max(0, reservation.queuePosition - 1)}</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Placeholder for Consultation Notes */}
           <div className="bg-blue-50/50 rounded-xl p-5 border border-blue-100/50">

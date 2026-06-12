@@ -3,6 +3,7 @@ import { getSchedules, deleteSchedule, publishSchedule, completeSchedule } from 
 import { subscribeToAllReservations } from "../../services/reservationService";
 import ScheduleCard from "../../components/schedule/ScheduleCard";
 import ScheduleFormModal from "../../components/schedule/ScheduleFormModal";
+import ScheduleDetailsModal from "../../components/doctor/ScheduleDetailsModal";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import MessageModal from "../../components/common/MessageModal";
 import { Plus } from "lucide-react";
@@ -10,6 +11,7 @@ import { Plus } from "lucide-react";
 export default function ScheduleManagement() {
   const [schedules, setSchedules] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create");
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [activeTab, setActiveTab] = useState("active"); // 'active' or 'completed'
@@ -59,6 +61,11 @@ export default function ScheduleManagement() {
     setModalMode("create");
     setSelectedSchedule(null);
     setIsModalOpen(true);
+  };
+
+  const handleViewDetails = (schedule) => {
+    setSelectedSchedule(schedule);
+    setDetailsModalOpen(true);
   };
 
   const handleOpenEditModal = (schedule) => {
@@ -209,6 +216,7 @@ export default function ScheduleManagement() {
                 schedule={schedule}
                 availableSlots={getAvailableSlots(schedule)}
                 reservedCount={getReservedCount(schedule)}
+                onViewDetails={handleViewDetails}
                 onEdit={handleOpenEditModal}
                 onDelete={handleDelete}
                 onPublish={handlePublish}
@@ -230,6 +238,7 @@ export default function ScheduleManagement() {
                 schedule={schedule}
                 availableSlots={0}
                 reservedCount={getReservedCount(schedule)}
+                onViewDetails={handleViewDetails}
                 onEdit={handleOpenEditModal}
                 onDelete={handleDelete}
                 onPublish={handlePublish}
@@ -246,6 +255,13 @@ export default function ScheduleManagement() {
         mode={modalMode}
         schedule={selectedSchedule}
         onSuccess={handleSuccess}
+      />
+
+      <ScheduleDetailsModal 
+        isOpen={detailsModalOpen}
+        onClose={() => setDetailsModalOpen(false)}
+        schedule={selectedSchedule}
+        reservations={reservations}
       />
 
       <ConfirmationModal

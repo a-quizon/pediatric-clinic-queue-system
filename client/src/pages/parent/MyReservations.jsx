@@ -17,6 +17,7 @@ export default function MyReservations() {
 
   // History State
   const [historyFilter, setHistoryFilter] = useState("All"); // 'All', 'Completed', 'Cancelled'
+  const [historySort, setHistorySort] = useState("Newest First"); // 'Newest First', 'Oldest First'
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHistoryReservation, setSelectedHistoryReservation] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -109,7 +110,7 @@ export default function MyReservations() {
     .sort((a, b) => {
       const timeA = a.completedAt || a.cancelledAt || a.createdAt || 0;
       const timeB = b.completedAt || b.cancelledAt || b.createdAt || 0;
-      return timeB - timeA;
+      return historySort === "Oldest First" ? timeA - timeB : timeB - timeA;
     });
 
   return (
@@ -222,20 +223,31 @@ export default function MyReservations() {
                   </div>
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-                  {["All", "Completed", "Cancelled"].map(filter => (
-                    <button
-                      key={filter}
-                      onClick={() => setHistoryFilter(filter)}
-                      className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
-                        historyFilter === filter 
-                          ? 'bg-blue-600 text-white shadow-sm' 
-                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      {filter}
-                    </button>
-                  ))}
+                <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                  <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+                    {["All", "Completed", "Cancelled"].map(filter => (
+                      <button
+                        key={filter}
+                        onClick={() => setHistoryFilter(filter)}
+                        className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
+                          historyFilter === filter 
+                            ? 'bg-blue-600 text-white shadow-sm' 
+                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </div>
+
+                  <select
+                    value={historySort}
+                    onChange={(e) => setHistorySort(e.target.value)}
+                    className="px-4 py-1.5 text-sm font-semibold bg-white text-gray-600 border border-gray-200 rounded-full focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all cursor-pointer"
+                  >
+                    <option value="Newest First">Newest First</option>
+                    <option value="Oldest First">Oldest First</option>
+                  </select>
                 </div>
               </div>
 
