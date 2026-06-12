@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Ticket, Clock, MapPin, CheckCircle2, History, XCircle } from "lucide-react";
+import { Ticket, Clock, MapPin, CheckCircle2, History, XCircle, Search } from "lucide-react";
 import { getSchedules } from "../../services/scheduleService";
 import { subscribeToAllReservations, cancelReservation } from "../../services/reservationService";
 import { useAuth } from "../../hooks/useAuth";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import MessageModal from "../../components/common/MessageModal";
+import ReservationDetailsModal from "../../components/parent/ReservationDetailsModal";
 
 export default function MyReservations() {
   const { user } = useAuth();
@@ -13,6 +14,13 @@ export default function MyReservations() {
   const [schedules, setSchedules] = useState({});
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // History State
+  const [historyFilter, setHistoryFilter] = useState("All"); // 'All', 'Completed', 'Cancelled'
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState("Newest First"); // 'Newest First', 'Oldest First'
+  const [selectedHistoryReservation, setSelectedHistoryReservation] = useState(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   // Modals
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
@@ -55,6 +63,11 @@ export default function MyReservations() {
     setIsCancelConfirmOpen(true);
   };
 
+  const handleOpenDetails = (res) => {
+    setSelectedHistoryReservation(res);
+    setIsDetailsModalOpen(true);
+  };
+
   const handleCancelReservation = async () => {
     if (!reservationToCancel) return;
     setIsCancelling(true);
@@ -80,7 +93,25 @@ export default function MyReservations() {
   
   const historyReservations = reservations
     .filter(r => r.status === "cancelled" || r.status === "completed")
-    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    .filter(r => {
+      if (historyFilter === "Completed" && r.status !== "completed") return false;
+      if (historyFilter === "Cancelled" && r.status !== "cancelled") return false;
+      return true;
+    })
+    .filter(r => {
+      if (!searchQuery) return true;
+      const schedule = schedules[r.scheduleId];
+      if (!schedule) return false;
+      const branchMatch = schedule.branch.toLowerCase().includes(searchQuery.toLowerCase());
+      const dateStr = new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toLowerCase();
+      const dateMatch = dateStr.includes(searchQuery.toLowerCase());
+      return branchMatch || dateMatch;
+    })
+    .sort((a, b) => {
+      const timeA = a.completedAt || a.cancelledAt || a.createdAt || 0;
+      const timeB = b.completedAt || b.cancelledAt || b.createdAt || 0;
+      return sortOrder === "Newest First" ? timeB - timeA : timeA - timeB;
+    });
 
   return (
     <div className="space-y-6 pb-6 relative">
@@ -176,59 +207,115 @@ export default function MyReservations() {
           )}
 
           {activeTab === "history" && (
-            historyReservations.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-4">
-                {historyReservations.map(res => {
-                  const schedule = schedules[res.scheduleId] || {};
-                  const isCancelled = res.status === "cancelled";
-                  
-                  return (
-                    <div key={res.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center text-gray-800 font-bold">
-                          <MapPin className="w-4 h-4 mr-1.5 text-gray-400" />
-                          {schedule.branch || "Unknown"} Branch
-                        </div>
-                        <div className={`px-2.5 py-1 rounded-lg text-xs font-bold capitalize flex items-center ${
-                          isCancelled ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
-                        }`}>
-                          {isCancelled ? <XCircle className="w-3.5 h-3.5 mr-1" /> : <CheckCircle2 className="w-3.5 h-3.5 mr-1" />}
-                          {res.status}
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2 text-sm text-gray-600">
-                        <div className="flex justify-between">
-                          <span>Date:</span>
-                          <span className="font-medium text-gray-800">{schedule.clinicDate ? new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Queue #:</span>
-                          <span className="font-medium text-gray-800">{res.queueNumber}</span>
-                        </div>
-                        {(res.completedAt || res.createdAt) && (
-                          <div className="flex justify-between text-xs text-gray-400 pt-2 border-t border-gray-100 mt-2">
-                            <span>{isCancelled ? 'Action Date:' : 'Completed Date:'}</span>
-                            <span>{new Date(res.completedAt || res.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center max-w-2xl mx-auto animate-in fade-in">
-                <div className="mx-auto w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mb-6">
-                  <History className="w-8 h-8" />
+            <>
+              {/* History Toolbar */}
+              <div className="space-y-4 mb-6 animate-in fade-in">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search reservation history..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    />
+                  </div>
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value)}
+                    className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-gray-700 font-medium"
+                  >
+                    <option>Newest First</option>
+                    <option>Oldest First</option>
+                  </select>
                 </div>
-                <h2 className="text-xl font-bold text-gray-800 mb-2">No History Found</h2>
-                <p className="text-gray-500 text-sm">You haven't completed or cancelled any reservations yet.</p>
+
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+                  {["All", "Completed", "Cancelled"].map(filter => (
+                    <button
+                      key={filter}
+                      onClick={() => setHistoryFilter(filter)}
+                      className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
+                        historyFilter === filter 
+                          ? 'bg-blue-600 text-white shadow-sm' 
+                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      {filter}
+                    </button>
+                  ))}
+                </div>
               </div>
-            )
+
+              {historyReservations.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-4">
+                  {historyReservations.map(res => {
+                    const schedule = schedules[res.scheduleId] || {};
+                    const isCancelled = res.status === "cancelled";
+                    
+                    return (
+                      <div 
+                        key={res.id} 
+                        onClick={() => handleOpenDetails(res)}
+                        className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-200 cursor-pointer transition-all"
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex items-center text-gray-800 font-bold">
+                            <MapPin className="w-4 h-4 mr-1.5 text-gray-400" />
+                            {schedule.branch || "Unknown"} Branch
+                          </div>
+                          <div className={`px-2.5 py-1 rounded-lg text-xs font-bold capitalize flex items-center ${
+                            isCancelled ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                          }`}>
+                            {isCancelled ? <XCircle className="w-3.5 h-3.5 mr-1" /> : <CheckCircle2 className="w-3.5 h-3.5 mr-1" />}
+                            {res.status}
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2 text-sm text-gray-600">
+                          <div className="flex justify-between">
+                            <span>Date:</span>
+                            <span className="font-medium text-gray-800">{schedule.clinicDate ? new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Queue #:</span>
+                            <span className="font-medium text-gray-800">{res.queueNumber}</span>
+                          </div>
+                          {(res.completedAt || res.cancelledAt) && (
+                            <div className="flex justify-between text-xs text-gray-400 pt-2 border-t border-gray-100 mt-2">
+                              <span>{isCancelled ? 'Cancelled On:' : 'Completed On:'}</span>
+                              <span>{new Date(res.completedAt || res.cancelledAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center max-w-2xl mx-auto animate-in fade-in">
+                  <div className="mx-auto w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mb-6">
+                    <History className="w-8 h-8" />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-800 mb-2">No History Found</h2>
+                  <p className="text-gray-500 text-sm">
+                    {searchQuery ? "No reservations match your search." : "You haven't completed or cancelled any reservations yet."}
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
+
+      {/* Details Modal */}
+      <ReservationDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        reservation={selectedHistoryReservation}
+        schedule={selectedHistoryReservation ? schedules[selectedHistoryReservation.scheduleId] : null}
+      />
 
       {/* Cancel Confirmation Modal */}
       <ConfirmationModal

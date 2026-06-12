@@ -1,5 +1,5 @@
 import { database } from "../firebase/database";
-import { ref, push, set, get, onValue, remove } from "firebase/database";
+import { ref, push, set, get, onValue, update } from "firebase/database";
 
 export const createReservation = async (reservationData) => {
   const reservationRef = push(ref(database, "reservations"));
@@ -53,5 +53,8 @@ export const subscribeToAllReservations = (callback) => {
 };
 
 export const cancelReservation = async (reservationId) => {
-  await remove(ref(database, `reservations/${reservationId}`));
+  await update(ref(database, `reservations/${reservationId}`), {
+    status: "cancelled",
+    cancelledAt: Date.now()
+  });
 };

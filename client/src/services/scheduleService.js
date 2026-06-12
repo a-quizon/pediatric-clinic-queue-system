@@ -1,5 +1,6 @@
 import { database } from "../firebase/database";
 import { ref, push, set, get, update, remove, onValue } from "firebase/database";
+import { getReservationsBySchedule } from "./reservationService";
 
 export const createSchedule = async ( scheduleData ) => {
   const scheduleRef = push(ref(database, "schedules"));
@@ -52,7 +53,25 @@ export const publishSchedule = async ( scheduleId ) => {
 };
 
 export const completeSchedule = async ( scheduleId ) => {
-  await update( ref(database, `schedules/${scheduleId}`), {status: "completed", completedAt: Date.now(),});
+  const now = Date.now();
+  await update( ref(database, `schedules/${scheduleId}`), {
+    status: "completed", 
+    completedAt: now,
+    scheduleCompletedAt: now
+  });
+
+  const reservations = await getReservationsBySchedule(scheduleId);
+  const updates = {};
+  reservations.forEach(res => {
+    if (res.status !== "cancelled" && res.status !== "completed") {
+      updates[`reservations/${res.id}/status`] = "completed";
+      updates[`reservations/${res.id}/completedAt`] = now;
+    }
+  });
+
+  if (Object.keys(updates).length > 0) {
+    await update(ref(database), updates);
+  }
 };
 
 export const subscribeToPublishedSchedules = ( callback ) => {
