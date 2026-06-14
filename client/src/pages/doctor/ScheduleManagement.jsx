@@ -35,6 +35,10 @@ export default function ScheduleManagement() {
     return reservations.filter(r => r.scheduleId === schedule.id && r.status !== 'cancelled').length;
   };
 
+  const getCheckedInCount = (schedule) => {
+    return reservations.filter(r => r.scheduleId === schedule.id && (r.status === 'checked_in' || r.checkedIn)).length;
+  };
+
   const loadSchedules = async () => {
     try {
       const data = await getSchedules();
@@ -204,6 +208,7 @@ export default function ScheduleManagement() {
                 schedule={schedule}
                 availableSlots={getAvailableSlots(schedule)}
                 reservedCount={getReservedCount(schedule)}
+                checkedInCount={getCheckedInCount(schedule)}
                 onViewDetails={handleViewDetails}
                 onEdit={handleOpenEditModal}
                 onDelete={handleDelete}
@@ -226,6 +231,7 @@ export default function ScheduleManagement() {
                 schedule={schedule}
                 availableSlots={0}
                 reservedCount={getReservedCount(schedule)}
+                checkedInCount={getCheckedInCount(schedule)}
                 onViewDetails={handleViewDetails}
                 onEdit={handleOpenEditModal}
                 onDelete={handleDelete}

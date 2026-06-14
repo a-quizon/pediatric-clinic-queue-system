@@ -13,8 +13,12 @@ import ParentMyReservations from "../pages/parent/MyReservations";
 import ParentProfile from "../pages/parent/Profile";
 import ParentQRCode from "../pages/parent/ParentQRCode";
 
+import SecretaryLayout from "../components/secretary/SecretaryLayout";
 import SecretaryDashboard from "../pages/secretary/Dashboard";
-
+import SecretaryValidateReservation from "../pages/secretary/ValidateReservation";
+import SecretaryManageQueue from "../pages/secretary/ManageQueue";
+import SecretaryNotifications from "../pages/secretary/Notifications";
+import SecretaryProfile from "../pages/secretary/Profile";
 // Doctor Layout and Pages
 import DoctorLayout from "../components/doctor/Layout";
 import DoctorHome from "../pages/doctor/Home";
@@ -43,7 +47,14 @@ export default function AppRoutes() {
           <Route path="profile" element={<ParentProfile />} />
         </Route>
 
-        <Route path="/secretary" element={<ProtectedRoute> <RoleRoute allowedRole="secretary"><SecretaryDashboard /></RoleRoute> </ProtectedRoute>} />
+        {/* Secretary Routes */}
+        <Route path="/secretary" element={<ProtectedRoute> <RoleRoute allowedRole="secretary"><SecretaryLayout /></RoleRoute> </ProtectedRoute>}>
+          <Route index element={<SecretaryDashboard />} />
+          <Route path="validate" element={<SecretaryValidateReservation />} />
+          <Route path="queue" element={<SecretaryManageQueue />} />
+          <Route path="notifications" element={<SecretaryNotifications />} />
+          <Route path="profile" element={<SecretaryProfile />} />
+        </Route>
         
         {/* Doctor Routes */}
         <Route path="/doctor" element={<ProtectedRoute> <RoleRoute allowedRole="doctor"><DoctorLayout /></RoleRoute> </ProtectedRoute>}>

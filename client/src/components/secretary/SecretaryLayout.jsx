@@ -1,28 +1,22 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { Home, CalendarPlus, Ticket, User, Activity, ClipboardList } from "lucide-react";
+import { Home, QrCode, Users, Bell, User, Activity } from "lucide-react";
 
-export default function ParentLayout() {
+export default function SecretaryLayout() {
   const location = useLocation();
 
   const navItems = [
-    { name: "Home", path: "/parent", icon: Home },
-    { name: "Reserve Queue", mobileName: "Reserve", path: "/parent/reserve", icon: CalendarPlus },
-    { name: "My Reservation", mobileName: "Active", path: "/parent/reservations", icon: Ticket },
-    { name: "Consultation Notes", mobileName: "Notes", path: "/parent/reservations?tab=notes", icon: ClipboardList },
-    { name: "Profile", path: "/parent/profile", icon: User },
+    { name: "Dashboard", path: "/secretary", icon: Home },
+    { name: "Validate Reservation", mobileName: "Validate", path: "/secretary/validate", icon: QrCode },
+    { name: "Manage Queue", mobileName: "Queue", path: "/secretary/queue", icon: Users },
+    { name: "Notifications", path: "/secretary/notifications", icon: Bell, desktopOnly: true },
+    { name: "Profile", path: "/secretary/profile", icon: User },
   ];
 
   const isActive = (path) => {
-    if (path === "/parent") {
-      return location.pathname === "/parent" || location.pathname === "/parent/";
+    if (path === "/secretary") {
+      return location.pathname === "/secretary" || location.pathname === "/secretary/";
     }
-    if (path.includes("?tab=notes")) {
-      return location.pathname === "/parent/reservations" && location.search.includes("tab=notes");
-    }
-    if (path === "/parent/reservations") {
-      return location.pathname === "/parent/reservations" && !location.search.includes("tab=notes");
-    }
-    return location.pathname.startsWith(path.split('?')[0]);
+    return location.pathname.startsWith(path);
   };
 
   return (
@@ -31,14 +25,14 @@ export default function ParentLayout() {
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-100 z-20">
         <div className="p-6 flex items-center border-b border-gray-50">
           <Activity className="w-6 h-6 text-blue-600 mr-3" />
-          <h1 className="text-lg font-bold text-gray-800">Parent Portal</h1>
+          <h1 className="text-lg font-bold text-gray-800">Secretary Portal</h1>
         </div>
         <nav className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.name}
               to={item.path}
-              className={({ isActive: isNavLinkActive }) =>
+              className={() =>
                 `flex items-center px-4 py-3 rounded-xl transition-colors duration-200 ${
                   isActive(item.path)
                     ? "bg-blue-50 text-blue-600 font-semibold"
@@ -46,7 +40,7 @@ export default function ParentLayout() {
                 }`
               }
             >
-              {({ isActive: isNavLinkActive }) => (
+              {() => (
                 <>
                   <item.icon 
                     className={`w-5 h-5 mr-3 ${
@@ -69,7 +63,7 @@ export default function ParentLayout() {
         <header className="md:hidden bg-white shadow-sm sticky top-0 z-30 p-4 border-b border-gray-100">
           <div className="flex items-center justify-center">
              <Activity className="w-5 h-5 text-blue-600 mr-2" />
-             <h1 className="text-lg font-bold text-gray-800">Parent Portal</h1>
+             <h1 className="text-lg font-bold text-gray-800">Secretary Portal</h1>
           </div>
         </header>
 
@@ -81,13 +75,13 @@ export default function ParentLayout() {
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-40 pb-safe">
         <div className="flex justify-around items-center h-16 px-1">
-          {navItems.map((item) => (
+          {navItems.filter(item => !item.desktopOnly).map((item) => (
             <NavLink
               key={item.name}
               to={item.path}
               className="flex flex-col items-center justify-center w-full h-full space-y-1"
             >
-              {({ isActive: isNavLinkActive }) => {
+              {() => {
                 const active = isActive(item.path);
                 return (
                   <>

@@ -22,6 +22,14 @@ export const getSchedules = async () => {
   return {};
 };
 
+export const getScheduleById = async (scheduleId) => {
+  const snapshot = await get(ref(database, `schedules/${scheduleId}`));
+  if (snapshot.exists()) {
+    return { id: snapshot.key, ...snapshot.val() };
+  }
+  return null;
+};
+
 export const scheduleExists = async ( branch, clinicDate ) => {
   const snapshot = await get( ref(database, "schedules") );
 

@@ -40,6 +40,8 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
   const totalReservations = scheduleReservations.length;
   const patientsCheckedUp = scheduleReservations.filter(r => r.status === 'completed').length;
   const cancelledReservations = scheduleReservations.filter(r => r.status === 'cancelled').length;
+  
+  const checkedInCount = scheduleReservations.filter(r => r.status === 'checked_in' || r.checkedIn).length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -65,12 +67,12 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
                 <div className="text-xl font-bold text-gray-800">{schedule.slotCapacity}</div>
               </div>
               <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm">
-                <div className="text-xs text-blue-500 mb-1 flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1"/> Reserved</div>
+                <div className="text-xs text-blue-500 mb-1 flex items-center"><Users className="w-3.5 h-3.5 mr-1"/> Reserved</div>
                 <div className="text-xl font-bold text-blue-600">{activeCount}</div>
               </div>
               <div className="bg-white p-4 rounded-xl border border-green-100 shadow-sm">
-                <div className="text-xs text-green-500 mb-1 flex items-center"><Activity className="w-3.5 h-3.5 mr-1"/> Available</div>
-                <div className="text-xl font-bold text-green-600">{availableSlots}</div>
+                <div className="text-xs text-green-500 mb-1 flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1"/> Checked In</div>
+                <div className="text-xl font-bold text-green-600">{checkedInCount}</div>
               </div>
               <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                 <div className="text-xs text-gray-500 mb-1">Status</div>
@@ -113,49 +115,6 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
                 <span className="font-semibold">{formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}</span>
               </div>
             </div>
-          </div>
-
-          {/* Current Reservations List */}
-          <div>
-            <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center">
-              <Users className="w-5 h-5 mr-2 text-gray-500" />
-              {isCompletedSchedule ? "Historical Records" : "Current Reservations"}
-            </h3>
-            
-            {displayReservations.length === 0 ? (
-              <div className="bg-white rounded-xl border border-dashed border-gray-200 p-8 text-center">
-                <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Activity className="w-6 h-6 text-gray-400" />
-                </div>
-                <p className="text-gray-500 font-medium">{isCompletedSchedule ? "No historical records found." : "No active reservations in the queue yet."}</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {displayReservations.map((res) => (
-                  <div key={res.id} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="bg-blue-50 w-12 h-12 rounded-lg flex flex-col items-center justify-center flex-shrink-0 border border-blue-100">
-                        <span className="text-[10px] text-blue-500 font-bold uppercase leading-none mb-1">Queue</span>
-                        <span className="text-lg font-black text-blue-600 leading-none">{res.queuePosition}</span>
-                      </div>
-                      <div>
-                        <div className="font-bold text-gray-800 flex items-center mb-1">
-                          <User className="w-4 h-4 mr-1.5 text-gray-400" />
-                          {res.parentEmail}
-                        </div>
-                        <div className="text-xs text-gray-500 flex items-center">
-                          <Clock className="w-3 h-3 mr-1" />
-                          Reserved: {new Date(res.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
-                        </div>
-                      </div>
-                    </div>
-                    <div className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize whitespace-nowrap self-start sm:self-auto ${getStatusColor(res.status)}`}>
-                      {res.status}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
         

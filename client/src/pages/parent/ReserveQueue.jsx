@@ -1,17 +1,20 @@
 import { CalendarPlus, CalendarDays, Clock, MapPin, Users, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { 
   subscribeToAllReservations, 
   createReservation, 
   checkExistingGlobalReservation, 
-  getReservationsBySchedule
+  getReservationsBySchedule,
+  updatePatientInfo
 } from "../../services/reservationService";
 import { useAuth } from "../../hooks/useAuth";
 import MessageModal from "../../components/common/MessageModal";
 
 export default function ReserveQueue() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   const [schedules, setSchedules] = useState([]);
   const [reservations, setReservations] = useState([]);
@@ -21,9 +24,19 @@ export default function ReserveQueue() {
   // Modal States
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isPatientInfoModalOpen, setIsPatientInfoModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [generatedQueuePosition, setGeneratedQueuePosition] = useState(null);
+  const [activeReservationId, setActiveReservationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Patient Info Form State
+  const [formData, setFormData] = useState({
+    childName: "",
+    age: "",
+    sex: "",
+    concern: ""
+  });
 
   const [messageModalState, setMessageModalState] = useState({
     isOpen: false,
@@ -97,6 +110,7 @@ export default function ReserveQueue() {
     }
 
     setSelectedSchedule(schedule);
+    setFormData({ childName: "", age: "", sex: "", concern: "" });
     setIsConfirmModalOpen(true);
   };
 
@@ -131,8 +145,9 @@ export default function ReserveQueue() {
       const newRes = updatedReservations.find(r => r.id === reservationId);
 
       setGeneratedQueuePosition(newRes?.queuePosition || "Assigned");
+      setActiveReservationId(reservationId);
       setIsConfirmModalOpen(false);
-      setIsSuccessModalOpen(true);
+      setIsPatientInfoModalOpen(true);
     } catch (error) {
       console.error("Failed to create reservation", error);
       setMessageModalState({
@@ -146,10 +161,43 @@ export default function ReserveQueue() {
     }
   };
 
+  const closePatientInfoModal = () => {
+    setIsPatientInfoModalOpen(false);
+    setIsSuccessModalOpen(true);
+  };
+
+  const handleSubmitPatientInfo = async () => {
+    if (!activeReservationId) return;
+    setIsSubmitting(true);
+    try {
+      await updatePatientInfo(activeReservationId, {
+        childName: formData.childName.trim(),
+        age: formData.age.trim(),
+        sex: formData.sex,
+        concern: formData.concern.trim(),
+      });
+      setIsPatientInfoModalOpen(false);
+      setIsSuccessModalOpen(true);
+    } catch (err) {
+      console.error(err);
+      setMessageModalState({
+        isOpen: true,
+        type: 'error',
+        title: 'Update Failed',
+        message: 'Could not save patient information. You can complete it later in My Reservations.'
+      });
+      setIsPatientInfoModalOpen(false);
+      setIsSuccessModalOpen(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const closeSuccessModal = () => {
     setIsSuccessModalOpen(false);
     setSelectedSchedule(null);
     setGeneratedQueuePosition(null);
+    setActiveReservationId(null);
   };
 
   return (
@@ -306,6 +354,98 @@ export default function ReserveQueue() {
         </div>
       )}
 
+      {/* Complete Patient Info Modal */}
+      {isPatientInfoModalOpen && selectedSchedule && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-5 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-800">Complete Patient Information</h2>
+              <button onClick={closePatientInfoModal} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-50">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto">
+              <div className="flex items-start text-blue-700 bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6">
+                <CheckCircle2 className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
+                <p className="text-sm font-medium">Your slot is reserved! Please provide the patient's information to finalize the check-in process.</p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Child Full Name *</label>
+                  <input 
+                    type="text" 
+                    value={formData.childName}
+                    onChange={e => setFormData(prev => ({ ...prev, childName: e.target.value }))}
+                    placeholder="Enter child's full name"
+                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Age *</label>
+                    <input 
+                      type="text" 
+                      value={formData.age}
+                      onChange={e => setFormData(prev => ({ ...prev, age: e.target.value }))}
+                      placeholder="e.g. 5 yrs"
+                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sex *</label>
+                    <select
+                      value={formData.sex}
+                      onChange={e => setFormData(prev => ({ ...prev, sex: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all cursor-pointer"
+                    >
+                      <option value="">Select</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Concern / Reason for Visit</label>
+                  <textarea 
+                    value={formData.concern}
+                    onChange={e => setFormData(prev => ({ ...prev, concern: e.target.value }))}
+                    placeholder="Optional: briefly describe the symptoms or reason for visit"
+                    rows={3}
+                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
+              <button 
+                onClick={closePatientInfoModal}
+                disabled={isSubmitting}
+                className="px-5 py-2.5 text-gray-600 font-semibold bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Skip for Now
+              </button>
+              <button 
+                onClick={handleSubmitPatientInfo}
+                disabled={isSubmitting || !formData.childName.trim() || !formData.age.trim() || !formData.sex}
+                className="px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors flex items-center disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Saving...
+                  </>
+                ) : "Save Information"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Success Modal */}
       {isSuccessModalOpen && selectedSchedule && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -333,12 +473,20 @@ export default function ReserveQueue() {
                 </div>
               </div>
 
-              <button 
-                onClick={closeSuccessModal}
-                className="w-full py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
-              >
-                Okay
-              </button>
+              <div className="space-y-3">
+                <button 
+                  onClick={() => { closeSuccessModal(); navigate('/parent/reservations'); }}
+                  className="w-full py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  View My Reservation
+                </button>
+                <button 
+                  onClick={closeSuccessModal}
+                  className="w-full py-2.5 text-gray-600 font-bold bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors shadow-sm"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

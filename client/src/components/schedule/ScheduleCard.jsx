@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calendar, Clock, MapPin, Users, CheckCircle2, AlertCircle, PlayCircle } from 'lucide-react';
 
-export default function ScheduleCard({ schedule, availableSlots, reservedCount, onEdit, onDelete, onPublish, onComplete, onViewDetails }) {
+export default function ScheduleCard({ schedule, availableSlots, reservedCount, checkedInCount, onEdit, onDelete, onPublish, onComplete, onViewDetails }) {
   const isCompleted = schedule.status === 'completed';
   const isDraft = schedule.status === 'draft';
   const isPublished = schedule.status === 'published';
@@ -48,16 +48,20 @@ export default function ScheduleCard({ schedule, availableSlots, reservedCount, 
           <span className="text-gray-600">{schedule.clinicDate}</span>
         </div>
         <div className="flex items-center text-sm">
-          <Users className="w-4 h-4 mr-2 text-gray-400" />
-          <span className="text-gray-600">Cap: {schedule.slotCapacity}</span>
-        </div>
-        <div className="flex items-center text-sm">
           <Clock className="w-4 h-4 mr-2 text-gray-400" />
-          <span className="text-gray-600">Hours: {formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}</span>
+          <span className="text-gray-600">{formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}</span>
         </div>
         <div className="flex items-center text-sm">
           <Users className="w-4 h-4 mr-2 text-gray-400" />
-          <span className="text-gray-600">Reserved: <span className="font-bold">{reservedCount !== undefined ? reservedCount : (schedule.slotCapacity - (availableSlots || schedule.slotCapacity))} / {schedule.slotCapacity}</span></span>
+          <span className="text-gray-600">Capacity: <span className="font-bold">{schedule.slotCapacity}</span></span>
+        </div>
+        <div className="flex items-center text-sm">
+          <Users className="w-4 h-4 mr-2 text-gray-400" />
+          <span className="text-gray-600">Reserved: <span className="font-bold">{reservedCount !== undefined ? reservedCount : (schedule.slotCapacity - (availableSlots || schedule.slotCapacity))}</span></span>
+        </div>
+        <div className="col-span-2 pt-2 mt-1 border-t border-gray-50 flex items-center text-sm">
+          <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+          <span className="text-gray-600">Checked In: <span className="font-bold text-green-600">{checkedInCount !== undefined ? checkedInCount : 0} / {schedule.slotCapacity}</span></span>
         </div>
       </div>
 
