@@ -1,11 +1,33 @@
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { logoutUser } from "../../services/authService";
-import { User, Mail, ShieldCheck, LogOut, Activity } from "lucide-react";
+import { User, Mail, ShieldCheck, LogOut, Activity, History, CalendarDays, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { subscribeToAllReservations } from "../../services/reservationService";
+import { getSchedules } from "../../services/scheduleService";
 
 export default function Profile() {
   const { user, role } = useAuth();
   const navigate = useNavigate();
+  const [historyReservations, setHistoryReservations] = useState([]);
+  const [schedules, setSchedules] = useState({});
+
+  useEffect(() => {
+    const fetchSchedules = async () => {
+      const data = await getSchedules();
+      setSchedules(data || {});
+    };
+    fetchSchedules();
+
+    let unsub = () => {};
+    if (user) {
+      unsub = subscribeToAllReservations((data) => {
+        const history = data.filter(r => r.parentId === user.uid && ["cancelled", "completed", "consultation_completed"].includes(r.status));
+        setHistoryReservations(history.sort((a, b) => (b.consultationCompletedAt || 0) - (a.consultationCompletedAt || 0)));
+      });
+    }
+    return () => unsub();
+  }, [user]);
 
   const handleLogout = async () => {
     try {
@@ -81,6 +103,48 @@ export default function Profile() {
              <p className="text-xs text-green-600 font-semibold mt-2 text-right">100% Setup Complete</p>
           </div>
         </div>
+      </div>
+
+      {/* Reservation History Section */}
+      <div className="mt-8">
+        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+          <History className="w-5 h-5 mr-2 text-blue-600" />
+          Reservation History
+        </h2>
+        
+        {historyReservations.length > 0 ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="divide-y divide-gray-100">
+              {historyReservations.map(res => {
+                const schedule = schedules[res.scheduleId] || {};
+                const isCancelled = res.status === "cancelled";
+                return (
+                  <div key={res.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                    <div>
+                      <div className="font-bold text-gray-800">{res.childName || "N/A"}</div>
+                      <div className="text-sm text-gray-500 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+                        <span className="flex items-center"><CalendarDays className="w-3.5 h-3.5 mr-1" /> {schedule.clinicDate ? new Date(schedule.clinicDate).toLocaleDateString() : "Unknown"}</span>
+                        <span className="flex items-center"><MapPin className="w-3.5 h-3.5 mr-1" /> {schedule.branch || "Unknown Branch"}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize border ${
+                        isCancelled ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-100 text-gray-600 border-gray-200'
+                      }`}>
+                        {res.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-gray-200 border-dashed shadow-sm p-12 text-center text-gray-500">
+            <History className="w-8 h-8 mx-auto text-gray-300 mb-3" />
+            <p>You have no reservation history yet.</p>
+          </div>
+        )}
       </div>
     </div>
   );

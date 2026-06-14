@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Ticket, Clock, MapPin, CheckCircle2, History, XCircle, Search } from "lucide-react";
+import { Ticket, Clock, MapPin, CheckCircle2, History, XCircle, Search, User } from "lucide-react";
 import { getSchedules } from "../../services/scheduleService";
 import { subscribeToAllReservations, cancelReservation, updatePatientInfo } from "../../services/reservationService";
 import { useAuth } from "../../hooks/useAuth";
@@ -131,6 +131,7 @@ export default function MyReservations() {
   
   const notesReservations = reservations
     .filter(r => r.status === "consultation_completed")
+    .filter(r => r.doctorNotes && r.doctorNotes.trim() !== "")
     .filter(r => {
       if (notesFilter === "All Notes") return true;
       const completedAt = r.consultationCompletedAt || 0;
@@ -187,7 +188,7 @@ export default function MyReservations() {
             }`}
           >
             <History className="w-4 h-4 mr-2" />
-            Consultation Notes
+            Consultations With Notes
           </button>
         </div>
       </div>
@@ -220,6 +221,9 @@ export default function MyReservations() {
                   
                   <div className="bg-gray-50 rounded-xl p-5 mb-6 border border-gray-100">
                     <div className="grid grid-cols-2 gap-y-4 text-sm">
+                      <div className="text-gray-500 flex items-center"><User className="w-4 h-4 mr-2 flex-shrink-0" />Patient</div>
+                      <div className="font-bold text-gray-800 text-right">{currentReservation.childName || "N/A"}</div>
+                      
                       <div className="text-gray-500 flex items-center"><MapPin className="w-4 h-4 mr-2 flex-shrink-0" />Branch</div>
                       <div className="font-bold text-gray-800 text-right">{schedule.branch}</div>
                       
@@ -271,19 +275,13 @@ export default function MyReservations() {
                         View QR Code
                       </button>
                     )}
-                    <button
-                      onClick={() => handleCancelClick(currentReservation)}
-                      disabled={currentReservation.status === "checked_in" || currentReservation.status === "in_consultation"}
-                      className={`w-full py-3 font-bold rounded-xl transition-colors flex items-center justify-center ${
-                        (currentReservation.status === "checked_in" || currentReservation.status === "in_consultation")
-                          ? "bg-gray-100 text-gray-400 cursor-not-allowed" 
-                          : "text-red-600 bg-red-50 hover:bg-red-100"
-                      }`}
-                    >
-                      {(currentReservation.status === "checked_in" || currentReservation.status === "in_consultation") ? "Cannot Cancel" : "Cancel Reservation"}
-                    </button>
-                    {(currentReservation.status === "checked_in" || currentReservation.status === "in_consultation") && (
-                      <p className="text-xs text-center text-gray-500 mt-1">This reservation has already been checked in and can no longer be cancelled.</p>
+                    {currentReservation.status !== "checked_in" && currentReservation.status !== "in_consultation" && (
+                      <button
+                        onClick={() => handleCancelClick(currentReservation)}
+                        className="w-full py-3 font-bold rounded-xl transition-colors flex items-center justify-center text-red-600 bg-red-50 hover:bg-red-100"
+                      >
+                        Cancel Reservation
+                      </button>
                     )}
                   </div>
                 </div>
@@ -343,7 +341,8 @@ export default function MyReservations() {
                     return (
                       <div 
                         key={res.id} 
-                        className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all flex flex-col"
+                        onClick={() => handleOpenDetails(res)}
+                        className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all flex flex-col cursor-pointer"
                       >
                         <div className="flex justify-between items-start mb-4 border-b border-gray-100 pb-4">
                           <div>
@@ -369,13 +368,13 @@ export default function MyReservations() {
                           </div>
                         </div>
 
-                        <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 mt-auto">
-                          <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2 flex items-center">
+                        <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 mt-auto flex items-center justify-between">
+                          <div className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center">
                             <History className="w-3.5 h-3.5 mr-1.5" />
                             Doctor's Notes
                           </div>
-                          <div className="text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
-                            {res.doctorNotes || <span className="text-gray-400 italic">No notes provided for this consultation.</span>}
+                          <div className="text-gray-500 text-xs italic">
+                            Tap to view doctor's notes
                           </div>
                         </div>
                       </div>

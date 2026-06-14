@@ -163,7 +163,7 @@ export default function Consultations() {
 
           {waitingPatients.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {waitingPatients.map(res => {
+              {waitingPatients.map((res, index) => {
                 const schedule = schedules[res.scheduleId] || {};
                 return (
                   <div key={res.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md transition-shadow flex flex-col">
@@ -187,13 +187,22 @@ export default function Consultations() {
                     )}
                     
                     <div className="mt-auto pt-4 border-t border-gray-50 flex gap-2">
-                      <button 
-                        onClick={() => handleStart(res)}
-                        disabled={!!activeConsultation}
-                        className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-bold rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                      >
-                        <PlayCircle className="w-4 h-4 mr-1.5" /> Start
-                      </button>
+                      {activeConsultation ? (
+                        <div className="flex-1 py-2 text-center text-xs font-bold text-gray-400 bg-gray-50 rounded-lg">
+                          Patient Currently In Consultation
+                        </div>
+                      ) : index === 0 ? (
+                        <button 
+                          onClick={() => handleStart(res)}
+                          className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-bold rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center"
+                        >
+                          <PlayCircle className="w-4 h-4 mr-1.5" /> Start
+                        </button>
+                      ) : (
+                        <div className="flex-1 py-2 text-center text-xs font-medium text-gray-400">
+                          Waiting for turn
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

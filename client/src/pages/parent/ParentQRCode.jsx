@@ -143,28 +143,43 @@ export default function ParentQRCode() {
 
         {/* QR Section */}
         <div className="p-8 text-center flex flex-col items-center border-b border-gray-50">
-          {qrImageUrl ? (
-            <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 mb-6">
-              <img src={qrImageUrl} alt="Reservation QR Code" className="w-48 h-48 sm:w-56 sm:h-56 object-contain" />
-            </div>
+          {reservation.status === "in_consultation" ? (
+            <>
+              <div className="w-48 h-48 sm:w-56 sm:h-56 bg-red-50 rounded-2xl border border-red-100 mb-6 flex items-center justify-center text-red-500 font-bold flex-col">
+                <QrCode className="w-12 h-12 mb-2 opacity-50" />
+                QR Code Expired
+              </div>
+              <div className="mb-2">
+                <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Reservation Code</span>
+                <div className="text-xl font-bold text-red-500 tracking-wider mt-2 bg-red-50 px-4 py-1.5 rounded-lg border border-red-100">Code Expired</div>
+              </div>
+            </>
           ) : (
-            <div className="w-48 h-48 sm:w-56 sm:h-56 bg-gray-50 rounded-2xl border border-gray-100 mb-6 flex items-center justify-center text-gray-400">
-              Generating...
-            </div>
+            <>
+              {qrImageUrl ? (
+                <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                  <img src={qrImageUrl} alt="Reservation QR Code" className="w-48 h-48 sm:w-56 sm:h-56 object-contain" />
+                </div>
+              ) : (
+                <div className="w-48 h-48 sm:w-56 sm:h-56 bg-gray-50 rounded-2xl border border-gray-100 mb-6 flex items-center justify-center text-gray-400">
+                  Generating...
+                </div>
+              )}
+              
+              <div className="mb-2">
+                <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Reservation Code</span>
+                <div className="text-4xl font-black text-gray-800 tracking-wider mt-1">{reservation.reservationCode || "------"}</div>
+              </div>
+              
+              <button 
+                onClick={handleCopyCode}
+                className="flex items-center text-sm font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-4 py-2 rounded-lg mt-2 transition-colors"
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Copy Code
+              </button>
+            </>
           )}
-          
-          <div className="mb-2">
-            <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Reservation Code</span>
-            <div className="text-4xl font-black text-gray-800 tracking-wider mt-1">{reservation.reservationCode || "------"}</div>
-          </div>
-          
-          <button 
-            onClick={handleCopyCode}
-            className="flex items-center text-sm font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-4 py-2 rounded-lg mt-2 transition-colors"
-          >
-            <Copy className="w-4 h-4 mr-2" />
-            Copy Code
-          </button>
         </div>
 
         {/* Details Section */}
@@ -204,7 +219,7 @@ export default function ParentQRCode() {
 
         {/* Footer Actions */}
         <div className="p-6 pt-0 bg-gray-50/50">
-          {qrImageUrl && (
+          {qrImageUrl && reservation.status !== "in_consultation" && (
             <a 
               href={qrImageUrl} 
               download={`reservation-${reservation.reservationCode || 'code'}.png`}

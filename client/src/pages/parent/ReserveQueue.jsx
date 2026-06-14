@@ -161,11 +161,6 @@ export default function ReserveQueue() {
     }
   };
 
-  const closePatientInfoModal = () => {
-    setIsPatientInfoModalOpen(false);
-    setIsSuccessModalOpen(true);
-  };
-
   const handleSubmitPatientInfo = async () => {
     if (!activeReservationId) return;
     setIsSubmitting(true);
@@ -184,10 +179,9 @@ export default function ReserveQueue() {
         isOpen: true,
         type: 'error',
         title: 'Update Failed',
-        message: 'Could not save patient information. You can complete it later in My Reservations.'
+        message: 'Could not save patient information. Please try again.'
       });
-      setIsPatientInfoModalOpen(false);
-      setIsSuccessModalOpen(true);
+      // Do not close modal on error
     } finally {
       setIsSubmitting(false);
     }
@@ -360,9 +354,6 @@ export default function ReserveQueue() {
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-5 border-b border-gray-100">
               <h2 className="text-lg font-bold text-gray-800">Complete Patient Information</h2>
-              <button onClick={closePatientInfoModal} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-50">
-                <X className="w-5 h-5" />
-              </button>
             </div>
             
             <div className="p-6 overflow-y-auto">
@@ -423,16 +414,9 @@ export default function ReserveQueue() {
 
             <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
               <button 
-                onClick={closePatientInfoModal}
-                disabled={isSubmitting}
-                className="px-5 py-2.5 text-gray-600 font-semibold bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Skip for Now
-              </button>
-              <button 
                 onClick={handleSubmitPatientInfo}
                 disabled={isSubmitting || !formData.childName.trim() || !formData.age.trim() || !formData.sex}
-                className="px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors flex items-center disabled:opacity-70 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors flex items-center disabled:opacity-70 disabled:cursor-not-allowed w-full justify-center"
               >
                 {isSubmitting ? (
                   <>

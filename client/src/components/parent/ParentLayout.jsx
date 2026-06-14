@@ -8,7 +8,7 @@ export default function ParentLayout() {
     { name: "Home", path: "/parent", icon: Home },
     { name: "Reserve Queue", mobileName: "Reserve", path: "/parent/reserve", icon: CalendarPlus },
     { name: "My Reservation", mobileName: "Active", path: "/parent/reservations", icon: Ticket },
-    { name: "Consultation Notes", mobileName: "Notes", path: "/parent/reservations?tab=notes", icon: ClipboardList },
+    { name: "Reservation", mobileName: "Reservation", path: "/parent/reservations?tab=notes", icon: ClipboardList },
     { name: "Profile", path: "/parent/profile", icon: User },
   ];
 
