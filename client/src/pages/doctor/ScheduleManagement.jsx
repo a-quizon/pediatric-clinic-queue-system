@@ -27,12 +27,12 @@ export default function ScheduleManagement() {
   }, []);
 
   const getAvailableSlots = (schedule) => {
-    const count = reservations.filter(r => r.scheduleId === schedule.id && r.status !== 'cancelled').length;
+    const count = reservations.filter(r => r.scheduleId === schedule.id && ['reserved', 'checked_in', 'in_consultation'].includes(r.status)).length;
     return schedule.slotCapacity - count;
   };
 
   const getReservedCount = (schedule) => {
-    return reservations.filter(r => r.scheduleId === schedule.id && r.status !== 'cancelled').length;
+    return reservations.filter(r => r.scheduleId === schedule.id && ['reserved', 'checked_in', 'in_consultation'].includes(r.status)).length;
   };
 
   const getCheckedInCount = (schedule) => {

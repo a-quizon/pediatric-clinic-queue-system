@@ -81,7 +81,7 @@ export default function ReserveQueue() {
   }, [user]);
 
   const getReservationCount = (scheduleId) => {
-    return reservations.filter(r => r.scheduleId === scheduleId && r.status !== "cancelled").length;
+    return reservations.filter(r => r.scheduleId === scheduleId && ['reserved', 'checked_in', 'in_consultation'].includes(r.status)).length;
   };
 
   const handleReserveClick = async (schedule) => {

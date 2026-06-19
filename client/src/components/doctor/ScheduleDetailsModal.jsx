@@ -27,7 +27,7 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
   // Filter reservations for this schedule
   const scheduleReservations = reservations.filter(r => r.scheduleId === schedule.id);
 
-  const activeStatuses = ["reserved", "validated", "waiting"];
+  const activeStatuses = ["reserved", "checked_in", "in_consultation"];
   
   const displayReservations = isCompletedSchedule 
     ? scheduleReservations.filter(r => r.status === 'completed' || r.status === 'cancelled').sort((a, b) => (a.queuePosition || 0) - (b.queuePosition || 0))
