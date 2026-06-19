@@ -31,7 +31,7 @@ export default function Consultations() {
 
   const activeConsultation = reservations.find(r => r.status === "in_consultation");
   const waitingPatients = reservations
-    .filter(r => r.status === "checked_in")
+    .filter(r => r.status === "checked_in" || r.status === "reserved")
     .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
 
   const handleStart = async (res) => {
@@ -174,7 +174,12 @@ export default function Consultations() {
                           <span className="text-sm font-black text-gray-800 leading-none">{res.queuePosition}</span>
                         </div>
                         <div>
-                          <div className="font-bold text-gray-800">{res.childName || res.parentEmail}</div>
+                          <div className="font-bold text-gray-800 flex items-center gap-2">
+                            {res.childName || res.parentEmail}
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${res.status === 'checked_in' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {res.status === 'checked_in' ? 'Checked In' : 'Reserved'}
+                            </span>
+                          </div>
                           {res.age && res.sex && <div className="text-xs text-gray-500">{res.age} • {res.sex}</div>}
                         </div>
                       </div>
@@ -192,12 +197,18 @@ export default function Consultations() {
                           Patient Currently In Consultation
                         </div>
                       ) : index === 0 ? (
-                        <button 
-                          onClick={() => handleStart(res)}
-                          className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-bold rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center"
-                        >
-                          <PlayCircle className="w-4 h-4 mr-1.5" /> Start
-                        </button>
+                        res.status === 'checked_in' ? (
+                          <button 
+                            onClick={() => handleStart(res)}
+                            className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-bold rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center"
+                          >
+                            <PlayCircle className="w-4 h-4 mr-1.5" /> Start
+                          </button>
+                        ) : (
+                          <div className="flex-1 py-2 text-center text-xs font-bold text-amber-600 bg-amber-50 rounded-lg">
+                            Waiting for the next patient to check in.
+                          </div>
+                        )
                       ) : (
                         <div className="flex-1 py-2 text-center text-xs font-medium text-gray-400">
                           Waiting for turn

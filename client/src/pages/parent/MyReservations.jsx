@@ -5,7 +5,7 @@ import { getSchedules } from "../../services/scheduleService";
 import { subscribeToAllReservations, cancelReservation, updatePatientInfo } from "../../services/reservationService";
 import { useAuth } from "../../hooks/useAuth";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
-import ReservationDetailsModal from "../../components/parent/ReservationDetailsModal";
+import NotesDetailsModal from "../../components/parent/NotesDetailsModal";
 import toast from "react-hot-toast";
 
 export default function MyReservations() {
@@ -398,7 +398,7 @@ export default function MyReservations() {
       )}
 
       {/* Details Modal */}
-      <ReservationDetailsModal
+      <NotesDetailsModal
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
         reservation={selectedHistoryReservation}

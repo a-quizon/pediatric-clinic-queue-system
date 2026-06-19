@@ -1,150 +1,113 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { logoutUser } from "../../services/authService";
-import { User, Mail, ShieldCheck, LogOut, Activity, History, CalendarDays, MapPin } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { subscribeToAllReservations } from "../../services/reservationService";
-import { getSchedules } from "../../services/scheduleService";
+import { User, Mail, ShieldCheck, LogOut, Activity, History, ChevronRight, Settings, Bell } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function Profile() {
   const { user, role } = useAuth();
   const navigate = useNavigate();
-  const [historyReservations, setHistoryReservations] = useState([]);
-  const [schedules, setSchedules] = useState({});
-
-  useEffect(() => {
-    const fetchSchedules = async () => {
-      const data = await getSchedules();
-      setSchedules(data || {});
-    };
-    fetchSchedules();
-
-    let unsub = () => {};
-    if (user) {
-      unsub = subscribeToAllReservations((data) => {
-        const history = data.filter(r => r.parentId === user.uid && ["cancelled", "completed", "consultation_completed"].includes(r.status));
-        setHistoryReservations(history.sort((a, b) => (b.consultationCompletedAt || 0) - (a.consultationCompletedAt || 0)));
-      });
-    }
-    return () => unsub();
-  }, [user]);
 
   const handleLogout = async () => {
     try {
       await logoutUser();
       navigate("/");
     } catch (error) {
-      console.error("Logout failed", error);
+      console.error("Logout failed:", error);
     }
   };
 
+  const menuItems = [
+    {
+      title: "Reservation History",
+      description: "View past consultations and cancelled slots",
+      icon: History,
+      path: "/parent/profile/history",
+      color: "text-blue-600",
+      bgColor: "bg-blue-50"
+    },
+    {
+      title: "Account Settings",
+      description: "Manage your personal information",
+      icon: Settings,
+      path: "#",
+      color: "text-gray-400",
+      bgColor: "bg-gray-50"
+    },
+    {
+      title: "Notifications",
+      description: "Configure your alerts and reminders",
+      icon: Bell,
+      path: "#",
+      color: "text-gray-400",
+      bgColor: "bg-gray-50"
+    }
+  ];
+
   return (
-    <div className="space-y-6 pb-6">
-      {/* Header */}
+    <div className="space-y-6 pb-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Profile Settings</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Profile</h1>
         <p className="text-gray-500 mt-1">
-          Manage your account information and preferences.
+          Manage your account settings and history.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Profile Card */}
-        <div className="md:col-span-2 space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 md:p-8">
-              <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-                <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0 border border-blue-100">
-                  <User className="w-10 h-10" />
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-xl font-bold text-gray-800">{user?.displayName || "Parent Account"}</h2>
-                  <div className="mt-2 space-y-2">
-                    <div className="flex items-center text-gray-600 text-sm">
-                      <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                      {user?.email}
-                    </div>
-                    <div className="flex items-center text-gray-600 text-sm">
-                      <ShieldCheck className="w-4 h-4 mr-2 text-gray-400" />
-                      Role: <span className="ml-1 capitalize font-semibold text-gray-700">{role}</span>
-                    </div>
-                  </div>
-                </div>
-                <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-full mt-4 md:mt-0">
-                  Active
-                </span>
-              </div>
-            </div>
-            <div className="bg-gray-50 p-6 border-t border-gray-100">
-              <button 
-                onClick={handleLogout}
-                className="flex items-center justify-center w-full md:w-auto px-6 py-2.5 bg-white border border-gray-200 text-red-600 font-semibold rounded-xl hover:bg-red-50 hover:border-red-100 hover:text-red-700 transition-colors shadow-sm"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Log Out
-              </button>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-4">
+        <div className="p-6 md:p-8 flex flex-col md:flex-row items-center gap-6">
+          <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center border-4 border-white shadow-md flex-shrink-0 relative">
+            <User className="w-10 h-10 text-blue-500" />
+            <div className="absolute -bottom-1 -right-1 bg-green-500 w-5 h-5 rounded-full border-2 border-white"></div>
+          </div>
+          
+          <div className="text-center md:text-left flex-1">
+            <h2 className="text-xl font-bold text-gray-800">{user?.displayName || "Parent"}</h2>
+            <div className="flex flex-col md:flex-row gap-2 md:gap-4 mt-2 text-sm text-gray-500 justify-center md:justify-start">
+              <span className="flex items-center justify-center md:justify-start">
+                <Mail className="w-4 h-4 mr-1.5 text-gray-400" />
+                {user?.email || "No email provided"}
+              </span>
+              <span className="flex items-center justify-center md:justify-start capitalize">
+                <ShieldCheck className="w-4 h-4 mr-1.5 text-blue-500" />
+                {role}
+              </span>
             </div>
           </div>
-        </div>
 
-        {/* Info Card */}
-        <div className="md:col-span-1">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-             <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4">
-                <Activity className="w-6 h-6" />
-             </div>
-             <h3 className="font-bold text-gray-800 mb-2">Account Status</h3>
-             <p className="text-gray-500 text-sm leading-relaxed mb-4">
-               Your parent account is verified and ready to make queue reservations.
-             </p>
-             <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
-                <div className="h-full bg-green-500 w-full"></div>
-             </div>
-             <p className="text-xs text-green-600 font-semibold mt-2 text-right">100% Setup Complete</p>
-          </div>
+          <button 
+            onClick={handleLogout}
+            className="w-full md:w-auto px-6 py-2.5 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center mt-4 md:mt-0 shadow-sm"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Log Out
+          </button>
         </div>
       </div>
 
-      {/* Reservation History Section */}
-      <div className="mt-8">
-        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-          <History className="w-5 h-5 mr-2 text-blue-600" />
-          Reservation History
-        </h2>
-        
-        {historyReservations.length > 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="divide-y divide-gray-100">
-              {historyReservations.map(res => {
-                const schedule = schedules[res.scheduleId] || {};
-                const isCancelled = res.status === "cancelled";
-                return (
-                  <div key={res.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
-                    <div>
-                      <div className="font-bold text-gray-800">{res.childName || "N/A"}</div>
-                      <div className="text-sm text-gray-500 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
-                        <span className="flex items-center"><CalendarDays className="w-3.5 h-3.5 mr-1" /> {schedule.clinicDate ? new Date(schedule.clinicDate).toLocaleDateString() : "Unknown"}</span>
-                        <span className="flex items-center"><MapPin className="w-3.5 h-3.5 mr-1" /> {schedule.branch || "Unknown Branch"}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize border ${
-                        isCancelled ? 'bg-red-50 text-red-600 border-red-100' : 'bg-gray-100 text-gray-600 border-gray-200'
-                      }`}>
-                        {res.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+      <h2 className="text-lg font-bold text-gray-800 mb-4 px-1">Menu</h2>
+      
+      <div className="grid grid-cols-1 gap-4">
+        {menuItems.map((item, index) => (
+          <Link 
+            to={item.path} 
+            key={index}
+            className={`bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center justify-between hover:border-blue-200 hover:shadow-md transition-all group ${item.path === '#' ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+            onClick={e => item.path === '#' && e.preventDefault()}
+          >
+            <div className="flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.bgColor}`}>
+                <item.icon className={`w-6 h-6 ${item.color}`} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800 group-hover:text-blue-600 transition-colors">{item.title}</h3>
+                <p className="text-sm text-gray-500">{item.description}</p>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl border border-gray-200 border-dashed shadow-sm p-12 text-center text-gray-500">
-            <History className="w-8 h-8 mx-auto text-gray-300 mb-3" />
-            <p>You have no reservation history yet.</p>
-          </div>
-        )}
+            <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600" />
+            </div>
+          </Link>
+        ))}
       </div>
     </div>
   );
