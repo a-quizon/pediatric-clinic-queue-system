@@ -206,7 +206,7 @@ export default function Consultations() {
                           </button>
                         ) : (
                           <div className="flex-1 py-2 text-center text-xs font-bold text-amber-600 bg-amber-50 rounded-lg">
-                            Waiting for the next patient to check in.
+                            Waiting for patient check-in.
                           </div>
                         )
                       ) : (

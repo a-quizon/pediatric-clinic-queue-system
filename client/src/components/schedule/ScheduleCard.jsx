@@ -61,7 +61,7 @@ export default function ScheduleCard({ schedule, availableSlots, reservedCount, 
         </div>
         <div className="col-span-2 pt-2 mt-1 border-t border-gray-50 flex items-center text-sm">
           <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
-          <span className="text-gray-600">Checked In: <span className="font-bold text-green-600">{checkedInCount !== undefined ? checkedInCount : 0} / {schedule.slotCapacity}</span></span>
+          <span className="text-gray-600">Checked In: <span className="font-bold text-green-600">{checkedInCount !== undefined ? checkedInCount : 0}</span></span>
         </div>
       </div>
 
