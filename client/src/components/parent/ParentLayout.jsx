@@ -7,8 +7,7 @@ export default function ParentLayout() {
   const navItems = [
     { name: "Home", path: "/parent", icon: Home },
     { name: "Reserve Queue", mobileName: "Reserve", path: "/parent/reserve", icon: CalendarPlus },
-    { name: "My Reservation", mobileName: "Active", path: "/parent/reservations", icon: Ticket },
-    { name: "Reservation", mobileName: "Reservation", path: "/parent/reservations?tab=notes", icon: ClipboardList },
+    { name: "Ticket", path: "/parent/reservations", icon: Ticket },
     { name: "Profile", path: "/parent/profile", icon: User },
   ];
 
@@ -16,13 +15,10 @@ export default function ParentLayout() {
     if (path === "/parent") {
       return location.pathname === "/parent" || location.pathname === "/parent/";
     }
-    if (path.includes("?tab=notes")) {
-      return location.pathname === "/parent/reservations" && location.search.includes("tab=notes");
-    }
     if (path === "/parent/reservations") {
-      return location.pathname === "/parent/reservations" && !location.search.includes("tab=notes");
+      return location.pathname === "/parent/reservations";
     }
-    return location.pathname.startsWith(path.split('?')[0]);
+    return location.pathname.startsWith(path);
   };
 
   return (
