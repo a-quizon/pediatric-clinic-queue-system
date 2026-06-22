@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle } from "lucide-react";
-import { subscribeToAllReservations, startConsultation } from "../../services/reservationService";
+import { subscribeToAllReservations } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import toast from "react-hot-toast";
 
@@ -52,21 +52,13 @@ export default function ManageQueue() {
   };
 
   const handleCallNext = async () => {
-    if (inConsultationPatients.length > 0) {
-      toast.error("There is already a patient in consultation.");
-      return;
-    }
     if (checkedInPatients.length === 0) {
       toast.error("No patients are checked in.");
       return;
     }
-    try {
-      await startConsultation(checkedInPatients[0].id);
-      toast.success(`Started consultation for ${checkedInPatients[0].childName}`);
-    } catch (error) {
-      toast.error("Failed to start consultation.");
-      console.error(error);
-    }
+    
+    // Placeholder action for Phase 1
+    toast.success(`Patient ${checkedInPatients[0].childName} has been called. Notification feature coming soon.`);
   };
 
   return (
@@ -78,7 +70,7 @@ export default function ManageQueue() {
         </div>
         <button
           onClick={handleCallNext}
-          disabled={inConsultationPatients.length > 0 || checkedInPatients.length === 0}
+          disabled={checkedInPatients.length === 0}
           className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
         >
           <PlayCircle className="w-5 h-5 mr-2" />
