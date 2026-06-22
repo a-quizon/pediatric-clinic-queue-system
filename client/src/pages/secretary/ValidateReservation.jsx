@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { QrCode, Type, Search, CheckCircle, User, MapPin, Calendar, Clock, Hash, Activity, X } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { QrCode, Type, Search, CheckCircle, User, MapPin, Calendar, Clock, Hash, Activity, X, Camera, CameraOff, AlertCircle, AlertTriangle, PlayCircle, StopCircle } from "lucide-react";
 import toast from "react-hot-toast";
+import { Html5Qrcode } from "html5-qrcode";
 import { useAuth } from "../../hooks/useAuth";
 import { validateReservationByCode, checkInReservation } from "../../services/reservationService";
 import { getScheduleById } from "../../services/scheduleService";
@@ -10,10 +11,136 @@ export default function ValidateReservation() {
   const [reservationCode, setReservationCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   
+  // Modal states
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showFoundModal, setShowFoundModal] = useState(false);
+  const [showInvalidModal, setShowInvalidModal] = useState(false);
+  const [showExpiredModal, setShowExpiredModal] = useState(false);
+  const [showCheckedInModal, setShowCheckedInModal] = useState(false);
+  const [showInConsultationModal, setShowInConsultationModal] = useState(false);
+
   const [validatedDetails, setValidatedDetails] = useState(null);
 
-  const handleValidate = async () => {
+  // Scanner states
+  const [isScanning, setIsScanning] = useState(false);
+  const [cameras, setCameras] = useState([]);
+  const [selectedCameraId, setSelectedCameraId] = useState("");
+  const html5QrCodeRef = useRef(null);
+
+  useEffect(() => {
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length) {
+        setCameras(devices);
+        const backCamera = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('environment'));
+        setSelectedCameraId(backCamera ? backCamera.id : devices[0].id);
+      }
+    }).catch(err => {
+      console.warn("Error getting cameras", err);
+    });
+
+    return () => {
+      stopScanner();
+    };
+  }, []);
+
+  const startScanner = async () => {
+    if (!selectedCameraId) {
+      toast.error("No camera found or camera permission denied.");
+      return;
+    }
+
+    try {
+      if (!html5QrCodeRef.current) {
+        html5QrCodeRef.current = new Html5Qrcode("reader");
+      }
+
+      setIsScanning(true);
+      await html5QrCodeRef.current.start(
+        selectedCameraId,
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 }
+        },
+        (decodedText) => {
+          handleQrScanSuccess(decodedText);
+        },
+        (errorMessage) => {
+          // Ignore scanning parse errors
+        }
+      );
+    } catch (err) {
+      setIsScanning(false);
+      console.error("Scanner error:", err);
+      toast.error("Failed to start camera. Please check permissions.");
+    }
+  };
+
+  const stopScanner = () => {
+    if (html5QrCodeRef.current && isScanning) {
+      html5QrCodeRef.current.stop().then(() => {
+        setIsScanning(false);
+      }).catch(err => {
+        console.error("Failed to stop scanner", err);
+        setIsScanning(false);
+      });
+    }
+  };
+
+  const processReservation = async (reservation) => {
+    if (!reservation) {
+      setShowInvalidModal(true);
+      return;
+    }
+
+    const schedule = await getScheduleById(reservation.scheduleId);
+    setValidatedDetails({ reservation, schedule });
+
+    if (["completed", "cancelled", "expired", "forfeited", "consultation_completed"].includes(reservation.status)) {
+      setShowExpiredModal(true);
+    } else if (reservation.status === "in_consultation") {
+      setShowInConsultationModal(true);
+    } else if (reservation.checkedIn || reservation.status === "checked_in") {
+      setShowCheckedInModal(true);
+    } else if (!reservation.childName || !reservation.age || !reservation.sex) {
+      toast.error("Patient information is incomplete. Parent must complete it first.");
+      setShowInvalidModal(true);
+    } else {
+      setShowFoundModal(true);
+    }
+  };
+
+  const handleQrScanSuccess = async (decodedText) => {
+    stopScanner();
+    setIsLoading(true);
+
+    try {
+      let payload;
+      try {
+        payload = JSON.parse(decodedText);
+      } catch (e) {
+        setIsLoading(false);
+        setShowInvalidModal(true);
+        return;
+      }
+
+      if (!payload.reservationCode) {
+        setIsLoading(false);
+        setShowInvalidModal(true);
+        return;
+      }
+
+      const reservation = await validateReservationByCode(payload.reservationCode);
+      await processReservation(reservation);
+
+    } catch (error) {
+      console.error(error);
+      setShowInvalidModal(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleManualValidate = async () => {
     if (!reservationCode || reservationCode.trim().length !== 6) {
       toast.error("Please enter a valid 6-digit reservation code.");
       return;
@@ -23,56 +150,7 @@ export default function ValidateReservation() {
 
     try {
       const reservation = await validateReservationByCode(reservationCode.toUpperCase().trim());
-
-      if (!reservation) {
-        toast.error("Reservation not found.");
-        setIsLoading(false);
-        return;
-      }
-
-      if (reservation.status === "cancelled") {
-        toast.error("This reservation was cancelled.");
-        setIsLoading(false);
-        return;
-      }
-
-      if (reservation.status === "completed") {
-        toast.error("This reservation has already been completed.");
-        setIsLoading(false);
-        return;
-      }
-
-      if (!reservation.childName || !reservation.age || !reservation.sex) {
-        toast.error("Patient information is incomplete. Parent must complete it first.");
-        setIsLoading(false);
-        return;
-      }
-      
-      if (reservation.checkedIn || reservation.status === "checked_in") {
-        toast.error("This reservation has already been checked in.");
-        setIsLoading(false);
-        return;
-      }
-
-      const schedule = await getScheduleById(reservation.scheduleId);
-      if (!schedule) {
-        toast.error("Associated schedule not found.");
-        setIsLoading(false);
-        return;
-      }
-
-      // Automatically check in the patient upon successful validation
-      await checkInReservation(reservation.id, user.uid);
-      
-      setValidatedDetails({
-        reservation: { ...reservation, status: "checked_in", checkedIn: true },
-        schedule
-      });
-      setShowSuccessModal(true);
-      
-      // Clear input
-      setReservationCode("");
-
+      await processReservation(reservation);
     } catch (error) {
       console.error("Validation error:", error);
       toast.error("An error occurred during validation.");
@@ -81,42 +159,106 @@ export default function ValidateReservation() {
     }
   };
 
-  const closeModal = () => {
+  const proceedToCheckIn = async () => {
+    if (!validatedDetails) return;
+    setIsLoading(true);
+    try {
+      await checkInReservation(validatedDetails.reservation.id, user.uid);
+      setShowFoundModal(false);
+      
+      setValidatedDetails({
+        ...validatedDetails,
+        reservation: { ...validatedDetails.reservation, status: "checked_in", checkedIn: true }
+      });
+      setShowSuccessModal(true);
+      setReservationCode("");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to check in reservation.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const closeAllModals = () => {
     setShowSuccessModal(false);
+    setShowFoundModal(false);
+    setShowInvalidModal(false);
+    setShowExpiredModal(false);
+    setShowCheckedInModal(false);
+    setShowInConsultationModal(false);
     setValidatedDetails(null);
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-8 relative">
+    <div className="space-y-6 max-w-5xl mx-auto pb-8 relative">
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Validate Reservation</h1>
         <p className="text-gray-500 text-sm mt-1">Scan a patient's QR code or enter their reservation code manually.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* QR Scanner Section */}
-        <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm flex flex-col items-center text-center hover:shadow-md transition-shadow">
-          <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-6 text-blue-600">
+        <div className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm flex flex-col items-center text-center">
+          <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4 text-blue-600">
             <QrCode className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">QR Scanner</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Scan QR Code</h2>
           <p className="text-gray-500 text-sm mb-6">Use the device camera to scan the patient's reservation QR code.</p>
           
-          <div className="w-full flex-1 min-h-[250px] bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center">
-            <QrCode className="w-12 h-12 text-gray-300 mb-3" />
-            <p className="text-gray-400 font-medium">Scanner Coming Soon</p>
+          {cameras.length > 1 && !isScanning && (
+            <div className="w-full mb-4">
+              <select 
+                value={selectedCameraId}
+                onChange={(e) => setSelectedCameraId(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm text-gray-700"
+              >
+                {cameras.map(camera => (
+                  <option key={camera.id} value={camera.id}>{camera.label || `Camera ${camera.id.substring(0, 5)}`}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="w-full flex-1 relative min-h-[300px] bg-black rounded-xl border-2 border-gray-200 overflow-hidden flex flex-col items-center justify-center mb-6">
+            <div id="reader" className="w-full h-full object-cover"></div>
+            {!isScanning && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 text-gray-400">
+                <CameraOff className="w-12 h-12 mb-3 opacity-50" />
+                <p className="font-medium text-sm">Camera Offline</p>
+              </div>
+            )}
           </div>
+
+          {!isScanning ? (
+            <button 
+              onClick={startScanner}
+              disabled={isLoading || cameras.length === 0}
+              className="w-full py-3 px-4 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+            >
+              <PlayCircle className="w-5 h-5" />
+              <span>Start Camera</span>
+            </button>
+          ) : (
+            <button 
+              onClick={stopScanner}
+              className="w-full py-3 px-4 bg-red-50 text-red-600 border border-red-100 rounded-xl font-medium hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+            >
+              <StopCircle className="w-5 h-5" />
+              <span>Stop Camera</span>
+            </button>
+          )}
         </div>
 
         {/* Manual Entry Section */}
-        <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm flex flex-col items-center text-center hover:shadow-md transition-shadow">
-          <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center mb-6 text-purple-600">
+        <div className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm flex flex-col items-center text-center h-fit">
+          <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center mb-4 text-purple-600">
             <Type className="w-8 h-8" />
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Manual Entry</h2>
           <p className="text-gray-500 text-sm mb-6">Enter the reservation code manually if the QR code is unavailable.</p>
           
-          <div className="w-full space-y-4 mt-auto">
+          <div className="w-full space-y-4">
             <div>
               <input
                 type="text"
@@ -124,78 +266,178 @@ export default function ValidateReservation() {
                 value={reservationCode}
                 onChange={(e) => setReservationCode(e.target.value.toUpperCase())}
                 maxLength={6}
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center font-mono text-lg tracking-widest uppercase"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-center font-mono text-lg tracking-widest uppercase"
               />
             </div>
             <button 
-              onClick={handleValidate}
+              onClick={handleManualValidate}
               disabled={isLoading || reservationCode.trim().length !== 6} 
               className="w-full py-3 px-4 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
             >
-              {isLoading ? (
+              {isLoading && !isScanning ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <Search className="w-5 h-5" />
               )}
-              <span>Validate & Check In</span>
+              <span>Find Reservation</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Success Modal */}
-      {showSuccessModal && validatedDetails && (
+      {/* Reservation Found Modal */}
+      {showFoundModal && validatedDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-800">Reservation Validated</h2>
-                    <p className="text-green-600 font-semibold text-sm">Patient Checked In</p>
-                  </div>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                  <Search className="w-6 h-6" />
                 </div>
-                <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors p-1">
-                  <X className="w-6 h-6" />
-                </button>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800">Reservation Found</h2>
+                  <p className="text-blue-600 font-semibold text-sm">Review details before checking in</p>
+                </div>
               </div>
 
               <div className="space-y-4 bg-gray-50 p-5 rounded-xl border border-gray-100">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 flex items-center gap-2"><User className="w-4 h-4"/> Parent Name</span>
-                  <span className="font-semibold text-gray-800">{validatedDetails.reservation.parentEmail || "N/A"}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 flex items-center gap-2"><Hash className="w-4 h-4"/> Code</span>
-                  <span className="font-mono font-bold text-purple-600">{validatedDetails.reservation.reservationCode}</span>
+                  <span className="text-sm text-gray-500 flex items-center gap-2"><User className="w-4 h-4"/> Child Name</span>
+                  <span className="font-semibold text-gray-800">{validatedDetails.reservation.childName}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500 flex items-center gap-2"><MapPin className="w-4 h-4"/> Branch</span>
                   <span className="font-semibold text-gray-800">{validatedDetails.schedule.branch}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 flex items-center gap-2"><Calendar className="w-4 h-4"/> Date</span>
-                  <span className="font-semibold text-gray-800">{validatedDetails.schedule.clinicDate}</span>
-                </div>
-                <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500 flex items-center gap-2"><Activity className="w-4 h-4"/> Queue Position</span>
                   <span className="font-bold text-gray-800 text-lg">#{validatedDetails.reservation.queuePosition}</span>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500 flex items-center gap-2"><Hash className="w-4 h-4"/> Reservation Code</span>
+                  <span className="font-mono font-bold text-gray-800">{validatedDetails.reservation.reservationCode}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500 flex items-center gap-2">Status</span>
+                  <span className="font-semibold text-blue-600 uppercase text-xs tracking-wider">{validatedDetails.reservation.status}</span>
+                </div>
               </div>
 
-              <button
-                onClick={closeModal}
-                className="w-full mt-6 py-3 font-bold rounded-xl text-white bg-green-600 hover:bg-green-700 shadow-sm transition-all"
-              >
-                Done
-              </button>
+              <div className="grid grid-cols-2 gap-3 mt-6">
+                <button
+                  onClick={closeAllModals}
+                  className="w-full py-3 font-bold rounded-xl text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={proceedToCheckIn}
+                  disabled={isLoading}
+                  className="w-full py-3 font-bold rounded-xl text-white bg-green-600 hover:bg-green-700 shadow-sm transition-colors flex items-center justify-center"
+                >
+                  {isLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : "Check In"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Success Modal */}
+      {showSuccessModal && validatedDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
+            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Patient Checked In Successfully</h2>
+            <p className="text-gray-500 mb-6">Queue Position <span className="font-bold text-gray-800">#{validatedDetails.reservation.queuePosition}</span></p>
+            <button
+              onClick={closeAllModals}
+              className="w-full py-3 font-bold rounded-xl text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Invalid QR Modal */}
+      {showInvalidModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Invalid QR Code</h2>
+            <p className="text-gray-500 mb-6">Unable to find a valid reservation.</p>
+            <button
+              onClick={closeAllModals}
+              className="w-full py-3 font-bold rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Expired QR Modal */}
+      {showExpiredModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">QR Code No Longer Valid</h2>
+            <p className="text-gray-500 mb-6">This reservation can no longer be checked in.</p>
+            <button
+              onClick={closeAllModals}
+              className="w-full py-3 font-bold rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Already Checked In Modal */}
+      {showCheckedInModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
+            <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Activity className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Patient Already Checked In</h2>
+            <p className="text-gray-500 mb-6">This reservation has already been validated.</p>
+            <button
+              onClick={closeAllModals}
+              className="w-full py-3 font-bold rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* In Consultation Modal */}
+      {showInConsultationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
+            <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Activity className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Patient Currently In Consultation</h2>
+            <p className="text-gray-500 mb-6">This patient is already with the doctor.</p>
+            <button
+              onClick={closeAllModals}
+              className="w-full py-3 font-bold rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
