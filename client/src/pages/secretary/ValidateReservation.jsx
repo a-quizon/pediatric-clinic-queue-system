@@ -105,7 +105,19 @@ export default function ValidateReservation() {
       toast.error("Patient information is incomplete. Parent must complete it first.");
       setShowInvalidModal(true);
     } else {
-      setShowFoundModal(true);
+      // Auto check in directly
+      try {
+        await checkInReservation(reservation.id, user.uid);
+        setValidatedDetails({
+          reservation: { ...reservation, status: "checked_in", checkedIn: true },
+          schedule
+        });
+        setShowSuccessModal(true);
+        setReservationCode("");
+      } catch (error) {
+        console.error(error);
+        toast.error("Failed to check in reservation.");
+      }
     }
   };
 
@@ -159,26 +171,7 @@ export default function ValidateReservation() {
     }
   };
 
-  const proceedToCheckIn = async () => {
-    if (!validatedDetails) return;
-    setIsLoading(true);
-    try {
-      await checkInReservation(validatedDetails.reservation.id, user.uid);
-      setShowFoundModal(false);
-      
-      setValidatedDetails({
-        ...validatedDetails,
-        reservation: { ...validatedDetails.reservation, status: "checked_in", checkedIn: true }
-      });
-      setShowSuccessModal(true);
-      setReservationCode("");
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to check in reservation.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Remove proceedToCheckIn entirely since we auto-check-in now
 
   const closeAllModals = () => {
     setShowSuccessModal(false);
@@ -285,63 +278,7 @@ export default function ValidateReservation() {
         </div>
       </div>
 
-      {/* Reservation Found Modal */}
-      {showFoundModal && validatedDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-                  <Search className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">Reservation Found</h2>
-                  <p className="text-blue-600 font-semibold text-sm">Review details before checking in</p>
-                </div>
-              </div>
-
-              <div className="space-y-4 bg-gray-50 p-5 rounded-xl border border-gray-100">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 flex items-center gap-2"><User className="w-4 h-4"/> Child Name</span>
-                  <span className="font-semibold text-gray-800">{validatedDetails.reservation.childName}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 flex items-center gap-2"><MapPin className="w-4 h-4"/> Branch</span>
-                  <span className="font-semibold text-gray-800">{validatedDetails.schedule.branch}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 flex items-center gap-2"><Activity className="w-4 h-4"/> Queue Position</span>
-                  <span className="font-bold text-gray-800 text-lg">#{validatedDetails.reservation.queuePosition}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 flex items-center gap-2"><Hash className="w-4 h-4"/> Reservation Code</span>
-                  <span className="font-mono font-bold text-gray-800">{validatedDetails.reservation.reservationCode}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500 flex items-center gap-2">Status</span>
-                  <span className="font-semibold text-blue-600 uppercase text-xs tracking-wider">{validatedDetails.reservation.status}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 mt-6">
-                <button
-                  onClick={closeAllModals}
-                  className="w-full py-3 font-bold rounded-xl text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={proceedToCheckIn}
-                  disabled={isLoading}
-                  className="w-full py-3 font-bold rounded-xl text-white bg-green-600 hover:bg-green-700 shadow-sm transition-colors flex items-center justify-center"
-                >
-                  {isLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : "Check In"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Removed Reservation Found Modal as per auto check-in requirement */}
 
       {/* Success Modal */}
       {showSuccessModal && validatedDetails && (
@@ -350,8 +287,17 @@ export default function ValidateReservation() {
             <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8" />
             </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Patient Checked In Successfully</h2>
-            <p className="text-gray-500 mb-6">Queue Position <span className="font-bold text-gray-800">#{validatedDetails.reservation.queuePosition}</span></p>
+            <h2 className="text-xl font-bold text-gray-800 mb-6">Patient Checked In Successfully</h2>
+            <div className="text-left space-y-3 mb-6 bg-gray-50 p-4 rounded-xl">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">Child Name</span>
+                <span className="font-bold text-gray-800">{validatedDetails.reservation.childName}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">Queue Position</span>
+                <span className="font-bold text-gray-800">#{validatedDetails.reservation.queuePosition}</span>
+              </div>
+            </div>
             <button
               onClick={closeAllModals}
               className="w-full py-3 font-bold rounded-xl text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all"
@@ -407,7 +353,7 @@ export default function ValidateReservation() {
             <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <Activity className="w-8 h-8" />
             </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Patient Already Checked In</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Already Used</h2>
             <p className="text-gray-500 mb-6">This reservation has already been validated.</p>
             <button
               onClick={closeAllModals}

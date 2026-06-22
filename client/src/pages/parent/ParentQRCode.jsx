@@ -138,27 +138,40 @@ export default function ParentQRCode() {
             <QrCode className="w-7 h-7 text-white" />
           </div>
           <h1 className="text-xl font-bold text-white mb-1">Reservation Key</h1>
-          <p className="text-blue-100 text-sm font-medium">Scan this at the clinic</p>
+          <p className="text-blue-100 text-sm font-medium">
+            {reservation.status === "checked_in" ? "Already Validated" : 
+             reservation.status === "in_consultation" ? "Currently In Consultation" :
+             reservation.status === "consultation_completed" ? "Consultation Completed" :
+             "Scan this at the clinic"}
+          </p>
         </div>
 
         {/* QR Section */}
         <div className="p-8 text-center flex flex-col items-center border-b border-gray-50">
-          {reservation.status === "in_consultation" ? (
-            <>
-              <div className="w-48 h-48 sm:w-56 sm:h-56 bg-red-50 rounded-2xl border border-red-100 mb-6 flex items-center justify-center text-red-500 font-bold flex-col">
-                <QrCode className="w-12 h-12 mb-2 opacity-50" />
-                QR Code Expired
+          {["in_consultation", "consultation_completed"].includes(reservation.status) ? (
+            <div className="py-8 px-4 text-center w-full">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                <Activity className="w-10 h-10" />
               </div>
-              <div className="mb-2">
-                <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Reservation Code</span>
-                <div className="text-xl font-bold text-red-500 tracking-wider mt-2 bg-red-50 px-4 py-1.5 rounded-lg border border-red-100">Code Expired</div>
-              </div>
-            </>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">
+                {reservation.status === "in_consultation" ? "Currently In Consultation" : "Consultation Completed"}
+              </h2>
+              {reservation.status === "consultation_completed" && (
+                <p className="text-gray-500 text-sm mt-2 font-medium">View details in Reservation History.</p>
+              )}
+            </div>
           ) : (
             <>
               {qrImageUrl ? (
-                <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 mb-6 relative">
                   <img src={qrImageUrl} alt="Reservation QR Code" className="w-48 h-48 sm:w-56 sm:h-56 object-contain" />
+                  {reservation.status === "checked_in" && (
+                    <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] rounded-2xl flex items-center justify-center">
+                      <div className="bg-green-100 text-green-700 px-4 py-2 rounded-xl font-bold shadow-sm border border-green-200">
+                        Already Validated
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="w-48 h-48 sm:w-56 sm:h-56 bg-gray-50 rounded-2xl border border-gray-100 mb-6 flex items-center justify-center text-gray-400">
@@ -219,7 +232,7 @@ export default function ParentQRCode() {
 
         {/* Footer Actions */}
         <div className="p-6 pt-0 bg-gray-50/50">
-          {qrImageUrl && reservation.status !== "in_consultation" && (
+          {qrImageUrl && reservation.status !== "in_consultation" && reservation.status !== "consultation_completed" && reservation.status !== "checked_in" && (
             <a 
               href={qrImageUrl} 
               download={`reservation-${reservation.reservationCode || 'code'}.png`}
