@@ -1,7 +1,104 @@
-import { Activity, Clock, CalendarPlus, Ticket, User, ChevronRight } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { Activity, Clock, CalendarPlus, Ticket, User, ChevronRight, CheckCircle2, History, MapPin, AlertCircle } from "lucide-react";
+import { useAuth } from "../../hooks/useAuth";
+import { subscribeToAllReservations } from "../../services/reservationService";
+import { getSchedules } from "../../services/scheduleService";
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [schedules, setSchedules] = useState({});
+  const [allReservations, setAllReservations] = useState([]);
+
+  useEffect(() => {
+    const fetchSchedules = async () => {
+      const data = await getSchedules();
+      setSchedules(data || {});
+    };
+    fetchSchedules();
+
+    const unsub = subscribeToAllReservations((data) => {
+      setAllReservations(data);
+      setLoading(false);
+    });
+
+    return () => unsub();
+  }, []);
+
+  const activeReservation = useMemo(() => {
+    if (!user) return null;
+    return allReservations.find(r => r.parentId === user.uid && ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status));
+  }, [allReservations, user]);
+
+  const schedule = activeReservation ? schedules[activeReservation.scheduleId] : null;
+
+  const { nowServing, patientsAhead } = useMemo(() => {
+    if (!activeReservation) return { nowServing: null, patientsAhead: 0 };
+    
+    const scheduleRes = allReservations.filter(r => r.scheduleId === activeReservation.scheduleId);
+    const inConsultation = scheduleRes.find(r => r.status === "in_consultation");
+    
+    let serving = null;
+    if (inConsultation) {
+      serving = inConsultation;
+    } else {
+      const activeQueue = scheduleRes.filter(r => ["reserved", "waiting", "checked_in"].includes(r.status));
+      if (activeQueue.length > 0) {
+        serving = activeQueue.reduce((prev, curr) => (prev.queuePosition < curr.queuePosition ? prev : curr));
+      }
+    }
+
+    let ahead = 0;
+    if (activeReservation.status === "in_consultation") {
+      ahead = 0;
+    } else {
+      const waitingAhead = Math.max(0, (activeReservation.queuePosition || 1) - 1);
+      ahead = waitingAhead + (inConsultation ? 1 : 0);
+    }
+
+    return { nowServing: serving, patientsAhead: ahead };
+  }, [allReservations, activeReservation]);
+
+  const getStatusDisplay = (status) => {
+    switch (status) {
+      case 'reserved': 
+      case 'waiting': 
+        return { text: 'Awaiting Arrival', color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' };
+      case 'checked_in': 
+        return { text: 'Checked In', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' };
+      case 'in_consultation': 
+        return { text: 'In Consultation', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' };
+      default: 
+        return { text: 'Unknown', color: 'bg-gray-100 text-gray-700', dot: 'bg-gray-500' };
+    }
+  };
+
+  const statusDisplay = activeReservation ? getStatusDisplay(activeReservation.status) : null;
+  const estimatedWaitTime = patientsAhead * 15; // 15 mins per patient placeholder
+
+  const maxSegments = 5;
+  const activeSegments = activeReservation && activeReservation.status === "in_consultation" 
+    ? 5 
+    : Math.max(1, maxSegments - Math.min(patientsAhead, maxSegments - 1));
+
+  let nowServingText = "--";
+  if (nowServing) {
+    if (nowServing.status === "in_consultation") {
+      nowServingText = "In Clinic";
+    } else {
+      nowServingText = nowServing.queuePosition ? `#${nowServing.queuePosition}` : "Waiting...";
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-6 relative">
       {/* Header */}
@@ -12,64 +109,132 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Queue Monitoring Card */}
-      <div className="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden relative">
-        <div className="absolute top-0 left-0 w-full h-2 bg-blue-500"></div>
-        <div className="p-6 md:p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-800 flex items-center">
-              <Activity className="w-6 h-6 mr-2 text-blue-600" />
-              Queue Monitoring
-            </h2>
-            <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full">
-              Coming Soon
-            </span>
-          </div>
-
-          <div className="text-center py-8">
-            <div className="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
-              <span className="text-2xl">🚧</span>
+      {activeReservation && schedule ? (
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden max-w-md mx-auto animate-in fade-in slide-in-from-bottom-4">
+          <div className="p-6 sm:p-8">
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Patient</p>
+                <div className="flex items-center">
+                  <h2 className="text-xl font-black text-gray-800">{activeReservation.childName || "N/A"}</h2>
+                  <CheckCircle2 className="w-5 h-5 text-blue-500 ml-2" />
+                </div>
+              </div>
+              <div className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center shadow-sm ${statusDisplay.color}`}>
+                <div className={`w-2 h-2 rounded-full mr-2 animate-pulse ${statusDisplay.dot}`}></div>
+                {statusDisplay.text}
+              </div>
             </div>
-            <p className="text-gray-500 text-sm max-w-md mx-auto mb-6">
-              Queue monitoring will be available once reservations and live queue management are implemented.
-            </p>
 
-            <div className="bg-gray-50 rounded-xl p-5 text-left border border-gray-100 max-w-lg mx-auto">
-              <h3 className="font-bold text-gray-700 mb-3 text-sm">Future Information:</h3>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center"><Clock className="w-4 h-4 mr-2 text-blue-500" /> Current Queue Position</li>
-                <li className="flex items-center"><User className="w-4 h-4 mr-2 text-blue-500" /> My Queue Position</li>
-                <li className="flex items-center"><Activity className="w-4 h-4 mr-2 text-blue-500" /> Queue Progress & Estimated Turn</li>
-              </ul>
+            <div className="text-center mb-8">
+              <p className="text-sm font-bold text-gray-500 mb-2">Your Queue Number</p>
+              {activeReservation.status === "in_consultation" ? (
+                <div className="text-5xl sm:text-6xl font-black text-blue-500 tracking-tight py-2">
+                  IN CLINIC
+                </div>
+              ) : (
+                <div className="text-7xl sm:text-8xl font-black text-blue-500 tracking-tighter py-2">
+                  #{activeReservation.queuePosition || "-"}
+                </div>
+              )}
+              <p className="text-sm font-medium text-gray-500 mt-2">
+                {schedule.branch} • Dr. {schedule.doctorName || "Doctor"}
+              </p>
+            </div>
+
+            <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
+              <div className="flex justify-between items-end mb-4">
+                <div>
+                  <p className="text-xs font-bold text-gray-500 mb-1">Now Serving</p>
+                  <p className="text-2xl font-black text-gray-800">{nowServingText}</p>
+                </div>
+                {activeReservation.status !== "in_consultation" && (
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-gray-500 mb-1">Est. Wait</p>
+                    <p className="text-lg font-black text-blue-500">~{estimatedWaitTime} mins</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Segmented Progress Bar */}
+              <div className="flex gap-1.5 h-2.5 mb-4">
+                {Array.from({ length: maxSegments }).map((_, index) => (
+                  <div 
+                    key={index} 
+                    className={`flex-1 rounded-full ${index < activeSegments ? 'bg-blue-500' : 'bg-gray-200'}`}
+                  ></div>
+                ))}
+              </div>
+              
+              <div className="text-center">
+                <p className="text-xs font-bold text-gray-400">
+                  {activeReservation.status === "in_consultation" 
+                    ? "You are currently being served" 
+                    : `${patientsAhead} patient${patientsAhead === 1 ? '' : 's'} ahead of you`}
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        /* Empty State */
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-10 sm:p-14 text-center max-w-lg mx-auto animate-in fade-in">
+          <div className="mx-auto w-20 h-20 bg-blue-50 text-blue-400 rounded-full flex items-center justify-center mb-6">
+            <CalendarPlus className="w-10 h-10" />
+          </div>
+          <h2 className="text-2xl font-black text-gray-800 mb-3">No Active Reservation</h2>
+          <p className="text-gray-500 mb-8 max-w-xs mx-auto">
+            You currently do not have an active queue position. Book an appointment to get started.
+          </p>
+          <Link 
+            to="/parent/reserve" 
+            className="inline-flex items-center justify-center px-8 py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            Make Reservation
+          </Link>
+        </div>
+      )}
 
-      {/* Quick Action Cards */}
-      <div>
+      {/* Quick Actions */}
+      <div className="pt-6">
         <h2 className="text-lg font-bold text-gray-800 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Link to="/parent/reserve" className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group flex flex-col justify-between h-full">
-            <div>
-              <div className="bg-blue-50 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <CalendarPlus className="w-6 h-6 text-blue-600" />
+          
+          {activeReservation ? (
+            <Link to={`/parent/reservations/${activeReservation.id}/qr`} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group flex flex-col justify-between h-full">
+              <div>
+                <div className="bg-blue-50 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <Ticket className="w-6 h-6 text-blue-600" />
+                </div>
+                <h3 className="font-bold text-gray-800 mb-1">View Ticket</h3>
+                <p className="text-gray-500 text-sm mb-4">Show your QR Code at the clinic counter.</p>
               </div>
-              <h3 className="font-bold text-gray-800 mb-1">Reserve Queue</h3>
-              <p className="text-gray-500 text-sm mb-4">View available clinic schedules and reserve a slot.</p>
-            </div>
-            <div className="flex items-center text-blue-600 text-sm font-semibold mt-auto">
-              Open <ChevronRight className="w-4 h-4 ml-1" />
-            </div>
-          </Link>
+              <div className="flex items-center text-blue-600 text-sm font-semibold mt-auto">
+                Open <ChevronRight className="w-4 h-4 ml-1" />
+              </div>
+            </Link>
+          ) : (
+            <Link to="/parent/reserve" className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group flex flex-col justify-between h-full">
+              <div>
+                <div className="bg-blue-50 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                  <CalendarPlus className="w-6 h-6 text-blue-600" />
+                </div>
+                <h3 className="font-bold text-gray-800 mb-1">Reserve Queue</h3>
+                <p className="text-gray-500 text-sm mb-4">View available clinic schedules and reserve a slot.</p>
+              </div>
+              <div className="flex items-center text-blue-600 text-sm font-semibold mt-auto">
+                Open <ChevronRight className="w-4 h-4 ml-1" />
+              </div>
+            </Link>
+          )}
 
-          <Link to="/parent/reservations" className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group flex flex-col justify-between h-full">
+          <Link to="/parent/reservations?tab=notes" className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group flex flex-col justify-between h-full">
             <div>
               <div className="bg-blue-50 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Ticket className="w-6 h-6 text-blue-600" />
+                <History className="w-6 h-6 text-blue-600" />
               </div>
-              <h3 className="font-bold text-gray-800 mb-1">My Reservations</h3>
-              <p className="text-gray-500 text-sm mb-4">View your reservation history and upcoming appointments.</p>
+              <h3 className="font-bold text-gray-800 mb-1">Reservation History</h3>
+              <p className="text-gray-500 text-sm mb-4">View past consultations and doctor's notes.</p>
             </div>
             <div className="flex items-center text-blue-600 text-sm font-semibold mt-auto">
               Open <ChevronRight className="w-4 h-4 ml-1" />
@@ -82,7 +247,7 @@ export default function Dashboard() {
                 <User className="w-6 h-6 text-gray-600" />
               </div>
               <h3 className="font-bold text-gray-800 mb-1">Profile</h3>
-              <p className="text-gray-500 text-sm mb-4">Manage account information and preferences.</p>
+              <p className="text-gray-500 text-sm mb-4">Manage your account information and preferences.</p>
             </div>
             <div className="flex items-center text-gray-600 text-sm font-semibold mt-auto group-hover:text-blue-600 transition-colors">
               Settings <ChevronRight className="w-4 h-4 ml-1" />
