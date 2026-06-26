@@ -16,6 +16,7 @@ export default function ParentQRCode() {
   const [schedule, setSchedule] = useState(null);
   const [loading, setLoading] = useState(true);
   const [qrImageUrl, setQrImageUrl] = useState("");
+  const [permanentQueueNumber, setPermanentQueueNumber] = useState(null);
 
   useEffect(() => {
     let unsubReservations;
@@ -38,6 +39,12 @@ export default function ParentQRCode() {
             navigate("/parent/reservations");
             return;
           }
+
+          // Calculate permanent queue number
+          const scheduleRes = data.filter(r => r.scheduleId === currentRes.scheduleId)
+            .sort((a, b) => a.createdAt - b.createdAt);
+          const index = scheduleRes.findIndex(r => r.id === currentRes.id);
+          setPermanentQueueNumber(index >= 0 ? index + 1 : null);
 
           setReservation(currentRes);
           if (schedulesData && currentRes.scheduleId) {
@@ -216,9 +223,9 @@ export default function ParentQRCode() {
 
             <div className="flex justify-between items-center pt-2 border-t border-gray-200">
               <div className="flex items-center text-gray-600 font-medium">
-                <Activity className="w-4 h-4 mr-2 text-gray-400" /> Queue Position
+                <Activity className="w-4 h-4 mr-2 text-gray-400" /> Queue Number
               </div>
-              <div className="font-black text-blue-600 text-xl">{reservation.queuePosition || "-"}</div>
+              <div className="font-black text-blue-600 text-xl">{permanentQueueNumber ? `#${permanentQueueNumber}` : "-"}</div>
             </div>
 
             <div className="flex justify-between items-center">

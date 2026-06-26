@@ -33,6 +33,16 @@ export default function Dashboard() {
 
   const schedule = activeReservation ? schedules[activeReservation.scheduleId] : null;
 
+  const getPermanentQueueNumber = (resId, scheduleId) => {
+    const scheduleRes = allReservations
+      .filter(r => r.scheduleId === scheduleId)
+      .sort((a, b) => a.createdAt - b.createdAt);
+    const index = scheduleRes.findIndex(r => r.id === resId);
+    return index >= 0 ? index + 1 : null;
+  };
+
+  const permanentQueueNumber = activeReservation ? getPermanentQueueNumber(activeReservation.id, activeReservation.scheduleId) : null;
+
   const { nowServing, patientsAhead } = useMemo(() => {
     if (!activeReservation) return { nowServing: null, patientsAhead: 0 };
     
@@ -87,7 +97,8 @@ export default function Dashboard() {
     if (nowServing.status === "in_consultation") {
       nowServingText = "In Clinic";
     } else {
-      nowServingText = nowServing.queuePosition ? `#${nowServing.queuePosition}` : "Waiting...";
+      const pNum = getPermanentQueueNumber(nowServing.id, nowServing.scheduleId);
+      nowServingText = pNum ? `#${pNum}` : "Waiting...";
     }
   }
 
@@ -127,17 +138,13 @@ export default function Dashboard() {
             </div>
 
             <div className="text-center mb-8">
-              <p className="text-sm font-bold text-gray-500 mb-2">Your Queue Number</p>
-              {activeReservation.status === "in_consultation" ? (
-                <div className="text-5xl sm:text-6xl font-black text-blue-500 tracking-tight py-2">
-                  IN CLINIC
-                </div>
-              ) : (
-                <div className="text-7xl sm:text-8xl font-black text-blue-500 tracking-tighter py-2">
-                  #{activeReservation.queuePosition || "-"}
-                </div>
-              )}
-              <p className="text-sm font-medium text-gray-500 mt-2">
+                  <div className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-2">Your Queue Number</div>
+                  {activeReservation.status === "in_consultation" ? (
+                    <div className="text-5xl font-black text-blue-500 tracking-tight mb-2">IN CLINIC</div>
+                  ) : (
+                    <div className="text-7xl font-black text-blue-500 tracking-tighter mb-2">#{permanentQueueNumber}</div>
+                  )}
+                  <p className="text-sm font-medium text-gray-500 mt-2">
                 {schedule.branch} • Dr. {schedule.doctorName || "Doctor"}
               </p>
             </div>
