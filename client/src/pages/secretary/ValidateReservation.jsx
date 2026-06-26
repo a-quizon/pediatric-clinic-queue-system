@@ -18,6 +18,7 @@ export default function ValidateReservation() {
   const [showExpiredModal, setShowExpiredModal] = useState(false);
   const [showCheckedInModal, setShowCheckedInModal] = useState(false);
   const [showInConsultationModal, setShowInConsultationModal] = useState(false);
+  const [showNotStartedModal, setShowNotStartedModal] = useState(false);
 
   const [validatedDetails, setValidatedDetails] = useState(null);
 
@@ -94,6 +95,11 @@ export default function ValidateReservation() {
 
     const schedule = await getScheduleById(reservation.scheduleId);
     setValidatedDetails({ reservation, schedule });
+
+    if (schedule && schedule.queueStatus === 'not_started') {
+      setShowNotStartedModal(true);
+      return;
+    }
 
     if (["completed", "cancelled", "expired", "forfeited", "consultation_completed"].includes(reservation.status)) {
       setShowExpiredModal(true);
@@ -180,6 +186,7 @@ export default function ValidateReservation() {
     setShowExpiredModal(false);
     setShowCheckedInModal(false);
     setShowInConsultationModal(false);
+    setShowNotStartedModal(false);
     setValidatedDetails(null);
   };
 
@@ -379,6 +386,25 @@ export default function ValidateReservation() {
               className="w-full py-3 font-bold rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
             >
               OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Queue Not Started Modal */}
+      {showNotStartedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Clock className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Clinic Queue Not Started</h2>
+            <p className="text-gray-500 mb-6">This clinic queue has not started yet. Please wait until the doctor starts today's clinic queue.</p>
+            <button
+              onClick={closeAllModals}
+              className="w-full py-3 font-bold rounded-xl text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all"
+            >
+              Close
             </button>
           </div>
         </div>

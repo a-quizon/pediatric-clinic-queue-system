@@ -153,6 +153,19 @@ export default function ParentQRCode() {
           </p>
         </div>
 
+        {/* Not Started Warning */}
+        {schedule?.queueStatus === 'not_started' && (
+          <div className="bg-amber-50 p-5 border-b border-amber-100 text-center">
+            <div className="flex items-center justify-center text-amber-700 font-bold mb-2">
+              <Activity className="w-5 h-5 mr-2" />
+              Clinic Queue Not Started
+            </div>
+            <p className="text-amber-800 text-sm">
+              The doctor hasn't started today's clinic queue yet. You may reserve your slot, but QR validation will only be available once the clinic queue begins.
+            </p>
+          </div>
+        )}
+
         {/* QR Section */}
         <div className="p-8 text-center flex flex-col items-center border-b border-gray-50">
           {["in_consultation", "consultation_completed"].includes(reservation.status) ? (
