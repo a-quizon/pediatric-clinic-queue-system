@@ -15,6 +15,9 @@ export default function Queue() {
   const [doctorNotes, setDoctorNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [infoPatient, setInfoPatient] = useState(null);
+
   useEffect(() => {
     const unsubSchedules = subscribeToPublishedSchedules((data) => {
       setSchedules(data);
@@ -236,7 +239,7 @@ export default function Queue() {
                 <div className="text-2xl font-black text-gray-800">{stats.checkedIn}</div>
               </div>
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">
-                <div className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Waiting Val</div>
+                <div className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Reserved</div>
                 <div className="text-2xl font-black text-gray-800">{stats.waitingValidation}</div>
               </div>
               <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
@@ -248,7 +251,7 @@ export default function Queue() {
                 <div className="text-2xl font-black text-green-700">{stats.completedCount}</div>
               </div>
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">
-                <div className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Slots Left</div>
+                <div className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Slots Available</div>
                 <div className="text-2xl font-black text-gray-800">{stats.availableSlots}</div>
               </div>
             </div>
@@ -272,9 +275,18 @@ export default function Queue() {
                 </div>
                 
                 {inConsultation ? (
-                  <div className="p-6">
+                  <div 
+                    className="p-6 cursor-pointer hover:bg-blue-50/50 transition-colors"
+                    onClick={() => {
+                      setInfoPatient(inConsultation);
+                      setIsInfoModalOpen(true);
+                    }}
+                  >
                     <div className="mb-6">
-                      <div className="text-2xl font-black text-gray-800 mb-1">{inConsultation.childName || "N/A"}</div>
+                      <div className="flex justify-between items-start">
+                        <div className="text-2xl font-black text-gray-800 mb-1">{inConsultation.childName || "N/A"}</div>
+                        <span className="text-xs text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded-lg">View Details</span>
+                      </div>
                       <div className="text-sm text-gray-500 flex items-center">
                         <User className="w-4 h-4 mr-1.5" /> Parent: {inConsultation.parentEmail}
                       </div>
@@ -296,8 +308,11 @@ export default function Queue() {
                     </div>
                     
                     <button 
-                      onClick={() => handleOpenCompleteModal(inConsultation)}
-                      className="w-full py-3.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors flex items-center justify-center shadow-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenCompleteModal(inConsultation);
+                      }}
+                      className="w-full py-3.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors flex items-center justify-center shadow-sm relative z-10"
                     >
                       <CheckCircle className="w-5 h-5 mr-2" /> Complete Consultation
                     </button>
@@ -519,6 +534,82 @@ export default function Queue() {
                     Completing...
                   </>
                 ) : "Complete Session"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Info Modal */}
+      {isInfoModalOpen && infoPatient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-gray-50">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center">
+                <FileText className="w-5 h-5 mr-2 text-blue-600" />
+                Patient Details
+              </h2>
+              <button onClick={() => setIsInfoModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-200">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <div className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Patient</div>
+                  <div className="text-2xl font-black text-gray-800">{infoPatient.childName || "N/A"}</div>
+                </div>
+                <div className="bg-blue-50 text-blue-600 border border-blue-100 px-4 py-2 rounded-xl text-lg font-black shadow-sm">
+                  #{infoPatient.queuePosition}
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <div className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Parent</div>
+                  <div className="font-semibold text-gray-800">{infoPatient.parentEmail || "N/A"}</div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Branch</div>
+                    <div className="font-semibold text-gray-800 text-sm">{activeSchedule?.branch || "N/A"}</div>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Date</div>
+                    <div className="font-semibold text-gray-800 text-sm">{activeSchedule ? new Date(activeSchedule.clinicDate).toLocaleDateString() : "N/A"}</div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Checked In</div>
+                    <div className="font-semibold text-gray-800 text-sm">{infoPatient.checkedInAt ? new Date(infoPatient.checkedInAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "N/A"}</div>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                    <div className="text-[10px] text-blue-500 font-bold uppercase tracking-wider mb-1">Consult Started</div>
+                    <div className="font-semibold text-blue-700 text-sm">{infoPatient.consultationStartedAt ? new Date(infoPatient.consultationStartedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "N/A"}</div>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                  <div className="text-xs text-amber-600 font-bold uppercase tracking-wider mb-2 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1.5" /> Concern / Reason for Visit
+                  </div>
+                  <div className="font-medium text-amber-900 text-sm whitespace-pre-wrap">
+                    {infoPatient.concern || "No concern provided by parent."}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-gray-100 flex justify-end">
+              <button 
+                onClick={() => setIsInfoModalOpen(false)}
+                className="px-6 py-2.5 text-white font-bold bg-gray-800 rounded-xl hover:bg-gray-900 transition-colors shadow-sm"
+              >
+                Close
               </button>
             </div>
           </div>

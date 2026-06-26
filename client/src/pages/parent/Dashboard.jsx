@@ -49,15 +49,7 @@ export default function Dashboard() {
     const scheduleRes = allReservations.filter(r => r.scheduleId === activeReservation.scheduleId);
     const inConsultation = scheduleRes.find(r => r.status === "in_consultation");
     
-    let serving = null;
-    if (inConsultation) {
-      serving = inConsultation;
-    } else {
-      const activeQueue = scheduleRes.filter(r => ["reserved", "waiting", "checked_in"].includes(r.status));
-      if (activeQueue.length > 0) {
-        serving = activeQueue.reduce((prev, curr) => (prev.queuePosition < curr.queuePosition ? prev : curr));
-      }
-    }
+    const serving = inConsultation || null;
 
     let ahead = 0;
     if (activeReservation.status === "in_consultation") {
@@ -92,14 +84,10 @@ export default function Dashboard() {
     ? 5 
     : Math.max(1, maxSegments - Math.min(patientsAhead, maxSegments - 1));
 
-  let nowServingText = "--";
+  let nowServingText = "—";
   if (nowServing) {
-    if (nowServing.status === "in_consultation") {
-      nowServingText = "In Clinic";
-    } else {
-      const pNum = getPermanentQueueNumber(nowServing.id, nowServing.scheduleId);
-      nowServingText = pNum ? `#${pNum}` : "Waiting...";
-    }
+    const pNum = getPermanentQueueNumber(nowServing.id, nowServing.scheduleId);
+    nowServingText = pNum ? `Queue #${pNum}` : "—";
   }
 
   if (loading) {
@@ -119,6 +107,16 @@ export default function Dashboard() {
           Manage your clinic reservations and monitor your queue status.
         </p>
       </div>
+
+      {/* Informational Notice */}
+      {activeReservation && (activeReservation.status === "reserved" || activeReservation.status === "waiting") && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 flex items-start text-sm font-medium animate-in fade-in max-w-md mx-auto mb-4">
+          <AlertCircle className="w-5 h-5 text-amber-500 mr-3 flex-shrink-0" />
+          <p>
+            Please validate your QR Code or Reservation Code with the secretary before your turn. Failure to validate before your queue is called may result in a penalty.
+          </p>
+        </div>
+      )}
 
       {activeReservation && schedule ? (
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden max-w-md mx-auto animate-in fade-in slide-in-from-bottom-4">
