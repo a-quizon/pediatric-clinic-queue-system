@@ -5,7 +5,7 @@ import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { 
   subscribeToAllReservations, 
   createReservation, 
-  checkExistingGlobalReservation, 
+  checkExistingReservationOnDate, 
   getReservationsBySchedule,
   updatePatientInfo
 } from "../../services/reservationService";
@@ -97,14 +97,25 @@ export default function ReserveQueue() {
       return;
     }
 
-    // Check Duplicate
-    const hasExisting = await checkExistingGlobalReservation(user.uid);
-    if (hasExisting) {
+    // Check if Queue Ended
+    if (schedule.queueStatus === 'ended' || schedule.queueStatus === 'completed') {
+      setMessageModalState({
+        isOpen: true,
+        type: 'error',
+        title: 'Queue Closed',
+        message: 'This clinic queue has already ended. Reservations are no longer accepted.'
+      });
+      return;
+    }
+
+    // Check Duplicate on Clinic Date
+    const hasExistingOnDate = await checkExistingReservationOnDate(user.uid, schedule.clinicDate);
+    if (hasExistingOnDate) {
       setMessageModalState({
         isOpen: true,
         type: 'warning',
         title: 'Active Reservation Exists',
-        message: 'You already have an active reservation. Please cancel your current reservation before reserving another slot.'
+        message: 'You already have an active reservation for this date. You may only reserve one clinic schedule per day.'
       });
       return;
     }
@@ -120,14 +131,14 @@ export default function ReserveQueue() {
     setIsSubmitting(true);
     try {
       // Double check duplicate just in case
-      const hasExisting = await checkExistingGlobalReservation(user.uid);
-      if (hasExisting) {
+      const hasExistingOnDate = await checkExistingReservationOnDate(user.uid, selectedSchedule.clinicDate);
+      if (hasExistingOnDate) {
         setIsConfirmModalOpen(false);
         setMessageModalState({
           isOpen: true,
           type: 'warning',
           title: 'Active Reservation Exists',
-          message: 'You already have an active reservation. Please cancel your current reservation before reserving another slot.'
+          message: 'You already have an active reservation for this date. You may only reserve one clinic schedule per day.'
         });
         return;
       }
@@ -215,8 +226,16 @@ export default function ReserveQueue() {
             const currentReservations = getReservationCount(schedule.id);
             const availableSlots = schedule.slotCapacity - currentReservations;
             const isFull = availableSlots <= 0;
-            const hasReserved = !!parentReservation;
-            const buttonDisabled = isFull || hasReserved;
+            const isEnded = schedule.queueStatus === 'ended' || schedule.queueStatus === 'completed';
+            
+            // Check if parent has an active reservation on this schedule's clinicDate
+            const hasReservedOnDate = reservations.some(r => 
+              r.parentId === user?.uid && 
+              ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status) && 
+              schedules.find(s => s.id === r.scheduleId)?.clinicDate === schedule.clinicDate
+            );
+
+            const buttonDisabled = isFull || hasReservedOnDate || isEnded;
 
             return (
               <div key={schedule.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-100 transition-all p-5 flex flex-col">
@@ -277,20 +296,24 @@ export default function ReserveQueue() {
                   onClick={() => handleReserveClick(schedule)}
                   disabled={buttonDisabled}
                   className={`w-full py-2.5 font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center ${
-                    hasReserved 
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : isFull 
-                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed text-xs px-3 leading-snug' 
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    isEnded
+                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed text-sm'
+                      : hasReservedOnDate 
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : isFull 
+                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed text-xs px-3 leading-snug' 
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
-                  {!hasReserved && <CalendarPlus className={`w-4 h-4 mr-2 flex-shrink-0 ${isFull ? 'hidden' : ''}`} />}
+                  {!hasReservedOnDate && !isEnded && <CalendarPlus className={`w-4 h-4 mr-2 flex-shrink-0 ${isFull ? 'hidden' : ''}`} />}
                   <span>
-                    {hasReserved 
-                      ? 'You have reserved a slot'
-                      : isFull 
-                        ? 'Slots are currently full. Please wait until a slot becomes available.' 
-                        : 'Reserve Slot'}
+                    {isEnded
+                      ? 'Queue Closed'
+                      : hasReservedOnDate 
+                        ? 'Already Reserved'
+                        : isFull 
+                          ? 'Slots are currently full. Please wait until a slot becomes available.' 
+                          : 'Reserve Slot'}
                   </span>
                 </button>
               </div>

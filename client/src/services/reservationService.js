@@ -39,12 +39,28 @@ export const checkExistingReservation = async (scheduleId, parentId) => {
   return reservations.some((res) => res.parentId === parentId && res.status !== "cancelled" && res.status !== "completed");
 };
 
-export const checkExistingGlobalReservation = async (parentId) => {
-  const snapshot = await get(ref(database, "reservations"));
-  if (!snapshot.exists()) return false;
+export const checkExistingReservationOnDate = async (parentId, clinicDate) => {
+  const [resSnapshot, schedSnapshot] = await Promise.all([
+    get(ref(database, "reservations")),
+    get(ref(database, "schedules"))
+  ]);
+  
+  if (!resSnapshot.exists() || !schedSnapshot.exists()) return false;
 
-  const data = snapshot.val();
-  return Object.values(data).some((res) => res.parentId === parentId && res.status !== "cancelled" && res.status !== "completed");
+  const reservations = resSnapshot.val();
+  const schedules = schedSnapshot.val();
+
+  // Find schedule IDs that match the target clinicDate
+  const targetScheduleIds = Object.entries(schedules)
+    .filter(([_, schedule]) => schedule.clinicDate === clinicDate)
+    .map(([id]) => id);
+
+  // Check if there are any active reservations belonging to those schedules
+  return Object.values(reservations).some((res) => 
+    res.parentId === parentId && 
+    targetScheduleIds.includes(res.scheduleId) &&
+    !["cancelled", "completed", "consultation_completed", "expired", "forfeited"].includes(res.status)
+  );
 };
 
 export const calculateDynamicQueuePositions = (reservations) => {

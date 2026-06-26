@@ -117,6 +117,14 @@ export default function Dashboard() {
           </p>
         </div>
       )}
+      {activeReservation && schedule && schedule.queueStatus === 'paused' && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-orange-800 flex items-start text-sm font-medium animate-in fade-in max-w-md mx-auto mb-4">
+          <AlertCircle className="w-5 h-5 text-orange-500 mr-3 flex-shrink-0" />
+          <p>
+            The clinic queue is temporarily paused. Please wait until the doctor resumes today's clinic.
+          </p>
+        </div>
+      )}
       {activeReservation && schedule && schedule.queueStatus !== 'not_started' && (activeReservation.status === "reserved" || activeReservation.status === "waiting") && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 flex items-start text-sm font-medium animate-in fade-in max-w-md mx-auto mb-4">
           <AlertCircle className="w-5 h-5 text-amber-500 mr-3 flex-shrink-0" />

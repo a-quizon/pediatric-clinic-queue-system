@@ -149,6 +149,15 @@ export default function Queue() {
   };
 
   const handleOpenCompleteModal = (res) => {
+    const currentQueueStatus = activeSchedule?.queueStatus || 'not_started';
+    if (currentQueueStatus === "paused") {
+      toast.error("Cannot complete consultation while queue is paused.");
+      return;
+    }
+    if (currentQueueStatus === "ended" || currentQueueStatus === "completed") {
+      toast.error("Cannot complete consultation. The queue has ended.");
+      return;
+    }
     setSelectedPatient(res);
     setDoctorNotes("");
     setIsCompleteModalOpen(true);

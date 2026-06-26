@@ -19,6 +19,8 @@ export default function ValidateReservation() {
   const [showCheckedInModal, setShowCheckedInModal] = useState(false);
   const [showInConsultationModal, setShowInConsultationModal] = useState(false);
   const [showNotStartedModal, setShowNotStartedModal] = useState(false);
+  const [showPausedModal, setShowPausedModal] = useState(false);
+  const [showEndedModal, setShowEndedModal] = useState(false);
 
   const [validatedDetails, setValidatedDetails] = useState(null);
 
@@ -98,6 +100,16 @@ export default function ValidateReservation() {
 
     if (schedule && schedule.queueStatus === 'not_started') {
       setShowNotStartedModal(true);
+      return;
+    }
+    
+    if (schedule && schedule.queueStatus === 'paused') {
+      setShowPausedModal(true);
+      return;
+    }
+
+    if (schedule && (schedule.queueStatus === 'ended' || schedule.queueStatus === 'completed')) {
+      setShowEndedModal(true);
       return;
     }
 
@@ -187,6 +199,8 @@ export default function ValidateReservation() {
     setShowCheckedInModal(false);
     setShowInConsultationModal(false);
     setShowNotStartedModal(false);
+    setShowPausedModal(false);
+    setShowEndedModal(false);
     setValidatedDetails(null);
   };
 
@@ -284,6 +298,44 @@ export default function ValidateReservation() {
           </div>
         </div>
       </div>
+
+      {/* Paused Queue Modal */}
+      {showPausedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Queue Paused</h2>
+            <p className="text-gray-500 mb-6">The clinic queue is currently paused. Please wait for the doctor to resume the session before validating reservations.</p>
+            <button
+              onClick={closeAllModals}
+              className="w-full py-3 font-bold rounded-xl text-amber-700 bg-amber-50 hover:bg-amber-100 transition-all"
+            >
+              Acknowledge
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Ended Queue Modal */}
+      {showEndedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <X className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Queue Closed</h2>
+            <p className="text-gray-500 mb-6">Today's clinic session has already ended. Reservations can no longer be validated.</p>
+            <button
+              onClick={closeAllModals}
+              className="w-full py-3 font-bold rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Removed Reservation Found Modal as per auto check-in requirement */}
 

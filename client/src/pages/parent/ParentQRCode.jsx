@@ -5,7 +5,7 @@ import { subscribeToAllReservations } from "../../services/reservationService";
 import { getSchedules } from "../../services/scheduleService";
 import QRCode from "qrcode";
 import toast from "react-hot-toast";
-import { ArrowLeft, Download, Copy, MapPin, CalendarDays, Activity, QrCode } from "lucide-react";
+import { ArrowLeft, Download, Copy, MapPin, CalendarDays, Activity, QrCode, AlertCircle } from "lucide-react";
 
 export default function ParentQRCode() {
   const { id } = useParams();
@@ -153,7 +153,7 @@ export default function ParentQRCode() {
           </p>
         </div>
 
-        {/* Not Started Warning */}
+        {/* Not Started / Paused Warnings */}
         {schedule?.queueStatus === 'not_started' && (
           <div className="bg-amber-50 p-5 border-b border-amber-100 text-center">
             <div className="flex items-center justify-center text-amber-700 font-bold mb-2">
@@ -165,10 +165,29 @@ export default function ParentQRCode() {
             </p>
           </div>
         )}
+        {schedule?.queueStatus === 'paused' && (
+          <div className="bg-orange-50 p-5 border-b border-orange-100 text-center">
+            <div className="flex items-center justify-center text-orange-700 font-bold mb-2">
+              <AlertCircle className="w-5 h-5 mr-2" />
+              Queue Paused
+            </div>
+            <p className="text-orange-800 text-sm">
+              The clinic queue is temporarily paused. Please wait until the doctor resumes today's clinic.
+            </p>
+          </div>
+        )}
 
         {/* QR Section */}
         <div className="p-8 text-center flex flex-col items-center border-b border-gray-50">
-          {["in_consultation", "consultation_completed"].includes(reservation.status) ? (
+          {schedule?.queueStatus === 'ended' || schedule?.queueStatus === 'completed' ? (
+            <div className="py-8 px-4 text-center w-full">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                <X className="w-10 h-10" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Clinic Closed</h2>
+              <p className="text-gray-500 text-sm mt-2 font-medium">Today's clinic session has ended. Your reservation remains available in history.</p>
+            </div>
+          ) : ["in_consultation", "consultation_completed"].includes(reservation.status) ? (
             <div className="py-8 px-4 text-center w-full">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
                 <Activity className="w-10 h-10" />
@@ -252,7 +271,7 @@ export default function ParentQRCode() {
 
         {/* Footer Actions */}
         <div className="p-6 pt-0 bg-gray-50/50">
-          {qrImageUrl && reservation.status !== "in_consultation" && reservation.status !== "consultation_completed" && reservation.status !== "checked_in" && (
+          {qrImageUrl && schedule?.queueStatus !== 'ended' && schedule?.queueStatus !== 'completed' && reservation.status !== "in_consultation" && reservation.status !== "consultation_completed" && reservation.status !== "checked_in" && (
             <a 
               href={qrImageUrl} 
               download={`reservation-${reservation.reservationCode || 'code'}.png`}
