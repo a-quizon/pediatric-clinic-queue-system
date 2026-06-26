@@ -60,7 +60,15 @@ export const publishSchedule = async ( scheduleId ) => {
   await update( ref(database, `schedules/${scheduleId}`), {
     status: "published", 
     queueStatus: "not_started", // Default queue status when published
+    isReady: false,
     publishedAt: Date.now(),
+  });
+};
+
+export const moveToReady = async ( scheduleId ) => {
+  await update( ref(database, `schedules/${scheduleId}`), {
+    isReady: true,
+    movedToReadyAt: Date.now(),
   });
 };
 

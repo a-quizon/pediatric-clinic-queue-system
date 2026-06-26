@@ -1,10 +1,29 @@
 import React from 'react';
-import { Calendar, Clock, MapPin, Users, CheckCircle2, AlertCircle, PlayCircle } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, CheckCircle2, AlertCircle, PlayCircle, Activity } from 'lucide-react';
 
-export default function ScheduleCard({ schedule, availableSlots, reservedCount, checkedInCount, onEdit, onDelete, onPublish, onComplete, onViewDetails }) {
-  const isCompleted = schedule.status === 'completed';
-  const isDraft = schedule.status === 'draft';
-  const isPublished = schedule.status === 'published';
+export default function ScheduleCard({ 
+  schedule, 
+  availableSlots, 
+  reservedCount, 
+  checkedInCount, 
+  onEdit, 
+  onDelete, 
+  onPublish, 
+  onMoveToReady,
+  onStartQueue,
+  onOpenQueueControl,
+  onViewDetails,
+  isStartQueueDisabled
+}) {
+
+  let localStatus = 'unknown';
+  if (schedule.status === 'draft') localStatus = 'draft';
+  else if (schedule.status === 'completed' || schedule.queueStatus === 'completed' || schedule.queueStatus === 'ended') localStatus = 'completed';
+  else if (schedule.queueStatus === 'active' || schedule.queueStatus === 'paused') localStatus = 'active';
+  else if (schedule.status === 'published') {
+    if (schedule.isReady) localStatus = 'ready';
+    else localStatus = 'published';
+  }
 
   const formatTime = (time) => {
     if (!time) return '';
@@ -15,14 +34,32 @@ export default function ScheduleCard({ schedule, availableSlots, reservedCount, 
     return `${formattedH}:${minutes} ${ampm}`;
   };
 
+  const getStatusConfig = () => {
+    switch (localStatus) {
+      case 'draft': return { text: 'Draft', color: 'bg-gray-100 text-gray-600', icon: AlertCircle };
+      case 'published': return { text: 'Published', color: 'bg-amber-50 text-amber-700', icon: CheckCircle2 };
+      case 'ready': return { text: 'Ready', color: 'bg-blue-50 text-blue-700', icon: PlayCircle };
+      case 'active': return { text: 'Active Queue', color: 'bg-green-100 text-green-700', icon: Activity };
+      case 'completed': return { text: schedule.queueStatus === 'ended' || schedule.queueStatus === 'completed' ? 'Queue Closed' : 'Completed', color: 'bg-gray-100 text-gray-500', icon: CheckCircle2 };
+      default: return { text: schedule.status, color: 'bg-gray-100 text-gray-600', icon: AlertCircle };
+    }
+  };
+
+  const statusConfig = getStatusConfig();
+  const StatusIcon = statusConfig.icon;
+  const isCompleted = localStatus === 'completed';
+
   return (
-    <div 
-      onClick={() => onViewDetails(schedule)}
-      className={`bg-white rounded-2xl border p-5 transition-all cursor-pointer ${
-      isCompleted 
-        ? "border-gray-100 opacity-70 hover:opacity-100" 
-        : "border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300"
+    <div className={`bg-white rounded-2xl border p-5 transition-all relative ${
+      isCompleted ? "border-gray-100 opacity-80" : "border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300"
     }`}>
+      {localStatus === 'active' && (
+        <div className="absolute -top-3 right-4 bg-green-500 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-sm flex items-center animate-pulse">
+          <div className="w-1.5 h-1.5 bg-white rounded-full mr-1.5"></div>
+          Active Clinic
+        </div>
+      )}
+
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className={`text-lg font-bold flex items-center ${isCompleted ? "text-gray-600" : "text-gray-800"}`}>
@@ -30,15 +67,9 @@ export default function ScheduleCard({ schedule, availableSlots, reservedCount, 
             {schedule.branch} Branch
           </h3>
         </div>
-        <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center ${
-          isCompleted ? "bg-gray-100 text-gray-600" :
-          isPublished ? "bg-green-50 text-green-700" :
-          "bg-amber-50 text-amber-700"
-        }`}>
-          {isCompleted && <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />}
-          {isPublished && <PlayCircle className="w-3.5 h-3.5 mr-1.5" />}
-          {isDraft && <AlertCircle className="w-3.5 h-3.5 mr-1.5" />}
-          <span className="capitalize">{schedule.status}</span>
+        <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center ${statusConfig.color}`}>
+          <StatusIcon className="w-3.5 h-3.5 mr-1.5" />
+          <span className="capitalize">{statusConfig.text}</span>
         </div>
       </div>
 
@@ -65,42 +96,52 @@ export default function ScheduleCard({ schedule, availableSlots, reservedCount, 
         </div>
       </div>
 
-      {!isCompleted && (
-        <div className="flex items-center gap-2 pt-4 border-t border-gray-50 flex-wrap">
-          <button 
-            onClick={(e) => { e.stopPropagation(); onEdit(schedule); }} 
-            className="flex-1 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors"
-          >
-            Edit
-          </button>
-          
-          {isDraft && (
-            <>
-              <button 
-                onClick={(e) => { e.stopPropagation(); onDelete(schedule.id); }} 
-                className="flex-1 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-100 transition-colors"
-              >
-                Delete
-              </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); onPublish(schedule.id); }} 
-                className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors"
-              >
-                Publish
-              </button>
-            </>
-          )}
+      <div className="flex items-center gap-2 pt-4 border-t border-gray-50 flex-wrap">
+        {localStatus === 'draft' && (
+          <>
+            <button onClick={(e) => { e.stopPropagation(); onEdit(schedule); }} className="flex-1 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors">Edit</button>
+            <button onClick={(e) => { e.stopPropagation(); onDelete(schedule.id); }} className="flex-1 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-100 transition-colors">Delete</button>
+            <button onClick={(e) => { e.stopPropagation(); onPublish(schedule.id); }} className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors">Publish</button>
+          </>
+        )}
 
-          {isPublished && (
+        {localStatus === 'published' && (
+          <>
+            <button onClick={(e) => { e.stopPropagation(); onViewDetails(schedule); }} className="flex-1 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors">View Details</button>
+            <button onClick={(e) => { e.stopPropagation(); onMoveToReady(schedule.id); }} className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors">Move to Ready</button>
+          </>
+        )}
+
+        {localStatus === 'ready' && (
+          <>
+            <button onClick={(e) => { e.stopPropagation(); onViewDetails(schedule); }} className="flex-1 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors">View Details</button>
             <button 
-              onClick={(e) => { e.stopPropagation(); onComplete(schedule.id); }} 
-              className="flex-1 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+              onClick={(e) => { e.stopPropagation(); onStartQueue(schedule.id); }} 
+              disabled={isStartQueueDisabled}
+              className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all shadow-sm flex items-center justify-center ${
+                isStartQueueDisabled ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700"
+              }`}
             >
-              Complete
+              Start Queue
             </button>
-          )}
-        </div>
-      )}
+          </>
+        )}
+
+        {localStatus === 'active' && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); onOpenQueueControl(); }} 
+            className="flex-1 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-all shadow-sm flex items-center justify-center"
+          >
+            <Activity className="w-4 h-4 mr-2" /> Open Queue Control
+          </button>
+        )}
+
+        {localStatus === 'completed' && (
+          <>
+            <button onClick={(e) => { e.stopPropagation(); onViewDetails(schedule); }} className="flex-1 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors">View Summary</button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
