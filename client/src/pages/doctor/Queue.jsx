@@ -211,6 +211,51 @@ export default function Queue() {
         </div>
       </div>
 
+      {/* Published Schedules Grid */}
+      {schedules.length > 0 && (
+        <div className="mb-8">
+          <label className="block text-sm font-semibold text-gray-700 mb-3">Published Schedules</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {schedules.map(s => {
+              const schedRes = reservations.filter(r => r.scheduleId === s.id && ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status));
+              const resCount = schedRes.length;
+              const slotsAvail = Math.max(0, s.slotCapacity - resCount);
+              const isSelected = s.id === selectedScheduleId;
+
+              return (
+                <div 
+                  key={s.id}
+                  onClick={() => setSelectedScheduleId(s.id)}
+                  className={`bg-white rounded-2xl p-5 border cursor-pointer transition-all ${isSelected ? 'border-blue-500 shadow-md ring-2 ring-blue-500/20' : 'border-gray-200 shadow-sm hover:border-blue-300'}`}
+                >
+                  <div className="flex justify-between items-start mb-4 gap-2">
+                    <h3 className="font-bold text-gray-800 flex items-center leading-tight">
+                      <MapPin className="w-4 h-4 mr-1.5 text-blue-600 flex-shrink-0" />
+                      {s.branch}
+                    </h3>
+                    {getQueueStatusBadge(s.queueStatus)}
+                  </div>
+                  <div className="text-sm text-gray-500 mb-4 flex items-center">
+                    <Clock className="w-4 h-4 mr-1.5 flex-shrink-0" />
+                    {new Date(s.clinicDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-center text-sm">
+                    <div className="bg-gray-50 p-2 rounded-xl border border-gray-100">
+                      <div className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-0.5">Reservations</div>
+                      <div className="font-black text-gray-800">{resCount}</div>
+                    </div>
+                    <div className="bg-blue-50 p-2 rounded-xl border border-blue-100">
+                      <div className="text-blue-500 text-xs font-bold uppercase tracking-wider mb-0.5">Available</div>
+                      <div className="font-black text-blue-700">{slotsAvail}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Active Queue Session Card */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
         {activeSchedule && activeSchedule.queueStatus !== 'not_started' ? (
@@ -263,7 +308,7 @@ export default function Queue() {
           <div className="text-center py-6">
             <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <h2 className="text-xl font-bold text-gray-800 mb-2">No Active Queue</h2>
-            <p className="text-gray-500 mb-6">Choose a published schedule below to start today's clinic queue.</p>
+            <p className="text-gray-500 mb-6">Choose a published schedule above to start today's clinic queue.</p>
             {activeSchedule && activeSchedule.queueStatus === 'not_started' && (
               <button onClick={() => handleQueueControl('active')} className="px-6 py-2.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors shadow-sm flex items-center mx-auto">
                 <Play className="w-4 h-4 mr-2" /> Start Queue
@@ -272,22 +317,6 @@ export default function Queue() {
           </div>
         )}
       </div>
-
-      {/* Published Schedule Selector */}
-      {schedules.length > 0 && (
-        <div className="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Published Schedules ▼</label>
-          <select 
-            value={activeSchedule?.id || ""}
-            onChange={(e) => setSelectedScheduleId(e.target.value)}
-            className="w-full md:w-auto px-4 py-2 bg-white border border-gray-200 rounded-xl font-semibold text-gray-700 outline-none focus:border-blue-500"
-          >
-            {schedules.map(s => (
-              <option key={s.id} value={s.id}>{s.branch} - {new Date(s.clinicDate).toLocaleDateString()}</option>
-            ))}
-          </select>
-        </div>
-      )}
 
       {activeSchedule && (
         <>

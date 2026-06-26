@@ -109,7 +109,15 @@ export default function Dashboard() {
       </div>
 
       {/* Informational Notice */}
-      {activeReservation && (activeReservation.status === "reserved" || activeReservation.status === "waiting") && (
+      {activeReservation && schedule && schedule.queueStatus === 'not_started' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-blue-800 flex items-start text-sm font-medium animate-in fade-in max-w-md mx-auto mb-4">
+          <AlertCircle className="w-5 h-5 text-blue-500 mr-3 flex-shrink-0" />
+          <p>
+            You may reserve your slot now. Please wait until the doctor starts today's clinic queue before proceeding to the secretary for QR Code validation.
+          </p>
+        </div>
+      )}
+      {activeReservation && schedule && schedule.queueStatus !== 'not_started' && (activeReservation.status === "reserved" || activeReservation.status === "waiting") && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 flex items-start text-sm font-medium animate-in fade-in max-w-md mx-auto mb-4">
           <AlertCircle className="w-5 h-5 text-amber-500 mr-3 flex-shrink-0" />
           <p>
@@ -147,38 +155,48 @@ export default function Dashboard() {
               </p>
             </div>
 
-            <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
-              <div className="flex justify-between items-end mb-4">
-                <div>
-                  <p className="text-xs font-bold text-gray-500 mb-1">Now Serving</p>
-                  <p className="text-2xl font-black text-gray-800">{nowServingText}</p>
-                </div>
-                {activeReservation.status !== "in_consultation" && (
-                  <div className="text-right">
-                    <p className="text-xs font-bold text-gray-500 mb-1">Est. Wait</p>
-                    <p className="text-lg font-black text-blue-500">~{estimatedWaitTime} mins</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Segmented Progress Bar */}
-              <div className="flex gap-1.5 h-2.5 mb-4">
-                {Array.from({ length: maxSegments }).map((_, index) => (
-                  <div 
-                    key={index} 
-                    className={`flex-1 rounded-full ${index < activeSegments ? 'bg-blue-500' : 'bg-gray-200'}`}
-                  ></div>
-                ))}
-              </div>
-              
-              <div className="text-center">
-                <p className="text-xs font-bold text-gray-400">
-                  {activeReservation.status === "in_consultation" 
-                    ? "You are currently being served" 
-                    : `${patientsAhead} patient${patientsAhead === 1 ? '' : 's'} ahead of you`}
+            {schedule.queueStatus === 'not_started' ? (
+              <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-center">
+                <Clock className="w-8 h-8 text-blue-400 mx-auto mb-3" />
+                <h3 className="font-bold text-gray-800 mb-2">Queue Not Started</h3>
+                <p className="text-sm text-gray-500">
+                  The clinic queue hasn't started yet. You have successfully reserved your slot. Real-time queue updates will appear once the doctor starts today's clinic.
                 </p>
               </div>
-            </div>
+            ) : (
+              <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
+                <div className="flex justify-between items-end mb-4">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 mb-1">Now Serving</p>
+                    <p className="text-2xl font-black text-gray-800">{nowServingText}</p>
+                  </div>
+                  {activeReservation.status !== "in_consultation" && (
+                    <div className="text-right">
+                      <p className="text-xs font-bold text-gray-500 mb-1">Est. Wait</p>
+                      <p className="text-lg font-black text-blue-500">~{estimatedWaitTime} mins</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Segmented Progress Bar */}
+                <div className="flex gap-1.5 h-2.5 mb-4">
+                  {Array.from({ length: maxSegments }).map((_, index) => (
+                    <div 
+                      key={index} 
+                      className={`flex-1 rounded-full ${index < activeSegments ? 'bg-blue-500' : 'bg-gray-200'}`}
+                    ></div>
+                  ))}
+                </div>
+                
+                <div className="text-center">
+                  <p className="text-xs font-bold text-gray-400">
+                    {activeReservation.status === "in_consultation" 
+                      ? "You are currently being served" 
+                      : `${patientsAhead} patient${patientsAhead === 1 ? '' : 's'} ahead of you`}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ) : (

@@ -225,10 +225,27 @@ export default function ReserveQueue() {
                     <MapPin className="w-5 h-5 mr-2 text-gray-400" />
                     {schedule.branch} Branch
                   </h3>
-                  <div className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold flex items-center">
-                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                    Published
-                  </div>
+                  {schedule.queueStatus === 'not_started' ? (
+                    <div className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold flex items-center border border-amber-200">
+                      <Clock className="w-3.5 h-3.5 mr-1.5" />
+                      Reservations Open
+                    </div>
+                  ) : schedule.queueStatus === 'active' ? (
+                    <div className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold flex items-center border border-green-200">
+                      <div className="w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse"></div>
+                      Active Queue
+                    </div>
+                  ) : schedule.queueStatus === 'paused' ? (
+                    <div className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-bold flex items-center border border-orange-200">
+                      <AlertCircle className="w-3.5 h-3.5 mr-1.5" />
+                      Paused
+                    </div>
+                  ) : (
+                    <div className="px-3 py-1 bg-gray-50 text-gray-700 rounded-full text-xs font-bold flex items-center border border-gray-200">
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                      {schedule.queueStatus || 'Published'}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-3 mb-6 flex-1">

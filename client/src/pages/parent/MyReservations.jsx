@@ -238,6 +238,13 @@ export default function MyReservations() {
                           <div className="text-gray-500 pt-4 border-t border-gray-200 pl-6">Status</div>
                           <div className="font-bold text-blue-600 text-right text-lg pt-4 border-t border-gray-200 uppercase">In Consultation</div>
                         </>
+                      ) : schedule.queueStatus === 'not_started' ? (
+                        <div className="col-span-2 pt-4 border-t border-gray-200 text-center">
+                          <h3 className="font-bold text-gray-800 mb-1">Queue Not Started</h3>
+                          <p className="text-xs text-gray-500">
+                            The clinic queue hasn't started yet. You have successfully reserved your slot. Real-time queue updates will appear once the doctor starts today's clinic.
+                          </p>
+                        </div>
                       ) : (
                         <>
                           <div className="text-gray-500 pt-4 border-t border-gray-200 pl-6">Queue Position</div>
