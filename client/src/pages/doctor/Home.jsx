@@ -18,12 +18,7 @@ export default function Home() {
       icon: Users,
       path: "/doctor/queue",
     },
-    {
-      title: "Consultations",
-      description: "Conduct sessions",
-      icon: Stethoscope,
-      path: "/doctor/consultations",
-    },
+
     {
       title: "Profile",
       description: "Account settings",

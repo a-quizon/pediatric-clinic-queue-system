@@ -8,7 +8,6 @@ export default function Layout() {
     { name: "Home", path: "/doctor", icon: Home },
     { name: "Schedules", path: "/doctor/schedules", icon: CalendarDays },
     { name: "Queue", path: "/doctor/queue", icon: Users },
-    { name: "Consultations", path: "/doctor/consultations", icon: Stethoscope },
     { name: "Reports & Analytics", path: "/doctor/reports", icon: BarChart3, desktopOnly: true },
     { name: "Profile", path: "/doctor/profile", icon: User },
   ];

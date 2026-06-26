@@ -57,7 +57,18 @@ export const deleteSchedule = async (scheduleId) => {
 };
 
 export const publishSchedule = async ( scheduleId ) => {
-  await update( ref(database, `schedules/${scheduleId}`), {status: "published", publishedAt: Date.now(),});
+  await update( ref(database, `schedules/${scheduleId}`), {
+    status: "published", 
+    queueStatus: "active", // Default queue status when published
+    publishedAt: Date.now(),
+  });
+};
+
+export const updateQueueStatus = async (scheduleId, queueStatus) => {
+  await update(ref(database, `schedules/${scheduleId}`), {
+    queueStatus,
+    [`queueStatusUpdatedAt`]: Date.now()
+  });
 };
 
 export const completeSchedule = async ( scheduleId ) => {
