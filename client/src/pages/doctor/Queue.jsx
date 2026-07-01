@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { subscribeToPublishedSchedules, updateQueueStatus } from "../../services/scheduleService";
+import { subscribeToPublishedSchedules, updateQueueStatus, completeSchedule } from "../../services/scheduleService";
 import { subscribeToAllReservations, startConsultation, completeConsultation } from "../../services/reservationService";
-import { Activity, Play, Pause, Square, CheckCircle, User, AlertCircle, FileText, X, Clock, MapPin, Users, CheckCircle2 } from "lucide-react";
+import { Activity, Play, Pause, Square, CheckCircle, User, AlertCircle, FileText, X, Clock, MapPin, Users, CheckCircle2, Lock } from "lucide-react";
+import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal";
 import toast from "react-hot-toast";
 
 export default function Queue() {
@@ -14,7 +15,8 @@ export default function Queue() {
   const [doctorNotes, setDoctorNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [isEndQueueModalOpen, setIsEndQueueModalOpen] = useState(false);
+  const [isCloseQueueModalOpen, setIsCloseQueueModalOpen] = useState(false);
+  const [isEndSessionModalOpen, setIsEndSessionModalOpen] = useState(false);
 
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [infoPatient, setInfoPatient] = useState(null);
@@ -79,24 +81,23 @@ export default function Queue() {
     };
   }, [scheduleReservations, activeSchedule]);
 
+  const canEndSession = waitingValidationQueue.length === 0 && checkedInQueue.length === 0 && !inConsultation;
+
   const nextEligiblePatient = useMemo(() => {
-    const allWaiting = [...waitingValidationQueue, ...checkedInQueue].sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
-    
-    if (allWaiting.length === 0) return null;
-    
-    const firstInLine = allWaiting[0];
-    
-    if (firstInLine.status === "checked_in") {
-      return firstInLine;
-    } else {
-      return { blocked: true, patient: firstInLine };
+    if (checkedInQueue.length > 0) {
+      const sortedCheckedIn = [...checkedInQueue].sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
+      return sortedCheckedIn[0];
     }
+    if (waitingValidationQueue.length > 0) {
+      return { blocked: true };
+    }
+    return null;
   }, [waitingValidationQueue, checkedInQueue]);
 
   const handleQueueControl = async (status) => {
     if (!activeSchedule) return;
-    if (status === 'ended') {
-      setIsEndQueueModalOpen(true);
+    if (status === 'closed') {
+      setIsCloseQueueModalOpen(true);
       return;
     }
     try {
@@ -108,14 +109,34 @@ export default function Queue() {
     }
   };
 
-  const confirmEndQueue = async () => {
+  const confirmCloseQueue = async () => {
     try {
-      await updateQueueStatus(activeSchedule.id, 'ended');
-      toast.success("Queue ended.");
-      setIsEndQueueModalOpen(false);
+      await updateQueueStatus(activeSchedule.id, 'closed');
+      toast.success("Queue closed to new reservations.");
+      setIsCloseQueueModalOpen(false);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to end queue");
+      toast.error("Failed to close queue");
+    }
+  };
+
+  const handleEndSessionClick = () => {
+    if (!canEndSession) {
+      toast.error("All remaining patients must be completed before ending the clinic session.");
+      return;
+    }
+    setIsEndSessionModalOpen(true);
+  };
+
+  const confirmEndSession = async () => {
+    try {
+      await updateQueueStatus(activeSchedule.id, 'completed');
+      await completeSchedule(activeSchedule.id);
+      toast.success("Clinic session ended successfully.");
+      setIsEndSessionModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to end clinic session");
     }
   };
 
@@ -183,6 +204,7 @@ export default function Queue() {
       case 'not_started': return <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full font-bold text-xs flex items-center shadow-sm border border-gray-200"><div className="w-2 h-2 rounded-full bg-gray-400 mr-2"></div>Not Started</span>;
       case 'active': return <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full font-bold text-xs flex items-center shadow-sm border border-green-200"><div className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>Active</span>;
       case 'paused': return <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full font-bold text-xs flex items-center shadow-sm border border-amber-200"><div className="w-2 h-2 rounded-full bg-amber-500 mr-2"></div>Paused</span>;
+      case 'closed': return <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full font-bold text-xs flex items-center shadow-sm border border-amber-300"><div className="w-2 h-2 rounded-full bg-amber-500 mr-2"></div>Queue Closed</span>;
       case 'ended': 
       case 'completed': return <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full font-bold text-xs flex items-center shadow-sm border border-red-200"><div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>{s === 'ended' ? 'Ended' : 'Completed'}</span>;
       default: return null;
@@ -202,19 +224,63 @@ export default function Queue() {
       <div className="space-y-6 pb-6 text-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm mt-6">
         <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
         <h2 className="text-xl font-bold text-gray-800 mb-2">No Published Schedules</h2>
-        <p className="text-gray-500">Publish a schedule to start managing the queue.</p>
+        <p className="text-gray-500 max-w-md mx-auto mb-6">You don't have any published clinic schedules yet. Publish a schedule from Schedule Management to start managing patient queues.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6 pb-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Queue Control Center</h1>
-          <p className="text-gray-500 mt-1">
-            Manage patient flow and monitor queue in real-time.
-          </p>
+          <h1 className="text-2xl font-black text-gray-800">Queue Control Center</h1>
+          <p className="text-gray-500 text-sm">Select a published schedule below to load and manage its real-time queue.</p>
+        </div>
+      </div>
+
+      {/* Published Schedules List */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+        <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Published Schedules</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {schedules.map((schedule) => {
+            const isSelected = activeSchedule?.id === schedule.id;
+            return (
+              <div 
+                key={schedule.id}
+                onClick={() => handleSelectSchedule(schedule)}
+                className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                  isSelected 
+                    ? "border-blue-600 bg-blue-50/50 shadow-sm" 
+                    : "border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50"
+                }`}
+              >
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="font-bold text-gray-800 flex items-center">
+                      <MapPin className="w-4 h-4 mr-1.5 text-blue-600" />
+                      {schedule.branch}
+                    </span>
+                    {getQueueStatusBadge(schedule.queueStatus)}
+                  </div>
+                  <div className="text-xs text-gray-500 space-y-1 mt-3">
+                    <div className="flex items-center">
+                      <Clock className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
+                      {new Date(schedule.clinicDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} ({schedule.dayOfWeek || new Date(schedule.clinicDate).toLocaleDateString('en-US', { weekday: 'short' })})
+                    </div>
+                    <div className="text-gray-700 font-medium pl-5">
+                      {schedule.openingTime} - {schedule.closingTime}
+                    </div>
+                  </div>
+                </div>
+                {isSelected && (
+                  <div className="mt-4 pt-3 border-t border-blue-200/60 flex items-center justify-between text-xs font-bold text-blue-600">
+                    <span>Active Control Center</span>
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -232,21 +298,21 @@ export default function Queue() {
                 {new Date(activeSchedule.clinicDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               {getQueueStatusBadge(activeSchedule.queueStatus)}
               {activeSchedule.queueStatusUpdatedAt && (
                 <div className="text-sm text-gray-500">
                   Updated: {new Date(activeSchedule.queueStatusUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               )}
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 {activeSchedule.queueStatus === 'active' && (
                   <>
                     <button onClick={() => handleQueueControl('paused')} className="p-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors border border-amber-100" title="Pause Queue">
                       <Pause className="w-4 h-4" />
                     </button>
-                    <button onClick={() => handleQueueControl('ended')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="End Queue">
-                      <Square className="w-4 h-4" />
+                    <button onClick={() => handleQueueControl('closed')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Close Queue to New Reservations">
+                      <Lock className="w-4 h-4" />
                     </button>
                   </>
                 )}
@@ -255,13 +321,26 @@ export default function Queue() {
                     <button onClick={() => handleQueueControl('active')} className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors border border-green-100" title="Resume Queue">
                       <Play className="w-4 h-4" />
                     </button>
-                    <button onClick={() => handleQueueControl('ended')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="End Queue">
-                      <Square className="w-4 h-4" />
+                    <button onClick={() => handleQueueControl('closed')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Close Queue to New Reservations">
+                      <Lock className="w-4 h-4" />
                     </button>
                   </>
                 )}
+                {(activeSchedule.queueStatus === 'active' || activeSchedule.queueStatus === 'paused' || activeSchedule.queueStatus === 'closed') && (
+                  <button 
+                    onClick={handleEndSessionClick}
+                    className={`px-4 py-2 font-bold rounded-xl text-sm transition-all flex items-center shadow-sm ${
+                      canEndSession 
+                        ? 'bg-red-600 text-white hover:bg-red-700 cursor-pointer' 
+                        : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                    }`}
+                    title={!canEndSession ? "Finish all remaining consultations to end session" : "End Clinic Session"}
+                  >
+                    <Square className="w-4 h-4 mr-2" /> End Clinic Session
+                  </button>
+                )}
                 {(activeSchedule.queueStatus === 'ended' || activeSchedule.queueStatus === 'completed') && (
-                  <span className="font-bold text-gray-500 px-2">Queue Closed</span>
+                  <span className="font-bold text-gray-500 px-3 py-1.5 bg-gray-100 rounded-xl">Clinic Session Ended</span>
                 )}
               </div>
             </div>
@@ -377,8 +456,8 @@ export default function Queue() {
                   {nextEligiblePatient && nextEligiblePatient.blocked ? (
                     <div className="bg-amber-50 rounded-xl border border-amber-200 p-5 flex flex-col items-center text-center text-amber-700">
                       <AlertCircle className="w-8 h-8 mb-3 text-amber-500" />
-                      <div className="font-black text-lg mb-1">Queue #{nextEligiblePatient.patient.queuePosition} Pending</div>
-                      <div className="text-sm font-medium">Waiting for the parent to validate their QR Code.</div>
+                      <div className="font-bold text-base mb-1">No checked-in patient is ready for consultation.</div>
+                      <div className="text-sm font-medium">Waiting for the next parent to validate their QR Code.</div>
                     </div>
                   ) : nextEligiblePatient ? (
                     <div>
@@ -656,41 +735,82 @@ export default function Queue() {
         </div>
       )}
 
-      {/* End Queue Confirmation Modal */}
-      {isEndQueueModalOpen && (
+      {/* Close Queue Confirmation Modal */}
+      {isCloseQueueModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-red-50">
-              <h2 className="text-lg font-bold text-red-700 flex items-center">
-                <Square className="w-5 h-5 mr-2" />
-                End Clinic Queue?
+            <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-amber-50">
+              <h2 className="text-lg font-bold text-amber-800 flex items-center">
+                <Lock className="w-5 h-5 mr-2 text-amber-600" />
+                Close Queue to New Reservations?
               </h2>
-              <button onClick={() => setIsEndQueueModalOpen(false)} className="text-red-400 hover:text-red-600 transition-colors p-1 rounded-lg hover:bg-red-100">
+              <button onClick={() => setIsCloseQueueModalOpen(false)} className="text-amber-400 hover:text-amber-600 transition-colors p-1 rounded-lg hover:bg-amber-100">
                 <X className="w-5 h-5" />
               </button>
             </div>
             
             <div className="p-6">
               <p className="text-gray-700 font-medium text-center">
-                Are you sure you want to end today's clinic queue?
+                Are you sure you want to close this queue to new reservations?
               </p>
               <p className="text-gray-500 text-sm text-center mt-2">
-                No new reservations or QR validations will be accepted after ending today's clinic.
+                No new reservations will be accepted. However, existing reservations remain valid and ongoing consultations will continue normally.
               </p>
             </div>
 
             <div className="p-5 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
               <button 
-                onClick={() => setIsEndQueueModalOpen(false)}
+                onClick={() => setIsCloseQueueModalOpen(false)}
                 className="px-5 py-2.5 text-gray-700 font-bold bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button 
-                onClick={confirmEndQueue}
+                onClick={confirmCloseQueue}
+                className="px-5 py-2.5 text-white font-bold bg-amber-600 rounded-xl hover:bg-amber-700 transition-colors shadow-sm flex items-center"
+              >
+                <Lock className="w-4 h-4 mr-2" /> Close Queue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* End Session Confirmation Modal */}
+      {isEndSessionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-red-50">
+              <h2 className="text-lg font-bold text-red-700 flex items-center">
+                <Square className="w-5 h-5 mr-2" />
+                End Clinic Session?
+              </h2>
+              <button onClick={() => setIsEndSessionModalOpen(false)} className="text-red-400 hover:text-red-600 transition-colors p-1 rounded-lg hover:bg-red-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <p className="text-gray-700 font-medium text-center">
+                Are you sure you want to end today's clinic session?
+              </p>
+              <p className="text-gray-500 text-sm text-center mt-2">
+                All consultations have been completed. This will mark the schedule as Completed and finalize today's clinic.
+              </p>
+            </div>
+
+            <div className="p-5 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
+              <button 
+                onClick={() => setIsEndSessionModalOpen(false)}
+                className="px-5 py-2.5 text-gray-700 font-bold bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmEndSession}
                 className="px-5 py-2.5 text-white font-bold bg-red-600 rounded-xl hover:bg-red-700 transition-colors shadow-sm flex items-center"
               >
-                <Square className="w-4 h-4 mr-2" /> End Queue
+                <Square className="w-4 h-4 mr-2" /> End Clinic Session
               </button>
             </div>
           </div>

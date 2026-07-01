@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, MapPin, Users, CheckCircle2, AlertCircle, Activity } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, CheckCircle2, AlertCircle, Activity, Lock } from 'lucide-react';
 
 export default function ScheduleCard({ 
   schedule, 
@@ -18,6 +18,7 @@ export default function ScheduleCard({
   let localStatus = 'unknown';
   if (schedule.status === 'draft') localStatus = 'draft';
   else if (schedule.status === 'completed' || schedule.queueStatus === 'completed' || schedule.queueStatus === 'ended') localStatus = 'completed';
+  else if (schedule.queueStatus === 'closed') localStatus = 'closed';
   else if (schedule.queueStatus === 'active' || schedule.queueStatus === 'paused') localStatus = 'active';
   else if (schedule.status === 'published') localStatus = 'published';
 
@@ -35,7 +36,8 @@ export default function ScheduleCard({
       case 'draft': return { text: 'Draft', color: 'bg-gray-100 text-gray-600', icon: AlertCircle };
       case 'published': return { text: 'Published', color: 'bg-amber-50 text-amber-700', icon: CheckCircle2 };
       case 'active': return { text: 'Active Queue', color: 'bg-green-100 text-green-700', icon: Activity };
-      case 'completed': return { text: schedule.queueStatus === 'ended' || schedule.queueStatus === 'completed' ? 'Queue Closed' : 'Completed', color: 'bg-gray-100 text-gray-500', icon: CheckCircle2 };
+      case 'closed': return { text: 'Queue Closed', color: 'bg-amber-100 text-amber-800 border border-amber-300', icon: Lock };
+      case 'completed': return { text: 'Completed', color: 'bg-gray-100 text-gray-500', icon: CheckCircle2 };
       default: return { text: schedule.status, color: 'bg-gray-100 text-gray-600', icon: AlertCircle };
     }
   };
@@ -115,7 +117,7 @@ export default function ScheduleCard({
           </>
         )}
 
-        {localStatus === 'active' && (
+        {(localStatus === 'active' || localStatus === 'closed') && (
           <button 
             onClick={(e) => { e.stopPropagation(); onOpenQueueControl(); }} 
             className="flex-1 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-all shadow-sm flex items-center justify-center"

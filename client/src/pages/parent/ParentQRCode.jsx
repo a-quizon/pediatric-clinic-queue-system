@@ -176,6 +176,17 @@ export default function ParentQRCode() {
             </p>
           </div>
         )}
+        {schedule?.queueStatus === 'closed' && (
+          <div className="bg-amber-50 p-4 border-b border-amber-100 text-center">
+            <div className="flex items-center justify-center text-amber-800 font-bold mb-1 text-sm">
+              <AlertCircle className="w-4 h-4 mr-2 text-amber-500" />
+              Queue Closed to New Reservations
+            </div>
+            <p className="text-amber-700 text-xs">
+              Your existing reservation is valid. You may still present this QR code to the secretary for validation.
+            </p>
+          </div>
+        )}
 
         {/* QR Section */}
         <div className="p-8 text-center flex flex-col items-center border-b border-gray-50">

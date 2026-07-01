@@ -98,12 +98,12 @@ export default function ReserveQueue() {
     }
 
     // Check if Queue Ended
-    if (schedule.queueStatus === 'ended' || schedule.queueStatus === 'completed') {
+    if (schedule.queueStatus === 'closed' || schedule.queueStatus === 'ended' || schedule.queueStatus === 'completed') {
       setMessageModalState({
         isOpen: true,
         type: 'error',
         title: 'Queue Closed',
-        message: 'This clinic queue has already ended. Reservations are no longer accepted.'
+        message: 'This clinic queue has closed to new reservations. Reservations are no longer accepted.'
       });
       return;
     }
@@ -226,7 +226,7 @@ export default function ReserveQueue() {
             const currentReservations = getReservationCount(schedule.id);
             const availableSlots = schedule.slotCapacity - currentReservations;
             const isFull = availableSlots <= 0;
-            const isEnded = schedule.queueStatus === 'ended' || schedule.queueStatus === 'completed';
+            const isEnded = schedule.queueStatus === 'closed' || schedule.queueStatus === 'ended' || schedule.queueStatus === 'completed';
             
             // Check if parent has an active reservation on this schedule's clinicDate
             const hasReservedOnDate = reservations.some(r => 
@@ -258,6 +258,11 @@ export default function ReserveQueue() {
                     <div className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-bold flex items-center border border-orange-200">
                       <AlertCircle className="w-3.5 h-3.5 mr-1.5" />
                       Paused
+                    </div>
+                  ) : schedule.queueStatus === 'closed' ? (
+                    <div className="px-3 py-1 bg-amber-50 text-amber-800 rounded-full text-xs font-bold flex items-center border border-amber-300">
+                      <div className="w-2 h-2 rounded-full bg-amber-500 mr-1.5"></div>
+                      Queue Closed
                     </div>
                   ) : (
                     <div className="px-3 py-1 bg-gray-50 text-gray-700 rounded-full text-xs font-bold flex items-center border border-gray-200">

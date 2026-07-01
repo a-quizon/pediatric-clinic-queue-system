@@ -125,6 +125,14 @@ export default function Dashboard() {
           </p>
         </div>
       )}
+      {activeReservation && schedule && schedule.queueStatus === 'closed' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 flex items-start text-sm font-medium animate-in fade-in max-w-md mx-auto mb-4">
+          <AlertCircle className="w-5 h-5 text-amber-500 mr-3 flex-shrink-0" />
+          <p>
+            The clinic queue is now closed to new reservations. Your existing reservation remains valid and consultations are continuing normally.
+          </p>
+        </div>
+      )}
       {activeReservation && schedule && schedule.queueStatus !== 'not_started' && (activeReservation.status === "reserved" || activeReservation.status === "waiting") && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 flex items-start text-sm font-medium animate-in fade-in max-w-md mx-auto mb-4">
           <AlertCircle className="w-5 h-5 text-amber-500 mr-3 flex-shrink-0" />

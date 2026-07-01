@@ -83,6 +83,7 @@ export const completeSchedule = async ( scheduleId ) => {
   const now = Date.now();
   await update( ref(database, `schedules/${scheduleId}`), {
     status: "completed", 
+    queueStatus: "completed",
     completedAt: now,
     scheduleCompletedAt: now
   });
