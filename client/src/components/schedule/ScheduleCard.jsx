@@ -101,14 +101,22 @@ export default function ScheduleCard({
           <>
             <button onClick={(e) => { e.stopPropagation(); onEdit(schedule); }} className="flex-1 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors">Edit</button>
             <button onClick={(e) => { e.stopPropagation(); onDelete(schedule.id); }} className="flex-1 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-100 transition-colors">Delete</button>
-            <button onClick={(e) => { e.stopPropagation(); onPublish(schedule.id); }} className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors">Publish</button>
+            <button onClick={(e) => { e.stopPropagation(); onPublish(schedule); }} className="flex-1 py-2 bg-green-50 text-green-600 text-sm font-semibold rounded-xl hover:bg-green-100 transition-colors">Publish</button>
           </>
         )}
 
         {localStatus === 'published' && (
           <>
             <button onClick={(e) => { e.stopPropagation(); onViewDetails(schedule); }} className="flex-1 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors">View Details</button>
-            <button onClick={(e) => { e.stopPropagation(); onMoveToReady(schedule.id); }} className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors">Move to Ready</button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); onStartQueue(schedule); }} 
+              disabled={isStartQueueDisabled}
+              className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all shadow-sm flex items-center justify-center ${
+                isStartQueueDisabled ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700"
+              }`}
+            >
+              Start Queue on this Branch
+            </button>
           </>
         )}
 
@@ -116,13 +124,13 @@ export default function ScheduleCard({
           <>
             <button onClick={(e) => { e.stopPropagation(); onViewDetails(schedule); }} className="flex-1 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors">View Details</button>
             <button 
-              onClick={(e) => { e.stopPropagation(); onStartQueue(schedule.id); }} 
+              onClick={(e) => { e.stopPropagation(); onStartQueue(schedule); }} 
               disabled={isStartQueueDisabled}
               className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all shadow-sm flex items-center justify-center ${
-                isStartQueueDisabled ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700"
+                isStartQueueDisabled ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700"
               }`}
             >
-              Start Queue
+              Start Queue on this Branch
             </button>
           </>
         )}

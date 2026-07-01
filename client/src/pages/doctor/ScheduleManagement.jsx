@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { getSchedules, deleteSchedule, publishSchedule, completeSchedule, moveToReady } from "../../services/scheduleService";
+import { getSchedules, deleteSchedule, publishSchedule, completeSchedule } from "../../services/scheduleService";
 import { subscribeToAllReservations } from "../../services/reservationService";
 import ScheduleCard from "../../components/schedule/ScheduleCard";
 import ScheduleFormModal from "../../components/schedule/ScheduleFormModal";
 import ScheduleDetailsModal from "../../components/doctor/ScheduleDetailsModal";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
-import { Plus, Search, Filter, AlertCircle, CheckCircle2, PlayCircle, CalendarX } from "lucide-react";
+import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal";
+import { Plus, Search, Filter, AlertCircle, CheckCircle2, PlayCircle, CalendarX, CalendarCheck } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function ScheduleManagement() {
@@ -22,6 +23,7 @@ export default function ScheduleManagement() {
   
   const [reservations, setReservations] = useState([]);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, scheduleId: null, title: "", message: "", confirmText: "Confirm" });
+  const [scheduleActionModal, setScheduleActionModal] = useState({ isOpen: false, action: null, schedule: null });
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
@@ -76,19 +78,13 @@ export default function ScheduleManagement() {
       isOpen: true, action: "delete", scheduleId, title: "Delete Schedule?", message: "Are you sure you want to delete this schedule?", confirmText: "Delete"
     });
   };
-  const handlePublish = (scheduleId) => {
-    setConfirmModal({
-      isOpen: true, action: "publish", scheduleId, title: "Publish Schedule?", message: "This schedule will become visible to parents and reservations can begin.", confirmText: "Publish"
+  const handlePublish = (scheduleOrId) => {
+    const scheduleObj = typeof scheduleOrId === 'string' ? schedules.find(s => s.id === scheduleOrId) : scheduleOrId;
+    setScheduleActionModal({
+      isOpen: true,
+      action: "publish",
+      schedule: scheduleObj,
     });
-  };
-  const handleMoveToReady = async (scheduleId) => {
-    try {
-      await moveToReady(scheduleId);
-      await loadSchedules();
-      toast.success("Schedule moved to Ready.");
-    } catch (error) {
-      toast.error("Failed to move to ready.");
-    }
   };
   const handleComplete = (scheduleId) => {
     setConfirmModal({
@@ -102,10 +98,6 @@ export default function ScheduleManagement() {
       if (confirmModal.action === "delete") {
         await deleteSchedule(confirmModal.scheduleId);
         await loadSchedules();
-      } else if (confirmModal.action === "publish") {
-        await publishSchedule(confirmModal.scheduleId);
-        await loadSchedules();
-        toast.success("The schedule is now visible to parents.");
       } else if (confirmModal.action === "complete") {
         await completeSchedule(confirmModal.scheduleId);
         await loadSchedules();
@@ -119,16 +111,34 @@ export default function ScheduleManagement() {
       setIsProcessing(false);
     }
   };
-  const handleStartQueue = async (scheduleId) => {
+  const handleStartQueue = (scheduleOrId) => {
+    const scheduleObj = typeof scheduleOrId === 'string' ? schedules.find(s => s.id === scheduleOrId) : scheduleOrId;
+    setScheduleActionModal({
+      isOpen: true,
+      action: "startQueue",
+      schedule: scheduleObj,
+    });
+  };
+  const executeScheduleAction = async () => {
+    if (!scheduleActionModal.schedule || !scheduleActionModal.action) return;
     setIsProcessing(true);
     try {
-      const { updateQueueStatus } = await import("../../services/scheduleService");
-      await updateQueueStatus(scheduleId, 'active');
-      await loadSchedules();
-      toast.success("Clinic queue has been started.");
-      navigate("/doctor/queue");
+      if (scheduleActionModal.action === "publish") {
+        await publishSchedule(scheduleActionModal.schedule.id);
+        await loadSchedules();
+        toast.success("The schedule is now visible to parents.");
+        setScheduleActionModal({ isOpen: false, action: null, schedule: null });
+      } else if (scheduleActionModal.action === "startQueue") {
+        const { updateQueueStatus } = await import("../../services/scheduleService");
+        await updateQueueStatus(scheduleActionModal.schedule.id, 'active');
+        await loadSchedules();
+        toast.success("Clinic queue has been started.");
+        setScheduleActionModal({ isOpen: false, action: null, schedule: null });
+        navigate("/doctor/queue");
+      }
     } catch (error) {
-      toast.error("Failed to start queue.");
+      console.error(error);
+      toast.error("An error occurred while processing your request.");
     } finally {
       setIsProcessing(false);
     }
@@ -310,7 +320,6 @@ export default function ScheduleManagement() {
               onEdit={handleOpenEditModal}
               onDelete={handleDelete}
               onPublish={handlePublish}
-              onMoveToReady={handleMoveToReady}
               onStartQueue={handleStartQueue}
               onOpenQueueControl={handleOpenQueueControl}
               isStartQueueDisabled={isAnyQueueActive}
@@ -352,6 +361,23 @@ export default function ScheduleManagement() {
         onConfirm={executeConfirmAction}
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
         loading={isProcessing}
+      />
+
+      <ScheduleConfirmModal
+        isOpen={scheduleActionModal.isOpen}
+        title={scheduleActionModal.action === "publish" ? "Publish Schedule" : "Start Clinic Queue"}
+        description={
+          scheduleActionModal.action === "publish"
+            ? "Please review the schedule details below before publishing. Once published, parents will immediately be able to reserve available slots for this clinic schedule."
+            : "Please review the selected clinic schedule before starting today's queue.\n\nOnce the queue starts:\n• Parents may begin QR validation.\n• The secretary may begin checking in patients.\n• Consultations may begin."
+        }
+        schedule={scheduleActionModal.schedule}
+        confirmText={scheduleActionModal.action === "publish" ? "Publish Schedule" : "Start Queue"}
+        cancelText="Cancel"
+        onConfirm={executeScheduleAction}
+        onCancel={() => setScheduleActionModal({ isOpen: false, action: null, schedule: null })}
+        loading={isProcessing}
+        icon={scheduleActionModal.action === "publish" ? CalendarCheck : PlayCircle}
       />
     </div>
   );
