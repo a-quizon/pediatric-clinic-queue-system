@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, MapPin, Users, CheckCircle2, AlertCircle, PlayCircle, Activity } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, CheckCircle2, AlertCircle, Activity } from 'lucide-react';
 
 export default function ScheduleCard({ 
   schedule, 
@@ -9,7 +9,6 @@ export default function ScheduleCard({
   onEdit, 
   onDelete, 
   onPublish, 
-  onMoveToReady,
   onStartQueue,
   onOpenQueueControl,
   onViewDetails,
@@ -20,10 +19,7 @@ export default function ScheduleCard({
   if (schedule.status === 'draft') localStatus = 'draft';
   else if (schedule.status === 'completed' || schedule.queueStatus === 'completed' || schedule.queueStatus === 'ended') localStatus = 'completed';
   else if (schedule.queueStatus === 'active' || schedule.queueStatus === 'paused') localStatus = 'active';
-  else if (schedule.status === 'published') {
-    if (schedule.isReady) localStatus = 'ready';
-    else localStatus = 'published';
-  }
+  else if (schedule.status === 'published') localStatus = 'published';
 
   const formatTime = (time) => {
     if (!time) return '';
@@ -38,7 +34,6 @@ export default function ScheduleCard({
     switch (localStatus) {
       case 'draft': return { text: 'Draft', color: 'bg-gray-100 text-gray-600', icon: AlertCircle };
       case 'published': return { text: 'Published', color: 'bg-amber-50 text-amber-700', icon: CheckCircle2 };
-      case 'ready': return { text: 'Ready', color: 'bg-blue-50 text-blue-700', icon: PlayCircle };
       case 'active': return { text: 'Active Queue', color: 'bg-green-100 text-green-700', icon: Activity };
       case 'completed': return { text: schedule.queueStatus === 'ended' || schedule.queueStatus === 'completed' ? 'Queue Closed' : 'Completed', color: 'bg-gray-100 text-gray-500', icon: CheckCircle2 };
       default: return { text: schedule.status, color: 'bg-gray-100 text-gray-600', icon: AlertCircle };
@@ -106,21 +101,6 @@ export default function ScheduleCard({
         )}
 
         {localStatus === 'published' && (
-          <>
-            <button onClick={(e) => { e.stopPropagation(); onViewDetails(schedule); }} className="flex-1 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors">View Details</button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); onStartQueue(schedule); }} 
-              disabled={isStartQueueDisabled}
-              className={`flex-1 py-2 text-sm font-semibold rounded-xl transition-all shadow-sm flex items-center justify-center ${
-                isStartQueueDisabled ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700"
-              }`}
-            >
-              Start Queue on this Branch
-            </button>
-          </>
-        )}
-
-        {localStatus === 'ready' && (
           <>
             <button onClick={(e) => { e.stopPropagation(); onViewDetails(schedule); }} className="flex-1 py-2 bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors">View Details</button>
             <button 

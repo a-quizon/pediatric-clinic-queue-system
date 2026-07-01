@@ -7,7 +7,7 @@ import ScheduleFormModal from "../../components/schedule/ScheduleFormModal";
 import ScheduleDetailsModal from "../../components/doctor/ScheduleDetailsModal";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal";
-import { Plus, Search, Filter, AlertCircle, CheckCircle2, PlayCircle, CalendarX, CalendarCheck } from "lucide-react";
+import { Plus, Search, Filter, PlayCircle, CalendarX, CalendarCheck } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function ScheduleManagement() {
@@ -162,28 +162,12 @@ export default function ScheduleManagement() {
   const getLocalStatus = (schedule) => {
     if (schedule.status === 'draft') return 'Draft';
     if (schedule.status === 'completed' || schedule.queueStatus === 'completed' || schedule.queueStatus === 'ended') return 'Completed';
-    if (schedule.queueStatus === 'active' || schedule.queueStatus === 'paused') return 'Active';
-    if (schedule.status === 'published') {
-      if (schedule.isReady) return 'Ready';
-      return 'Published';
-    }
+    if (schedule.queueStatus === 'active' || schedule.queueStatus === 'paused') return 'Active Queue';
+    if (schedule.status === 'published') return 'Published';
     return 'Unknown';
   };
 
   const isAnyQueueActive = schedules.some(s => s.status === 'published' && (s.queueStatus === 'active' || s.queueStatus === 'paused'));
-
-  // Stats
-  const stats = useMemo(() => {
-    let draft = 0, published = 0, ready = 0, completed = 0;
-    schedules.forEach(s => {
-      const stat = getLocalStatus(s);
-      if (stat === 'Draft') draft++;
-      else if (stat === 'Published') published++;
-      else if (stat === 'Ready') ready++;
-      else if (stat === 'Completed') completed++;
-    });
-    return { draft, published, ready, completed };
-  }, [schedules]);
 
   // Filter & Search
   const filteredSchedules = useMemo(() => {
@@ -191,8 +175,8 @@ export default function ScheduleManagement() {
       const stat = getLocalStatus(s);
       
       // Filter dropdown
-      if (currentFilter !== 'All' && stat !== currentFilter && !(currentFilter === 'Active' && stat === 'Active')) {
-        if (currentFilter !== stat) return false;
+      if (currentFilter !== 'All' && stat !== currentFilter) {
+        return false;
       }
       
       // Search text
@@ -211,60 +195,8 @@ export default function ScheduleManagement() {
   }, [schedules, currentFilter, searchQuery]);
 
   return (
-    <div className="w-full pb-20">
+    <div className="w-full pb-20 pt-4">
       
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Schedule Management</h1>
-        <p className="text-gray-500 mt-1">Manage all clinic schedules and monitor statuses in one place.</p>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div 
-          onClick={() => setCurrentFilter(currentFilter === 'Draft' ? 'All' : 'Draft')}
-          className={`bg-white p-5 rounded-2xl border cursor-pointer transition-all ${currentFilter === 'Draft' ? 'border-gray-800 shadow-md ring-2 ring-gray-200' : 'border-gray-200 shadow-sm hover:border-gray-400'}`}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600"><AlertCircle className="w-5 h-5"/></div>
-            <div className="text-2xl font-black text-gray-800">{stats.draft}</div>
-          </div>
-          <div className="font-bold text-gray-600 text-sm">Draft</div>
-        </div>
-
-        <div 
-          onClick={() => setCurrentFilter(currentFilter === 'Published' ? 'All' : 'Published')}
-          className={`bg-white p-5 rounded-2xl border cursor-pointer transition-all ${currentFilter === 'Published' ? 'border-amber-500 shadow-md ring-2 ring-amber-200' : 'border-gray-200 shadow-sm hover:border-amber-300'}`}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600"><CheckCircle2 className="w-5 h-5"/></div>
-            <div className="text-2xl font-black text-gray-800">{stats.published}</div>
-          </div>
-          <div className="font-bold text-gray-600 text-sm">Published</div>
-        </div>
-
-        <div 
-          onClick={() => setCurrentFilter(currentFilter === 'Ready' ? 'All' : 'Ready')}
-          className={`bg-white p-5 rounded-2xl border cursor-pointer transition-all ${currentFilter === 'Ready' ? 'border-blue-500 shadow-md ring-2 ring-blue-200' : 'border-gray-200 shadow-sm hover:border-blue-300'}`}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600"><PlayCircle className="w-5 h-5"/></div>
-            <div className="text-2xl font-black text-gray-800">{stats.ready}</div>
-          </div>
-          <div className="font-bold text-gray-600 text-sm">Ready</div>
-        </div>
-
-        <div 
-          onClick={() => setCurrentFilter(currentFilter === 'Completed' ? 'All' : 'Completed')}
-          className={`bg-white p-5 rounded-2xl border cursor-pointer transition-all ${currentFilter === 'Completed' ? 'border-gray-500 shadow-md ring-2 ring-gray-200' : 'border-gray-200 shadow-sm hover:border-gray-300'}`}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500"><CheckCircle2 className="w-5 h-5"/></div>
-            <div className="text-2xl font-black text-gray-800">{stats.completed}</div>
-          </div>
-          <div className="font-bold text-gray-600 text-sm">Completed</div>
-        </div>
-      </div>
-
       {/* Filter and Search */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="relative flex-1">
@@ -287,7 +219,7 @@ export default function ScheduleManagement() {
             <option value="All">All Statuses</option>
             <option value="Draft">Draft</option>
             <option value="Published">Published</option>
-            <option value="Ready">Ready</option>
+            <option value="Active Queue">Active Queue</option>
             <option value="Completed">Completed</option>
           </select>
         </div>
