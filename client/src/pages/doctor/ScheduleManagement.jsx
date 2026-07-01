@@ -184,6 +184,11 @@ export default function ScheduleManagement() {
   // Filter & Search
   const filteredSchedules = useMemo(() => {
     return schedules.filter(s => {
+      const isActiveQueue = s.status === 'published' && (s.queueStatus === 'active' || s.queueStatus === 'paused' || s.queueStatus === 'closed');
+      if (isActiveQueue) {
+        return false;
+      }
+
       const stat = getLocalStatus(s);
       
       // Filter dropdown

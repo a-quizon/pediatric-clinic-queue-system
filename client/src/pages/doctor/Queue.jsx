@@ -38,7 +38,7 @@ export default function Queue() {
   }, []);
 
   const activeSchedule = useMemo(() => {
-    return schedules.find(s => s.status === 'published' && (s.queueStatus === 'active' || s.queueStatus === 'paused'));
+    return schedules.find(s => s.status === 'published' && (s.queueStatus === 'active' || s.queueStatus === 'paused' || s.queueStatus === 'closed'));
   }, [schedules]);
   
   const scheduleReservations = useMemo(() => {
@@ -219,12 +219,12 @@ export default function Queue() {
     );
   }
 
-  if (schedules.length === 0) {
+  if (!activeSchedule) {
     return (
       <div className="space-y-6 pb-6 text-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm mt-6">
         <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-        <h2 className="text-xl font-bold text-gray-800 mb-2">No Published Schedules</h2>
-        <p className="text-gray-500 max-w-md mx-auto mb-6">You don't have any published clinic schedules yet. Publish a schedule from Schedule Management to start managing patient queues.</p>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">No Clinic Queue is Currently Active</h2>
+        <p className="text-gray-500 max-w-md mx-auto mb-6">You don't have an active clinic session running. Go to Schedule Management and click Start Queue on a published schedule to begin today's clinic.</p>
       </div>
     );
   }
@@ -234,128 +234,84 @@ export default function Queue() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-black text-gray-800">Queue Control Center</h1>
-          <p className="text-gray-500 text-sm">Select a published schedule below to load and manage its real-time queue.</p>
-        </div>
-      </div>
-
-      {/* Published Schedules List */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Published Schedules</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {schedules.map((schedule) => {
-            const isSelected = activeSchedule?.id === schedule.id;
-            return (
-              <div 
-                key={schedule.id}
-                onClick={() => handleSelectSchedule(schedule)}
-                className={`p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                  isSelected 
-                    ? "border-blue-600 bg-blue-50/50 shadow-sm" 
-                    : "border-gray-200 bg-white hover:border-blue-300 hover:bg-gray-50"
-                }`}
-              >
-                <div>
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="font-bold text-gray-800 flex items-center">
-                      <MapPin className="w-4 h-4 mr-1.5 text-blue-600" />
-                      {schedule.branch}
-                    </span>
-                    {getQueueStatusBadge(schedule.queueStatus)}
-                  </div>
-                  <div className="text-xs text-gray-500 space-y-1 mt-3">
-                    <div className="flex items-center">
-                      <Clock className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
-                      {new Date(schedule.clinicDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} ({schedule.dayOfWeek || new Date(schedule.clinicDate).toLocaleDateString('en-US', { weekday: 'short' })})
-                    </div>
-                    <div className="text-gray-700 font-medium pl-5">
-                      {schedule.openingTime} - {schedule.closingTime}
-                    </div>
-                  </div>
-                </div>
-                {isSelected && (
-                  <div className="mt-4 pt-3 border-t border-blue-200/60 flex items-center justify-between text-xs font-bold text-blue-600">
-                    <span>Active Control Center</span>
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          <p className="text-gray-500 text-sm">Manage real-time patient flow and monitor today's active clinic session.</p>
         </div>
       </div>
 
       {/* Active Queue Session Card */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
-        {activeSchedule ? (
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-black text-gray-800 flex items-center">
-                <MapPin className="w-5 h-5 mr-2 text-blue-600" />
-                {activeSchedule.branch}
-              </h2>
-              <div className="text-gray-500 text-sm mt-1 flex items-center">
-                <Clock className="w-4 h-4 mr-1.5" />
-                {new Date(activeSchedule.clinicDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-              </div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-black text-gray-800 flex items-center">
+              <MapPin className="w-5 h-5 mr-2 text-blue-600" />
+              {activeSchedule.branch}
+            </h2>
+            <div className="text-gray-500 text-sm mt-1 flex items-center">
+              <Clock className="w-4 h-4 mr-1.5" />
+              {new Date(activeSchedule.clinicDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </div>
-            <div className="flex flex-wrap items-center gap-4">
-              {getQueueStatusBadge(activeSchedule.queueStatus)}
-              {activeSchedule.queueStatusUpdatedAt && (
-                <div className="text-sm text-gray-500">
-                  Updated: {new Date(activeSchedule.queueStatusUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                {activeSchedule.queueStatus === 'active' && (
-                  <>
-                    <button onClick={() => handleQueueControl('paused')} className="p-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors border border-amber-100" title="Pause Queue">
-                      <Pause className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleQueueControl('closed')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Close Queue to New Reservations">
-                      <Lock className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
-                {activeSchedule.queueStatus === 'paused' && (
-                  <>
-                    <button onClick={() => handleQueueControl('active')} className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors border border-green-100" title="Resume Queue">
-                      <Play className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleQueueControl('closed')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Close Queue to New Reservations">
-                      <Lock className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
-                {(activeSchedule.queueStatus === 'active' || activeSchedule.queueStatus === 'paused' || activeSchedule.queueStatus === 'closed') && (
-                  <button 
-                    onClick={handleEndSessionClick}
-                    className={`px-4 py-2 font-bold rounded-xl text-sm transition-all flex items-center shadow-sm ${
-                      canEndSession 
-                        ? 'bg-red-600 text-white hover:bg-red-700 cursor-pointer' 
-                        : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
-                    }`}
-                    title={!canEndSession ? "Finish all remaining consultations to end session" : "End Clinic Session"}
-                  >
-                    <Square className="w-4 h-4 mr-2" /> End Clinic Session
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            {getQueueStatusBadge(activeSchedule.queueStatus)}
+            {activeSchedule.queueStatusUpdatedAt && (
+              <div className="text-sm text-gray-500">
+                Updated: {new Date(activeSchedule.queueStatusUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              {activeSchedule.queueStatus === 'active' && (
+                <>
+                  <button onClick={() => handleQueueControl('paused')} className="p-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors border border-amber-100" title="Pause Queue">
+                    <Pause className="w-4 h-4" />
                   </button>
-                )}
-                {(activeSchedule.queueStatus === 'ended' || activeSchedule.queueStatus === 'completed') && (
-                  <span className="font-bold text-gray-500 px-3 py-1.5 bg-gray-100 rounded-xl">Clinic Session Ended</span>
-                )}
-              </div>
+                  <button onClick={() => handleQueueControl('closed')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Close Queue to New Reservations">
+                    <Lock className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+              {activeSchedule.queueStatus === 'paused' && (
+                <>
+                  <button onClick={() => handleQueueControl('active')} className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors border border-green-100" title="Resume Queue">
+                    <Play className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => handleQueueControl('closed')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Close Queue to New Reservations">
+                    <Lock className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+              {(activeSchedule.queueStatus === 'active' || activeSchedule.queueStatus === 'paused' || activeSchedule.queueStatus === 'closed') && (
+                <button 
+                  onClick={handleEndSessionClick}
+                  className={`px-4 py-2 font-bold rounded-xl text-sm transition-all flex items-center shadow-sm ${
+                    canEndSession 
+                      ? 'bg-red-600 text-white hover:bg-red-700 cursor-pointer' 
+                      : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                  }`}
+                  title={!canEndSession ? "Finish all remaining consultations to end session" : "End Clinic Session"}
+                >
+                  <Square className="w-4 h-4 mr-2" /> End Clinic Session
+                </button>
+              )}
+              {(activeSchedule.queueStatus === 'ended' || activeSchedule.queueStatus === 'completed') && (
+                <span className="font-bold text-gray-500 px-3 py-1.5 bg-gray-100 rounded-xl">Clinic Session Ended</span>
+              )}
             </div>
           </div>
-        ) : (
-          <div className="text-center py-6">
-            <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-800 mb-2">No Active Queue</h2>
-            <p className="text-gray-500">Go to Schedules -{'>'} Ready to start a clinic queue.</p>
-          </div>
-        )}
+        </div>
       </div>
 
-      {activeSchedule && (
-        <>
+      {/* Informational Banner when Queue is Closed */}
+      {activeSchedule.queueStatus === 'closed' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-amber-800 flex items-start text-sm shadow-sm mb-6">
+          <Lock className="w-5 h-5 text-amber-600 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-bold text-amber-900 mb-1">Queue Closed</h4>
+            <p className="text-amber-700 leading-relaxed">
+              No new reservations are being accepted. Existing reserved patients may still validate, check in, and complete their consultations.
+            </p>
+          </div>
+        </div>
+      )}
           {/* Stats Grid - Removed In Consult Stat */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">
@@ -593,8 +549,6 @@ export default function Queue() {
 
             </div>
           </div>
-        </>
-      )}
 
       {/* Complete Modal */}
       {isCompleteModalOpen && selectedPatient && (
