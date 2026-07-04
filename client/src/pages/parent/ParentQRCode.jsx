@@ -154,24 +154,24 @@ export default function ParentQRCode() {
 
         {/* Not Started / Paused Warnings */}
         {schedule?.queueStatus === 'not_started' && (
-          <div className="bg-amber-50 p-5 border-b border-amber-100 text-center">
-            <div className="flex items-center justify-center text-amber-700 font-bold mb-2">
-              <Activity className="w-5 h-5 mr-2" />
-              Clinic Queue Not Started
+          <div className="bg-amber-50 p-4 border-b border-amber-100 text-center">
+            <div className="flex items-center justify-center text-amber-700 font-bold mb-1 text-sm">
+              <Activity className="w-4 h-4 mr-2" />
+              Queue Not Started
             </div>
-            <p className="text-amber-800 text-sm">
-              The clinic queue hasn't started yet. Validate your QR Code upon arrival.
+            <p className="text-amber-800 text-xs">
+              The clinic queue hasn't started yet. Check in at the clinic upon arrival.
             </p>
           </div>
         )}
         {schedule?.queueStatus === 'paused' && (
-          <div className="bg-orange-50 p-5 border-b border-orange-100 text-center">
-            <div className="flex items-center justify-center text-orange-700 font-bold mb-2">
-              <AlertCircle className="w-5 h-5 mr-2" />
+          <div className="bg-orange-50 p-4 border-b border-orange-100 text-center">
+            <div className="flex items-center justify-center text-orange-700 font-bold mb-1 text-sm">
+              <AlertCircle className="w-4 h-4 mr-2" />
               Queue Paused
             </div>
-            <p className="text-orange-800 text-sm">
-              The queue is temporarily paused. Please wait until the doctor resumes.
+            <p className="text-orange-800 text-xs">
+              The clinic queue is temporarily paused.
             </p>
           </div>
         )}
@@ -179,10 +179,10 @@ export default function ParentQRCode() {
           <div className="bg-amber-50 p-4 border-b border-amber-100 text-center">
             <div className="flex items-center justify-center text-amber-800 font-bold mb-1 text-sm">
               <AlertCircle className="w-4 h-4 mr-2 text-amber-500" />
-              Queue Closed to New Reservations
+              Queue Closed
             </div>
             <p className="text-amber-700 text-xs">
-              The queue is closed to new reservations. Existing reservations remain valid.
+              The queue is closed to new reservations. Existing reservations will be served.
             </p>
           </div>
         )}
