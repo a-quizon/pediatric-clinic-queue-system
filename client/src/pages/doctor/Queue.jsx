@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { subscribeToPublishedSchedules, updateQueueStatus, completeSchedule } from "../../services/scheduleService";
 import { subscribeToAllReservations, startConsultation, completeConsultation } from "../../services/reservationService";
+import { getNextEligiblePatient } from "../../services/queueEligibilityService";
 import { Activity, Play, Pause, Square, CheckCircle, User, AlertCircle, FileText, X, Clock, MapPin, Users, CheckCircle2, Lock } from "lucide-react";
 import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal";
 import toast from "react-hot-toast";
@@ -84,15 +85,15 @@ export default function Queue() {
   const canEndSession = waitingValidationQueue.length === 0 && checkedInQueue.length === 0 && !inConsultation;
 
   const nextEligiblePatient = useMemo(() => {
-    if (checkedInQueue.length > 0) {
-      const sortedCheckedIn = [...checkedInQueue].sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
-      return sortedCheckedIn[0];
+    const result = getNextEligiblePatient(scheduleReservations);
+    if (result.eligible) {
+      return result.patient;
     }
-    if (waitingValidationQueue.length > 0) {
-      return { blocked: true };
+    if (result.blocked) {
+      return { blocked: true, message: result.waitingMessage };
     }
     return null;
-  }, [waitingValidationQueue, checkedInQueue]);
+  }, [scheduleReservations]);
 
   const handleQueueControl = async (status) => {
     if (!activeSchedule) return;
@@ -412,8 +413,8 @@ export default function Queue() {
                   {nextEligiblePatient && nextEligiblePatient.blocked ? (
                     <div className="bg-amber-50 rounded-xl border border-amber-200 p-5 flex flex-col items-center text-center text-amber-700">
                       <AlertCircle className="w-8 h-8 mb-3 text-amber-500" />
-                      <div className="font-bold text-base mb-1">No checked-in patient is ready for consultation.</div>
-                      <div className="text-sm font-medium">Waiting for the next parent to validate their QR Code.</div>
+                      <div className="font-bold text-base mb-1">Not Ready for Consultation</div>
+                      <div className="text-sm font-medium">{nextEligiblePatient.message || "Waiting for the next parent to validate their QR Code."}</div>
                     </div>
                   ) : nextEligiblePatient ? (
                     <div>
