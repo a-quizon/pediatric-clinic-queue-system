@@ -250,7 +250,7 @@ export default function MyReservations() {
                         <div className="col-span-2 pt-4 border-t border-gray-200 text-center">
                           <h3 className="font-bold text-gray-800 mb-1">Queue Not Started</h3>
                           <p className="text-xs text-gray-500">
-                            The clinic queue hasn't started yet. You have successfully reserved your slot. Real-time queue updates will appear once the doctor starts today's clinic.
+                            The clinic queue hasn't started yet. Validate your QR or Reservation Code upon arrival.
                           </p>
                         </div>
                       ) : (
@@ -258,7 +258,7 @@ export default function MyReservations() {
                           <div className="text-gray-500 pt-4 border-t border-gray-200 pl-6">Queue Position</div>
                           <div className="font-bold text-blue-600 text-right text-2xl pt-4 border-t border-gray-200">{currentReservation.queuePosition || "Assigned"}</div>
                           
-                          <div className="text-gray-500 pt-2 pl-6">Patients Ahead</div>
+                          <div className="text-gray-500 pt-2 pl-6">Ahead of You</div>
                           <div className="font-bold text-orange-500 text-right text-2xl pt-2">{currentReservation.queuePosition ? Math.max(0, currentReservation.queuePosition - 1) : 0}</div>
                           
                           <div className="text-gray-500 pt-2 pl-6">Status</div>

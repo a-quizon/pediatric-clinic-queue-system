@@ -93,7 +93,7 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
                   <div className="text-2xl font-black text-blue-600">{reservation.queuePosition}</div>
                 </div>
                 <div className="bg-white p-3 rounded-lg border border-blue-100 text-center shadow-sm">
-                  <div className="text-xs text-gray-500 mb-1">Patients Ahead</div>
+                  <div className="text-xs text-gray-500 mb-1">Ahead of You</div>
                   <div className="text-2xl font-black text-orange-500">{Math.max(0, reservation.queuePosition - 1)}</div>
                 </div>
               </div>

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Activity, Clock, CalendarPlus, Ticket, User, ChevronRight, CheckCircle2, History, MapPin, AlertCircle } from "lucide-react";
+import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
 import { subscribeToAllReservations } from "../../services/reservationService";
 import { getSchedules, subscribeToAllSchedules } from "../../services/scheduleService";
@@ -29,10 +30,20 @@ export default function Dashboard() {
 
   const activeReservation = useMemo(() => {
     if (!user) return null;
-    return allReservations.find(r => r.parentId === user.uid && ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status));
+    return allReservations.find(r => r.parentId === user.uid && ["reserved", "waiting", "checked_in", "in_consultation", "consultation_completed"].includes(r.status));
   }, [allReservations, user]);
 
   const schedule = activeReservation ? schedules[activeReservation.scheduleId] : null;
+
+  const prevQueueStatusRef = useRef(null);
+  useEffect(() => {
+    if (schedule) {
+      if (prevQueueStatusRef.current === 'not_started' && schedule.queueStatus === 'active') {
+        toast.success("Queue Open\nThe clinic queue is now open.", { duration: 4000 });
+      }
+      prevQueueStatusRef.current = schedule.queueStatus;
+    }
+  }, [schedule?.queueStatus]);
 
   const getPermanentQueueNumber = (resId, scheduleId) => {
     const scheduleRes = allReservations
@@ -44,8 +55,8 @@ export default function Dashboard() {
 
   const permanentQueueNumber = activeReservation ? getPermanentQueueNumber(activeReservation.id, activeReservation.scheduleId) : null;
 
-  const { nowServing, patientsAhead, queueLine, nowServingText } = useMemo(() => {
-    if (!activeReservation) return { nowServing: null, patientsAhead: 0, queueLine: [], nowServingText: "—" };
+  const { nowServing, patientsAhead, nowServingText, completedCount, progressPercent } = useMemo(() => {
+    if (!activeReservation) return { nowServing: null, patientsAhead: 0, nowServingText: "—", completedCount: 0, progressPercent: 0 };
     
     const scheduleRes = allReservations
       .filter(r => r.scheduleId === activeReservation.scheduleId)
@@ -55,6 +66,8 @@ export default function Dashboard() {
     const resWithPNum = scheduleRes.map((r, idx) => ({ ...r, pNum: idx + 1 }));
     
     const inConsultation = resWithPNum.find(r => r.status === "in_consultation");
+    const completedList = resWithPNum.filter(r => r.status === "consultation_completed");
+    const compCount = completedList.length;
     
     const activeLine = resWithPNum
       .filter(r => ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status))
@@ -64,21 +77,39 @@ export default function Dashboard() {
     if (inConsultation) {
       servingText = `Queue #${inConsultation.pNum}`;
     } else if (activeLine.length > 0) {
-      servingText = `Next: #${activeLine[0].pNum}`;
+      servingText = `Queue #${activeLine[0].pNum}`;
+    } else if (compCount > 0) {
+      servingText = "Completed";
     } else {
       servingText = "—";
     }
 
     let ahead = 0;
-    if (activeReservation.status === "in_consultation") {
+    if (activeReservation.status === "in_consultation" || activeReservation.status === "consultation_completed") {
       ahead = 0;
     } else {
       const myIndex = activeLine.findIndex(r => r.id === activeReservation.id);
       ahead = myIndex >= 0 ? myIndex : 0;
     }
 
-    return { nowServing: inConsultation || null, patientsAhead: ahead, queueLine: activeLine, nowServingText: servingText };
-  }, [allReservations, activeReservation]);
+    const myPNum = permanentQueueNumber || 1;
+    let percent = 0;
+    if (activeReservation.status === "in_consultation" || activeReservation.status === "consultation_completed") {
+      percent = 100;
+    } else if (myPNum > 1) {
+      percent = Math.min(100, Math.max(0, Math.round((compCount / (myPNum - 1)) * 100)));
+    } else {
+      percent = compCount > 0 ? 100 : 0;
+    }
+
+    return { 
+      nowServing: inConsultation || null, 
+      patientsAhead: ahead, 
+      nowServingText: servingText,
+      completedCount: compCount,
+      progressPercent: percent
+    };
+  }, [allReservations, activeReservation, permanentQueueNumber]);
 
   const getStatusDisplay = (status) => {
     switch (status) {
@@ -89,18 +120,36 @@ export default function Dashboard() {
         return { text: 'Checked In', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' };
       case 'in_consultation': 
         return { text: 'In Consultation', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' };
+      case 'consultation_completed': 
+        return { text: 'Consultation Completed', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' };
       default: 
         return { text: 'Unknown', color: 'bg-gray-100 text-gray-700', dot: 'bg-gray-500' };
     }
   };
 
-  const statusDisplay = activeReservation ? getStatusDisplay(activeReservation.status) : null;
-  const estimatedWaitTime = patientsAhead * 15; // 15 mins per patient placeholder
+  const getDoctorQueueStatusBadge = () => {
+    if (!schedule) return null;
+    if (schedule.status === 'completed' || schedule.queueStatus === 'completed') {
+      return { text: 'Clinic Session Ended', color: 'bg-gray-100 text-gray-700 border-gray-200', dot: 'bg-gray-500' };
+    }
+    if (nowServing) {
+      return { text: 'Consultation Ongoing', color: 'bg-blue-100 text-blue-700 border-blue-200', dot: 'bg-blue-500 animate-pulse' };
+    }
+    if (schedule.queueStatus === 'paused') {
+      return { text: 'Queue Paused', color: 'bg-orange-100 text-orange-700 border-orange-200', dot: 'bg-orange-500' };
+    }
+    if (schedule.queueStatus === 'closed') {
+      return { text: 'Queue Closed', color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500' };
+    }
+    if (schedule.queueStatus === 'active') {
+      return { text: 'Queue Open', color: 'bg-green-100 text-green-700 border-green-200', dot: 'bg-green-500 animate-pulse' };
+    }
+    return { text: 'Queue Not Started', color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500' };
+  };
 
-  const maxSegments = 5;
-  const activeSegments = activeReservation && activeReservation.status === "in_consultation" 
-    ? 5 
-    : Math.max(1, maxSegments - Math.min(patientsAhead, maxSegments - 1));
+  const statusDisplay = activeReservation ? getStatusDisplay(activeReservation.status) : null;
+  const docStatusBadge = getDoctorQueueStatusBadge();
+  const estimatedWaitTime = patientsAhead * 15;
 
   if (loading) {
     return (
@@ -157,28 +206,34 @@ export default function Dashboard() {
       {activeReservation && schedule ? (
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden max-w-md mx-auto animate-in fade-in slide-in-from-bottom-4">
           <div className="p-6 sm:p-8">
-            <div className="flex justify-between items-start mb-8">
+            <div className="flex justify-between items-start mb-6">
               <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Patient</p>
-                <div className="flex items-center">
-                  <h2 className="text-xl font-black text-gray-800">{activeReservation.childName || "N/A"}</h2>
-                  <CheckCircle2 className="w-5 h-5 text-blue-500 ml-2" />
-                </div>
+                <h2 className="text-xl font-black text-gray-800">{activeReservation.childName || "N/A"}</h2>
               </div>
-              <div className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center shadow-sm ${statusDisplay.color}`}>
-                <div className={`w-2 h-2 rounded-full mr-2 animate-pulse ${statusDisplay.dot}`}></div>
-                {statusDisplay.text}
+              <div className="flex flex-col items-end gap-1.5">
+                {docStatusBadge && (
+                  <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center border shadow-sm ${docStatusBadge.color}`}>
+                    <div className={`w-2 h-2 rounded-full mr-1.5 ${docStatusBadge.dot}`}></div>
+                    {docStatusBadge.text}
+                  </div>
+                )}
+                {statusDisplay && (
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${statusDisplay.color}`}>
+                    {statusDisplay.text}
+                  </span>
+                )}
               </div>
             </div>
 
             <div className="text-center mb-8">
-                  <div className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-2">Your Queue Number</div>
-                  {activeReservation.status === "in_consultation" ? (
-                    <div className="text-5xl font-black text-blue-500 tracking-tight mb-2">IN CLINIC</div>
-                  ) : (
-                    <div className="text-7xl font-black text-blue-500 tracking-tighter mb-2">#{permanentQueueNumber}</div>
-                  )}
-                  <p className="text-sm font-medium text-gray-500 mt-2">
+              <div className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-2">Your Queue Number</div>
+              {activeReservation.status === "in_consultation" ? (
+                <div className="text-5xl font-black text-blue-500 tracking-tight mb-2">IN CLINIC</div>
+              ) : (
+                <div className="text-7xl font-black text-blue-500 tracking-tighter mb-2">#{permanentQueueNumber}</div>
+              )}
+              <p className="text-sm font-medium text-gray-500 mt-2">
                 {schedule.branch} • Dr. {schedule.doctorName || "Doctor"}
               </p>
             </div>
@@ -196,91 +251,51 @@ export default function Dashboard() {
                 <Clock className="w-8 h-8 text-blue-400 mx-auto mb-3" />
                 <h3 className="font-bold text-gray-800 mb-2">Queue Not Started</h3>
                 <p className="text-sm text-gray-500">
-                  The clinic queue hasn't started yet. You have successfully reserved your slot. Real-time queue updates will appear once the doctor starts today's clinic.
+                  The clinic queue hasn't started yet. Check in at the clinic upon arrival.
                 </p>
               </div>
             ) : (
-              <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
-                {schedule.queueStatus === 'active' && !nowServing && (
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-green-800 flex items-center text-xs font-bold mb-4">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse mr-2"></div>
-                    Queue Open — Waiting for the first consultation to begin.
-                  </div>
-                )}
-
-                <div className="flex justify-between items-end mb-4">
+              <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
+                {/* Compact Queue Progress Section */}
+                <div className="grid grid-cols-3 gap-3 text-center mb-6 divide-x divide-gray-200/60 bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
                   <div>
-                    <p className="text-xs font-bold text-gray-500 mb-1">Now Serving</p>
-                    <p className="text-2xl font-black text-gray-800">{nowServingText}</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Now Serving</p>
+                    <p className="text-lg sm:text-xl font-black text-gray-800 truncate">{nowServingText}</p>
                   </div>
-                  {activeReservation.status !== "in_consultation" && (
-                    <div className="text-right">
-                      <p className="text-xs font-bold text-gray-500 mb-1">Est. Wait</p>
-                      <p className="text-lg font-black text-blue-500">~{estimatedWaitTime} mins</p>
-                    </div>
-                  )}
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Your Queue</p>
+                    <p className="text-lg sm:text-xl font-black text-blue-600">Queue #{permanentQueueNumber}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Ahead of You</p>
+                    <p className="text-lg sm:text-xl font-black text-orange-500">
+                      {activeReservation.status === "in_consultation" || activeReservation.status === "consultation_completed"
+                        ? "0 Patients"
+                        : `${patientsAhead} Patient${patientsAhead === 1 ? '' : 's'}`}
+                    </p>
+                  </div>
                 </div>
 
-                {/* Segmented Progress Bar */}
-                <div className="flex gap-1.5 h-2.5 mb-4">
-                  {Array.from({ length: maxSegments }).map((_, index) => (
+                {/* Smooth Progress Bar */}
+                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
+                  <div className="flex justify-between items-center text-xs font-bold text-gray-600 mb-2">
+                    <span>Progress to Your Turn</span>
+                    <span className="text-blue-600">{activeReservation.status === "in_consultation" || activeReservation.status === "consultation_completed" ? "100%" : `${progressPercent}%`}</span>
+                  </div>
+                  <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden p-0.5">
                     <div 
-                      key={index} 
-                      className={`flex-1 rounded-full ${index < activeSegments ? 'bg-blue-500' : 'bg-gray-200'}`}
+                      className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500"
+                      style={{ width: `${activeReservation.status === "in_consultation" || activeReservation.status === "consultation_completed" ? 100 : progressPercent}%` }}
                     ></div>
-                  ))}
-                </div>
-                
-                <div className="text-center mb-5">
-                  <p className="text-xs font-bold text-gray-400">
+                  </div>
+                  <p className="text-[11px] font-medium text-gray-400 text-center mt-2.5">
                     {activeReservation.status === "in_consultation" 
-                      ? "You are currently being served" 
-                      : `${patientsAhead} patient${patientsAhead === 1 ? '' : 's'} ahead of you`}
+                      ? "You are currently in consultation with the doctor." 
+                      : activeReservation.status === "consultation_completed"
+                      ? "Your consultation has been completed."
+                      : `${completedCount} of ${Math.max(0, (permanentQueueNumber || 1) - 1)} earlier queues completed.`}
                   </p>
                 </div>
-
-                {/* Queue Line Display */}
-                {queueLine.length > 0 && (
-                  <div className="pt-4 border-t border-gray-200">
-                    <div className="flex justify-between items-center mb-3">
-                      <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Queue Line ({queueLine.length})</h4>
-                      <span className="text-[11px] text-gray-400 font-medium">Real-time order</span>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
-                      {queueLine.map((patient) => {
-                        const isMe = patient.id === activeReservation.id;
-                        const isServing = patient.status === 'in_consultation';
-                        const isCheckedIn = patient.status === 'checked_in';
-                        return (
-                          <div 
-                            key={patient.id} 
-                            className={`p-2 rounded-xl border flex items-center justify-between text-xs font-bold ${
-                              isMe 
-                                ? 'bg-blue-50 border-blue-200 text-blue-800 shadow-sm' 
-                                : isServing 
-                                ? 'bg-green-50 border-green-200 text-green-800' 
-                                : 'bg-white border-gray-200 text-gray-700'
-                            }`}
-                          >
-                            <span className="flex items-center min-w-0">
-                              <span className={`w-5 h-5 rounded flex items-center justify-center font-black mr-1.5 text-[10px] flex-shrink-0 ${
-                                isMe ? 'bg-blue-600 text-white' : isServing ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'
-                              }`}>
-                                #{patient.pNum}
-                              </span>
-                              <span className="truncate">
-                                {isMe ? 'You' : patient.childName || `Patient #${patient.pNum}`}
-                              </span>
-                            </span>
-                            <span className="text-[9px] uppercase font-bold tracking-tight opacity-75 ml-1 flex-shrink-0">
-                              {isServing ? 'In Clinic' : isCheckedIn ? 'Checked In' : 'Waiting'}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>

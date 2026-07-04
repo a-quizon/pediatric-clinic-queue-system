@@ -44,7 +44,17 @@ export default function Queue() {
   
   const scheduleReservations = useMemo(() => {
     if (!activeSchedule) return [];
-    return reservations.filter(r => r.scheduleId === activeSchedule.id);
+    const res = reservations.filter(r => r.scheduleId === activeSchedule.id);
+    const sortedAll = [...res].sort((a, b) => a.createdAt - b.createdAt);
+    return res.map(r => {
+      const idx = sortedAll.findIndex(item => item.id === r.id);
+      const permNum = idx >= 0 ? idx + 1 : (r.queuePosition || 1);
+      return {
+        ...r,
+        queuePosition: permNum,
+        permanentQueueNumber: permNum
+      };
+    });
   }, [reservations, activeSchedule]);
 
   const {

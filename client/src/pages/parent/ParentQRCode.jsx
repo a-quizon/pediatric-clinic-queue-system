@@ -160,7 +160,7 @@ export default function ParentQRCode() {
               Clinic Queue Not Started
             </div>
             <p className="text-amber-800 text-sm">
-              The doctor hasn't started today's clinic queue yet. You may reserve your slot, but QR validation will only be available once the clinic queue begins.
+              The clinic queue hasn't started yet. Validate your QR Code upon arrival.
             </p>
           </div>
         )}
@@ -171,7 +171,7 @@ export default function ParentQRCode() {
               Queue Paused
             </div>
             <p className="text-orange-800 text-sm">
-              The clinic queue is temporarily paused. Please wait until the doctor resumes today's clinic.
+              The queue is temporarily paused. Please wait until the doctor resumes.
             </p>
           </div>
         )}
@@ -182,7 +182,7 @@ export default function ParentQRCode() {
               Queue Closed to New Reservations
             </div>
             <p className="text-amber-700 text-xs">
-              Your existing reservation is valid. You may still present this QR code to the secretary for validation.
+              The queue is closed to new reservations. Existing reservations remain valid.
             </p>
           </div>
         )}
