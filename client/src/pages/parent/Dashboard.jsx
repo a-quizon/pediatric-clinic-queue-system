@@ -163,15 +163,12 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 pb-6 relative">
-      {/* Header - shown when no active reservation */}
-      {(!activeReservation || !schedule) && (
-        <div>
+      <div>
           <h1 className="text-2xl font-bold text-gray-800">Welcome Back</h1>
           <p className="text-gray-500 mt-1">
             Manage your clinic reservations and monitor your queue status.
           </p>
         </div>
-      )}
 
       {/* Hero Card: Real-Time Monitoring */}
       {activeReservation && schedule ? (
@@ -231,7 +228,7 @@ export default function Dashboard() {
                       {schedule.branch}{schedule.branch?.toLowerCase().includes('branch') ? '' : ' Branch'}
                     </span>
                   </div>
-                  <div className="mt-2.5 text-[11px] font-semibold text-blue-500 group-hover:underline">
+                  <div className="mt-2.5 text-[11px] font-semibold text-gray-500 group-hover:underline">
                     (Tap Queue #{permanentQueueNumber || ''} to view your QR Ticket)
                   </div>
                 </Link>
