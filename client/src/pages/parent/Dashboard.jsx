@@ -201,44 +201,69 @@ export default function Dashboard() {
                 <div className="text-3xl sm:text-4xl font-black text-gray-800 tracking-tight">{nowServingText}</div>
               </div>
 
-              {/* Section 2: YOUR QUEUE (Interactive Shortcut to QR Ticket) */}
+              {/* Section 2: YOUR QUEUE (Interactive Shortcut to QR Ticket when active) */}
               <div className="pt-6">
                 <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Your Queue</span>
-                <Link 
-                  to={`/parent/reservations/${activeReservation.id}/qr`}
-                  className="group inline-block focus:outline-none transition-transform active:scale-95"
-                >
-                  {activeReservation.status === "in_consultation" ? (
-                    <div className="text-5xl sm:text-6xl font-black text-blue-600 tracking-tight group-hover:text-blue-700 transition-colors">
-                      IN CLINIC
+                {activeReservation.status === "consultation_completed" ? (
+                  <div>
+                    <div className="text-6xl sm:text-7xl font-black text-gray-400 tracking-tighter">
+                      —
                     </div>
-                  ) : (
-                    <div className="text-6xl sm:text-7xl font-black text-blue-600 tracking-tighter group-hover:text-blue-700 transition-colors">
-                      #{permanentQueueNumber}
-                    </div>
-                  )}
-                  <div className="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2.5 text-xs sm:text-sm font-bold text-gray-700">
-                    {statusDisplay && (
-                      <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-xs ${statusDisplay.color}`}>
-                        {statusDisplay.text}
+                    <div className="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2.5 text-xs sm:text-sm font-bold text-gray-700">
+                      {statusDisplay && (
+                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-xs ${statusDisplay.color}`}>
+                          {statusDisplay.text}
+                        </span>
+                      )}
+                      <span className="flex items-center text-gray-600 font-semibold">
+                        <MapPin className="w-3.5 h-3.5 mr-1 text-red-500 inline flex-shrink-0" />
+                        {schedule.branch}{schedule.branch?.toLowerCase().includes('branch') ? '' : ' Branch'}
                       </span>
+                    </div>
+                    <div className="mt-3.5 text-xs sm:text-sm font-normal text-gray-500 max-w-xs mx-auto leading-relaxed">
+                      Your consultation has been completed.<br />
+                      You can view the doctor&apos;s notes in your <Link to="/parent/history" className="text-blue-600 font-semibold hover:underline">Reservation History</Link>.
+                    </div>
+                  </div>
+                ) : (
+                  <Link 
+                    to={`/parent/reservations/${activeReservation.id}/qr`}
+                    className="group inline-block focus:outline-none transition-transform active:scale-95"
+                  >
+                    {activeReservation.status === "in_consultation" ? (
+                      <div className="text-5xl sm:text-6xl font-black text-blue-600 tracking-tight group-hover:text-blue-700 transition-colors">
+                        IN CLINIC
+                      </div>
+                    ) : (
+                      <div className="text-6xl sm:text-7xl font-black text-blue-600 tracking-tighter group-hover:text-blue-700 transition-colors">
+                        #{permanentQueueNumber}
+                      </div>
                     )}
-                    <span className="flex items-center text-gray-600 font-semibold">
-                      <MapPin className="w-3.5 h-3.5 mr-1 text-red-500 inline flex-shrink-0" />
-                      {schedule.branch}{schedule.branch?.toLowerCase().includes('branch') ? '' : ' Branch'}
-                    </span>
-                  </div>
-                  <div className="mt-2.5 text-[11px] font-semibold text-gray-500 group-hover:underline">
-                    (Tap Queue #{permanentQueueNumber || ''} to view your QR Ticket)
-                  </div>
-                </Link>
+                    <div className="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2.5 text-xs sm:text-sm font-bold text-gray-700">
+                      {statusDisplay && (
+                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-xs ${statusDisplay.color}`}>
+                          {statusDisplay.text}
+                        </span>
+                      )}
+                      <span className="flex items-center text-gray-600 font-semibold">
+                        <MapPin className="w-3.5 h-3.5 mr-1 text-red-500 inline flex-shrink-0" />
+                        {schedule.branch}{schedule.branch?.toLowerCase().includes('branch') ? '' : ' Branch'}
+                      </span>
+                    </div>
+                    <div className="mt-2.5 text-[11px] font-semibold text-gray-500 group-hover:underline">
+                      (Tap Queue #{permanentQueueNumber || ''} to view your QR Ticket)
+                    </div>
+                  </Link>
+                )}
               </div>
 
               {/* Section 3: AHEAD OF YOU */}
               <div className="pt-6 pb-2">
                 <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Ahead of You</span>
-                <div className="text-2xl sm:text-3xl font-black text-orange-500 tracking-tight">
-                  {activeReservation.status === "in_consultation" || activeReservation.status === "consultation_completed"
+                <div className={`text-2xl sm:text-3xl font-black tracking-tight ${activeReservation.status === "consultation_completed" ? "text-gray-400" : "text-orange-500"}`}>
+                  {activeReservation.status === "consultation_completed"
+                    ? "—"
+                    : activeReservation.status === "in_consultation"
                     ? "0 Patients Remaining"
                     : patientsAhead === 0
                     ? "You're Next"
