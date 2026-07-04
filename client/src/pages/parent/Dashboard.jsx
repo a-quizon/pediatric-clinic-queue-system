@@ -73,15 +73,17 @@ export default function Dashboard() {
       .filter(r => ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status))
       .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
     
-    let servingText = "Waiting";
-    if (inConsultation) {
-      servingText = `Queue #${inConsultation.pNum}`;
-    } else if (activeLine.length > 0) {
-      servingText = `Queue #${activeLine[0].pNum}`;
-    } else if (compCount > 0) {
-      servingText = "Completed";
-    } else {
+    let servingText = "—";
+    if (!schedule || schedule.queueStatus === 'not_started') {
       servingText = "—";
+    } else if (schedule.status === 'completed' || schedule.queueStatus === 'completed') {
+      servingText = "Completed";
+    } else if (inConsultation) {
+      servingText = `Queue #${inConsultation.pNum}`;
+    } else if (compCount > 0) {
+      servingText = "Waiting for next consultation";
+    } else {
+      servingText = "Waiting for the first consultation";
     }
 
     let ahead = 0;
@@ -109,7 +111,7 @@ export default function Dashboard() {
       completedCount: compCount,
       progressPercent: percent
     };
-  }, [allReservations, activeReservation, permanentQueueNumber]);
+  }, [allReservations, activeReservation, permanentQueueNumber, schedule]);
 
   const getStatusDisplay = (status) => {
     switch (status) {
