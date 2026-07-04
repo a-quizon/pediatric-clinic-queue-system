@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Ticket, Clock, MapPin, CheckCircle2, History, XCircle, Search, User } from "lucide-react";
-import { getSchedules } from "../../services/scheduleService";
+import { subscribeToAllSchedules } from "../../services/scheduleService";
 import { subscribeToAllReservations, cancelReservation, updatePatientInfo } from "../../services/reservationService";
 import { useAuth } from "../../hooks/useAuth";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
@@ -42,11 +42,9 @@ export default function MyReservations() {
   const [formData, setFormData] = useState({ childName: "", age: "", sex: "", concern: "" });
 
   useEffect(() => {
-    const fetchSchedules = async () => {
-      const data = await getSchedules();
+    const unsubSchedules = subscribeToAllSchedules((data) => {
       setSchedules(data || {});
-    };
-    fetchSchedules();
+    });
 
     const unsubReservations = subscribeToAllReservations((data) => {
       if (user) {
@@ -56,7 +54,10 @@ export default function MyReservations() {
       setLoading(false);
     });
 
-    return () => unsubReservations();
+    return () => {
+      unsubSchedules();
+      unsubReservations();
+    };
   }, [user]);
 
   const formatTime = (time) => {
@@ -238,6 +239,13 @@ export default function MyReservations() {
                           <div className="text-gray-500 pt-4 border-t border-gray-200 pl-6">Status</div>
                           <div className="font-bold text-blue-600 text-right text-lg pt-4 border-t border-gray-200 uppercase">In Consultation</div>
                         </>
+                      ) : schedule.status === 'completed' || schedule.queueStatus === 'completed' ? (
+                        <div className="col-span-2 pt-4 border-t border-gray-200 text-center">
+                          <h3 className="font-bold text-gray-800 mb-1">Clinic Session Completed</h3>
+                          <p className="text-xs text-gray-500">
+                            Today's clinic session has ended.
+                          </p>
+                        </div>
                       ) : schedule.queueStatus === 'not_started' ? (
                         <div className="col-span-2 pt-4 border-t border-gray-200 text-center">
                           <h3 className="font-bold text-gray-800 mb-1">Queue Not Started</h3>

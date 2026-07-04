@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Activity, Clock, CalendarPlus, Ticket, User, ChevronRight, CheckCircle2, History, MapPin, AlertCircle } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { subscribeToAllReservations } from "../../services/reservationService";
-import { getSchedules } from "../../services/scheduleService";
+import { getSchedules, subscribeToAllSchedules } from "../../services/scheduleService";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -12,18 +12,19 @@ export default function Dashboard() {
   const [allReservations, setAllReservations] = useState([]);
 
   useEffect(() => {
-    const fetchSchedules = async () => {
-      const data = await getSchedules();
+    const unsubSchedules = subscribeToAllSchedules((data) => {
       setSchedules(data || {});
-    };
-    fetchSchedules();
+    });
 
-    const unsub = subscribeToAllReservations((data) => {
+    const unsubReservations = subscribeToAllReservations((data) => {
       setAllReservations(data);
       setLoading(false);
     });
 
-    return () => unsub();
+    return () => {
+      unsubSchedules();
+      unsubReservations();
+    };
   }, []);
 
   const activeReservation = useMemo(() => {
@@ -43,23 +44,40 @@ export default function Dashboard() {
 
   const permanentQueueNumber = activeReservation ? getPermanentQueueNumber(activeReservation.id, activeReservation.scheduleId) : null;
 
-  const { nowServing, patientsAhead } = useMemo(() => {
-    if (!activeReservation) return { nowServing: null, patientsAhead: 0 };
+  const { nowServing, patientsAhead, queueLine, nowServingText } = useMemo(() => {
+    if (!activeReservation) return { nowServing: null, patientsAhead: 0, queueLine: [], nowServingText: "—" };
     
-    const scheduleRes = allReservations.filter(r => r.scheduleId === activeReservation.scheduleId);
-    const inConsultation = scheduleRes.find(r => r.status === "in_consultation");
+    const scheduleRes = allReservations
+      .filter(r => r.scheduleId === activeReservation.scheduleId)
+      .sort((a, b) => a.createdAt - b.createdAt);
     
-    const serving = inConsultation || null;
+    // Assign permanent queue numbers
+    const resWithPNum = scheduleRes.map((r, idx) => ({ ...r, pNum: idx + 1 }));
+    
+    const inConsultation = resWithPNum.find(r => r.status === "in_consultation");
+    
+    const activeLine = resWithPNum
+      .filter(r => ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status))
+      .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
+    
+    let servingText = "Waiting";
+    if (inConsultation) {
+      servingText = `Queue #${inConsultation.pNum}`;
+    } else if (activeLine.length > 0) {
+      servingText = `Next: #${activeLine[0].pNum}`;
+    } else {
+      servingText = "—";
+    }
 
     let ahead = 0;
     if (activeReservation.status === "in_consultation") {
       ahead = 0;
     } else {
-      const waitingAhead = Math.max(0, (activeReservation.queuePosition || 1) - 1);
-      ahead = waitingAhead + (inConsultation ? 1 : 0);
+      const myIndex = activeLine.findIndex(r => r.id === activeReservation.id);
+      ahead = myIndex >= 0 ? myIndex : 0;
     }
 
-    return { nowServing: serving, patientsAhead: ahead };
+    return { nowServing: inConsultation || null, patientsAhead: ahead, queueLine: activeLine, nowServingText: servingText };
   }, [allReservations, activeReservation]);
 
   const getStatusDisplay = (status) => {
@@ -83,12 +101,6 @@ export default function Dashboard() {
   const activeSegments = activeReservation && activeReservation.status === "in_consultation" 
     ? 5 
     : Math.max(1, maxSegments - Math.min(patientsAhead, maxSegments - 1));
-
-  let nowServingText = "—";
-  if (nowServing) {
-    const pNum = getPermanentQueueNumber(nowServing.id, nowServing.scheduleId);
-    nowServingText = pNum ? `Queue #${pNum}` : "—";
-  }
 
   if (loading) {
     return (
@@ -171,7 +183,15 @@ export default function Dashboard() {
               </p>
             </div>
 
-            {schedule.queueStatus === 'not_started' ? (
+            {schedule.status === 'completed' || schedule.queueStatus === 'completed' ? (
+              <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-center">
+                <CheckCircle2 className="w-8 h-8 text-green-500 mx-auto mb-3" />
+                <h3 className="font-bold text-gray-800 mb-2">Today's clinic session has ended.</h3>
+                <p className="text-sm text-gray-500">
+                  The doctor has completed all consultations for this session. Thank you for your visit!
+                </p>
+              </div>
+            ) : schedule.queueStatus === 'not_started' ? (
               <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-center">
                 <Clock className="w-8 h-8 text-blue-400 mx-auto mb-3" />
                 <h3 className="font-bold text-gray-800 mb-2">Queue Not Started</h3>
@@ -181,6 +201,13 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
+                {schedule.queueStatus === 'active' && !nowServing && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-green-800 flex items-center text-xs font-bold mb-4">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse mr-2"></div>
+                    Queue Open — Waiting for the first consultation to begin.
+                  </div>
+                )}
+
                 <div className="flex justify-between items-end mb-4">
                   <div>
                     <p className="text-xs font-bold text-gray-500 mb-1">Now Serving</p>
@@ -204,13 +231,56 @@ export default function Dashboard() {
                   ))}
                 </div>
                 
-                <div className="text-center">
+                <div className="text-center mb-5">
                   <p className="text-xs font-bold text-gray-400">
                     {activeReservation.status === "in_consultation" 
                       ? "You are currently being served" 
                       : `${patientsAhead} patient${patientsAhead === 1 ? '' : 's'} ahead of you`}
                   </p>
                 </div>
+
+                {/* Queue Line Display */}
+                {queueLine.length > 0 && (
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Queue Line ({queueLine.length})</h4>
+                      <span className="text-[11px] text-gray-400 font-medium">Real-time order</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {queueLine.map((patient) => {
+                        const isMe = patient.id === activeReservation.id;
+                        const isServing = patient.status === 'in_consultation';
+                        const isCheckedIn = patient.status === 'checked_in';
+                        return (
+                          <div 
+                            key={patient.id} 
+                            className={`p-2 rounded-xl border flex items-center justify-between text-xs font-bold ${
+                              isMe 
+                                ? 'bg-blue-50 border-blue-200 text-blue-800 shadow-sm' 
+                                : isServing 
+                                ? 'bg-green-50 border-green-200 text-green-800' 
+                                : 'bg-white border-gray-200 text-gray-700'
+                            }`}
+                          >
+                            <span className="flex items-center min-w-0">
+                              <span className={`w-5 h-5 rounded flex items-center justify-center font-black mr-1.5 text-[10px] flex-shrink-0 ${
+                                isMe ? 'bg-blue-600 text-white' : isServing ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                #{patient.pNum}
+                              </span>
+                              <span className="truncate">
+                                {isMe ? 'You' : patient.childName || `Patient #${patient.pNum}`}
+                              </span>
+                            </span>
+                            <span className="text-[9px] uppercase font-bold tracking-tight opacity-75 ml-1 flex-shrink-0">
+                              {isServing ? 'In Clinic' : isCheckedIn ? 'Checked In' : 'Waiting'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

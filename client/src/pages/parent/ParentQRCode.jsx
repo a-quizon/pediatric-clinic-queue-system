@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { subscribeToAllReservations } from "../../services/reservationService";
-import { getSchedules } from "../../services/scheduleService";
+import { subscribeToAllSchedules } from "../../services/scheduleService";
 import QRCode from "qrcode";
 import toast from "react-hot-toast";
-import { ArrowLeft, Download, Copy, MapPin, CalendarDays, Activity, QrCode, AlertCircle } from "lucide-react";
+import { ArrowLeft, Download, Copy, MapPin, CalendarDays, Activity, QrCode, AlertCircle, X } from "lucide-react";
 
 export default function ParentQRCode() {
   const { id } = useParams();
@@ -14,58 +14,57 @@ export default function ParentQRCode() {
 
   const [reservation, setReservation] = useState(null);
   const [schedule, setSchedule] = useState(null);
+  const [schedulesMap, setSchedulesMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [qrImageUrl, setQrImageUrl] = useState("");
   const [permanentQueueNumber, setPermanentQueueNumber] = useState(null);
 
   useEffect(() => {
     let unsubReservations;
+    let unsubSchedules;
     
-    const initializeData = async () => {
-      try {
-        const schedulesData = await getSchedules();
-        
-        unsubReservations = subscribeToAllReservations((data) => {
-          const currentRes = data.find(r => r.id === id);
-          
-          if (!currentRes) {
-            setLoading(false);
-            return;
-          }
-
-          // Security check
-          if (user && currentRes.parentId !== user.uid) {
-            toast.error("Unauthorized access.");
-            navigate("/parent/reservations");
-            return;
-          }
-
-          // Calculate permanent queue number
-          const scheduleRes = data.filter(r => r.scheduleId === currentRes.scheduleId)
-            .sort((a, b) => a.createdAt - b.createdAt);
-          const index = scheduleRes.findIndex(r => r.id === currentRes.id);
-          setPermanentQueueNumber(index >= 0 ? index + 1 : null);
-
-          setReservation(currentRes);
-          if (schedulesData && currentRes.scheduleId) {
-            setSchedule(schedulesData[currentRes.scheduleId]);
-          }
-          setLoading(false);
-        });
-      } catch (err) {
-        console.error(err);
-        setLoading(false);
-      }
-    };
-
     if (user) {
-      initializeData();
+      unsubSchedules = subscribeToAllSchedules((schedulesData) => {
+        setSchedulesMap(schedulesData || {});
+      });
+      
+      unsubReservations = subscribeToAllReservations((data) => {
+        const currentRes = data.find(r => r.id === id);
+        
+        if (!currentRes) {
+          setLoading(false);
+          return;
+        }
+
+        // Security check
+        if (user && currentRes.parentId !== user.uid) {
+          toast.error("Unauthorized access.");
+          navigate("/parent/reservations");
+          return;
+        }
+
+        // Calculate permanent queue number
+        const scheduleRes = data.filter(r => r.scheduleId === currentRes.scheduleId)
+          .sort((a, b) => a.createdAt - b.createdAt);
+        const index = scheduleRes.findIndex(r => r.id === currentRes.id);
+        setPermanentQueueNumber(index >= 0 ? index + 1 : null);
+
+        setReservation(currentRes);
+        setLoading(false);
+      });
     }
 
     return () => {
       if (unsubReservations) unsubReservations();
+      if (unsubSchedules) unsubSchedules();
     };
   }, [id, user, navigate]);
+
+  useEffect(() => {
+    if (reservation && reservation.scheduleId && schedulesMap[reservation.scheduleId]) {
+      setSchedule(schedulesMap[reservation.scheduleId]);
+    }
+  }, [reservation, schedulesMap]);
 
   useEffect(() => {
     if (reservation && reservation.reservationCode) {
@@ -190,7 +189,7 @@ export default function ParentQRCode() {
 
         {/* QR Section */}
         <div className="p-8 text-center flex flex-col items-center border-b border-gray-50">
-          {schedule?.queueStatus === 'ended' || schedule?.queueStatus === 'completed' ? (
+          {schedule?.status === 'completed' || schedule?.queueStatus === 'ended' || schedule?.queueStatus === 'completed' ? (
             <div className="py-8 px-4 text-center w-full">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
                 <X className="w-10 h-10" />

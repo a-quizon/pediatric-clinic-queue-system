@@ -117,3 +117,14 @@ export const subscribeToPublishedSchedules = ( callback ) => {
     }
   );
 };
+
+export const subscribeToAllSchedules = (callback) => {
+  const schedulesRef = ref(database, "schedules");
+  return onValue(schedulesRef, (snapshot) => {
+    if (!snapshot.exists()) {
+      callback({});
+      return;
+    }
+    callback(snapshot.val());
+  });
+};
