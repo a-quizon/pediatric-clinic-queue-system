@@ -46,7 +46,7 @@ export default function MyReservation() {
 
   const activeReservation = useMemo(() => {
     if (!user) return null;
-    return allReservations.find(r => r.parentId === user.uid && ["reserved", "waiting", "checked_in", "in_consultation", "consultation_completed"].includes(r.status));
+    return allReservations.find(r => r.parentId === user.uid && ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status));
   }, [allReservations, user]);
 
   const schedule = activeReservation ? schedules[activeReservation.scheduleId] : null;
@@ -293,8 +293,103 @@ export default function MyReservation() {
               <div className="w-6 h-6 bg-gray-50 rounded-full -mr-5 border-l border-gray-200/80 shadow-inner"></div>
             </div>
 
-            {/* Section 3: Patient Information */}
-            <div className="px-6 sm:px-8 py-3 bg-white text-left">
+            {/* Section 3: Arrival Pass (Before Check-in) vs Arrival Confirmation (After Check-in) */}
+            {!isValidated ? (
+              <div className="px-6 sm:px-8 py-4 text-center flex flex-col items-center bg-white">
+                <div className="bg-white p-3 rounded-3xl border border-gray-100 shadow-sm mb-4 w-52 h-52 sm:w-56 sm:h-56 flex items-center justify-center relative group">
+                  {qrImageUrl ? (
+                    <img src={qrImageUrl} alt="QR Arrival Pass" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-gray-400 text-xs">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
+                      Generating QR...
+                    </div>
+                  )}
+                </div>
+
+                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Reservation Code</span>
+                <div className="text-3xl font-black text-gray-800 tracking-wider mt-0.5 font-mono">
+                  {activeReservation.reservationCode || "------"}
+                </div>
+
+                <div className="flex flex-col items-center justify-center gap-2.5 mt-4 w-full">
+                  <button 
+                    onClick={() => setIsQrModalOpen(true)}
+                    className="w-full py-2.5 px-4 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl text-xs sm:text-sm transition-all shadow-2xs flex items-center justify-center focus:outline-none"
+                  >
+                    <Maximize2 className="w-4 h-4 mr-2" /> Expand QR Code
+                  </button>
+                  {activeReservation.status !== "checked_in" && activeReservation.status !== "in_consultation" && (
+                    <button
+                      onClick={() => handleCancelClick(activeReservation)}
+                      className="w-full py-2.5 px-4 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center focus:outline-none"
+                    >
+                      <XCircle className="w-4 h-4 mr-1.5" /> Cancel Reservation
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="px-6 sm:px-8 py-5 bg-white text-center">
+                <div className="bg-green-50 rounded-2xl p-6 border border-green-200 text-center flex flex-col items-center justify-center my-1 shadow-2xs">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-3 shadow-xs">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-green-900 mb-1">Arrival Confirmed</h3>
+                  <p className="text-xs sm:text-sm font-semibold text-green-800/90 max-w-xs leading-relaxed">
+                    Your arrival has been successfully verified. Please wait for your queue number to be called.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Section 4: Boarding Pass Cutout Divider */}
+            <div className="relative bg-white flex items-center justify-between px-2 py-3">
+              <div className="w-6 h-6 bg-gray-50 rounded-full -ml-5 border-r border-gray-200/80 shadow-inner"></div>
+              <div className="flex-1 border-t-2 border-dashed border-gray-200 mx-2"></div>
+              <div className="w-6 h-6 bg-gray-50 rounded-full -mr-5 border-l border-gray-200/80 shadow-inner"></div>
+            </div>
+
+            {/* Section 5: Real-Time Queue Information */}
+            <div className="px-6 sm:px-8 py-4 bg-white">
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center text-left">
+                <Activity className="w-3.5 h-3.5 mr-1.5 text-green-500" /> Queue Information
+              </h3>
+              <div className="bg-gradient-to-r from-blue-50/70 to-indigo-50/70 rounded-2xl p-4 border border-blue-100/80 space-y-3 text-center">
+                <div className="grid grid-cols-2 gap-4 pb-3 border-b border-blue-200/50">
+                  <div className="border-r border-blue-200/60 pr-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block mb-0.5">Now Serving</span>
+                    <div className="text-lg sm:text-xl font-black text-gray-800">
+                      {nowServingText}
+                    </div>
+                  </div>
+                  <div className="pl-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block mb-0.5">Ahead of You</span>
+                    <div className="text-lg sm:text-xl font-black text-gray-800">
+                      {schedule?.queueStatus === 'not_started' ? '—' : 
+                       activeReservation.status === 'in_consultation' ? '0 Remaining' :
+                       patientsAhead > 0 ? `${patientsAhead} Remaining` : '0 Remaining'}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block mb-0.5">Clinic Queue Status</span>
+                  <div className="text-sm font-extrabold text-gray-800">
+                    {schedule ? (schedule.queueStatus === 'in_progress' ? 'In Progress' : schedule.queueStatus === 'paused' ? 'Paused' : schedule.queueStatus === 'completed' || schedule.queueStatus === 'ended' ? 'Completed' : 'Not Started') : 'Unknown'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 6: Boarding Pass Cutout Divider */}
+            <div className="relative bg-white flex items-center justify-between px-2 py-3">
+              <div className="w-6 h-6 bg-gray-50 rounded-full -ml-5 border-r border-gray-200/80 shadow-inner"></div>
+              <div className="flex-1 border-t-2 border-dashed border-gray-200 mx-2"></div>
+              <div className="w-6 h-6 bg-gray-50 rounded-full -mr-5 border-l border-gray-200/80 shadow-inner"></div>
+            </div>
+
+            {/* Section 7: Patient Information */}
+            <div className="px-6 sm:px-8 pb-7 pt-3 bg-white text-left">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center">
                   <User className="w-3.5 h-3.5 mr-1.5 text-blue-500" /> Patient Information
@@ -321,103 +416,6 @@ export default function MyReservation() {
                   <span className="font-semibold text-gray-700 block bg-white p-2.5 rounded-xl border border-gray-100 text-xs">
                     {activeReservation.concern || "Regular checkup / consultation"}
                   </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 4: Boarding Pass Cutout Divider */}
-            <div className="relative bg-white flex items-center justify-between px-2 py-3">
-              <div className="w-6 h-6 bg-gray-50 rounded-full -ml-5 border-r border-gray-200/80 shadow-inner"></div>
-              <div className="flex-1 border-t-2 border-dashed border-gray-200 mx-2"></div>
-              <div className="w-6 h-6 bg-gray-50 rounded-full -mr-5 border-l border-gray-200/80 shadow-inner"></div>
-            </div>
-
-            {/* Section 5: Arrival Pass (Before Check-in) vs Arrival Confirmation (After Check-in) */}
-            {!isValidated ? (
-              <div className="px-6 sm:px-8 py-4 text-center flex flex-col items-center bg-white">
-                <div className="bg-white p-3 rounded-3xl border border-gray-100 shadow-sm mb-4 w-52 h-52 sm:w-56 sm:h-56 flex items-center justify-center relative group">
-                  {qrImageUrl ? (
-                    <img src={qrImageUrl} alt="QR Arrival Pass" className="w-full h-full object-contain" />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-gray-400 text-xs">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
-                      Generating QR...
-                    </div>
-                  )}
-                </div>
-
-                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Reservation Code</span>
-                <div className="text-3xl font-black text-gray-800 tracking-wider mt-0.5 font-mono">
-                  {activeReservation.reservationCode || "------"}
-                </div>
-
-                <div className="flex flex-col items-center justify-center gap-2.5 mt-4 w-full">
-                  <button 
-                    onClick={() => setIsQrModalOpen(true)}
-                    className="w-full py-2.5 px-4 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl text-xs sm:text-sm transition-all shadow-2xs flex items-center justify-center focus:outline-none"
-                  >
-                    <Maximize2 className="w-4 h-4 mr-2" /> Expand QR Code
-                  </button>
-                  {activeReservation.status !== "checked_in" && activeReservation.status !== "in_consultation" && activeReservation.status !== "consultation_completed" && (
-                    <button
-                      onClick={() => handleCancelClick(activeReservation)}
-                      className="w-full py-2.5 px-4 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center focus:outline-none"
-                    >
-                      <XCircle className="w-4 h-4 mr-1.5" /> Cancel Reservation
-                    </button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="px-6 sm:px-8 py-5 bg-white text-center">
-                <div className="bg-green-50 rounded-2xl p-6 border border-green-200 text-center flex flex-col items-center justify-center my-1 shadow-2xs">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-3 shadow-xs">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-base sm:text-lg font-black text-green-900 mb-1">Arrival Confirmed</h3>
-                  <p className="text-xs sm:text-sm font-semibold text-green-800/90 max-w-xs leading-relaxed">
-                    Your arrival has been successfully verified. Please wait for your queue number to be called.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Section 6: Boarding Pass Cutout Divider */}
-            <div className="relative bg-white flex items-center justify-between px-2 py-3">
-              <div className="w-6 h-6 bg-gray-50 rounded-full -ml-5 border-r border-gray-200/80 shadow-inner"></div>
-              <div className="flex-1 border-t-2 border-dashed border-gray-200 mx-2"></div>
-              <div className="w-6 h-6 bg-gray-50 rounded-full -mr-5 border-l border-gray-200/80 shadow-inner"></div>
-            </div>
-
-            {/* Section 7: Real-Time Queue Information */}
-            <div className="px-6 sm:px-8 pb-7 pt-3 bg-white">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center text-left">
-                <Activity className="w-3.5 h-3.5 mr-1.5 text-green-500" /> Queue Information
-              </h3>
-              <div className="bg-gradient-to-r from-blue-50/70 to-indigo-50/70 rounded-2xl p-4 border border-blue-100/80 space-y-3 text-center">
-                <div className="grid grid-cols-2 gap-4 pb-3 border-b border-blue-200/50">
-                  <div className="border-r border-blue-200/60 pr-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block mb-0.5">
-                      {activeReservation.status === 'consultation_completed' || activeReservation.status === 'completed' ? 'Your Queue' : 'Now Serving'}
-                    </span>
-                    <div className="text-lg sm:text-xl font-black text-gray-800">
-                      {activeReservation.status === 'consultation_completed' || activeReservation.status === 'completed' ? '—' : nowServingText}
-                    </div>
-                  </div>
-                  <div className="pl-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block mb-0.5">Ahead of You</span>
-                    <div className="text-lg sm:text-xl font-black text-gray-800">
-                      {activeReservation.status === 'consultation_completed' || activeReservation.status === 'completed' || schedule?.queueStatus === 'not_started' ? '—' : 
-                       activeReservation.status === 'in_consultation' ? '0 Remaining' :
-                       patientsAhead > 0 ? `${patientsAhead} Remaining` : '0 Remaining'}
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block mb-0.5">Clinic Queue Status</span>
-                  <div className="text-sm font-extrabold text-gray-800">
-                    {schedule ? (schedule.queueStatus === 'in_progress' ? 'In Progress' : schedule.queueStatus === 'paused' ? 'Paused' : schedule.queueStatus === 'completed' || schedule.queueStatus === 'ended' ? 'Completed' : 'Not Started') : 'Unknown'}
-                  </div>
                 </div>
               </div>
             </div>

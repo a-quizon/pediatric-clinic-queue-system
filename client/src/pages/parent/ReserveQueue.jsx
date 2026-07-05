@@ -6,6 +6,7 @@ import {
   subscribeToAllReservations, 
   createReservation, 
   checkExistingReservationOnDate, 
+  checkCompletedConsultationOnDate,
   getReservationsBySchedule,
   updatePatientInfo
 } from "../../services/reservationService";
@@ -120,6 +121,18 @@ export default function ReserveQueue() {
       return;
     }
 
+    // Check if parent already completed a consultation with this doctor on this calendar day
+    const hasCompletedToday = await checkCompletedConsultationOnDate(user.uid, schedule.clinicDate, schedule.doctorId);
+    if (hasCompletedToday) {
+      setMessageModalState({
+        isOpen: true,
+        type: 'warning',
+        title: 'Consultation Completed Today',
+        message: "You've already completed your consultation for today's clinic.\n\nYou can reserve another slot on the doctor's next available clinic schedule."
+      });
+      return;
+    }
+
     setSelectedSchedule(schedule);
     setFormData({ childName: "", age: "", sex: "", concern: "" });
     setIsConfirmModalOpen(true);
@@ -139,6 +152,18 @@ export default function ReserveQueue() {
           type: 'warning',
           title: 'Active Reservation Exists',
           message: 'You already have an active reservation for this date. You may only reserve one clinic schedule per day.'
+        });
+        return;
+      }
+
+      const hasCompletedToday = await checkCompletedConsultationOnDate(user.uid, selectedSchedule.clinicDate, selectedSchedule.doctorId);
+      if (hasCompletedToday) {
+        setIsConfirmModalOpen(false);
+        setMessageModalState({
+          isOpen: true,
+          type: 'warning',
+          title: 'Consultation Completed Today',
+          message: "You've already completed your consultation for today's clinic.\n\nYou can reserve another slot on the doctor's next available clinic schedule."
         });
         return;
       }
@@ -235,6 +260,17 @@ export default function ReserveQueue() {
               schedules.find(s => s.id === r.scheduleId)?.clinicDate === schedule.clinicDate
             );
 
+            // Check if parent already completed a consultation with this doctor on this calendar day
+            const hasCompletedOnDate = reservations.some(r => {
+              if (r.parentId !== user?.uid) return false;
+              if (r.status !== "completed" && r.status !== "consultation_completed") return false;
+              const resSchedule = schedules.find(s => s.id === r.scheduleId);
+              if (!resSchedule) return false;
+              if (resSchedule.clinicDate !== schedule.clinicDate) return false;
+              if (schedule.doctorId && resSchedule.doctorId && resSchedule.doctorId !== schedule.doctorId) return false;
+              return true;
+            });
+
             const buttonDisabled = isFull || hasReservedOnDate || isEnded;
 
             return (
@@ -305,20 +341,24 @@ export default function ReserveQueue() {
                       ? 'bg-gray-100 text-gray-500 cursor-not-allowed text-sm'
                       : hasReservedOnDate 
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : isFull 
-                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed text-xs px-3 leading-snug' 
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                        : hasCompletedOnDate
+                          ? 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 text-sm'
+                          : isFull 
+                            ? 'bg-gray-100 text-gray-500 cursor-not-allowed text-xs px-3 leading-snug' 
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
-                  {!hasReservedOnDate && !isEnded && <CalendarPlus className={`w-4 h-4 mr-2 flex-shrink-0 ${isFull ? 'hidden' : ''}`} />}
+                  {!hasReservedOnDate && !hasCompletedOnDate && !isEnded && <CalendarPlus className={`w-4 h-4 mr-2 flex-shrink-0 ${isFull ? 'hidden' : ''}`} />}
                   <span>
                     {isEnded
                       ? 'Queue Closed'
                       : hasReservedOnDate 
                         ? 'Already Reserved'
-                        : isFull 
-                          ? 'Slots are currently full. Please wait until a slot becomes available.' 
-                          : 'Reserve Slot'}
+                        : hasCompletedOnDate
+                          ? 'Consultation Completed Today'
+                          : isFull 
+                            ? 'Slots are currently full. Please wait until a slot becomes available.' 
+                            : 'Reserve Slot'}
                   </span>
                 </button>
               </div>

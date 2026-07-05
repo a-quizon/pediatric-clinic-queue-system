@@ -63,6 +63,34 @@ export const checkExistingReservationOnDate = async (parentId, clinicDate) => {
   );
 };
 
+export const checkCompletedConsultationOnDate = async (parentId, clinicDate, doctorId = null) => {
+  const [resSnapshot, schedSnapshot] = await Promise.all([
+    get(ref(database, "reservations")),
+    get(ref(database, "schedules"))
+  ]);
+  
+  if (!resSnapshot.exists() || !schedSnapshot.exists()) return false;
+
+  const reservations = resSnapshot.val();
+  const schedules = schedSnapshot.val();
+
+  // Find schedule IDs that match the target clinicDate (and doctorId if specified)
+  const targetScheduleIds = Object.entries(schedules)
+    .filter(([_, schedule]) => {
+      if (schedule.clinicDate !== clinicDate) return false;
+      if (doctorId && schedule.doctorId && schedule.doctorId !== doctorId) return false;
+      return true;
+    })
+    .map(([id]) => id);
+
+  // Check if there are any completed consultations belonging to those schedules
+  return Object.values(reservations).some((res) => 
+    res.parentId === parentId && 
+    targetScheduleIds.includes(res.scheduleId) &&
+    (res.status === "completed" || res.status === "consultation_completed")
+  );
+};
+
 export const calculateDynamicQueuePositions = (reservations) => {
   const groupedBySchedule = {};
   reservations.forEach(r => {
