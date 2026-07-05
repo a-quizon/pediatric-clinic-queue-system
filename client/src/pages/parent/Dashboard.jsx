@@ -163,12 +163,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 pb-6 relative">
-      <div>
-          <h1 className="text-2xl font-bold text-gray-800">Welcome Back</h1>
-          <p className="text-gray-500 mt-1">
-            Manage your clinic reservations and monitor your queue status.
-          </p>
-        </div>
 
       {/* Hero Card: Real-Time Monitoring */}
       {activeReservation && schedule ? (

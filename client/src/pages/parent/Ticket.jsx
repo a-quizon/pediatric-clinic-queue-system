@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Ticket, Clock, MapPin, CheckCircle2, XCircle, User } from "lucide-react";
+import { Ticket as TicketIcon, Clock, MapPin, CheckCircle2, XCircle, User } from "lucide-react";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
 import { subscribeToAllReservations, cancelReservation, updatePatientInfo } from "../../services/reservationService";
 import { useAuth } from "../../hooks/useAuth";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import toast from "react-hot-toast";
 
-export default function MyReservations() {
+export default function Ticket() {
   const { user } = useAuth();
   const navigate = useNavigate();
   
@@ -112,7 +112,6 @@ export default function MyReservations() {
   return (
     <div className="space-y-6 pb-8 relative">
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">My Ticket</h1>
         <p className="text-gray-500 mt-1 text-sm">
           View and manage your active clinic reservation and QR Ticket. For past visits and doctor&apos;s notes, check your Profile &rarr; Reservation History.
         </p>
@@ -211,7 +210,7 @@ export default function MyReservations() {
                     onClick={() => navigate(`/parent/reservations/${currentReservation.id}/qr`)}
                     className="w-full py-3.5 font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-2xl transition-colors flex items-center justify-center text-sm focus:outline-none"
                   >
-                    <Ticket className="w-4 h-4 mr-2" />
+                    <TicketIcon className="w-4 h-4 mr-2" />
                     View QR Code
                   </button>
                 )}
@@ -229,7 +228,7 @@ export default function MyReservations() {
         })() : (
           <div className="bg-white rounded-3xl border border-gray-100 shadow-xs p-12 text-center max-w-lg mx-auto animate-in fade-in">
             <div className="mx-auto w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mb-5">
-              <Ticket className="w-8 h-8" />
+              <TicketIcon className="w-8 h-8" />
             </div>
             <h2 className="text-lg font-bold text-gray-800 mb-1">No Active Reservation</h2>
             <p className="text-gray-500 text-sm max-w-xs mx-auto">You do not have a current slot reserved. Head over to the Reserve Queue tab to book an appointment.</p>
