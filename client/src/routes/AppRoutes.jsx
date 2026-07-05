@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -12,7 +12,6 @@ import ParentReserveQueue from "../pages/parent/ReserveQueue";
 import ParentTicket from "../pages/parent/Ticket";
 import ParentProfile from "../pages/parent/Profile";
 import ParentReservationHistory from "../pages/parent/ReservationHistory";
-import ParentQRCode from "../pages/parent/ParentQRCode";
 
 import SecretaryLayout from "../components/secretary/SecretaryLayout";
 import SecretaryDashboard from "../pages/secretary/Dashboard";
@@ -43,7 +42,7 @@ export default function AppRoutes() {
           <Route index element={<ParentDashboard />} />
           <Route path="reserve" element={<ParentReserveQueue />} />
           <Route path="reservations" element={<ParentTicket />} />
-          <Route path="reservations/:id/qr" element={<ParentQRCode />} />
+          <Route path="reservations/:id/qr" element={<Navigate to="/parent/reservations" replace />} />
           <Route path="profile" element={<ParentProfile />} />
           <Route path="profile/history" element={<ParentReservationHistory />} />
         </Route>

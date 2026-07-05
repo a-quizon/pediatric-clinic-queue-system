@@ -221,7 +221,7 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <Link 
-                    to={`/parent/reservations/${activeReservation.id}/qr`}
+                    to="/parent/reservations"
                     className="group inline-block focus:outline-none transition-transform active:scale-95"
                   >
                     {activeReservation.status === "in_consultation" ? (
@@ -320,7 +320,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           
           {activeReservation ? (
-            <Link to={`/parent/reservations/${activeReservation.id}/qr`} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group flex flex-col justify-between h-full">
+            <Link to="/parent/reservations" className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group flex flex-col justify-between h-full">
               <div>
                 <div className="bg-blue-50 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Ticket className="w-6 h-6 text-blue-600" />
