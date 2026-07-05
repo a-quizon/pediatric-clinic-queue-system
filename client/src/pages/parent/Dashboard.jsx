@@ -195,7 +195,7 @@ export default function Dashboard() {
                 <div className="text-3xl sm:text-4xl font-black text-gray-800 tracking-tight">{nowServingText}</div>
               </div>
 
-              {/* Section 2: YOUR QUEUE (Interactive Shortcut to QR Ticket when active) */}
+              {/* Section 2: YOUR QUEUE (Interactive Shortcut to My Reservation when active) */}
               <div className="pt-6">
                 <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Your Queue</span>
                 {activeReservation.status === "consultation_completed" ? (
@@ -245,7 +245,7 @@ export default function Dashboard() {
                       </span>
                     </div>
                     <div className="mt-2.5 text-[11px] font-semibold text-gray-500 group-hover:underline">
-                      (Tap Queue #{permanentQueueNumber || ''} to view your QR Ticket)
+                      (Tap Queue #{permanentQueueNumber || ''} to view your reservation)
                     </div>
                   </Link>
                 )}
@@ -325,8 +325,8 @@ export default function Dashboard() {
                 <div className="bg-blue-50 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                   <Ticket className="w-6 h-6 text-blue-600" />
                 </div>
-                <h3 className="font-bold text-gray-800 mb-1">View Ticket</h3>
-                <p className="text-gray-500 text-sm mb-4">Show your QR Code at the clinic counter.</p>
+                <h3 className="font-bold text-gray-800 mb-1">My Reservation</h3>
+                <p className="text-gray-500 text-sm mb-4">View your active reservation and queue status.</p>
               </div>
               <div className="flex items-center text-blue-600 text-sm font-semibold mt-auto">
                 Open <ChevronRight className="w-4 h-4 ml-1" />

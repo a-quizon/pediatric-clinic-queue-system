@@ -412,8 +412,8 @@ export default function ValidateReservation() {
             <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <Activity className="w-8 h-8" />
             </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Already Used</h2>
-            <p className="text-gray-500 mb-6">This reservation has already been validated.</p>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">This QR Code has already been used</h2>
+            <p className="text-gray-500 mb-6">This reservation has already been checked in.</p>
             <button
               onClick={closeAllModals}
               className="w-full py-3 font-bold rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"

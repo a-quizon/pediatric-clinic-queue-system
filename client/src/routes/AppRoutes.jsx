@@ -9,7 +9,7 @@ import Register from "../pages/auth/Register";
 import ParentLayout from "../components/parent/ParentLayout";
 import ParentDashboard from "../pages/parent/Dashboard";
 import ParentReserveQueue from "../pages/parent/ReserveQueue";
-import ParentTicket from "../pages/parent/Ticket";
+import ParentMyReservation from "../pages/parent/MyReservation";
 import ParentProfile from "../pages/parent/Profile";
 import ParentReservationHistory from "../pages/parent/ReservationHistory";
 
@@ -41,7 +41,7 @@ export default function AppRoutes() {
         <Route path="/parent" element={<ProtectedRoute> <RoleRoute allowedRole="parent"><ParentLayout /></RoleRoute> </ProtectedRoute>}>
           <Route index element={<ParentDashboard />} />
           <Route path="reserve" element={<ParentReserveQueue />} />
-          <Route path="reservations" element={<ParentTicket />} />
+          <Route path="reservations" element={<ParentMyReservation />} />
           <Route path="reservations/:id/qr" element={<Navigate to="/parent/reservations" replace />} />
           <Route path="profile" element={<ParentProfile />} />
           <Route path="profile/history" element={<ParentReservationHistory />} />
