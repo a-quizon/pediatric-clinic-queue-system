@@ -5,7 +5,7 @@ import { subscribeToAllReservations } from "../../services/reservationService";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
 import QRCode from "qrcode";
 import toast from "react-hot-toast";
-import { ArrowLeft, Download, Copy, MapPin, CalendarDays, Activity, QrCode, AlertCircle, X } from "lucide-react";
+import { Download, Copy, MapPin, CalendarDays, Activity, QrCode, AlertCircle, X } from "lucide-react";
 
 export default function ParentQRCode() {
   const { id } = useParams();
@@ -129,14 +129,6 @@ export default function ParentQRCode() {
 
   return (
     <div className="max-w-md mx-auto animate-in fade-in slide-in-from-bottom-4 pb-10">
-      <button 
-        onClick={() => navigate("/parent/reservations")}
-        className="flex items-center text-gray-500 hover:text-gray-800 transition-colors font-semibold mb-6"
-      >
-        <ArrowLeft className="w-5 h-5 mr-2" />
-        Back to Reservations
-      </button>
-
       <div className="bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-center">

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { subscribeToAllReservations } from "../../services/reservationService";
 import { getSchedules } from "../../services/scheduleService";
-import { History, CalendarDays, MapPin, ArrowLeft, ArrowUpDown, FileText } from "lucide-react";
+import { History, CalendarDays, MapPin, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ReservationDetailsModal from "../../components/parent/ReservationDetailsModal";
 
@@ -15,7 +15,6 @@ export default function ReservationHistory() {
   
   // Filters and Sorting
   const [activeFilter, setActiveFilter] = useState("All");
-  const [sortOrder, setSortOrder] = useState("newest"); // 'newest' or 'oldest'
 
   // Modal State
   const [selectedReservation, setSelectedReservation] = useState(null);
@@ -61,7 +60,7 @@ export default function ReservationHistory() {
     .sort((a, b) => {
       const timeA = getTerminalTimestamp(a) || 0;
       const timeB = getTerminalTimestamp(b) || 0;
-      return sortOrder === "newest" ? timeB - timeA : timeA - timeB;
+      return timeB - timeA;
     });
 
   const getStatusDisplay = (status) => {
@@ -93,48 +92,26 @@ export default function ReservationHistory() {
 
   return (
     <div className="space-y-6 pb-8 relative">
-      <div className="flex items-center gap-3.5 mb-2">
-        <button 
-          onClick={() => navigate("/parent/profile")}
-          className="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors shadow-2xs focus:outline-none"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Reservation History</h1>
-          <p className="text-gray-500 text-sm mt-0.5">View your past clinic visits, details, and doctor&apos;s consultation notes.</p>
-        </div>
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold text-gray-800">Reservation History</h1>
+        <p className="text-gray-500 text-sm mt-0.5">View your past clinic visits, details, and doctor&apos;s consultation notes.</p>
       </div>
 
-      <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xs sticky top-0 z-10 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide w-full sm:w-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs sticky top-16 z-10">
+        <div className="flex sm:flex-wrap gap-2 sm:gap-2.5 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide w-full -mx-4 px-4 sm:mx-0 sm:px-0">
           {["All", "Completed", "Cancelled", "Expired", "Penalized", "With Notes"].map(filter => (
             <button
               key={filter}
               onClick={() => setActiveFilter(filter)}
-              className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-colors flex-shrink-0 focus:outline-none ${
+              className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all flex-shrink-0 focus:outline-none ${
                 activeFilter === filter 
-                  ? 'bg-blue-600 text-white shadow-2xs' 
-                  : 'bg-gray-50 text-gray-600 border border-gray-200/80 hover:bg-gray-100/80'
+                  ? 'bg-blue-600 text-white shadow-sm scale-[1.02]' 
+                  : 'bg-gray-50 text-gray-600 border border-gray-200/80 hover:bg-gray-100 hover:text-gray-800'
               }`}
             >
               {filter}
             </button>
           ))}
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative w-full sm:w-auto">
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-              className="w-full sm:w-40 pl-10 pr-8 py-2 bg-gray-50 border border-gray-200/80 rounded-2xl text-xs sm:text-sm font-bold text-gray-700 appearance-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer"
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-            </select>
-            <ArrowUpDown className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
         </div>
       </div>
 
