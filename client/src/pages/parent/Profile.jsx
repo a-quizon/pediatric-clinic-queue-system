@@ -54,12 +54,6 @@ export default function Profile() {
 
   return (
     <div className="space-y-6 pb-8 max-w-2xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">My Profile</h1>
-        <p className="text-gray-500 mt-1 text-sm">
-          Manage your account information and view your reservation history.
-        </p>
-      </div>
 
       {/* Parent Information Card (No badge icon, no 'Parent' label) */}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-xs p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6 animate-in fade-in slide-in-from-bottom-4">
@@ -68,7 +62,7 @@ export default function Profile() {
         </div>
         
         <div className="text-center sm:text-left flex-1 space-y-2">
-          <h2 className="text-2xl font-black text-gray-800 tracking-tight">{user?.displayName || "Parent Account"}</h2>
+          <h2 className="text-2xl font-black text-gray-800 tracking-tight">{user?.fullName || user?.displayName || user?.name || "Parent Account"}</h2>
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 text-sm text-gray-500 justify-center sm:justify-start">
             <span className="flex items-center justify-center sm:justify-start font-medium">
               <Mail className="w-4 h-4 mr-2 text-blue-500 flex-shrink-0" />

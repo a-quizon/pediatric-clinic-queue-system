@@ -36,7 +36,7 @@ export default function Profile() {
                   <User className="w-10 h-10" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-xl font-bold text-gray-800">{user?.displayName || "Secretary Account"}</h2>
+                  <h2 className="text-xl font-bold text-gray-800">{user?.fullName || user?.displayName || user?.name || "Secretary Account"}</h2>
                   <div className="mt-2 space-y-2">
                     <div className="flex items-center text-gray-600 text-sm">
                       <Mail className="w-4 h-4 mr-2 text-gray-400" />

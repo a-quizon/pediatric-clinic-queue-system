@@ -1,10 +1,8 @@
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { ref, set } from "firebase/database";
 
 import { auth } from "../firebase/auth";
 import { database } from "../firebase/database";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { signOut } from "firebase/auth";
 
 export const registerUser = async (
   name,
@@ -20,6 +18,9 @@ export const registerUser = async (
     );
 
     const user = userCredential.user;
+    if (name) {
+      await updateProfile(user, { displayName: name }).catch(err => console.error("Could not update profile:", err));
+    }
 
     console.log("User created:", user.uid);
 

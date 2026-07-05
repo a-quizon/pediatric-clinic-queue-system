@@ -179,8 +179,8 @@ export default function Dashboard() {
               <div className="text-left">
                 <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Patient</span>
                 <h2 className="text-xl sm:text-2xl font-black text-gray-800 truncate">{activeReservation.childName || "N/A"}</h2>
-                {user?.displayName && (
-                  <span className="text-xs font-medium text-gray-500 block mt-0.5">Parent: {user.displayName}</span>
+                {(user?.fullName || user?.displayName || user?.name) && (
+                  <span className="text-xs font-medium text-gray-500 block mt-0.5">Parent: {user?.fullName || user?.displayName || user?.name}</span>
                 )}
               </div>
 

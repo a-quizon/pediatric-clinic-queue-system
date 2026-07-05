@@ -28,6 +28,13 @@ export function AuthProvider({ children }) {
                             const userData = snapshot.val();
 
                             setRole(userData.role);
+                            setUser((prevUser) => ({
+                                ...prevUser,
+                                ...userData,
+                                displayName: userData.name || prevUser?.displayName || userData.fullName,
+                                fullName: userData.name || prevUser?.displayName || userData.fullName,
+                                name: userData.name || prevUser?.displayName || userData.fullName,
+                            }));
 
                             console.log("Role:", userData.role);
                         }

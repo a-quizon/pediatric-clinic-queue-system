@@ -42,11 +42,7 @@ export default function Login() {
         }
       }
 
-      if (role === 'doctor') {
-        toast.success('Welcome back, Doctor!');
-      } else {
-        toast.success('Welcome back!');
-      }
+      toast.success('Login Successfully');
 
       // Redirect based on the user's role
       setTimeout(() => {
@@ -76,7 +72,6 @@ export default function Login() {
             <Activity className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Pediatric Clinic Queue System</h1>
-          <p className="text-gray-500 font-medium mt-2">Clinic Queue Management</p>
         </div>
 
         {/* Form Section */}
