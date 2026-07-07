@@ -1,0 +1,315 @@
+# Project Audit Report: Pediatric Clinic Queue System
+
+**Audit Date:** July 7, 2026  
+**Audited Workspace:** `c:\Users\canil\OneDrive\Documents\CAPSTONE-PROJECT\pediatric-clinic-queue-system`  
+
+---
+
+## Phase 1: Understand the Project
+An exhaustive codebase exploration was performed across all directories and files in the project workspace, omitting only generated and dependency folders (`node_modules`, `dist`, `.git`). Specifically, every source code file, component, page, routing module, context provider, hook, service, configuration file, and backend script was analyzed to form a complete understanding of the system architecture and current implementation state.
+
+---
+
+## Phase 2: Build a Mental Model
+
+### 1. What this project is trying to accomplish
+The **Pediatric Clinic Queue System** is a modern, real-time web application designed to streamline walk-in and scheduled patient consultations for a multi-branch pediatric clinic (with seed data for "Angeles" and "Magalang" branches). It addresses clinic overcrowding and long physical waiting times by allowing **Parents** to reserve queue slots remotely, **Secretaries** to validate QR codes and manage check-ins on-site, and **Doctors** to manage clinic schedules, monitor live patient flow, call patients, and record consultation notes.
+
+### 2. Overall Architecture
+The system follows a **Client-Serverless / Realtime Backend Architecture**:
+* **Frontend (`/client`)**: A Single Page Application (SPA) built with React 19 and Vite, utilizing Tailwind CSS v4 for responsive, modern styling.
+* **Backend (`/server` & Firebase)**: Currently operates primarily as a **Firebase Backend-as-a-Service (BaaS)** application where the React client communicates directly with **Firebase Authentication** and **Firebase Realtime Database (RTDB)** via the official Firebase JS SDK v12. 
+* *Note on Express Server (`/server`)*: An Express.js skeleton exists in `/server/server.js` with packages for JWT, bcrypt, and Firebase Admin, but it is currently unconfigured (15 lines, only a root `/` route) and is not integrated into the live frontend data flow.
+
+### 3. Technologies and Libraries Being Used
+* **Core Framework**: React 19 (`react`, `react-dom`), Vite 8 (`vite`, `@vitejs/plugin-react`).
+* **Routing & Navigation**: React Router DOM v7 (`react-router-dom`).
+* **Styling & UI**: Tailwind CSS v4 (`tailwindcss`, `@tailwindcss/vite`), Lucide React v1.17 (`lucide-react` for icons).
+* **Backend & Data**: Firebase SDK v12 (`firebase` - Auth and Realtime Database).
+* **QR Code Utilities**: `qrcode` (generating QR code data URLs for patient reservations), `html5-qrcode` (camera-based live QR code scanner for secretaries).
+* **Notifications**: React Hot Toast (`react-hot-toast` for toast notifications and interactive confirmation prompts).
+* **Mobile/Hybrid Preparation**: Capacitor CLI & Core v8 (`@capacitor/cli`, `@capacitor/core` with `capacitor.config.json` configured for `com.pediatric.queue`).
+* **HTTP Client**: Axios (`axios` - installed but not currently utilized due to direct Firebase SDK usage).
+
+### 4. Folder Structure and Responsibilities
+```
+pediatric-clinic-queue-system/
+├── client/                      # Frontend SPA (React + Vite + Tailwind)
+│   ├── public/                  # Static assets
+│   ├── src/
+│   │   ├── assets/              # Images and SVG icons (hero.png, react.svg)
+│   │   ├── components/          # Reusable UI components grouped by feature/role
+│   │   │   ├── common/          # Global modals (ConfirmationModal, MessageModal)
+│   │   │   ├── doctor/          # Doctor layout and schedule detail modals
+│   │   │   ├── parent/          # Parent layout, reservation details, notes viewer
+│   │   │   ├── schedule/        # Schedule cards, creation/editing forms, confirm modals
+│   │   │   └── secretary/       # Secretary navigation and layout
+│   │   ├── context/             # Global React Context providers (AuthContext)
+│   │   ├── firebase/            # Firebase SDK initialization (firebaseConfig, auth, database)
+│   │   ├── hooks/               # Custom React hooks (useAuth)
+│   │   ├── pages/               # Route page components split by user role
+│   │   │   ├── auth/            # Login, Register, ForgotPassword (placeholder)
+│   │   │   ├── doctor/          # Doctor Home, Schedules, Queue, BranchConfig, Reports, Profile
+│   │   │   ├── parent/          # Parent Dashboard, ReserveQueue, MyReservation, History, QRCode, Profile
+│   │   │   └── secretary/       # Secretary Dashboard, ValidateReservation, ManageQueue, Notifications, Profile
+│   │   ├── routes/              # App routing, ProtectedRoute, RoleRoute guards
+│   │   ├── services/            # Core business logic and Firebase RTDB interactions
+│   │   └── utils/               # Constants (ROLES) and helper functions (authErrors mapping)
+│   ├── capacitor.config.json    # Hybrid iOS/Android mobile app configuration
+│   └── package.json             # Client dependencies and scripts
+└── server/                      # Node/Express backend skeleton (currently inactive)
+    ├── server.js                # Simple Express server stub (Port 5000)
+    └── package.json             # Backend dependencies (firebase-admin, jwt, bcrypt, cors)
+```
+
+### 5. How Data Flows Through the Application
+1. **User Action**: A user interacts with a page (e.g., Parent clicks "Reserve Slot" on [ReserveQueue.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/parent/ReserveQueue.jsx)).
+2. **Service Layer Invocation**: The component calls a specialized function from `/src/services/` (e.g., `createReservation` in [reservationService.js](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/services/reservationService.js)).
+3. **Realtime Database Mutation**: The service pushes or updates data directly in Firebase RTDB (`/reservations`, `/schedules`, `/branchConfigurations`).
+4. **Realtime Synchronization (`onValue`)**: Active components across all open clients subscribe to database nodes using service listeners (e.g., `subscribeToAllReservations`, `subscribeToPublishedSchedules`).
+5. **State & Eligibility Recalculation**: When RTDB pushes updates, client components re-evaluate dynamic queue ordering and eligibility via [queueEligibilityService.js](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/services/queueEligibilityService.js) (`getNextEligiblePatient`, `calculateDynamicQueuePositions`).
+6. **UI Re-render**: The UI seamlessly updates live across Parent, Secretary, and Doctor views without manual page refreshes.
+
+### 6. How Firebase is Integrated
+* **Initialization**: Configured in [firebaseConfig.js](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/firebase/firebaseConfig.js) using `initializeApp()`.
+* **Authentication**: Exported from [auth.js](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/firebase/auth.js) using `getAuth()`. Managed globally via `onAuthStateChanged` in [AuthContext.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/context/AuthContext.jsx).
+* **Realtime Database**: Exported from [database.js](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/firebase/database.js) using `getDatabase()`. All CRUD operations use Firebase modular functions (`ref`, `get`, `set`, `push`, `update`, `remove`, `onValue`).
+
+### 7. Authentication and Authorization Flow
+1. **Authentication**: Users sign in with email/password via Firebase Auth ([loginUser](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/services/authService.js#L43)). New users register via [registerUser](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/services/authService.js#L7), which creates an Auth profile and stores a user document under `users/{uid}` in RTDB with a default role of `"parent"`.
+2. **Session Persistence**: [AuthContext.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/context/AuthContext.jsx) listens for authentication state changes. When authenticated, it queries RTDB (`users/{uid}`) to fetch custom user metadata and the user's assigned role (`parent`, `secretary`, or `doctor`).
+3. **Route Guards**:
+   * [ProtectedRoute.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/routes/ProtectedRoute.jsx) blocks unauthenticated users, redirecting them to `/`.
+   * [RoleRoute.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/routes/RoleRoute.jsx) enforces Role-Based Access Control (RBAC). If a user attempts to access a portal outside their role (e.g., a parent navigating to `/doctor`), they are redirected to their assigned portal home.
+
+### 8. Database Structure (Firebase Realtime Database)
+The RTDB is structured as a NoSQL JSON tree with four primary root collections:
+* `users/{uid}`: Stores user profile information (`uid`, `name`, `email`, `phone`, `role`).
+* `branchConfigurations/{branchId}`: Stores clinic branches (`name`, `schedule` object mapped by days of the week containing `isOpen`, `openingTime`, `closingTime`, and timestamp metadata).
+* `schedules/{scheduleId}`: Stores doctor clinic sessions (`branch`, `clinicDate`, `startTime`, `endTime`, `slotCapacity`, `status` (`draft` | `published` | `completed`), `queueStatus` (`not_started` | `active` | `paused` | `closed`), `isReady`, timestamps).
+* `reservations/{reservationId}`: Stores patient slot bookings (`scheduleId`, `parentId`, `parentName`, `parentEmail`, `childName`, `childAge`, `purpose`, `status` (`reserved` | `waiting` | `checked_in` | `in_consultation` | `consultation_completed` | `cancelled`), `reservationCode` (6-character alphanumeric), `checkedIn` boolean, doctor consultation notes, and timestamps).
+
+### 9. Main Reusable Components
+* **Layouts**: [ParentLayout.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/components/parent/ParentLayout.jsx), [SecretaryLayout.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/components/secretary/SecretaryLayout.jsx), [Layout.jsx (Doctor)](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/components/doctor/Layout.jsx) provide consistent top/sidebar navigation, role badges, profile menus, and responsive mobile drawers.
+* **Modals**: [ConfirmationModal.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/components/common/ConfirmationModal.jsx) and [MessageModal.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/components/common/MessageModal.jsx) handle standardized user prompts and alerts. Role-specific modals ([ScheduleFormModal.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/components/schedule/ScheduleFormModal.jsx), [ReservationDetailsModal.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/components/parent/ReservationDetailsModal.jsx), [NotesDetailsModal.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/components/parent/NotesDetailsModal.jsx)) encapsulate complex form handling and detail viewing.
+* **Cards**: [ScheduleCard.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/components/schedule/ScheduleCard.jsx) renders rich schedule metadata with status badges and operational action buttons.
+
+### 10. Important Services and Utilities
+* [queueEligibilityService.js](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/services/queueEligibilityService.js): The core engine of the clinic queue. Defines blocking vs. non-blocking statuses, calculates who is next in line for consultation, and generates contextual waiting messages.
+* [reservationService.js](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/services/reservationService.js): Handles booking creation, unique code generation, dynamic queue ordering based on check-in timestamps, validation, check-in mutation, and consultation state transitions.
+* [scheduleService.js](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/services/scheduleService.js): Manages clinic session lifecycle (create, update, delete, publish, move to ready, change queue status, complete session).
+* [branchConfigurationService.js](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/services/branchConfigurationService.js): Manages clinic locations, operating hours, data seeding, and v1-to-v2 schema migration.
+* [authErrors.js](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/utils/authErrors.js): Translates Firebase Auth error codes into human-readable user UI messages.
+
+---
+
+## Phase 3: Progress Report
+
+### Completed Features
+| Feature | Description | Status | Related Files | Completion |
+| :--- | :--- | :--- | :--- | :--- |
+| **User Authentication** | Email/Password login, registration, and logout with error mapping. | Functional | `authService.js`, `Login.jsx`, `Register.jsx`, `AuthContext.jsx` | Complete |
+| **Role-Based Routing** | Strict portal separation for Parent, Secretary, and Doctor roles. | Functional | `AppRoutes.jsx`, `ProtectedRoute.jsx`, `RoleRoute.jsx` | Complete |
+| **Branch & Hours Management** | CRUD operations for clinic branches and 7-day operating schedule configuration with auto-seeding. | Functional | `branchConfigurationService.js`, `BranchConfiguration.jsx` | Complete |
+| **Schedule Management** | Doctors can create, edit, delete, publish, and close clinic schedules with slot capacity tracking. | Functional | `scheduleService.js`, `ScheduleManagement.jsx`, `ScheduleCard.jsx`, `ScheduleFormModal.jsx` | Complete |
+| **Queue Slot Booking** | Parents can view published schedules, check remaining slots, and book reservations for their children. | Functional | `reservationService.js`, `ReserveQueue.jsx`, `Dashboard.jsx (Parent)` | Complete |
+| **QR Code Generation & Display** | Generates unique 6-character alphanumeric reservation codes and dynamic QR code data URLs for parent check-in. | Functional | `reservationService.js`, `MyReservation.jsx`, `ParentQRCode.jsx` | Complete |
+| **Live QR Code Scanner & Validation** | Secretaries can scan parent QR codes via camera or enter codes manually to validate and check in patients. | Functional | `ValidateReservation.jsx`, `html5-qrcode`, `reservationService.js` | Complete |
+| **Dynamic Queue Eligibility Engine** | Real-time calculation of line order, blocking statuses, and next eligible patient identification. | Functional | `queueEligibilityService.js`, `Queue.jsx (Doctor)`, `Dashboard.jsx (Parent)` | Complete |
+| **Doctor Consultation Workflow** | Doctors can start consultations, view patient details, record clinical notes, and complete sessions. | Functional | `Queue.jsx (Doctor)`, `reservationService.js` | Complete |
+| **Parent Reservation History & Notes** | Parents can view past appointments, cancellation records, and doctor consultation notes. | Functional | `MyReservation.jsx`, `ReservationHistory.jsx`, `NotesDetailsModal.jsx` | Complete |
+| **User Profile Management** | Users across all roles can view account details and log out. | Functional | `Profile.jsx (Parent, Secretary, Doctor)` | Complete |
+
+### Existing Functions (Major Modules)
+* **`queueEligibilityService.js`**:
+  * `getNextEligiblePatient(reservations)`: Analyzes active reservations to determine if an ongoing consultation is blocking the queue, checks if earlier queue numbers are waiting, and returns the first checked-in patient eligible for consultation.
+  * `isPatientEligible(reservation, reservations)`: Returns a boolean verifying if a specific patient is next in line.
+  * `getQueueWaitingMessage(reservations)`: Returns appropriate contextual feedback (e.g., "Waiting for Queue #2 to validate QR Code").
+* **`reservationService.js`**:
+  * `createReservation(data)`: Generates a 6-character random code and pushes a new booking to RTDB.
+  * `checkExistingReservationOnDate(parentId, clinicDate)`: Prevents duplicate bookings by a parent on the same clinic date.
+  * `calculateDynamicQueuePositions(reservations)`: Groups bookings by schedule and assigns ranked sequence positions (`queuePosition`) based on creation timestamp.
+  * `validateReservationByCode(code)`: Look up reservation details by code for secretary check-in.
+  * `checkInReservation(id, secretaryUid)`: Transitions booking status to `checked_in` and timestamps the arrival.
+  * `startConsultation(id)` / `completeConsultation(id, notes)`: Transitions workflow states during doctor examination.
+* **`scheduleService.js`**:
+  * `publishSchedule(id)` / `moveToReady(id)` / `updateQueueStatus(id, status)` / `completeSchedule(id)`: Controls the live state machine of clinic schedules (`not_started` -> `active` -> `paused` -> `closed` -> `completed`).
+* **`branchConfigurationService.js`**:
+  * `migrateToV2(branches)`: Automatically migrates legacy pattern-based schedule schemas (`mwf`, `tth`) into explicit day-by-day JSON structures.
+
+### Current Screens
+* **Auth Screens**:
+  * `Login.jsx`: User authentication portal with email/password and role redirection.
+  * `Register.jsx`: Parent account registration form with name, email, phone, and password validation.
+  * `ForgotPassword.jsx`: *(Placeholder/Empty)* Intended for password reset functionality.
+* **Parent Portal (`/parent`)**:
+  * `Dashboard.jsx`: Real-time status hub showing active queue progress, permanent queue number, now serving status, and quick booking links.
+  * `ReserveQueue.jsx`: Interactive clinic schedule browser displaying operating hours, branch selection, available slots, and booking form.
+  * `MyReservation.jsx`: Comprehensive reservation management screen featuring live tabs (Active vs. Completed/Cancelled), QR code modal display, and cancellation controls.
+  * `ReservationHistory.jsx`: Dedicated log of completed consultations and past medical visits with clickable doctor notes.
+  * `Profile.jsx`: Parent account summary showing contact details and logout.
+* **Secretary Portal (`/secretary`)**:
+  * `Dashboard.jsx`: High-level summary grid of today's schedules and patient counts *(partially mock)*.
+  * `ValidateReservation.jsx`: Primary operational screen featuring camera-based QR scanning, manual code entry, and check-in confirmation modals.
+  * `ManageQueue.jsx`: Live monitoring dashboard separating patients into Waiting, Checked-In, In Consultation, and Completed stages with a "Call Next Patient" trigger.
+  * `Notifications.jsx`: *(Placeholder)* Intended for real-time secretary alerts.
+  * `Profile.jsx`: Secretary account info and logout.
+* **Doctor Portal (`/doctor`)**:
+  * `Home.jsx`: Welcome dashboard with quick action cards and analytics placeholder.
+  * `Schedules.jsx`: Wrapper view displaying the schedule management interface.
+  * `Queue.jsx`: Comprehensive clinical command center allowing doctors to control queue flow (Start, Pause, Close), view checked-in patients, conduct consultations, input medical notes, and complete sessions.
+  * `BranchConfiguration.jsx`: Administrative interface to create, edit, and configure clinic branches and weekly operating hours.
+  * `Reports.jsx`: *(Placeholder)* Intended for visual clinic analytics and patient statistics.
+  * `Profile.jsx`: Doctor account overview and logout.
+
+### Existing Components
+* **`ParentLayout.jsx` / `SecretaryLayout.jsx` / `Layout.jsx`**: Responsive navbar and sidebar wrappers providing navigation links, active route highlighting, role badges, and mobile menu toggles.
+* **`ConfirmationModal.jsx` / `MessageModal.jsx`**: Generic modal dialogs used across the application for destructive action confirmation (e.g., cancelling reservations, deleting schedules) and informational alerts.
+* **`ScheduleCard.jsx`**: Reusable card UI rendering clinic branch, date, time slot, capacity bar, and contextual action buttons based on status (`draft`, `published`, `completed`).
+* **`ScheduleFormModal.jsx`**: Form modal for creating and editing clinic schedules with date, time, branch, and slot capacity validation.
+* **`ReservationDetailsModal.jsx`**: Deep-dive view for parents displaying complete appointment metadata, QR code launcher, patient age/purpose, and cancellation triggers.
+* **`NotesDetailsModal.jsx`**: Clean modal interface allowing parents to read clinical notes and prescriptions recorded by the doctor.
+
+### Firebase Features
+* **Authentication**: Email/Password authentication enabled. Custom display names are synchronized upon registration.
+* **Database Usage**: Firebase Realtime Database is heavily utilized as the primary state store and live synchronization engine using `onValue` WebSocket connections.
+* **Storage**: Configured in `firebaseConfig.js` (`pediatric-clinic-queue-system.firebasestorage.app`), but **currently unused** in code (no image or document uploads implemented).
+* **Security Rules**: **Not found in codebase**. No `database.rules.json` file exists in the repository to document or enforce database server-side security rules.
+* **Admin Functionality & User Roles**: Role data (`parent`, `secretary`, `doctor`) is stored directly inside each user's database node (`users/{uid}/role`). There is **no admin interface or automated provisioning tool** within the application to create or promote users to `secretary` or `doctor` roles (these must currently be seeded or modified directly in the Firebase console).
+
+### APIs and Services
+* **Firebase SDK (Auth & RTDB)**: Primary cloud backend service.
+* **Browser Camera API / MediaDevices**: Accessed via `html5-qrcode` to capture video streams for real-time QR code decoding on mobile and desktop devices.
+
+---
+
+## Phase 4: Missing Features
+
+1. **Partially Implemented Features**:
+   * **Secretary Queue Management ([ManageQueue.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/secretary/ManageQueue.jsx#L61))**: The "Call Next Patient" button currently triggers a placeholder toast message (`"Notification feature coming soon."`) rather than sending an actual push notification or automated SMS/email alert to the parent.
+   * **Doctor & Secretary Dashboard Analytics**: [Home.jsx (Doctor)](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/doctor/Home.jsx#L39) and [Dashboard.jsx (Secretary)](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/secretary/Dashboard.jsx#L4) display hardcoded zero values or `"Coming Soon"` banners for active queue counts and recent activities.
+2. **Placeholder Code & Unused Components**:
+   * [ForgotPassword.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/auth/ForgotPassword.jsx): Completely empty file (0 bytes). Password recovery is not implemented.
+   * [Reports.jsx (Doctor)](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/doctor/Reports.jsx): Contains a static "Feature Under Development" UI with a list of future analytics goals.
+   * [Notifications.jsx (Secretary)](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/secretary/Notifications.jsx): Static placeholder displaying "No Notifications Yet / Coming Soon".
+   * `/server/server.js`: Unused Express backend skeleton.
+3. **Missing Validation & Error Handling**:
+   * **Profile Editing**: User profile screens ([Profile.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/parent/Profile.jsx)) are read-only. Users cannot update their name, phone number, or password.
+   * **Network & Offline Handling**: While `authErrors.js` maps basic auth errors, there is no global offline detection or reconnection handling if the WebSocket connection to Firebase RTDB drops during an active clinic session.
+4. **Missing Security**:
+   * **Client-Side Role Trust**: Because role verification relies entirely on reading `users/{uid}/role` from RTDB without documented server-side database rules or Firebase Custom Auth Claims, malicious users could potentially tamper with client state or send unauthorized mutations to RTDB if rules are open (`".write": true`).
+5. **Missing UI Polish**:
+   * **Audio/Visual Queue Calling**: When a doctor calls or starts a consultation, there is no sound alert or prominent visual flashing banner on the Parent's screen to grab their attention if they are waiting in the clinic lobby.
+
+---
+
+## Phase 5: Technical Debt
+
+1. **Large Monolithic Components (Candidate for Splitting)**:
+   * **[Queue.jsx (Doctor)](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/doctor/Queue.jsx)**: Exactly 787 lines (~41 KB). Encapsulates schedule selection, real-time queue data derivation, eligibility checking, consultation start/complete modals, doctor note input, queue state control (pause/close/end), and rendering four distinct patient lists. Should be split into sub-components (`QueueControls`, `PatientQueueList`, `ConsultationModal`, `QueueStatsHeader`).
+   * **[MyReservation.jsx (Parent)](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/parent/MyReservation.jsx)**: (~30 KB). Handles tab management, filtering, QR code generation modal, cancellation modal, and detail views in a single file.
+   * **[ReserveQueue.jsx (Parent)](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/parent/ReserveQueue.jsx)**: (~26 KB). Combines schedule filtering, date selection, branch operating hour lookups, and booking form submission.
+   * **[ValidateReservation.jsx (Secretary)](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/secretary/ValidateReservation.jsx)**: (~20 KB). Combines HTML5 video camera scanning logic, manual text search, and 9 different validation state modals.
+2. **Performance & Scalability Concerns**:
+   * **Unfiltered Global RTDB Subscriptions**: Functions like `subscribeToAllReservations` ([reservationService.js:L119](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/services/reservationService.js#L119)) and `subscribeToAllSchedules` attach `onValue` listeners to the **entire root collections** (`/reservations`, `/schedules`). As the clinic operates over months and accumulates thousands of records, downloading the entire database tree to every parent and secretary client on page load will cause severe network bandwidth spikes, memory bloat, and slow rendering. Queries should be indexed and filtered by date or active status (`orderByChild('createdAt')`, `equalTo(...)`).
+3. **State Management & Caching Issues**:
+   * Multiple independent pages set up identical listeners to `/reservations` and `/schedules` on mount and tear them down on unmount. There is no global state caching layer (such as React Query, SWR, or a global `QueueContext`), resulting in redundant network requests and momentary loading spinners when switching tabs.
+4. **Code Smells & Duplicate Logic**:
+   * Date and time formatting strings (`toLocaleDateString`, `toLocaleTimeString`) and permanent queue number index calculations are duplicated across `Dashboard.jsx`, `Queue.jsx`, `ManageQueue.jsx`, and `MyReservation.jsx`. These should be extracted into centralized utility helper functions.
+
+---
+
+## Phase 6: Development Roadmap
+
+### Estimated Project Completion: **70% Complete**
+The core functional loop (branch configuration -> schedule creation -> parent reservation -> QR validation -> check-in -> doctor consultation & notes) is robust, fully operational, and beautifully styled. The remaining 30% consists of analytics, notifications, backend security hardening, and refactoring for production scale.
+
+```mermaid
+pie title Project Completion Status
+    "Completed Core Features" : 70
+    "Pending Analytics & Reports" : 10
+    "Pending Notifications & Audio" : 10
+    "Security Hardening & Refactoring" : 10
+```
+
+### Prioritized Roadmap
+
+#### High Priority (Critical release blockers)
+1. **Firebase Security Rules (`database.rules.json`)**: Author and deploy strict RTDB security rules ensuring Parents can only create/read their own reservations, Secretaries can update check-in status, and Doctors/Admins have exclusive write access to schedules and clinical notes.
+2. **Database Query Optimization & Pagination**: Refactor `subscribeToAllReservations` to query only active or current-day reservations by default, preventing client memory overload.
+3. **Password Reset Implementation**: Build out [ForgotPassword.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/auth/ForgotPassword.jsx) using Firebase Auth `sendPasswordResetEmail`.
+4. **Role Provisioning / Admin Panel**: Implement a secure mechanism (or simple admin management page) to authorize and promote staff accounts to `secretary` or `doctor` without requiring direct Firebase Console access.
+
+#### Medium Priority (Usability improvements)
+5. **Real-Time Queue Notifications & Audio Alerts**: Implement audio chimes and browser notifications when a patient's queue number is called or when the queue status changes from `not_started` to `active`.
+6. **Profile Editing Capabilities**: Enable users to update their contact number, display name, and account password from their Profile screens.
+7. **Component Refactoring**: Split monolithic files (`doctor/Queue.jsx`, `parent/MyReservation.jsx`, `secretary/ValidateReservation.jsx`) into modular, maintainable sub-components.
+8. **Secretary Dashboard Live Statistics**: Replace hardcoded `"0"` and `"Coming Soon"` strings in [Dashboard.jsx (Secretary)](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/secretary/Dashboard.jsx) with real-time derived counts from active schedules.
+
+#### Low Priority (Nice-to-have enhancements)
+9. **Doctor Reports & Visual Analytics**: Build charts in [Reports.jsx](file:///c:/Users/canil/OneDrive/Documents/CAPSTONE-PROJECT/pediatric-clinic-queue-system/client/src/pages/doctor/Reports.jsx) using a lightweight library (e.g., Recharts or Chart.js) to show daily patient volume, average wait times, and consultation trends.
+10. **SMS / WhatsApp Integration**: Integrate an external messaging API (e.g., Twilio or Semaphore) via the Express server or Firebase Cloud Functions to send SMS reminders when a patient is 3 slots away from consultation.
+11. **Offline Support / PWA Enhancements**: Add service worker caching and offline fallback indicators for mobile clinic users with unstable internet.
+
+---
+
+## Phase 7: Recommendations
+
+### 1. Refactoring & Code Organization
+* **Extract Queue Math Utilities**: Create `/client/src/utils/queueUtils.js` containing standardized functions for calculating permanent queue numbers (`pNum`), formatting clinic timestamps, and sorting active lines.
+* **Decompose UI Views**: Move inline modal dialogs out of page components and into `/src/components/queue/` or `/src/components/reservation/` directories.
+
+### 2. Security Improvements
+* **Implement Firebase Custom Claims**: Instead of storing user roles in accessible RTDB nodes, use Firebase Admin SDK (via the `/server` backend or Cloud Functions) to set Custom Auth Claims (`{ role: 'doctor' }`). This ensures roles are cryptographically signed inside the user's ID token and cannot be spoofed.
+* **Lock Down Database Rules**: Ensure `.read` and `.write` rules in RTDB validate schemas and check `auth.token.role === 'doctor'` before allowing schedule modifications.
+
+### 3. Performance & State Caching
+* **Implement React Query or Global State Context**: Wrap real-time Firebase subscriptions in a custom React Context (`QueueProvider`) or TanStack Query subscription. This prevents multiple components from simultaneously downloading the same reservation nodes and provides instant cached data when switching routes.
+* **Server-Side Filtering**: Use RTDB query constraints:
+  ```javascript
+  // Example: Query only today's schedules instead of the entire database
+  const today = new Date().toISOString().split('T')[0];
+  const schedulesQuery = query(ref(database, "schedules"), orderByChild("clinicDate"), equalTo(today));
+  ```
+
+### 4. UI/UX Polish
+* **Audible Call Notifications**: Add a subtle bell chime using HTML5 Audio when the Secretary or Doctor clicks "Call Next Patient", ensuring parents in the waiting room immediately look at the queue display.
+* **Skeleton Loading States**: Replace spinning loader circles with polished UI skeleton screens during initial data fetching to prevent layout shifts.
+
+---
+
+## Phase 8: Final Summary
+
+### What has been accomplished
+The project has successfully achieved a feature-complete **core operational loop**:
+* Complete multi-branch configuration with customizable weekly operating hours and pattern migration.
+* End-to-end doctor schedule lifecycle management (draft, publish, pause, close, complete).
+* Seamless parent slot reservation with automated 6-character code and QR code generation.
+* Fast, camera-integrated QR code scanning and validation for secretaries with granular status feedback.
+* A robust, centralized queue eligibility engine that handles real-time line order, blocking statuses, and clinical note logging.
+
+### What is currently in progress
+* Real-time queue monitoring is live, but secondary notification triggers (such as alerting parents when their turn is approaching or called) are currently represented as placeholder toasts.
+* Dashboard statistics and overview grids for Secretaries and Doctors are structurally built but awaiting data wiring.
+
+### What is left to build
+* **Security & Access Control**: Formal Firebase RTDB security rules and automated staff role provisioning.
+* **Analytics**: Historical reporting graphs and performance metrics in the Doctor portal.
+* **User Account Management**: Password recovery and profile editing forms.
+* **Production Query Optimization**: Filtering RTDB subscriptions by date and status.
+
+### Biggest Risks
+1. **Unfiltered Database Queries**: Subscribing to the root `/reservations` node without pagination will lead to performance degradation and high Firebase bandwidth costs once the database accumulates thousands of records over time.
+2. **Missing Database Security Rules**: Operating without a strict `database.rules.json` configuration exposes the clinic's patient records to unauthorized read/write access if deployed to production.
+
+### Next 10 Recommended Development Tasks
+1. **Task 1:** Write and deploy comprehensive Firebase Realtime Database Security Rules (`database.rules.json`).
+2. **Task 2:** Refactor `subscribeToAllReservations` in `reservationService.js` to accept query constraints (filtering by `scheduleId` or date range).
+3. **Task 3:** Build the password reset form and integration in `pages/auth/ForgotPassword.jsx` using `sendPasswordResetEmail`.
+4. **Task 4:** Create a centralized `queueUtils.js` file to deduplicate queue position calculations and timestamp formatting across all portals.
+5. **Task 5:** Decompose `pages/doctor/Queue.jsx` into smaller sub-components (`QueueControls`, `PatientQueueList`, `ConsultationModal`).
+6. **Task 6:** Wire up real-time calculated metrics for the Secretary Dashboard (`pages/secretary/Dashboard.jsx`).
+7. **Task 7:** Implement an HTML5 Audio chime alert when a patient's status transitions to called/in consultation.
+8. **Task 8:** Enable profile editing (name, phone number) in `pages/parent/Profile.jsx` using `updateProfile` and RTDB updates.
+9. **Task 9:** Implement basic visual charts in `pages/doctor/Reports.jsx` to visualize daily patient volume and consultation counts.
+10. **Task 10:** Build a simple Admin user management interface (or script) to securely provision and manage Secretary and Doctor role assignments.
