@@ -32,7 +32,7 @@ export default function ReservationHistory() {
       unsub = subscribeToAllReservations((data) => {
         const history = data.filter(r => 
           r.parentId === user.uid && 
-          ["cancelled", "completed", "consultation_completed", "expired", "penalized"].includes(r.status)
+          ["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "penalized"].includes(r.status)
         );
         setReservations(history);
         setLoading(false);
@@ -50,7 +50,7 @@ export default function ReservationHistory() {
       if (activeFilter === "All") return true;
       if (activeFilter === "Completed") return ["completed", "consultation_completed"].includes(res.status);
       if (activeFilter === "Cancelled") return res.status === "cancelled";
-      if (activeFilter === "Expired") return res.status === "expired";
+      if (activeFilter === "Expired") return res.status === "expired" || res.status === "validation_expired";
       if (activeFilter === "Penalized") return res.status === "penalized";
       if (activeFilter === "With Notes") {
         return ["completed", "consultation_completed"].includes(res.status) && !!res.doctorNotes && res.doctorNotes.trim() !== "";
@@ -70,8 +70,8 @@ export default function ReservationHistory() {
     if (status === "cancelled") {
       return { label: "Cancelled", color: "bg-red-100 text-red-700 border-red-200" };
     }
-    if (status === "expired") {
-      return { label: "Expired", color: "bg-slate-100 text-slate-700 border-slate-200" };
+    if (status === "expired" || status === "validation_expired") {
+      return { label: "Validation Expired", color: "bg-red-100 text-red-700 border-red-200" };
     }
     if (status === "penalized") {
       return { label: "Penalized", color: "bg-amber-100 text-amber-700 border-amber-200" };

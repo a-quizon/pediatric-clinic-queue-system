@@ -71,9 +71,13 @@ export default function ScheduleConfirmModal({
                 <span className="text-gray-500">Day</span>
                 <span className="font-bold text-gray-800">{formatDay(schedule.clinicDate)}</span>
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                 <span className="text-gray-500 flex items-center"><Clock className="w-4 h-4 mr-2 text-gray-400"/> Clinic Time</span>
                 <span className="font-bold text-gray-800">{formatTime(schedule.openingTime)} – {formatTime(schedule.closingTime)}</span>
+              </div>
+              <div className="flex justify-between items-center pt-1">
+                <span className="text-gray-500 flex items-center"><Clock className="w-4 h-4 mr-2 text-blue-500"/> Validation Window</span>
+                <span className="font-bold text-blue-600">{schedule.validationWindow || 15} minutes</span>
               </div>
             </div>
           </div>

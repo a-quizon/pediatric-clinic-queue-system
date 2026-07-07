@@ -14,8 +14,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
     openingTime: "",
     closingTime: "",
     slotCapacity: "",
-    validationWindow: "",
-    lateLimit: "",
+    validationWindow: "15",
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -35,8 +34,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
           openingTime: schedule.openingTime || "",
           closingTime: schedule.closingTime || "",
           slotCapacity: schedule.slotCapacity || "",
-          validationWindow: schedule.validationWindow || "",
-          lateLimit: schedule.lateLimit || "",
+          validationWindow: schedule.validationWindow || "15",
         });
       } else {
         setFormData(initialFormState);
@@ -112,7 +110,6 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
         closingTime: formData.closingTime,
         slotCapacity: Number(formData.slotCapacity),
         validationWindow: Number(formData.validationWindow),
-        lateLimit: Number(formData.lateLimit),
       };
 
       if (mode === "create") {
@@ -218,35 +215,20 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="validationWindow" className="block text-sm font-semibold text-gray-700 mb-1.5">Validation Window (mins)</label>
-                <input
-                  type="number"
-                  id="validationWindow"
-                  name="validationWindow"
-                  value={formData.validationWindow}
-                  onChange={handleChange}
-                  required
-                  min="0"
-                  disabled={loading}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 text-gray-800"
-                />
-              </div>
-              <div>
-                <label htmlFor="lateLimit" className="block text-sm font-semibold text-gray-700 mb-1.5">Late Limit (Times Allowed)</label>
-                <input
-                  type="number"
-                  id="lateLimit"
-                  name="lateLimit"
-                  value={formData.lateLimit}
-                  onChange={handleChange}
-                  required
-                  min="0"
-                  disabled={loading}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 text-gray-800"
-                />
-              </div>
+            <div>
+              <label htmlFor="validationWindow" className="block text-sm font-semibold text-gray-700 mb-1.5">Validation Window (minutes)</label>
+              <input
+                type="number"
+                id="validationWindow"
+                name="validationWindow"
+                value={formData.validationWindow}
+                onChange={handleChange}
+                required
+                min="1"
+                max="60"
+                disabled={loading}
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 text-gray-800"
+              />
             </div>
           </form>
         </div>

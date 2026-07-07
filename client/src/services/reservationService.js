@@ -59,8 +59,26 @@ export const checkExistingReservationOnDate = async (parentId, clinicDate) => {
   return Object.values(reservations).some((res) => 
     res.parentId === parentId && 
     targetScheduleIds.includes(res.scheduleId) &&
-    !["cancelled", "completed", "consultation_completed", "expired", "forfeited"].includes(res.status)
+    !["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized"].includes(res.status)
   );
+};
+
+export const expireReservation = async (reservationId) => {
+  const resRef = ref(database, `reservations/${reservationId}`);
+  const snap = await get(resRef);
+  if (!snap.exists()) return;
+  const val = snap.val();
+  
+  // Only expire if currently awaiting arrival ('reserved' or 'waiting')
+  if (val.status === "reserved" || val.status === "waiting") {
+    const now = Date.now();
+    await update(resRef, {
+      status: "expired",
+      expiredAt: now,
+      // FUTURE-PROOFING: In Phase 2, when Validation Expired occurs, increment lateCount here:
+      // lateCount: (val.lateCount || 0) + 1
+    });
+  }
 };
 
 export const checkCompletedConsultationOnDate = async (parentId, clinicDate, doctorId = null) => {

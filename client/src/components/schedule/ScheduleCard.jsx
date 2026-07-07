@@ -87,9 +87,15 @@ export default function ScheduleCard({
           <Users className="w-4 h-4 mr-2 text-gray-400" />
           <span className="text-gray-600">Reserved: <span className="font-bold">{reservedCount !== undefined ? reservedCount : (schedule.slotCapacity - (availableSlots || schedule.slotCapacity))}</span></span>
         </div>
-        <div className="col-span-2 pt-2 mt-1 border-t border-gray-50 flex items-center text-sm">
-          <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
-          <span className="text-gray-600">Checked In: <span className="font-bold text-green-600">{checkedInCount !== undefined ? checkedInCount : 0}</span></span>
+        <div className="col-span-2 pt-2 mt-1 border-t border-gray-50 flex items-center justify-between text-sm">
+          <div className="flex items-center">
+            <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+            <span className="text-gray-600">Checked In: <span className="font-bold text-green-600">{checkedInCount !== undefined ? checkedInCount : 0}</span></span>
+          </div>
+          <div className="flex items-center">
+            <Clock className="w-4 h-4 mr-1.5 text-blue-500" />
+            <span className="text-gray-600">Validation Window: <span className="font-bold text-gray-800">{schedule.validationWindow || 15}m</span></span>
+          </div>
         </div>
       </div>
 

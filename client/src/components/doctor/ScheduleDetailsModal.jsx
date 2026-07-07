@@ -27,7 +27,7 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
   // Filter reservations for this schedule
   const scheduleReservations = reservations.filter(r => r.scheduleId === schedule.id);
 
-  const activeStatuses = ["reserved", "checked_in", "in_consultation"];
+  const activeStatuses = ["reserved", "checked_in", "in_consultation", "expired", "validation_expired"];
   
   const displayReservations = isCompletedSchedule 
     ? scheduleReservations.filter(r => r.status === 'completed' || r.status === 'cancelled').sort((a, b) => (a.queuePosition || 0) - (b.queuePosition || 0))
@@ -101,7 +101,7 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
           )}
 
           <div className="bg-gray-50 rounded-xl p-5 mb-8 border border-gray-100">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
               <div className="flex items-center text-gray-600">
                 <MapPin className="w-4 h-4 mr-2 text-gray-400" />
                 <span className="font-semibold">{schedule.branch} Branch</span>
@@ -113,6 +113,10 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
               <div className="flex items-center text-gray-600">
                 <Clock className="w-4 h-4 mr-2 text-gray-400" />
                 <span className="font-semibold">{formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}</span>
+              </div>
+              <div className="flex flex-col text-gray-600">
+                <span className="text-xs text-gray-400">Validation Window</span>
+                <span className="font-bold text-gray-800">{schedule.validationWindow || 15} minutes</span>
               </div>
             </div>
           </div>

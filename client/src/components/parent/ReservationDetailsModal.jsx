@@ -14,8 +14,8 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
     if (st === 'cancelled') {
       return { label: 'Cancelled', color: 'bg-red-100 text-red-700 border-red-200' };
     }
-    if (st === 'expired') {
-      return { label: 'Expired', color: 'bg-slate-100 text-slate-700 border-slate-200' };
+    if (st === 'expired' || st === 'validation_expired') {
+      return { label: 'Validation Expired', color: 'bg-red-100 text-red-700 border-red-200' };
     }
     if (st === 'penalized') {
       return { label: 'Penalized', color: 'bg-amber-100 text-amber-700 border-amber-200' };

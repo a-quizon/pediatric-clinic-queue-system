@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle } from "lucide-react";
 import { subscribeToAllReservations } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
+import { isReservationExpired } from "../../services/timeService";
 import toast from "react-hot-toast";
 
 export default function ManageQueue() {
@@ -36,7 +37,7 @@ export default function ManageQueue() {
   }
 
   // Derived states
-  const waitingPatients = reservations.filter(r => r.status === "reserved").sort((a, b) => a.queuePosition - b.queuePosition);
+  const waitingPatients = reservations.filter(r => r.status === "reserved" || r.status === "waiting" || r.status === "expired" || r.status === "validation_expired").sort((a, b) => a.queuePosition - b.queuePosition);
   const checkedInPatients = reservations.filter(r => r.status === "checked_in").sort((a, b) => a.queuePosition - b.queuePosition);
   const inConsultationPatients = reservations.filter(r => r.status === "in_consultation");
   const completedPatients = reservations.filter(r => r.status === "consultation_completed").sort((a, b) => b.consultationCompletedAt - a.consultationCompletedAt);
@@ -156,12 +157,18 @@ export default function ManageQueue() {
             {waitingPatients.length > 0 ? waitingPatients.map(res => {
               const schedule = schedules[res.scheduleId] || {};
               const isIncomplete = !res.childName || !res.age || !res.sex;
+              const expired = isReservationExpired(res, schedule) || ["expired", "validation_expired"].includes(res.status);
               return (
-                <div key={res.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-amber-400"></div>
+                <div key={res.id} className={`bg-white p-4 rounded-xl border ${expired ? 'border-red-200' : 'border-gray-200'} shadow-sm relative overflow-hidden`}>
+                  <div className={`absolute top-0 left-0 w-1 h-full ${expired ? 'bg-red-500' : 'bg-amber-400'}`}></div>
                   <div className="flex items-start justify-between mb-2">
                     <div className="font-bold text-gray-800 text-sm">{isIncomplete ? <span className="text-amber-600 italic">Incomplete Info</span> : res.childName}</div>
-                    <div className="text-xs font-black text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">#{res.queuePosition || "?"}</div>
+                    <div className="flex items-center gap-1.5">
+                      {expired && (
+                        <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100 uppercase">Validation Expired</span>
+                      )}
+                      <div className="text-xs font-black text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">#{res.queuePosition || "?"}</div>
+                    </div>
                   </div>
                   <div className="text-xs text-gray-500 flex flex-col gap-1 mt-3">
                     <div className="flex items-center"><Hash className="w-3.5 h-3.5 mr-1" /> Code: <b>{res.reservationCode}</b></div>

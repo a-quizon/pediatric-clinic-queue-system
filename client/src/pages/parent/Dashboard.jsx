@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
 import { subscribeToAllReservations } from "../../services/reservationService";
 import { getSchedules, subscribeToAllSchedules } from "../../services/scheduleService";
+import { isReservationExpired } from "../../services/timeService";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -30,7 +31,10 @@ export default function Dashboard() {
 
   const activeReservation = useMemo(() => {
     if (!user) return null;
-    return allReservations.find(r => r.parentId === user.uid && ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status));
+    const myRes = allReservations.filter(r => r.parentId === user.uid);
+    const active = myRes.find(r => ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status));
+    if (active) return active;
+    return myRes.find(r => ["expired", "validation_expired"].includes(r.status));
   }, [allReservations, user]);
 
   const schedule = activeReservation ? schedules[activeReservation.scheduleId] : null;
@@ -127,7 +131,8 @@ export default function Dashboard() {
       case 'cancelled':
         return { text: 'Cancelled', color: 'bg-red-100 text-red-700 border-red-200' };
       case 'expired':
-        return { text: 'Expired', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+      case 'validation_expired':
+        return { text: 'Validation Expired', color: 'bg-red-100 text-red-700 border-red-200' };
       default: 
         return { text: 'Unknown', color: 'bg-gray-100 text-gray-700 border-gray-200' };
     }
@@ -150,7 +155,11 @@ export default function Dashboard() {
     return { text: 'NOT STARTED', badgeClass: 'bg-amber-100 text-amber-700 border-amber-200' };
   };
 
-  const statusDisplay = activeReservation ? getStatusDisplay(activeReservation.status) : null;
+  const isExpired = useMemo(() => {
+    return activeReservation && isReservationExpired(activeReservation, schedule);
+  }, [activeReservation, schedule]);
+
+  const statusDisplay = activeReservation ? (isExpired ? getStatusDisplay("expired") : getStatusDisplay(activeReservation.status)) : null;
   const clinicStatusDisplay = getClinicQueueStatusDisplay();
 
   if (loading) {

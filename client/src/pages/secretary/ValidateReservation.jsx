@@ -3,8 +3,9 @@ import { QrCode, Type, Search, CheckCircle, User, MapPin, Calendar, Clock, Hash,
 import toast from "react-hot-toast";
 import { Html5Qrcode } from "html5-qrcode";
 import { useAuth } from "../../hooks/useAuth";
-import { validateReservationByCode, checkInReservation } from "../../services/reservationService";
+import { validateReservationByCode, checkInReservation, expireReservation } from "../../services/reservationService";
 import { getScheduleById } from "../../services/scheduleService";
+import { isReservationExpired } from "../../services/timeService";
 
 export default function ValidateReservation() {
   const { user } = useAuth();
@@ -113,7 +114,10 @@ export default function ValidateReservation() {
       return;
     }
 
-    if (["completed", "cancelled", "expired", "forfeited", "consultation_completed"].includes(reservation.status)) {
+    if (isReservationExpired(reservation, schedule) || ["completed", "cancelled", "expired", "validation_expired", "forfeited", "consultation_completed"].includes(reservation.status)) {
+      if (reservation.status === "reserved" || reservation.status === "waiting") {
+        await expireReservation(reservation.id);
+      }
       setShowExpiredModal(true);
     } else if (reservation.status === "in_consultation") {
       setShowInConsultationModal(true);
@@ -390,14 +394,14 @@ export default function ValidateReservation() {
       {showExpiredModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
-            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-200">
               <AlertCircle className="w-8 h-8" />
             </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">QR Code No Longer Valid</h2>
-            <p className="text-gray-500 mb-6">This reservation can no longer be checked in.</p>
+            <h2 className="text-xl font-black text-gray-800 mb-2">Validation Window Expired</h2>
+            <p className="text-sm text-gray-500 mb-6 font-medium">This reservation expired because check-in did not occur within the allowed validation window.</p>
             <button
               onClick={closeAllModals}
-              className="w-full py-3 font-bold rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
+              className="w-full py-3 font-bold rounded-xl text-white bg-red-600 hover:bg-red-700 transition-all shadow-sm"
             >
               OK
             </button>

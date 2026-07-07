@@ -1,5 +1,5 @@
 import { database } from "../firebase/database";
-import { ref, push, set, get, update, remove, onValue } from "firebase/database";
+import { ref, push, set, get, update, remove, onValue, serverTimestamp } from "firebase/database";
 import { getReservationsBySchedule } from "./reservationService";
 
 export const createSchedule = async ( scheduleData ) => {
@@ -60,6 +60,7 @@ export const publishSchedule = async ( scheduleId ) => {
   await update( ref(database, `schedules/${scheduleId}`), {
     status: "published", 
     queueStatus: "not_started", // Default queue status when published
+    queueStartedAt: null,
     isReady: false,
     publishedAt: Date.now(),
   });
@@ -73,10 +74,17 @@ export const moveToReady = async ( scheduleId ) => {
 };
 
 export const updateQueueStatus = async (scheduleId, queueStatus) => {
-  await update(ref(database, `schedules/${scheduleId}`), {
+  const updates = {
     queueStatus,
     [`queueStatusUpdatedAt`]: Date.now()
-  });
+  };
+  if (queueStatus === "active") {
+    const snap = await get(ref(database, `schedules/${scheduleId}`));
+    if (snap.exists() && !snap.val().queueStartedAt) {
+      updates.queueStartedAt = serverTimestamp();
+    }
+  }
+  await update(ref(database, `schedules/${scheduleId}`), updates);
 };
 
 export const completeSchedule = async ( scheduleId ) => {

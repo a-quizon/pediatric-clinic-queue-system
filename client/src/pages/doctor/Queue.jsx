@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { subscribeToPublishedSchedules, updateQueueStatus, completeSchedule } from "../../services/scheduleService";
-import { subscribeToAllReservations, startConsultation, completeConsultation } from "../../services/reservationService";
+import { subscribeToAllReservations, startConsultation, completeConsultation, expireReservation } from "../../services/reservationService";
 import { getNextEligiblePatient } from "../../services/queueEligibilityService";
+import { isReservationExpired } from "../../services/timeService";
 import { Activity, Play, Pause, Square, CheckCircle, User, AlertCircle, FileText, X, Clock, MapPin, Users, CheckCircle2, Lock } from "lucide-react";
 import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal";
 import toast from "react-hot-toast";
@@ -38,6 +39,25 @@ export default function Queue() {
     };
   }, []);
 
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!schedules || !reservations) return;
+    const active = schedules.find(s => s.status === 'published' && s.queueStatus === 'active');
+    if (!active || !active.queueStartedAt) return;
+    reservations.forEach(r => {
+      if (r.scheduleId === active.id && (r.status === 'reserved' || r.status === 'waiting')) {
+        if (isReservationExpired(r, active)) {
+          expireReservation(r.id);
+        }
+      }
+    });
+  }, [tick, schedules, reservations]);
+
   const activeSchedule = useMemo(() => {
     return schedules.find(s => s.status === 'published' && (s.queueStatus === 'active' || s.queueStatus === 'paused' || s.queueStatus === 'closed'));
   }, [schedules]);
@@ -64,7 +84,7 @@ export default function Queue() {
     completedConsultations,
     stats
   } = useMemo(() => {
-    const waitingValidation = scheduleReservations.filter(r => r.status === "reserved" || r.status === "waiting")
+    const waitingValidation = scheduleReservations.filter(r => r.status === "reserved" || r.status === "waiting" || r.status === "expired" || r.status === "validation_expired")
       .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
       
     const checkedIn = scheduleReservations.filter(r => r.status === "checked_in")
@@ -75,7 +95,7 @@ export default function Queue() {
     const completed = scheduleReservations.filter(r => r.status === "consultation_completed")
       .sort((a, b) => (b.consultationCompletedAt || 0) - (a.consultationCompletedAt || 0));
 
-    const reservedCount = scheduleReservations.filter(r => ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status)).length;
+    const reservedCount = scheduleReservations.filter(r => ["reserved", "waiting", "checked_in", "in_consultation", "expired", "validation_expired"].includes(r.status)).length;
     
     return {
       waitingValidationQueue: waitingValidation,
@@ -257,9 +277,14 @@ export default function Queue() {
               <MapPin className="w-5 h-5 mr-2 text-blue-600" />
               {activeSchedule.branch}
             </h2>
-            <div className="text-gray-500 text-sm mt-1 flex items-center">
-              <Clock className="w-4 h-4 mr-1.5" />
-              {new Date(activeSchedule.clinicDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            <div className="text-gray-500 text-sm mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="flex items-center">
+                <Clock className="w-4 h-4 mr-1.5" />
+                {new Date(activeSchedule.clinicDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </span>
+              <span className="flex items-center font-medium text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">
+                Validation Window: <strong className="ml-1">{activeSchedule.validationWindow || 15} mins</strong>
+              </span>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
@@ -505,19 +530,26 @@ export default function Queue() {
                 
                 {waitingValidationQueue.length > 0 ? (
                   <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                    {waitingValidationQueue.map(res => (
-                      <div key={res.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center font-bold text-gray-500 mr-3 text-sm">
-                            #{res.queuePosition}
+                    {waitingValidationQueue.map(res => {
+                      const expired = isReservationExpired(res, activeSchedule);
+                      return (
+                        <div key={res.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center font-bold text-gray-500 mr-3 text-sm">
+                              #{res.queuePosition}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-gray-700 text-sm">{res.childName || res.parentEmail}</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-semibold text-gray-700 text-sm">{res.childName || res.parentEmail}</div>
-                          </div>
+                          {expired ? (
+                            <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded uppercase border border-red-100">Validation Expired</span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded uppercase">Waiting Val</span>
+                          )}
                         </div>
-                        <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded uppercase">Waiting Val</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-4 text-sm text-gray-400">

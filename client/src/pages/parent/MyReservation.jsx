@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Ticket as TicketIcon, Clock, MapPin, CheckCircle2, XCircle, User, Maximize2, Download, Activity, AlertCircle, X } from "lucide-react";
 import QRCode from "qrcode";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
-import { subscribeToAllReservations, cancelReservation, updatePatientInfo } from "../../services/reservationService";
+import { subscribeToAllReservations, cancelReservation, updatePatientInfo, expireReservation } from "../../services/reservationService";
+import { isReservationExpired, getRemainingValidationTime, formatRemainingTime } from "../../services/timeService";
 import { useAuth } from "../../hooks/useAuth";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import toast from "react-hot-toast";
@@ -46,10 +47,29 @@ export default function MyReservation() {
 
   const activeReservation = useMemo(() => {
     if (!user) return null;
-    return allReservations.find(r => r.parentId === user.uid && ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status));
+    const myRes = allReservations.filter(r => r.parentId === user.uid);
+    const active = myRes.find(r => ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status));
+    if (active) return active;
+    return myRes.find(r => ["expired", "validation_expired"].includes(r.status));
   }, [allReservations, user]);
 
   const schedule = activeReservation ? schedules[activeReservation.scheduleId] : null;
+
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const isExpired = useMemo(() => {
+    return activeReservation && isReservationExpired(activeReservation, schedule);
+  }, [activeReservation, schedule, tick]);
+
+  useEffect(() => {
+    if (activeReservation && isExpired && (activeReservation.status === "reserved" || activeReservation.status === "waiting")) {
+      expireReservation(activeReservation.id);
+    }
+  }, [activeReservation, isExpired]);
 
   const permanentQueueNumber = useMemo(() => {
     if (!activeReservation || !allReservations) return null;
@@ -210,7 +230,8 @@ export default function MyReservation() {
       case 'cancelled': 
         return { text: 'Cancelled', color: 'bg-red-100 text-red-800 border-red-200' };
       case 'expired': 
-        return { text: 'Expired', color: 'bg-slate-100 text-slate-800 border-slate-200' };
+      case 'validation_expired': 
+        return { text: 'Validation Expired', color: 'bg-red-100 text-red-800 border-red-200' };
       case 'penalized': 
         return { text: 'Penalized', color: 'bg-amber-100 text-amber-800 border-amber-200' };
       default: 
@@ -219,7 +240,7 @@ export default function MyReservation() {
   };
 
   const isIncomplete = activeReservation && (!activeReservation.childName || !activeReservation.age || !activeReservation.sex);
-  const statusDisplay = activeReservation ? getStatusBadge(activeReservation.status) : null;
+  const statusDisplay = activeReservation ? (isExpired ? getStatusBadge("expired") : getStatusBadge(activeReservation.status)) : null;
 
   return (
     <div className="space-y-6 pb-8 relative">
@@ -295,40 +316,70 @@ export default function MyReservation() {
 
             {/* Section 3: Arrival Pass (Before Check-in) vs Arrival Confirmation (After Check-in) */}
             {!isValidated ? (
-              <div className="px-6 sm:px-8 py-4 text-center flex flex-col items-center bg-white">
-                <div className="bg-white p-3 rounded-3xl border border-gray-100 shadow-sm mb-4 w-52 h-52 sm:w-56 sm:h-56 flex items-center justify-center relative group">
-                  {qrImageUrl ? (
-                    <img src={qrImageUrl} alt="QR Arrival Pass" className="w-full h-full object-contain" />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-gray-400 text-xs">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
-                      Generating QR...
+              isExpired ? (
+                <div className="px-6 sm:px-8 py-8 text-center flex flex-col items-center bg-white">
+                  <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4 text-red-500 border border-red-100 shadow-sm">
+                    <AlertCircle className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-lg font-black text-gray-800 mb-1.5">Validation Window Expired</h3>
+                  <p className="text-xs sm:text-sm font-medium text-gray-500 max-w-xs leading-relaxed mb-6">
+                    You were unable to validate within the allowed time. Your queue reservation has expired.
+                  </p>
+                  <button
+                    onClick={() => navigate("/parent/reserve")}
+                    className="py-2.5 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-sm"
+                  >
+                    Reserve Another Slot
+                  </button>
+                </div>
+              ) : (
+                <div className="px-6 sm:px-8 py-4 text-center flex flex-col items-center bg-white">
+                  {/* Countdown Information Card */}
+                  {schedule?.queueStatus === 'active' && (
+                    <div className="bg-blue-50/80 border border-blue-100 rounded-2xl p-3.5 mb-4 w-full text-left shadow-2xs">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-bold text-gray-700">Validation Window</span>
+                        <span className="text-xs font-extrabold text-blue-700 font-mono">{formatRemainingTime(getRemainingValidationTime(schedule))} remaining</span>
+                      </div>
+                      <div className="text-[11px] text-gray-600 font-medium">
+                        Please validate your QR Code before the timer expires.
+                      </div>
                     </div>
                   )}
-                </div>
+                  <div className="bg-white p-3 rounded-3xl border border-gray-100 shadow-sm mb-4 w-52 h-52 sm:w-56 sm:h-56 flex items-center justify-center relative group">
+                    {qrImageUrl ? (
+                      <img src={qrImageUrl} alt="QR Arrival Pass" className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-gray-400 text-xs">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
+                        Generating QR...
+                      </div>
+                    )}
+                  </div>
 
-                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Reservation Code</span>
-                <div className="text-3xl font-black text-gray-800 tracking-wider mt-0.5 font-mono">
-                  {activeReservation.reservationCode || "------"}
-                </div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Reservation Code</span>
+                  <div className="text-3xl font-black text-gray-800 tracking-wider mt-0.5 font-mono">
+                    {activeReservation.reservationCode || "------"}
+                  </div>
 
-                <div className="flex flex-col items-center justify-center gap-2.5 mt-4 w-full">
-                  <button 
-                    onClick={() => setIsQrModalOpen(true)}
-                    className="w-full py-2.5 px-4 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl text-xs sm:text-sm transition-all shadow-2xs flex items-center justify-center focus:outline-none"
-                  >
-                    <Maximize2 className="w-4 h-4 mr-2" /> Expand QR Code
-                  </button>
-                  {activeReservation.status !== "checked_in" && activeReservation.status !== "in_consultation" && (
-                    <button
-                      onClick={() => handleCancelClick(activeReservation)}
-                      className="w-full py-2.5 px-4 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center focus:outline-none"
+                  <div className="flex flex-col items-center justify-center gap-2.5 mt-4 w-full">
+                    <button 
+                      onClick={() => setIsQrModalOpen(true)}
+                      className="w-full py-2.5 px-4 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl text-xs sm:text-sm transition-all shadow-2xs flex items-center justify-center focus:outline-none"
                     >
-                      <XCircle className="w-4 h-4 mr-1.5" /> Cancel Reservation
+                      <Maximize2 className="w-4 h-4 mr-2" /> Expand QR Code
                     </button>
-                  )}
+                    {activeReservation.status !== "checked_in" && activeReservation.status !== "in_consultation" && (
+                      <button
+                        onClick={() => handleCancelClick(activeReservation)}
+                        className="w-full py-2.5 px-4 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center focus:outline-none"
+                      >
+                        <XCircle className="w-4 h-4 mr-1.5" /> Cancel Reservation
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )
             ) : (
               <div className="px-6 sm:px-8 py-5 bg-white text-center">
                 <div className="bg-green-50 rounded-2xl p-6 border border-green-200 text-center flex flex-col items-center justify-center my-1 shadow-2xs">

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { subscribeToAllReservations } from "../../services/reservationService";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
+import { isReservationExpired } from "../../services/timeService";
 import QRCode from "qrcode";
 import toast from "react-hot-toast";
 import { Download, Copy, MapPin, CalendarDays, Activity, QrCode, AlertCircle, X } from "lucide-react";
@@ -137,7 +138,8 @@ export default function ParentQRCode() {
           </div>
           <h1 className="text-xl font-bold text-white mb-1">Reservation Key</h1>
           <p className="text-blue-100 text-sm font-medium">
-            {reservation.status === "checked_in" ? "Already Validated" : 
+            {isReservationExpired(reservation, schedule) ? "Validation Window Expired" :
+             reservation.status === "checked_in" ? "Already Validated" : 
              reservation.status === "in_consultation" ? "Currently In Consultation" :
              reservation.status === "consultation_completed" ? "Consultation Completed" :
              "Scan this at the clinic"}
@@ -200,6 +202,20 @@ export default function ParentQRCode() {
               {reservation.status === "consultation_completed" && (
                 <p className="text-gray-500 text-sm mt-2 font-medium">View details in Reservation History.</p>
               )}
+            </div>
+          ) : isReservationExpired(reservation, schedule) ? (
+            <div className="py-8 px-4 text-center w-full">
+              <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500 border border-red-100 shadow-sm">
+                <AlertCircle className="w-10 h-10" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Validation Window Expired</h2>
+              <p className="text-gray-500 text-sm mt-2 font-medium max-w-xs mx-auto">You were unable to validate within the allowed time. Your queue reservation has expired.</p>
+              <button
+                onClick={() => navigate("/parent/reserve")}
+                className="mt-6 py-2.5 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-sm"
+              >
+                Reserve Another Slot
+              </button>
             </div>
           ) : (
             <>
