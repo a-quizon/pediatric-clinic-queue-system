@@ -1,41 +1,12 @@
 import React from 'react';
 import { X, MapPin, CalendarDays, Clock, User, FileText, Activity, Hash } from 'lucide-react';
+import ReservationStatusBadge from '../common/ReservationStatusBadge';
 
 export default function ReservationDetailsModal({ isOpen, onClose, reservation, schedule }) {
   if (!isOpen || !reservation) return null;
 
   const sched = schedule || {};
   const status = reservation.status || 'unknown';
-
-  const getStatusBadge = (st) => {
-    if (['completed', 'consultation_completed'].includes(st)) {
-      return { label: 'Completed', color: 'bg-green-100 text-green-700 border-green-200' };
-    }
-    if (st === 'cancelled') {
-      return { label: 'Cancelled', color: 'bg-red-100 text-red-700 border-red-200' };
-    }
-    if (st === 'expired' || st === 'validation_expired') {
-      return { label: 'Validation Expired', color: 'bg-red-100 text-red-700 border-red-200' };
-    }
-    if (st === 'penalized') {
-      return { label: 'Penalized', color: 'bg-amber-100 text-amber-700 border-amber-200' };
-    }
-    if (st === 'in_consultation') {
-      return { label: 'In Consultation', color: 'bg-blue-100 text-blue-700 border-blue-200' };
-    }
-    if (st === 'validation_open') {
-      return { label: 'Validation Open', color: 'bg-green-100 text-green-700 border-green-200' };
-    }
-    if (st === 'waiting_for_window') {
-      return { label: 'Waiting for Window', color: 'bg-amber-100 text-amber-700 border-amber-200' };
-    }
-    if (st === 'checked_in' || st === 'validated') {
-      return { label: 'Checked In', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' };
-    }
-    return { label: st.replace('_', ' '), color: 'bg-gray-100 text-gray-700 border-gray-200 uppercase' };
-  };
-
-  const badge = getStatusBadge(status);
 
   const formatTime = (timeStr) => {
     if (!timeStr) return 'N/A';
@@ -129,9 +100,7 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
           {/* Status Badge Section */}
           <div className="flex items-center justify-between pt-1">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Status</span>
-            <span className={`px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-2xs ${badge.color}`}>
-              {badge.label}
-            </span>
+            <ReservationStatusBadge status={status} className="px-3.5 py-1" />
           </div>
 
           {/* Patient Information */}

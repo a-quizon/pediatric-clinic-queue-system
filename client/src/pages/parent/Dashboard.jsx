@@ -5,7 +5,8 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
 import { subscribeToAllReservations } from "../../services/reservationService";
 import { getSchedules, subscribeToAllSchedules } from "../../services/scheduleService";
-import { isReservationExpired } from "../../services/timeService";
+import { isReservationExpired, getRemainingValidationTime, formatRemainingTime } from "../../services/timeService";
+import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -59,6 +60,13 @@ export default function Dashboard() {
     } else {
       prevResStatusRef.current = null;
     }
+  }, [activeReservation?.status]);
+
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (activeReservation?.status !== "validation_open") return;
+    const interval = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(interval);
   }, [activeReservation?.status]);
 
   const getPermanentQueueNumber = (resId, scheduleId) => {
@@ -175,7 +183,7 @@ export default function Dashboard() {
     return activeReservation && isReservationExpired(activeReservation, schedule);
   }, [activeReservation, schedule]);
 
-  const statusDisplay = activeReservation ? (isExpired ? getStatusDisplay("expired") : getStatusDisplay(activeReservation.status)) : null;
+  const effectiveStatus = activeReservation ? (isExpired ? "expired" : activeReservation.status) : null;
   const clinicStatusDisplay = getClinicQueueStatusDisplay();
 
   if (loading) {
@@ -236,21 +244,33 @@ export default function Dashboard() {
                       #{permanentQueueNumber}
                     </div>
                   )}
-                  <div className="mt-3 flex flex-col sm:flex-row items-center justify-center gap-2.5 text-xs sm:text-sm font-bold text-gray-700">
-                    {statusDisplay && (
-                      <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-xs ${statusDisplay.color}`}>
-                        {statusDisplay.text}
-                      </span>
-                    )}
-                    <span className="flex items-center text-gray-600 font-semibold">
-                      <MapPin className="w-3.5 h-3.5 mr-1 text-red-500 inline flex-shrink-0" />
-                      {schedule.branch}{schedule.branch?.toLowerCase().includes('branch') ? '' : ' Branch'}
-                    </span>
-                  </div>
-                  <div className="mt-2.5 text-[11px] font-semibold text-gray-500 group-hover:underline">
-                    (Tap Queue #{permanentQueueNumber || ''} to view your reservation)
-                  </div>
                 </Link>
+
+                {/* Logical Reading Order: Reservation Status -> Validation Window (if open) -> Branch */}
+                <div className="mt-3.5 flex flex-col items-center justify-center gap-2">
+                  <ReservationStatusBadge status={effectiveStatus} className="shadow-2xs px-3 py-1" />
+
+                  {effectiveStatus === "validation_open" && schedule?.queueStatus === "active" && (
+                    <div className="inline-flex items-center justify-center bg-orange-50 border border-orange-200 text-orange-900 px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-2xs">
+                      <Clock className="w-3.5 h-3.5 text-orange-600 mr-1.5 flex-shrink-0 animate-pulse" />
+                      <span>Validation Window:</span>
+                      <span className="font-mono font-black ml-1 text-orange-700">
+                        {formatRemainingTime(getRemainingValidationTime(activeReservation, schedule))} remaining
+                      </span>
+                    </div>
+                  )}
+
+                  <span className="flex items-center text-gray-600 text-xs sm:text-sm font-semibold mt-1">
+                    <MapPin className="w-3.5 h-3.5 mr-1 text-red-500 inline flex-shrink-0" />
+                    {schedule.branch}{schedule.branch?.toLowerCase().includes('branch') ? '' : ' Branch'}
+                  </span>
+                </div>
+
+                <div className="mt-2.5 text-[11px] font-semibold text-gray-500">
+                  <Link to="/parent/reservations" className="hover:underline">
+                    (Tap Queue #{permanentQueueNumber || ''} to view your reservation)
+                  </Link>
+                </div>
               </div>
 
               {/* Section 3: AHEAD OF YOU */}

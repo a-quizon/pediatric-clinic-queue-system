@@ -7,6 +7,7 @@ import { subscribeToAllReservations, cancelReservation, updatePatientInfo, expir
 import { isReservationExpired, getRemainingValidationTime, formatRemainingTime } from "../../services/timeService";
 import { useAuth } from "../../hooks/useAuth";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
+import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 import toast from "react-hot-toast";
 
 export default function MyReservation() {
@@ -288,11 +289,7 @@ export default function MyReservation() {
                     Queue #{permanentQueueNumber || "-"}
                   </h2>
                 </div>
-                {statusDisplay && (
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wide border shadow-2xs bg-white text-blue-950 border-white/20`}>
-                    {statusDisplay.text}
-                  </span>
-                )}
+                <ReservationStatusBadge status={activeReservation.status} className="shadow-2xs" />
               </div>
 
               <div className="mt-5 pt-5 border-t border-white/15 grid grid-cols-2 gap-3 text-xs">
@@ -339,14 +336,14 @@ export default function MyReservation() {
               ) : (
                 <div className="px-6 sm:px-8 py-4 text-center flex flex-col items-center bg-white">
                   {/* Countdown Information Card */}
-                  {schedule?.queueStatus === 'active' && activeReservation.status !== 'waiting_for_window' && (
-                    <div className="bg-blue-50/80 border border-blue-100 rounded-2xl p-3.5 mb-4 w-full text-left shadow-2xs">
+                  {schedule?.queueStatus === 'active' && activeReservation.status === 'validation_open' && (
+                    <div className="bg-orange-50/90 border border-orange-200 rounded-2xl p-3.5 mb-4 w-full text-left shadow-2xs">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-bold text-gray-700">Validation Window</span>
-                        <span className="text-xs font-extrabold text-blue-700 font-mono">{formatRemainingTime(getRemainingValidationTime(schedule))} remaining</span>
+                        <span className="text-xs font-bold text-orange-900">Validation Window</span>
+                        <span className="text-xs font-black text-orange-700 font-mono">{formatRemainingTime(getRemainingValidationTime(activeReservation, schedule))} remaining</span>
                       </div>
-                      <div className="text-[11px] text-gray-600 font-medium">
-                        Please validate your QR Code before the timer expires.
+                      <div className="text-[11px] text-orange-800 font-medium">
+                        Please validate your QR Code at the clinic before the timer expires.
                       </div>
                     </div>
                   )}

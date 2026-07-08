@@ -5,6 +5,7 @@ import { getNextEligiblePatient } from "../../services/queueEligibilityService";
 import { isReservationExpired } from "../../services/timeService";
 import { Activity, Play, Pause, Square, CheckCircle, User, AlertCircle, FileText, X, Clock, MapPin, Users, CheckCircle2, Lock } from "lucide-react";
 import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal";
+import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 import toast from "react-hot-toast";
 
 export default function Queue() {
@@ -510,7 +511,7 @@ export default function Queue() {
                             <div className="text-xs text-gray-500">Checked in: {res.checkedInAt ? new Date(res.checkedInAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'N/A'}</div>
                           </div>
                         </div>
-                        <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">Checked In</span>
+                        <ReservationStatusBadge status="checked_in" />
                       </div>
                     ))}
                   </div>
@@ -542,15 +543,7 @@ export default function Queue() {
                               <div className="font-semibold text-gray-700 text-sm">{res.childName || res.parentEmail}</div>
                             </div>
                           </div>
-                          {expired ? (
-                            <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded uppercase border border-red-100">Validation Expired</span>
-                          ) : res.status === 'validation_open' ? (
-                            <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-1 rounded uppercase border border-green-200">Validation Open</span>
-                          ) : res.status === 'waiting_for_window' ? (
-                            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded uppercase border border-amber-200">Waiting for Window</span>
-                          ) : (
-                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded uppercase">Waiting Val</span>
-                          )}
+                          <ReservationStatusBadge status={expired ? "expired" : res.status} />
                         </div>
                       );
                     })}

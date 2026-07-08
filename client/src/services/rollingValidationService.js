@@ -6,8 +6,7 @@ const ACTIVE_PIPELINE_STATUSES = [
   "reserved",
   "waiting",
   "waiting_for_window",
-  "validation_open",
-  "checked_in"
+  "validation_open"
 ];
 
 /**
