@@ -12,6 +12,8 @@
 export const BLOCKING_STATUSES = [
   'reserved',
   'waiting',
+  'waiting_for_window',
+  'validation_open',
   'checked_in',
   // Future blocking statuses (e.g., 'grace_period') can be added here
 ];

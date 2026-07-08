@@ -48,7 +48,7 @@ export default function MyReservation() {
   const activeReservation = useMemo(() => {
     if (!user) return null;
     const myRes = allReservations.filter(r => r.parentId === user.uid);
-    const active = myRes.find(r => ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status));
+    const active = myRes.find(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation"].includes(r.status));
     if (active) return active;
     return myRes.find(r => ["expired", "validation_expired"].includes(r.status));
   }, [allReservations, user]);
@@ -66,7 +66,7 @@ export default function MyReservation() {
   }, [activeReservation, schedule, tick]);
 
   useEffect(() => {
-    if (activeReservation && isExpired && (activeReservation.status === "reserved" || activeReservation.status === "waiting")) {
+    if (activeReservation && isExpired && (activeReservation.status === "reserved" || activeReservation.status === "waiting" || activeReservation.status === "validation_open")) {
       expireReservation(activeReservation.id);
     }
   }, [activeReservation, isExpired]);
@@ -95,7 +95,7 @@ export default function MyReservation() {
     const compCount = completedList.length;
     
     const activeLine = resWithPNum
-      .filter(r => ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status))
+      .filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation"].includes(r.status))
       .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
     
     let servingText = "—";
@@ -128,7 +128,7 @@ export default function MyReservation() {
   const isValidated = activeReservation && (activeReservation.checkedIn || ["checked_in", "in_consultation", "consultation_completed", "completed"].includes(activeReservation.status));
 
   useEffect(() => {
-    if (activeReservation && activeReservation.reservationCode && !isValidated) {
+    if (activeReservation && activeReservation.reservationCode && !isValidated && activeReservation.status !== 'waiting_for_window') {
       const payload = {
         reservationId: activeReservation.id,
         reservationCode: activeReservation.reservationCode,
@@ -217,6 +217,10 @@ export default function MyReservation() {
 
   const getStatusBadge = (status) => {
     switch (status) {
+      case 'validation_open':
+        return { text: 'Validation Open', color: 'bg-green-100 text-green-800 border-green-200' };
+      case 'waiting_for_window':
+        return { text: 'Waiting for Window', color: 'bg-amber-100 text-amber-800 border-amber-200' };
       case 'reserved': 
       case 'waiting': 
         return { text: 'Awaiting Arrival', color: 'bg-blue-50 text-blue-700 border-blue-200' };
@@ -335,7 +339,7 @@ export default function MyReservation() {
               ) : (
                 <div className="px-6 sm:px-8 py-4 text-center flex flex-col items-center bg-white">
                   {/* Countdown Information Card */}
-                  {schedule?.queueStatus === 'active' && (
+                  {schedule?.queueStatus === 'active' && activeReservation.status !== 'waiting_for_window' && (
                     <div className="bg-blue-50/80 border border-blue-100 rounded-2xl p-3.5 mb-4 w-full text-left shadow-2xs">
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-xs font-bold text-gray-700">Validation Window</span>
@@ -346,16 +350,28 @@ export default function MyReservation() {
                       </div>
                     </div>
                   )}
-                  <div className="bg-white p-3 rounded-3xl border border-gray-100 shadow-sm mb-4 w-52 h-52 sm:w-56 sm:h-56 flex items-center justify-center relative group">
-                    {qrImageUrl ? (
-                      <img src={qrImageUrl} alt="QR Arrival Pass" className="w-full h-full object-contain" />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center text-gray-400 text-xs">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
-                        Generating QR...
+                  {activeReservation.status === 'waiting_for_window' ? (
+                    <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-6 mb-4 w-full text-center shadow-2xs flex flex-col items-center">
+                      <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 mb-3 shadow-xs">
+                        <Clock className="w-6 h-6" />
                       </div>
-                    )}
-                  </div>
+                      <h4 className="text-sm font-black text-amber-900 mb-1">Waiting for Validation Window</h4>
+                      <p className="text-xs text-amber-800/90 font-medium leading-relaxed max-w-xs mb-2">
+                        Please wait comfortably at home. Your validation window and QR code will unlock when your consultation turn approaches.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-white p-3 rounded-3xl border border-gray-100 shadow-sm mb-4 w-52 h-52 sm:w-56 sm:h-56 flex items-center justify-center relative group">
+                      {qrImageUrl ? (
+                        <img src={qrImageUrl} alt="QR Arrival Pass" className="w-full h-full object-contain" />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-gray-400 text-xs">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
+                          Generating QR...
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Reservation Code</span>
                   <div className="text-3xl font-black text-gray-800 tracking-wider mt-0.5 font-mono">
@@ -363,12 +379,14 @@ export default function MyReservation() {
                   </div>
 
                   <div className="flex flex-col items-center justify-center gap-2.5 mt-4 w-full">
-                    <button 
-                      onClick={() => setIsQrModalOpen(true)}
-                      className="w-full py-2.5 px-4 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl text-xs sm:text-sm transition-all shadow-2xs flex items-center justify-center focus:outline-none"
-                    >
-                      <Maximize2 className="w-4 h-4 mr-2" /> Expand QR Code
-                    </button>
+                    {activeReservation.status !== 'waiting_for_window' && (
+                      <button 
+                        onClick={() => setIsQrModalOpen(true)}
+                        className="w-full py-2.5 px-4 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl text-xs sm:text-sm transition-all shadow-2xs flex items-center justify-center focus:outline-none"
+                      >
+                        <Maximize2 className="w-4 h-4 mr-2" /> Expand QR Code
+                      </button>
+                    )}
                     {activeReservation.status !== "checked_in" && activeReservation.status !== "in_consultation" && (
                       <button
                         onClick={() => handleCancelClick(activeReservation)}

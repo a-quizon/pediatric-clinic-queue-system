@@ -20,15 +20,28 @@ export const getServerTime = () => {
 };
 
 /**
- * Calculates remaining validation window time in milliseconds for a schedule.
+ * Calculates remaining validation window time in milliseconds for a reservation.
  * Returns 0 if expired or if validation window is not active.
  */
-export const getRemainingValidationTime = (schedule) => {
-  if (!schedule || schedule.queueStatus !== "active" || !schedule.queueStartedAt) {
+export const getRemainingValidationTime = (reservation, schedule) => {
+  // Backwards compatibility if called with (schedule) only
+  let resObj = reservation;
+  let schedObj = schedule;
+  if (reservation && !schedule && (reservation.validationWindow || reservation.queueStatus)) {
+    schedObj = reservation;
+    resObj = null;
+  }
+
+  if (!schedObj || schedObj.queueStatus !== "active") {
     return 0;
   }
-  const windowMs = (Number(schedule.validationWindow) || 15) * 60 * 1000;
-  const expireTime = schedule.queueStartedAt + windowMs;
+  const windowMs = (Number(schedObj.validationWindow) || 15) * 60 * 1000;
+  
+  // Use independent validationWindowOpenedAt if available, otherwise fallback to schedule's queueStartedAt
+  const startTime = resObj?.validationWindowOpenedAt || schedObj.queueStartedAt;
+  if (!startTime) return 0;
+
+  const expireTime = startTime + windowMs;
   const remaining = expireTime - getServerTime();
   return Math.max(0, remaining);
 };
@@ -42,15 +55,18 @@ export const isReservationExpired = (reservation, schedule) => {
   if (reservation.status === "expired" || reservation.status === "validation_expired") {
     return true;
   }
-  // If reservation is already validated, cancelled, completed, or in consultation, it is not expired
-  if (["checked_in", "in_consultation", "consultation_completed", "completed", "cancelled", "forfeited", "penalized"].includes(reservation.status)) {
+  // If reservation is already validated, cancelled, completed, waiting for window, or in consultation, it is not expired
+  if (["checked_in", "in_consultation", "consultation_completed", "completed", "cancelled", "forfeited", "penalized", "waiting_for_window"].includes(reservation.status)) {
     return false;
   }
-  // Only reservations awaiting check-in ('reserved' or 'waiting') can expire
-  if (reservation.status === "reserved" || reservation.status === "waiting") {
-    if (schedule && schedule.queueStatus === "active" && schedule.queueStartedAt) {
+  // Only reservations whose window is open ('validation_open' or awaiting check-in 'reserved'/'waiting') can expire
+  if (reservation.status === "validation_open" || reservation.status === "reserved" || reservation.status === "waiting") {
+    if (schedule && schedule.queueStatus === "active") {
       const windowMs = (Number(schedule.validationWindow) || 15) * 60 * 1000;
-      return getServerTime() > schedule.queueStartedAt + windowMs;
+      const startTime = reservation.validationWindowOpenedAt || schedule.queueStartedAt;
+      if (startTime) {
+        return getServerTime() > startTime + windowMs;
+      }
     }
   }
   return false;

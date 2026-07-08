@@ -50,7 +50,7 @@ export default function Queue() {
     const active = schedules.find(s => s.status === 'published' && s.queueStatus === 'active');
     if (!active || !active.queueStartedAt) return;
     reservations.forEach(r => {
-      if (r.scheduleId === active.id && (r.status === 'reserved' || r.status === 'waiting')) {
+      if (r.scheduleId === active.id && (r.status === 'reserved' || r.status === 'waiting' || r.status === 'validation_open')) {
         if (isReservationExpired(r, active)) {
           expireReservation(r.id);
         }
@@ -84,7 +84,7 @@ export default function Queue() {
     completedConsultations,
     stats
   } = useMemo(() => {
-    const waitingValidation = scheduleReservations.filter(r => r.status === "reserved" || r.status === "waiting" || r.status === "expired" || r.status === "validation_expired")
+    const waitingValidation = scheduleReservations.filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "expired", "validation_expired"].includes(r.status))
       .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
       
     const checkedIn = scheduleReservations.filter(r => r.status === "checked_in")
@@ -95,7 +95,7 @@ export default function Queue() {
     const completed = scheduleReservations.filter(r => r.status === "consultation_completed")
       .sort((a, b) => (b.consultationCompletedAt || 0) - (a.consultationCompletedAt || 0));
 
-    const reservedCount = scheduleReservations.filter(r => ["reserved", "waiting", "checked_in", "in_consultation", "expired", "validation_expired"].includes(r.status)).length;
+    const reservedCount = scheduleReservations.filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation", "expired", "validation_expired"].includes(r.status)).length;
     
     return {
       waitingValidationQueue: waitingValidation,
@@ -544,8 +544,12 @@ export default function Queue() {
                           </div>
                           {expired ? (
                             <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded uppercase border border-red-100">Validation Expired</span>
+                          ) : res.status === 'validation_open' ? (
+                            <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-1 rounded uppercase border border-green-200">Validation Open</span>
+                          ) : res.status === 'waiting_for_window' ? (
+                            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded uppercase border border-amber-200">Waiting for Window</span>
                           ) : (
-                            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded uppercase">Waiting Val</span>
+                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded uppercase">Waiting Val</span>
                           )}
                         </div>
                       );

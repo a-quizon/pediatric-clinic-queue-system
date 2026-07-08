@@ -68,7 +68,7 @@ export default function ParentQRCode() {
   }, [reservation, schedulesMap]);
 
   useEffect(() => {
-    if (reservation && reservation.reservationCode) {
+    if (reservation && reservation.reservationCode && reservation.status !== 'waiting_for_window') {
       const payload = {
         reservationId: reservation.id,
         reservationCode: reservation.reservationCode,
@@ -119,6 +119,8 @@ export default function ParentQRCode() {
 
   const getStatusColor = (status) => {
     switch (status) {
+      case 'validation_open': return 'bg-green-50 text-green-600 border-green-100';
+      case 'waiting_for_window': return 'bg-amber-50 text-amber-600 border-amber-100';
       case 'reserved': return 'bg-blue-50 text-blue-600 border-blue-100';
       case 'waiting': return 'bg-orange-50 text-orange-600 border-orange-100';
       case 'validated': return 'bg-green-50 text-green-600 border-green-100';
@@ -217,6 +219,26 @@ export default function ParentQRCode() {
                 Reserve Another Slot
               </button>
             </div>
+          ) : reservation.status === 'waiting_for_window' ? (
+            <div className="py-8 px-4 text-center w-full">
+              <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-600 border border-amber-100 shadow-sm">
+                <AlertCircle className="w-10 h-10" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Waiting for Validation Window</h2>
+              <p className="text-gray-500 text-sm mt-2 font-medium max-w-xs mx-auto">Please wait comfortably at home. Your QR code will unlock when your consultation turn approaches.</p>
+              
+              <div className="mt-6 mb-2">
+                <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Reservation Code</span>
+                <div className="text-4xl font-black text-gray-800 tracking-wider mt-1">{reservation.reservationCode || "------"}</div>
+              </div>
+              <button 
+                onClick={handleCopyCode}
+                className="flex items-center mx-auto text-sm font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-4 py-2 rounded-lg mt-2 transition-colors"
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Copy Code
+              </button>
+            </div>
           ) : (
             <>
               {qrImageUrl ? (
@@ -289,7 +311,7 @@ export default function ParentQRCode() {
 
         {/* Footer Actions */}
         <div className="p-6 pt-0 bg-gray-50/50">
-          {qrImageUrl && schedule?.queueStatus !== 'ended' && schedule?.queueStatus !== 'completed' && reservation.status !== "in_consultation" && reservation.status !== "consultation_completed" && reservation.status !== "checked_in" && (
+          {qrImageUrl && schedule?.queueStatus !== 'ended' && schedule?.queueStatus !== 'completed' && reservation.status !== "waiting_for_window" && reservation.status !== "in_consultation" && reservation.status !== "consultation_completed" && reservation.status !== "checked_in" && (
             <a 
               href={qrImageUrl} 
               download={`reservation-${reservation.reservationCode || 'code'}.png`}

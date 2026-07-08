@@ -23,6 +23,12 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
     if (st === 'in_consultation') {
       return { label: 'In Consultation', color: 'bg-blue-100 text-blue-700 border-blue-200' };
     }
+    if (st === 'validation_open') {
+      return { label: 'Validation Open', color: 'bg-green-100 text-green-700 border-green-200' };
+    }
+    if (st === 'waiting_for_window') {
+      return { label: 'Waiting for Window', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+    }
     if (st === 'checked_in' || st === 'validated') {
       return { label: 'Checked In', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' };
     }

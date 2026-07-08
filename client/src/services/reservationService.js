@@ -1,5 +1,6 @@
 import { database } from "../firebase/database";
 import { ref, push, set, get, onValue, update } from "firebase/database";
+import { recalculateRollingValidation } from "./rollingValidationService";
 
 const generateReservationCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -20,6 +21,9 @@ export const createReservation = async (reservationData) => {
     createdAt: now,
     reservationCreatedAt: now,
   });
+  if (reservationData.scheduleId) {
+    await recalculateRollingValidation(reservationData.scheduleId);
+  }
   return reservationRef.key;
 };
 
@@ -69,8 +73,8 @@ export const expireReservation = async (reservationId) => {
   if (!snap.exists()) return;
   const val = snap.val();
   
-  // Only expire if currently awaiting arrival ('reserved' or 'waiting')
-  if (val.status === "reserved" || val.status === "waiting") {
+  // Only expire if currently whose validation window is open or awaiting arrival ('reserved', 'waiting', 'validation_open')
+  if (val.status === "reserved" || val.status === "waiting" || val.status === "validation_open") {
     const now = Date.now();
     await update(resRef, {
       status: "expired",
@@ -78,6 +82,9 @@ export const expireReservation = async (reservationId) => {
       // FUTURE-PROOFING: In Phase 2, when Validation Expired occurs, increment lateCount here:
       // lateCount: (val.lateCount || 0) + 1
     });
+    if (val.scheduleId) {
+      await recalculateRollingValidation(val.scheduleId);
+    }
   }
 };
 
@@ -117,7 +124,7 @@ export const calculateDynamicQueuePositions = (reservations) => {
   });
   
   let processedReservations = [];
-  const activeStatuses = ["reserved", "checked_in", "waiting"];
+  const activeStatuses = ["reserved", "checked_in", "waiting", "validation_open", "waiting_for_window"];
   
   Object.values(groupedBySchedule).forEach(scheduleReservations => {
     const active = scheduleReservations.filter(r => activeStatuses.includes(r.status)).sort((a, b) => a.createdAt - b.createdAt);
@@ -149,10 +156,13 @@ export const subscribeToAllReservations = (callback) => {
 };
 
 export const cancelReservation = async (reservationId) => {
+  const snap = await get(ref(database, `reservations/${reservationId}`));
+  const scheduleId = snap.exists() ? snap.val().scheduleId : null;
   await update(ref(database, `reservations/${reservationId}`), {
     status: "cancelled",
     cancelledAt: Date.now()
   });
+  if (scheduleId) await recalculateRollingValidation(scheduleId);
 };
 
 export const validateReservationByCode = async (code) => {
@@ -172,27 +182,36 @@ export const validateReservationByCode = async (code) => {
 };
 
 export const checkInReservation = async (reservationId, secretaryUid) => {
+  const snap = await get(ref(database, `reservations/${reservationId}`));
+  const scheduleId = snap.exists() ? snap.val().scheduleId : null;
   await update(ref(database, `reservations/${reservationId}`), {
     checkedIn: true,
     checkedInAt: Date.now(),
     checkedInBy: secretaryUid,
     status: "checked_in"
   });
+  if (scheduleId) await recalculateRollingValidation(scheduleId);
 };
 
 export const startConsultation = async (reservationId) => {
+  const snap = await get(ref(database, `reservations/${reservationId}`));
+  const scheduleId = snap.exists() ? snap.val().scheduleId : null;
   await update(ref(database, `reservations/${reservationId}`), {
     status: "in_consultation",
     consultationStartedAt: Date.now()
   });
+  if (scheduleId) await recalculateRollingValidation(scheduleId);
 };
 
 export const completeConsultation = async (reservationId, doctorNotes) => {
+  const snap = await get(ref(database, `reservations/${reservationId}`));
+  const scheduleId = snap.exists() ? snap.val().scheduleId : null;
   await update(ref(database, `reservations/${reservationId}`), {
     status: "consultation_completed",
     consultationCompletedAt: Date.now(),
     doctorNotes: doctorNotes || ""
   });
+  if (scheduleId) await recalculateRollingValidation(scheduleId);
 };
 
 export const updatePatientInfo = async (reservationId, patientInfo) => {

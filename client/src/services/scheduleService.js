@@ -1,11 +1,15 @@
 import { database } from "../firebase/database";
 import { ref, push, set, get, update, remove, onValue, serverTimestamp } from "firebase/database";
 import { getReservationsBySchedule } from "./reservationService";
+import { recalculateRollingValidation } from "./rollingValidationService";
 
 export const createSchedule = async ( scheduleData ) => {
   const scheduleRef = push(ref(database, "schedules"));
 
-  await set(scheduleRef, scheduleData);
+  await set(scheduleRef, {
+    ...scheduleData,
+    activeValidationQueue: Number(scheduleData.activeValidationQueue) || 3
+  });
 
   return scheduleRef.key;
 };
@@ -85,6 +89,9 @@ export const updateQueueStatus = async (scheduleId, queueStatus) => {
     }
   }
   await update(ref(database, `schedules/${scheduleId}`), updates);
+  if (queueStatus === "active") {
+    await recalculateRollingValidation(scheduleId);
+  }
 };
 
 export const completeSchedule = async ( scheduleId ) => {

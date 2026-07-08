@@ -37,7 +37,7 @@ export default function ManageQueue() {
   }
 
   // Derived states
-  const waitingPatients = reservations.filter(r => r.status === "reserved" || r.status === "waiting" || r.status === "expired" || r.status === "validation_expired").sort((a, b) => a.queuePosition - b.queuePosition);
+  const waitingPatients = reservations.filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "expired", "validation_expired"].includes(r.status)).sort((a, b) => a.queuePosition - b.queuePosition);
   const checkedInPatients = reservations.filter(r => r.status === "checked_in").sort((a, b) => a.queuePosition - b.queuePosition);
   const inConsultationPatients = reservations.filter(r => r.status === "in_consultation");
   const completedPatients = reservations.filter(r => r.status === "consultation_completed").sort((a, b) => b.consultationCompletedAt - a.consultationCompletedAt);
@@ -160,13 +160,17 @@ export default function ManageQueue() {
               const expired = isReservationExpired(res, schedule) || ["expired", "validation_expired"].includes(res.status);
               return (
                 <div key={res.id} className={`bg-white p-4 rounded-xl border ${expired ? 'border-red-200' : 'border-gray-200'} shadow-sm relative overflow-hidden`}>
-                  <div className={`absolute top-0 left-0 w-1 h-full ${expired ? 'bg-red-500' : 'bg-amber-400'}`}></div>
+                  <div className={`absolute top-0 left-0 w-1 h-full ${expired ? 'bg-red-500' : res.status === 'validation_open' ? 'bg-green-500' : res.status === 'waiting_for_window' ? 'bg-amber-300' : 'bg-amber-400'}`}></div>
                   <div className="flex items-start justify-between mb-2">
                     <div className="font-bold text-gray-800 text-sm">{isIncomplete ? <span className="text-amber-600 italic">Incomplete Info</span> : res.childName}</div>
-                    <div className="flex items-center gap-1.5">
-                      {expired && (
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      {expired ? (
                         <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100 uppercase">Validation Expired</span>
-                      )}
+                      ) : res.status === 'validation_open' ? (
+                        <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-200 uppercase">Validation Open</span>
+                      ) : res.status === 'waiting_for_window' ? (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 uppercase">Waiting for Window</span>
+                      ) : null}
                       <div className="text-xs font-black text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">#{res.queuePosition || "?"}</div>
                     </div>
                   </div>

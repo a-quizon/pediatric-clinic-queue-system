@@ -32,7 +32,7 @@ export default function Dashboard() {
   const activeReservation = useMemo(() => {
     if (!user) return null;
     const myRes = allReservations.filter(r => r.parentId === user.uid);
-    const active = myRes.find(r => ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status));
+    const active = myRes.find(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation"].includes(r.status));
     if (active) return active;
     return myRes.find(r => ["expired", "validation_expired"].includes(r.status));
   }, [allReservations, user]);
@@ -48,6 +48,18 @@ export default function Dashboard() {
       prevQueueStatusRef.current = schedule.queueStatus;
     }
   }, [schedule?.queueStatus]);
+
+  const prevResStatusRef = useRef(null);
+  useEffect(() => {
+    if (activeReservation) {
+      if (prevResStatusRef.current !== 'validation_open' && activeReservation.status === 'validation_open') {
+        toast.success("Validation Window Open!\nIt is now your turn. Please proceed to the clinic to validate your QR code.", { duration: 6000 });
+      }
+      prevResStatusRef.current = activeReservation.status;
+    } else {
+      prevResStatusRef.current = null;
+    }
+  }, [activeReservation?.status]);
 
   const getPermanentQueueNumber = (resId, scheduleId) => {
     const scheduleRes = allReservations
@@ -74,7 +86,7 @@ export default function Dashboard() {
     const compCount = completedList.length;
     
     const activeLine = resWithPNum
-      .filter(r => ["reserved", "waiting", "checked_in", "in_consultation"].includes(r.status))
+      .filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation"].includes(r.status))
       .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
     
     let servingText = "—";
@@ -119,6 +131,10 @@ export default function Dashboard() {
 
   const getStatusDisplay = (status) => {
     switch (status) {
+      case 'validation_open':
+        return { text: 'Validation Open', color: 'bg-green-100 text-green-700 border-green-200' };
+      case 'waiting_for_window':
+        return { text: 'Waiting for Window', color: 'bg-amber-100 text-amber-700 border-amber-200' };
       case 'reserved': 
       case 'waiting': 
         return { text: 'Awaiting Arrival', color: 'bg-gray-100 text-gray-700 border-gray-200' };
@@ -274,10 +290,16 @@ export default function Dashboard() {
               <p>The queue is closed to new reservations. Existing reservations will be served.</p>
             </div>
           )}
-          {schedule.queueStatus !== 'not_started' && (activeReservation.status === "reserved" || activeReservation.status === "waiting") && (
+          {schedule.queueStatus !== 'not_started' && activeReservation.status === 'waiting_for_window' && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-amber-800 flex items-center text-xs sm:text-sm font-semibold max-w-lg mx-auto animate-in fade-in">
               <AlertCircle className="w-4 h-4 text-amber-500 mr-2.5 flex-shrink-0" />
-              <p>Validate your QR upon arrival.</p>
+              <p>Please wait comfortably at home. Your validation window will open when your consultation approaches.</p>
+            </div>
+          )}
+          {schedule.queueStatus !== 'not_started' && (activeReservation.status === "reserved" || activeReservation.status === "waiting" || activeReservation.status === "validation_open") && (
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-3.5 text-green-800 flex items-center text-xs sm:text-sm font-semibold max-w-lg mx-auto animate-in fade-in">
+              <AlertCircle className="w-4 h-4 text-green-600 mr-2.5 flex-shrink-0" />
+              <p>Your validation window is OPEN! Please proceed to the clinic and scan your QR code.</p>
             </div>
           )}
         </div>

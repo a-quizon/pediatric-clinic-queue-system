@@ -22,6 +22,7 @@ export default function ValidateReservation() {
   const [showNotStartedModal, setShowNotStartedModal] = useState(false);
   const [showPausedModal, setShowPausedModal] = useState(false);
   const [showEndedModal, setShowEndedModal] = useState(false);
+  const [showWaitingForWindowModal, setShowWaitingForWindowModal] = useState(false);
 
   const [validatedDetails, setValidatedDetails] = useState(null);
 
@@ -115,10 +116,12 @@ export default function ValidateReservation() {
     }
 
     if (isReservationExpired(reservation, schedule) || ["completed", "cancelled", "expired", "validation_expired", "forfeited", "consultation_completed"].includes(reservation.status)) {
-      if (reservation.status === "reserved" || reservation.status === "waiting") {
+      if (reservation.status === "reserved" || reservation.status === "waiting" || reservation.status === "validation_open") {
         await expireReservation(reservation.id);
       }
       setShowExpiredModal(true);
+    } else if (reservation.status === "waiting_for_window") {
+      setShowWaitingForWindowModal(true);
     } else if (reservation.status === "in_consultation") {
       setShowInConsultationModal(true);
     } else if (reservation.checkedIn || reservation.status === "checked_in") {
@@ -205,6 +208,7 @@ export default function ValidateReservation() {
     setShowNotStartedModal(false);
     setShowPausedModal(false);
     setShowEndedModal(false);
+    setShowWaitingForWindowModal(false);
     setValidatedDetails(null);
   };
 
@@ -459,6 +463,25 @@ export default function ValidateReservation() {
             <button
               onClick={closeAllModals}
               className="w-full py-3 font-bold rounded-xl text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Waiting for Window Modal */}
+      {showWaitingForWindowModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
+            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Clock className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Validation Window Not Open Yet</h2>
+            <p className="text-gray-500 mb-6">This patient is still waiting for their validation window to open. They should wait until their turn approaches before checking in.</p>
+            <button
+              onClick={closeAllModals}
+              className="w-full py-3 font-bold rounded-xl text-white bg-amber-600 hover:bg-amber-700 shadow-sm transition-all"
             >
               Close
             </button>
