@@ -70,10 +70,15 @@ export default function ManageQueue() {
   // Region 1 data: Current active consultation(s)
   const inConsultationPatients = activeReservations.filter(r => r.status === "in_consultation");
 
-  // Region 2 data: Remaining patients waiting in line sorted strictly by original queue number
+  // Region 2 data: Remaining patients waiting in line sorted by current queue order (turn in line)
   const waitingQueue = activeReservations
     .filter(r => ["checked_in", "reserved", "waiting"].includes(r.status))
-    .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
+    .sort((a, b) => {
+      if (a.queueOrder !== undefined && b.queueOrder !== undefined) {
+        return a.queueOrder - b.queueOrder;
+      }
+      return (a.sortTimestamp || a.createdAt || 0) - (b.sortTimestamp || b.createdAt || 0);
+    });
 
   const formatTime = (timestamp) => {
     if (!timestamp) return "N/A";
@@ -177,7 +182,7 @@ export default function ManageQueue() {
                     <span className="text-[9px] uppercase font-bold leading-none opacity-80 mb-0.5">
                       Queue
                     </span>
-                    <span>#{res.queuePosition}</span>
+                    <span>#{res.queueNumber || res.queuePosition}</span>
                   </div>
                   <div className="min-w-0">
                     <h3 className="font-bold text-blue-950 text-base truncate">
@@ -250,7 +255,7 @@ export default function ManageQueue() {
                         <span className="text-[9px] uppercase font-bold leading-none opacity-80 mb-0.5">
                           Queue
                         </span>
-                        <span>#{res.queuePosition}</span>
+                        <span>#{res.queueNumber || res.queuePosition}</span>
                       </div>
 
                       <div className="min-w-0">

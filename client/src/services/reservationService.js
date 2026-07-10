@@ -12,11 +12,23 @@ const generateReservationCode = () => {
 };
 
 export const createReservation = async (reservationData) => {
+  const existingSnapshot = await get(ref(database, "reservations"));
+  let nextQueueNumber = 1;
+  if (existingSnapshot.exists()) {
+    const allRes = Object.values(existingSnapshot.val());
+    const scheduleRes = allRes.filter(r => r.scheduleId === reservationData.scheduleId);
+    const maxNum = scheduleRes.reduce((max, r) => Math.max(max, Number(r.queueNumber || r.originalQueueNumber || r.queuePosition || 0)), 0);
+    nextQueueNumber = maxNum + 1;
+  }
+
   const reservationRef = push(ref(database, "reservations"));
   const now = Date.now();
   await set(reservationRef, {
     ...reservationData,
     reservationCode: generateReservationCode(),
+    queueNumber: nextQueueNumber,
+    originalQueueNumber: nextQueueNumber,
+    queuePosition: nextQueueNumber,
     checkedIn: false,
     createdAt: now,
     reservationCreatedAt: now,
@@ -124,21 +136,34 @@ export const calculateDynamicQueuePositions = (reservations) => {
   });
   
   let processedReservations = [];
-  const activeStatuses = ["reserved", "checked_in", "waiting", "validation_open", "waiting_for_window"];
+  const activeStatuses = ["reserved", "checked_in", "waiting", "in_consultation", "validation_open", "waiting_for_window"];
   
   Object.values(groupedBySchedule).forEach(scheduleReservations => {
-    const active = scheduleReservations
+    // 1. Assign/preserve permanent Queue Number based on creation order
+    const sortedByCreation = [...scheduleReservations].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    const withPermanentNumber = sortedByCreation.map((r, i) => {
+      const permanentNum = r.queueNumber || r.originalQueueNumber || (i + 1);
+      return {
+        ...r,
+        queueNumber: permanentNum,
+        originalQueueNumber: permanentNum,
+        queuePosition: permanentNum // permanent Queue Number displayed across all modules
+      };
+    });
+
+    // 2. Determine dynamic Queue Order for active pipeline
+    const active = withPermanentNumber
       .filter(r => activeStatuses.includes(r.status))
       .sort((a, b) => {
         const timeA = a.sortTimestamp || a.createdAt || 0;
         const timeB = b.sortTimestamp || b.createdAt || 0;
         return timeA - timeB;
       });
-    const inactive = scheduleReservations.filter(r => !activeStatuses.includes(r.status));
+    const inactive = withPermanentNumber.filter(r => !activeStatuses.includes(r.status));
     
     const rankedActive = active.map((r, index) => ({
       ...r,
-      queuePosition: index + 1
+      queueOrder: index + 1
     }));
     
     processedReservations = [...processedReservations, ...rankedActive, ...inactive];

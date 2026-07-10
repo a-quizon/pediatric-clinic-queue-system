@@ -51,10 +51,10 @@ export default function Queue() {
     const res = reservations.filter(r => r.scheduleId === activeSchedule.id);
     const sortedAll = [...res].sort((a, b) => a.createdAt - b.createdAt);
     return res.map(r => {
-      const idx = sortedAll.findIndex(item => item.id === r.id);
-      const permNum = idx >= 0 ? idx + 1 : (r.queuePosition || 1);
+      const permNum = r.queueNumber || r.originalQueueNumber || (idx >= 0 ? idx + 1 : (r.queuePosition || 1));
       return {
         ...r,
+        queueNumber: permNum,
         queuePosition: permNum,
         permanentQueueNumber: permNum
       };

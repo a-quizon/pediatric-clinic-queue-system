@@ -73,58 +73,9 @@ export default function MyReservation() {
   }, [activeReservation, isExpired]);
 
   const permanentQueueNumber = useMemo(() => {
-    if (!activeReservation || !allReservations) return null;
-    const scheduleRes = allReservations
-      .filter(r => r.scheduleId === activeReservation.scheduleId)
-      .sort((a, b) => a.createdAt - b.createdAt);
-    const index = scheduleRes.findIndex(r => r.id === activeReservation.id);
-    return index >= 0 ? index + 1 : null;
-  }, [allReservations, activeReservation]);
-
-  const { nowServingText, patientsAhead } = useMemo(() => {
-    if (!activeReservation || !schedule) return { nowServingText: "—", patientsAhead: 0 };
-    
-    const scheduleRes = allReservations
-      .filter(r => r.scheduleId === activeReservation.scheduleId)
-      .sort((a, b) => a.createdAt - b.createdAt);
-    
-    // Assign permanent queue numbers
-    const resWithPNum = scheduleRes.map((r, idx) => ({ ...r, pNum: idx + 1 }));
-    
-    const inConsultation = resWithPNum.find(r => r.status === "in_consultation");
-    const completedList = resWithPNum.filter(r => r.status === "consultation_completed");
-    const compCount = completedList.length;
-    
-    const activeLine = resWithPNum
-      .filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation"].includes(r.status))
-      .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
-    
-    let servingText = "—";
-    if (schedule.queueStatus === 'not_started') {
-      servingText = "—";
-    } else if (schedule.status === 'completed' || schedule.queueStatus === 'completed' || schedule.queueStatus === 'ended') {
-      servingText = "Completed";
-    } else if (inConsultation) {
-      servingText = `Queue #${inConsultation.pNum}`;
-    } else if (compCount > 0) {
-      servingText = `Queue #${compCount}`;
-    } else {
-      servingText = "Starting soon";
-    }
-
-    let ahead = 0;
-    if (activeReservation.status === "in_consultation" || activeReservation.status === "consultation_completed") {
-      ahead = 0;
-    } else {
-      const myIndex = activeLine.findIndex(r => r.id === activeReservation.id);
-      ahead = myIndex >= 0 ? myIndex : 0;
-    }
-
-    return { 
-      nowServingText: servingText,
-      patientsAhead: ahead
-    };
-  }, [allReservations, activeReservation, schedule]);
+    if (!activeReservation) return null;
+    return activeReservation.queueNumber || activeReservation.originalQueueNumber || activeReservation.queuePosition || null;
+  }, [activeReservation]);
 
   const isValidated = activeReservation && (activeReservation.checkedIn || ["checked_in", "in_consultation", "consultation_completed", "completed"].includes(activeReservation.status));
 
@@ -392,44 +343,6 @@ export default function MyReservation() {
             )}
 
             {/* Section 4: Boarding Pass Cutout Divider */}
-            <div className="relative bg-white flex items-center justify-between px-2 py-3">
-              <div className="w-6 h-6 bg-gray-50 rounded-full -ml-5 border-r border-gray-200/80 shadow-inner"></div>
-              <div className="flex-1 border-t-2 border-dashed border-gray-200 mx-2"></div>
-              <div className="w-6 h-6 bg-gray-50 rounded-full -mr-5 border-l border-gray-200/80 shadow-inner"></div>
-            </div>
-
-            {/* Section 5: Real-Time Queue Information */}
-            <div className="px-6 sm:px-8 py-4 bg-white">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center text-left">
-                <Activity className="w-3.5 h-3.5 mr-1.5 text-green-500" /> Queue Information
-              </h3>
-              <div className="bg-gradient-to-r from-blue-50/70 to-indigo-50/70 rounded-2xl p-4 border border-blue-100/80 space-y-3 text-center">
-                <div className="grid grid-cols-2 gap-4 pb-3 border-b border-blue-200/50">
-                  <div className="border-r border-blue-200/60 pr-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block mb-0.5">Now Serving</span>
-                    <div className="text-lg sm:text-xl font-black text-gray-800">
-                      {nowServingText}
-                    </div>
-                  </div>
-                  <div className="pl-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block mb-0.5">Ahead of You</span>
-                    <div className="text-lg sm:text-xl font-black text-gray-800">
-                      {schedule?.queueStatus === 'not_started' ? '—' : 
-                       activeReservation.status === 'in_consultation' ? '0 Remaining' :
-                       patientsAhead > 0 ? `${patientsAhead} Remaining` : '0 Remaining'}
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block mb-0.5">Clinic Queue Status</span>
-                  <div className="text-sm font-extrabold text-gray-800">
-                    {schedule ? (schedule.queueStatus === 'in_progress' ? 'In Progress' : schedule.queueStatus === 'paused' ? 'Paused' : schedule.queueStatus === 'completed' || schedule.queueStatus === 'ended' ? 'Completed' : 'Not Started') : 'Unknown'}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 6: Boarding Pass Cutout Divider */}
             <div className="relative bg-white flex items-center justify-between px-2 py-3">
               <div className="w-6 h-6 bg-gray-50 rounded-full -ml-5 border-r border-gray-200/80 shadow-inner"></div>
               <div className="flex-1 border-t-2 border-dashed border-gray-200 mx-2"></div>
