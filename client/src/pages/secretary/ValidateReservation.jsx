@@ -332,61 +332,42 @@ export default function ValidateReservation() {
         </div>
       </div>
 
-      {/* Pending Validation List */}
-      <div className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-lg font-bold text-gray-800 flex items-center">
-              <Clock className="w-5 h-5 mr-2 text-blue-600" />
-              Pending Arrival Check-Ins
-            </h2>
-            <p className="text-gray-500 text-xs mt-0.5">
-              {activeSchedule
-                ? `Showing patients awaiting QR code or reservation code check-in at ${activeSchedule.branch}`
-                : "Queue has not started yet or no active schedule."}
-            </p>
-          </div>
-          <span className="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-full border border-blue-100">
-            {pendingCheckIns.length} Pending
-          </span>
-        </div>
-
-        {pendingCheckIns.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pendingCheckIns.map((res) => (
-              <div key={res.id} className="p-4 rounded-xl border border-gray-200 hover:border-blue-200 bg-gray-50/50 hover:bg-blue-50/20 transition-all flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-black text-gray-700 bg-white px-2.5 py-1 rounded-lg border border-gray-200 shadow-2xs">
-                      #{res.queuePosition || "?"}
-                    </span>
-                    <span className="text-xs font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                      {res.reservationCode}
-                    </span>
-                  </div>
-                  <div className="font-bold text-gray-800 text-sm mb-1">{res.childName}</div>
-                  <div className="text-xs text-gray-500">
-                    Age: {res.age} • {res.sex}
-                  </div>
+      {/* Patients waiting for validation */}
+      {pendingCheckIns.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+          {pendingCheckIns.map((res) => (
+            <div key={res.id} className="p-4 rounded-2xl border border-gray-200 hover:border-blue-300 bg-white shadow-xs hover:shadow-sm transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-black text-gray-700 bg-gray-100 px-2.5 py-1 rounded-lg">
+                    #{res.queuePosition || "?"}
+                  </span>
+                  <span className="text-xs font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                    {res.reservationCode}
+                  </span>
                 </div>
-                <button
-                  onClick={() => setReservationCode(res.reservationCode)}
-                  className="mt-4 w-full py-2 px-3 bg-white hover:bg-purple-600 text-purple-700 hover:text-white border border-purple-200 hover:border-purple-600 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs"
-                >
-                  <Type className="w-3.5 h-3.5" />
-                  Fill Code to Validate
-                </button>
+                <div className="font-bold text-gray-800 text-sm mb-1">{res.childName}</div>
+                <div className="text-xs text-gray-500">
+                  Age: {res.age} • {res.sex}
+                </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="p-8 text-center bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-            <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
-            <p className="text-sm font-bold text-gray-700">No pending check-ins</p>
-            <p className="text-xs text-gray-500 mt-1">All arrived patients for today&apos;s active queue have been checked in.</p>
-          </div>
-        )}
-      </div>
+              <button
+                onClick={() => setReservationCode(res.reservationCode)}
+                className="mt-4 w-full py-2 px-3 bg-gray-50 hover:bg-purple-600 text-purple-700 hover:text-white border border-purple-200 hover:border-purple-600 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+              >
+                <Type className="w-3.5 h-3.5" />
+                Fill Code to Validate
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="p-10 text-center bg-white rounded-2xl border border-gray-100 shadow-xs max-w-lg mx-auto">
+          <Clock className="w-10 h-10 text-blue-400 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-gray-800">No patients waiting for validation</h3>
+          <p className="text-xs text-gray-500 mt-1">Waiting for parents to arrive at the clinic</p>
+        </div>
+      )}
 
       {/* Paused Queue Modal */}
       {showPausedModal && (
