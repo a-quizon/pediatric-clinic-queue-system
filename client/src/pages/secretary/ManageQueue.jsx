@@ -64,29 +64,20 @@ export default function ManageQueue() {
     );
   }
 
-  // Active queue sorted by dynamic queue position for today's started schedule
+  // Active queue for today's started schedule
   const activeReservations = reservations.filter(r => r.scheduleId === activeStartedSchedule.id);
   
-  // Single continuous chronological queue (in consultation -> checked in / waiting in queuePosition order)
-  const continuousQueue = activeReservations
-    .filter(r => ["in_consultation", "checked_in", "reserved", "waiting"].includes(r.status))
-    .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
-
+  // Region 1 data: Current active consultation(s)
   const inConsultationPatients = activeReservations.filter(r => r.status === "in_consultation");
-  const firstWaitingOrCheckedInPatient = continuousQueue.find(r => ["checked_in", "reserved", "waiting"].includes(r.status));
-  
-  const completedPatients = activeReservations
-    .filter(r => ["consultation_completed", "completed", "penalized", "late_limit_reached", "cancelled"].includes(r.status))
-    .sort((a, b) => (b.consultationCompletedAt || b.penalizedAt || 0) - (a.consultationCompletedAt || a.penalizedAt || 0));
+
+  // Region 2 data: Remaining patients waiting in line sorted strictly by original queue number
+  const waitingQueue = activeReservations
+    .filter(r => ["checked_in", "reserved", "waiting"].includes(r.status))
+    .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
 
   const formatTime = (timestamp) => {
     if (!timestamp) return "N/A";
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
   const renderStatusBadge = (status) => {
@@ -149,176 +140,173 @@ export default function ManageQueue() {
     }
   };
 
+  const noActiveConsultation = inConsultationPatients.length === 0;
+
   return (
     <div className="space-y-6 pb-8 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-200 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Clinic Queue Line</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Live Clinic Floor Monitor</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            Real-time chronological queue flow for {activeStartedSchedule.branch || "Today's Clinic Session"}
+            Real-time active queue for {activeStartedSchedule.branch || "Today's Clinic Session"}
           </p>
         </div>
         <div className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full text-xs font-bold text-gray-700">
           <Users className="w-4 h-4 text-blue-600" />
-          <span>{continuousQueue.length} Active in Line</span>
+          <span>{inConsultationPatients.length + waitingQueue.length} Total Active</span>
         </div>
       </div>
 
-      {/* Continuous Chronological Waiting Line */}
+      {/* REGION 1 — CURRENT CONSULTATION */}
       <div className="space-y-3">
-        {continuousQueue.length > 0 ? (
-          continuousQueue.map((res, idx) => {
-            const schedule = schedules[res.scheduleId] || {};
-            const isFirstInQueue = res.id === firstWaitingOrCheckedInPatient?.id;
-            const canStartConsultation =
-              isFirstInQueue &&
-              res.status === "checked_in" &&
-              inConsultationPatients.length === 0;
-            const canPenalize =
-              isFirstInQueue &&
-              (res.status === "reserved" || res.status === "waiting");
+        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+          <Activity className="w-4 h-4 text-blue-600" />
+          Region 1 — Current Consultation
+        </h2>
 
-            return (
-              <div
-                key={res.id}
-                className={`p-4 sm:p-5 rounded-2xl border transition-all ${
-                  res.status === "in_consultation"
-                    ? "bg-blue-50/60 border-blue-300 shadow-sm"
-                    : isFirstInQueue
-                    ? "bg-white border-blue-200 ring-2 ring-blue-500/10 shadow-sm"
-                    : "bg-white border-gray-200 shadow-2xs hover:border-gray-300"
-                }`}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  {/* Left: Queue Number + Patient Detail */}
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div
-                      className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 font-black text-sm border ${
-                        res.status === "in_consultation"
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : isFirstInQueue
-                          ? "bg-gray-900 text-white border-gray-900"
-                          : "bg-gray-100 text-gray-700 border-gray-200"
-                      }`}
-                    >
-                      <span className="text-[9px] uppercase font-bold leading-none opacity-80 mb-0.5">
-                        Queue
-                      </span>
-                      <span>#{res.queuePosition || idx + 1}</span>
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-bold text-gray-800 text-base truncate">
-                          {res.childName || "Unnamed Patient"}
-                        </h3>
-                        {res.penaltyCount > 0 && (
-                          <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-200 uppercase">
-                            Late ({res.penaltyCount})
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-500 flex items-center gap-2 mt-1">
-                        <span>
-                          Age: {res.age || "N/A"} • {res.sex || "N/A"}
-                        </span>
-                        {schedule.branch && (
-                          <>
-                            <span className="text-gray-300">•</span>
-                            <span className="flex items-center gap-1 text-gray-600">
-                              <MapPin className="w-3 h-3" />
-                              {schedule.branch}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
+        {inConsultationPatients.length > 0 ? (
+          inConsultationPatients.map((res) => (
+            <div
+              key={res.id}
+              className="p-4 sm:p-5 rounded-2xl bg-blue-50/70 border-2 border-blue-400 shadow-sm transition-all"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex flex-col items-center justify-center shrink-0 font-black text-sm border border-blue-600 shadow-xs">
+                    <span className="text-[9px] uppercase font-bold leading-none opacity-80 mb-0.5">
+                      Queue
+                    </span>
+                    <span>#{res.queuePosition}</span>
                   </div>
-
-                  {/* Right: Status Badge & Context Action */}
-                  <div className="flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100 shrink-0">
-                    {renderStatusBadge(res.status)}
-
-                    {canStartConsultation && (
-                      <button
-                        onClick={() => handleStartConsultation(res)}
-                        disabled={actionLoading === res.id}
-                        className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
-                      >
-                        <PlayCircle className="w-4 h-4" />
-                        Start Consultation
-                      </button>
-                    )}
-
-                    {canPenalize && (
-                      <button
-                        onClick={() => handlePenalize(res)}
-                        disabled={actionLoading === res.id}
-                        className="py-2 px-4 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 border border-amber-300 active:scale-95 disabled:opacity-50"
-                        title="Penalize absent patient (#1 in line)"
-                      >
-                        <AlertTriangle className="w-4 h-4" />
-                        Penalize
-                      </button>
-                    )}
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-blue-950 text-base truncate">
+                      {res.childName || "Unnamed Patient"}
+                    </h3>
+                    <div className="text-xs text-blue-700 flex items-center gap-1.5 mt-1">
+                      <span>Inside Doctor Room</span>
+                      {res.consultationStartedAt && (
+                        <span>• Started at {formatTime(res.consultationStartedAt)}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-blue-200/50 shrink-0">
+                  {renderStatusBadge("in_consultation")}
+                </div>
               </div>
-            );
-          })
+            </div>
+          ))
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center max-w-lg mx-auto">
-            <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-gray-800">Active Queue is Empty</h3>
-            <p className="text-xs text-gray-500 mt-1">
-              No patients are currently waiting in line for today&apos;s active clinic session.
-            </p>
+          <div className="p-5 rounded-2xl bg-gray-50 border border-gray-200 text-center">
+            <p className="text-sm font-bold text-gray-700">No active consultation</p>
+            <p className="text-xs text-gray-500 mt-0.5">The consultation room is currently empty.</p>
           </div>
         )}
       </div>
 
-      {/* Completed & History Sub-section */}
-      {completedPatients.length > 0 && (
-        <div className="pt-6 border-t border-gray-200 mt-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
-              <CheckCircle className="w-4 h-4 text-purple-500" />
-              Completed &amp; History ({completedPatients.length})
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {completedPatients.map((res) => {
-              const isPenalized =
-                res.status === "penalized" || res.status === "late_limit_reached";
+      {/* REGION 2 — WAITING QUEUE & REGION 3 — EMPTY STATE */}
+      <div className="space-y-3 pt-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+            <Clock className="w-4 h-4 text-amber-500" />
+            Region 2 — Waiting Queue ({waitingQueue.length})
+          </h2>
+        </div>
+
+        {waitingQueue.length > 0 ? (
+          <div className="space-y-3">
+            {waitingQueue.map((res, idx) => {
+              const isFirstWaiting = idx === 0;
+              const canStartConsultation =
+                noActiveConsultation &&
+                isFirstWaiting &&
+                res.status === "checked_in";
+              const canPenalize =
+                noActiveConsultation &&
+                isFirstWaiting &&
+                (res.status === "reserved" || res.status === "waiting");
+
               return (
                 <div
                   key={res.id}
-                  className="bg-gray-50 p-3.5 rounded-xl border border-gray-200 flex items-center justify-between"
+                  className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                    isFirstWaiting && noActiveConsultation
+                      ? "bg-white border-blue-300 ring-2 ring-blue-500/10 shadow-sm"
+                      : "bg-white border-gray-200 shadow-2xs hover:border-gray-300"
+                  }`}
                 >
-                  <div>
-                    <div className="font-bold text-gray-700 text-sm">
-                      {res.childName || "Unnamed Patient"}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    {/* Left: Original Queue Number + Patient Name */}
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div
+                        className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 font-black text-sm border ${
+                          isFirstWaiting && noActiveConsultation
+                            ? "bg-gray-900 text-white border-gray-900"
+                            : "bg-gray-100 text-gray-700 border-gray-200"
+                        }`}
+                      >
+                        <span className="text-[9px] uppercase font-bold leading-none opacity-80 mb-0.5">
+                          Queue
+                        </span>
+                        <span>#{res.queuePosition}</span>
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-gray-800 text-base truncate">
+                            {res.childName || "Unnamed Patient"}
+                          </h3>
+                          {res.penaltyCount > 0 && (
+                            <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-200 uppercase">
+                              Late ({res.penaltyCount})
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      {isPenalized ? "Removed / Penalized" : "Consultation Completed"}
+
+                    {/* Right: Status Badge & Action Buttons */}
+                    <div className="flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100 shrink-0">
+                      {renderStatusBadge(res.status)}
+
+                      {canStartConsultation && (
+                        <button
+                          onClick={() => handleStartConsultation(res)}
+                          disabled={actionLoading === res.id}
+                          className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
+                        >
+                          <PlayCircle className="w-4 h-4" />
+                          Start Consultation
+                        </button>
+                      )}
+
+                      {canPenalize && (
+                        <button
+                          onClick={() => handlePenalize(res)}
+                          disabled={actionLoading === res.id}
+                          className="py-2 px-4 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 border border-amber-300 active:scale-95 disabled:opacity-50"
+                          title="Penalize absent patient (#1 waiting patient)"
+                        >
+                          <AlertTriangle className="w-4 h-4" />
+                          Penalize
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      isPenalized
-                        ? "bg-red-100 text-red-700"
-                        : "bg-green-100 text-green-700"
-                    }`}
-                  >
-                    {isPenalized ? "Late Limit" : "Completed"}
-                  </span>
                 </div>
               );
             })}
           </div>
-        </div>
-      )}
+        ) : (
+          /* REGION 3 — EMPTY STATE */
+          <div className="p-8 bg-white rounded-2xl border border-gray-200 text-center">
+            <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
+            <p className="text-sm font-bold text-gray-800">No patients waiting in the queue.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
