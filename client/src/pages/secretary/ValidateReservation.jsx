@@ -3,14 +3,16 @@ import { QrCode, Type, Search, CheckCircle, User, MapPin, Calendar, Clock, Hash,
 import toast from "react-hot-toast";
 import { Html5Qrcode } from "html5-qrcode";
 import { useAuth } from "../../hooks/useAuth";
-import { validateReservationByCode, checkInReservation, expireReservation } from "../../services/reservationService";
-import { getScheduleById } from "../../services/scheduleService";
+import { validateReservationByCode, checkInReservation, subscribeToAllReservations } from "../../services/reservationService";
+import { getScheduleById, subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { isReservationExpired } from "../../services/timeService";
 
 export default function ValidateReservation() {
   const { user } = useAuth();
   const [reservationCode, setReservationCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [allReservations, setAllReservations] = useState([]);
+  const [schedulesMap, setSchedulesMap] = useState({});
   
   // Modal states
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -47,6 +49,34 @@ export default function ValidateReservation() {
       stopScanner();
     };
   }, []);
+
+  useEffect(() => {
+    const unsubSchedules = subscribeToPublishedSchedules((data) => {
+      const map = {};
+      data.forEach(s => map[s.id] = s);
+      setSchedulesMap(map);
+    });
+
+    const unsubReservations = subscribeToAllReservations((data) => {
+      setAllReservations(data);
+    });
+
+    return () => {
+      unsubSchedules();
+      unsubReservations();
+    };
+  }, []);
+
+  const activeSchedule = Object.values(schedulesMap).find(s =>
+    s.status === "published" && ["active", "paused", "closed"].includes(s.queueStatus)
+  );
+
+  const pendingCheckIns = activeSchedule
+    ? allReservations.filter(r =>
+        r.scheduleId === activeSchedule.id &&
+        (r.status === "reserved" || r.status === "waiting")
+      ).sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999))
+    : [];
 
   const startScanner = async () => {
     if (!selectedCameraId) {
@@ -300,6 +330,62 @@ export default function ValidateReservation() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Pending Validation List */}
+      <div className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-lg font-bold text-gray-800 flex items-center">
+              <Clock className="w-5 h-5 mr-2 text-blue-600" />
+              Pending Arrival Check-Ins
+            </h2>
+            <p className="text-gray-500 text-xs mt-0.5">
+              {activeSchedule
+                ? `Showing patients awaiting QR code or reservation code check-in at ${activeSchedule.branch}`
+                : "Queue has not started yet or no active schedule."}
+            </p>
+          </div>
+          <span className="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-full border border-blue-100">
+            {pendingCheckIns.length} Pending
+          </span>
+        </div>
+
+        {pendingCheckIns.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingCheckIns.map((res) => (
+              <div key={res.id} className="p-4 rounded-xl border border-gray-200 hover:border-blue-200 bg-gray-50/50 hover:bg-blue-50/20 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-black text-gray-700 bg-white px-2.5 py-1 rounded-lg border border-gray-200 shadow-2xs">
+                      #{res.queuePosition || "?"}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                      {res.reservationCode}
+                    </span>
+                  </div>
+                  <div className="font-bold text-gray-800 text-sm mb-1">{res.childName}</div>
+                  <div className="text-xs text-gray-500">
+                    Age: {res.age} • {res.sex}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setReservationCode(res.reservationCode)}
+                  className="mt-4 w-full py-2 px-3 bg-white hover:bg-purple-600 text-purple-700 hover:text-white border border-purple-200 hover:border-purple-600 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs"
+                >
+                  <Type className="w-3.5 h-3.5" />
+                  Fill Code to Validate
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-8 text-center bg-gray-50 rounded-xl border border-gray-200 border-dashed">
+            <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
+            <p className="text-sm font-bold text-gray-700">No pending check-ins</p>
+            <p className="text-xs text-gray-500 mt-1">All arrived patients for today&apos;s active queue have been checked in.</p>
+          </div>
+        )}
       </div>
 
       {/* Paused Queue Modal */}

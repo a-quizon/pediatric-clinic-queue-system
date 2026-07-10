@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle, AlertTriangle, UserPlus } from "lucide-react";
-import { subscribeToAllReservations, startConsultation, checkInReservation, penalizeReservation } from "../../services/reservationService";
+import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle, AlertTriangle } from "lucide-react";
+import { subscribeToAllReservations, startConsultation, penalizeReservation } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
@@ -38,14 +38,41 @@ export default function ManageQueue() {
     );
   }
 
-  // Active queue sorted by dynamic queue position
-  const waitingPatients = reservations.filter(r => r.status === "reserved" || r.status === "waiting").sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
-  const checkedInPatients = reservations.filter(r => r.status === "checked_in").sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
-  const inConsultationPatients = reservations.filter(r => r.status === "in_consultation");
-  const completedPatients = reservations.filter(r => ["consultation_completed", "completed", "penalized", "late_limit_reached"].includes(r.status)).sort((a, b) => (b.consultationCompletedAt || b.penalizedAt || 0) - (a.consultationCompletedAt || a.penalizedAt || 0));
+  // Find active schedule started by the Doctor
+  const activeStartedSchedule = Object.values(schedules).find(s =>
+    s.status === "published" && ["active", "paused", "closed"].includes(s.queueStatus)
+  );
+
+  if (!activeStartedSchedule) {
+    return (
+      <div className="space-y-6 pb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Manage Queue</h1>
+          <p className="text-gray-500 text-sm mt-0.5">Control patient flow and consultations for today&apos;s active clinic session.</p>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-12 text-center max-w-xl mx-auto my-12 animate-in fade-in">
+          <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Clock className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Queue Has Not Started Yet</h2>
+          <p className="text-gray-500 text-sm leading-relaxed max-w-md mx-auto">
+            Today&apos;s clinic queue has not been started by the Doctor yet. Patients can reserve slots and check in via the Validate section upon arrival, but queue flow control will become active once the Doctor starts the queue.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Active queue sorted by dynamic queue position for today's started schedule
+  const activeReservations = reservations.filter(r => r.scheduleId === activeStartedSchedule.id);
+  const waitingPatients = activeReservations.filter(r => r.status === "reserved" || r.status === "waiting").sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
+  const checkedInPatients = activeReservations.filter(r => r.status === "checked_in").sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
+  const inConsultationPatients = activeReservations.filter(r => r.status === "in_consultation");
+  const completedPatients = activeReservations.filter(r => ["consultation_completed", "completed", "penalized", "late_limit_reached"].includes(r.status)).sort((a, b) => (b.consultationCompletedAt || b.penalizedAt || 0) - (a.consultationCompletedAt || a.penalizedAt || 0));
 
   // Determine who is #1 in line across all active patients
-  const activeQueue = reservations.filter(r => ["reserved", "checked_in"].includes(r.status)).sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
+  const activeQueue = activeReservations.filter(r => ["reserved", "checked_in"].includes(r.status)).sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
   const firstInQueueId = activeQueue.length > 0 ? activeQueue[0].id : null;
 
   const formatTime = (timestamp) => {
@@ -65,18 +92,6 @@ export default function ManageQueue() {
       toast.success(`Consultation started for ${res.childName}`);
     } catch (err) {
       toast.error("Failed to start consultation");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleCheckIn = async (res) => {
-    try {
-      setActionLoading(res.id);
-      await checkInReservation(res.id, user?.uid || "secretary");
-      toast.success(`${res.childName} checked in successfully`);
-    } catch (err) {
-      toast.error("Failed to check in patient");
     } finally {
       setActionLoading(null);
     }
@@ -238,24 +253,19 @@ export default function ManageQueue() {
                     <div className="flex items-center"><MapPin className="w-3.5 h-3.5 mr-1" /> {schedule.branch || "Unknown"}</div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-                    <button
-                      onClick={() => handleCheckIn(res)}
-                      disabled={actionLoading === res.id || isIncomplete}
-                      className="flex-1 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 shadow-sm"
-                    >
-                      <UserPlus className="w-3.5 h-3.5" />
-                      Check In
-                    </button>
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                    <span className="text-[11px] text-gray-400 italic">
+                      Awaiting QR Check-In via Validate
+                    </span>
                     {isFirstInEntireQueue && (
                       <button
                         onClick={() => handlePenalize(res)}
                         disabled={actionLoading === res.id}
-                        className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 border border-amber-200"
+                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 border border-amber-200"
                         title="Penalize absent patient (#1 in line)"
                       >
                         <AlertTriangle className="w-3.5 h-3.5" />
-                        Penalize
+                        Penalize ({res.penaltyCount || 0})
                       </button>
                     )}
                   </div>
