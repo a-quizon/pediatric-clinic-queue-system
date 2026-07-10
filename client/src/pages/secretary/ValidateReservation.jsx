@@ -115,13 +115,8 @@ export default function ValidateReservation() {
       return;
     }
 
-    if (isReservationExpired(reservation, schedule) || ["completed", "cancelled", "expired", "validation_expired", "forfeited", "consultation_completed"].includes(reservation.status)) {
-      if (reservation.status === "reserved" || reservation.status === "waiting" || reservation.status === "validation_open") {
-        await expireReservation(reservation.id);
-      }
+    if (["completed", "consultation_completed", "cancelled", "penalized", "late_limit_reached"].includes(reservation.status)) {
       setShowExpiredModal(true);
-    } else if (reservation.status === "waiting_for_window") {
-      setShowWaitingForWindowModal(true);
     } else if (reservation.status === "in_consultation") {
       setShowInConsultationModal(true);
     } else if (reservation.checkedIn || reservation.status === "checked_in") {

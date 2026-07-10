@@ -40,24 +40,7 @@ export default function Queue() {
     };
   }, []);
 
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const timer = setInterval(() => setTick(t => t + 1), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!schedules || !reservations) return;
-    const active = schedules.find(s => s.status === 'published' && s.queueStatus === 'active');
-    if (!active || !active.queueStartedAt) return;
-    reservations.forEach(r => {
-      if (r.scheduleId === active.id && (r.status === 'reserved' || r.status === 'waiting' || r.status === 'validation_open')) {
-        if (isReservationExpired(r, active)) {
-          expireReservation(r.id);
-        }
-      }
-    });
-  }, [tick, schedules, reservations]);
+  // Expiration check removed: QR codes remain valid until Check In, Completed, Cancelled, or Late Limit Reached.
 
   const activeSchedule = useMemo(() => {
     return schedules.find(s => s.status === 'published' && (s.queueStatus === 'active' || s.queueStatus === 'paused' || s.queueStatus === 'closed'));
@@ -172,32 +155,7 @@ export default function Queue() {
     }
   };
 
-  const handleStartConsultation = async (res) => {
-    if (inConsultation) {
-      toast.error("You already have an active consultation. Please complete it first.");
-      return;
-    }
-    const currentQueueStatus = activeSchedule?.queueStatus || 'not_started';
-    if (currentQueueStatus === "not_started") {
-      toast.error("Cannot start consultation. The queue has not started yet.");
-      return;
-    }
-    if (currentQueueStatus === "paused") {
-      toast.error("Cannot start consultation while queue is paused.");
-      return;
-    }
-    if (currentQueueStatus === "ended" || currentQueueStatus === "completed") {
-      toast.error("Cannot start consultation. The queue has ended.");
-      return;
-    }
-    try {
-      await startConsultation(res.id);
-      toast.success("Consultation started.");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to start consultation.");
-    }
-  };
+  // Consultations are now initiated by the Secretary inside the clinic.
 
   const handleOpenCompleteModal = (res) => {
     const currentQueueStatus = activeSchedule?.queueStatus || 'not_started';
@@ -284,7 +242,7 @@ export default function Queue() {
                 {new Date(activeSchedule.clinicDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </span>
               <span className="flex items-center font-medium text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">
-                Validation Window: <strong className="ml-1">{activeSchedule.validationWindow || 15} mins</strong>
+                Late Limit: <strong className="ml-1">{activeSchedule.lateLimit || 3} penalties</strong>
               </span>
             </div>
           </div>
@@ -437,11 +395,11 @@ export default function Queue() {
                 )}
               </div>
 
-              {/* Next Eligible Patient */}
+              {/* Next Patient Monitoring (Secretary Controlled) */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="bg-gray-50 px-5 py-3 border-b border-gray-100">
                   <h3 className="font-bold text-gray-700 flex items-center">
-                    <Users className="w-4 h-4 mr-2" /> Next Eligible Patient
+                    <Users className="w-4 h-4 mr-2" /> Next Patient (Flow Managed by Secretary)
                   </h3>
                 </div>
                 
@@ -449,8 +407,8 @@ export default function Queue() {
                   {nextEligiblePatient && nextEligiblePatient.blocked ? (
                     <div className="bg-amber-50 rounded-xl border border-amber-200 p-5 flex flex-col items-center text-center text-amber-700">
                       <AlertCircle className="w-8 h-8 mb-3 text-amber-500" />
-                      <div className="font-bold text-base mb-1">Not Ready for Consultation</div>
-                      <div className="text-sm font-medium">{nextEligiblePatient.message || "Waiting for the next parent to validate their QR Code."}</div>
+                      <div className="font-bold text-base mb-1">Waiting for Secretary Check-In</div>
+                      <div className="text-sm font-medium">{nextEligiblePatient.message || "Waiting for patient to check in at clinic."}</div>
                     </div>
                   ) : nextEligiblePatient ? (
                     <div>
@@ -458,7 +416,7 @@ export default function Queue() {
                         <div>
                           <div className="text-xl font-black text-gray-800 mb-1">{nextEligiblePatient.childName || "N/A"}</div>
                           <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                            Checked In
+                            Checked In - Ready
                           </span>
                         </div>
                         <div className="bg-blue-50 text-blue-600 w-12 h-12 rounded-xl flex items-center justify-center border border-blue-100">
@@ -466,17 +424,11 @@ export default function Queue() {
                         </div>
                       </div>
                       
-                      <div className="flex items-center text-sm text-gray-500 mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                      <div className="flex items-center text-sm text-gray-500 mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
                         <Clock className="w-4 h-4 mr-2 text-gray-400" />
                         Checked In: {nextEligiblePatient.checkedInAt ? new Date(nextEligiblePatient.checkedInAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "N/A"}
                       </div>
-                      
-                      <button 
-                        onClick={() => handleStartConsultation(nextEligiblePatient)}
-                        className="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center justify-center shadow-sm"
-                      >
-                        <Play className="w-5 h-5 mr-2" /> Start Consultation
-                      </button>
+                      <p className="text-xs text-gray-500 italic text-center">Secretary will start consultation when you finish your current patient.</p>
                     </div>
                   ) : (
                     <div className="py-6 text-center text-gray-400">

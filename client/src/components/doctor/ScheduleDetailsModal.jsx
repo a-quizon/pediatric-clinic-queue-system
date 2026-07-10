@@ -115,12 +115,8 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
                 <span className="font-semibold">{formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}</span>
               </div>
               <div className="flex flex-col text-gray-600">
-                <span className="text-xs text-gray-400">Validation Window</span>
-                <span className="font-bold text-gray-800">{schedule.validationWindow || 15} minutes</span>
-              </div>
-              <div className="flex flex-col text-gray-600">
-                <span className="text-xs text-gray-400">Active Val. Queue</span>
-                <span className="font-bold text-gray-800">{schedule.activeValidationQueue || 3} patients</span>
+                <span className="text-xs text-gray-400">Late Limit</span>
+                <span className="font-bold text-gray-800">{schedule.lateLimit || 3} penalties</span>
               </div>
             </div>
           </div>

@@ -8,7 +8,7 @@ export const createSchedule = async ( scheduleData ) => {
 
   await set(scheduleRef, {
     ...scheduleData,
-    activeValidationQueue: Number(scheduleData.activeValidationQueue) || 3
+    lateLimit: Number(scheduleData.lateLimit) || 3
   });
 
   return scheduleRef.key;

@@ -250,15 +250,7 @@ export default function Dashboard() {
                 <div className="mt-3.5 flex flex-col items-center justify-center gap-2">
                   <ReservationStatusBadge status={effectiveStatus} className="shadow-2xs px-3 py-1" />
 
-                  {effectiveStatus === "validation_open" && schedule?.queueStatus === "active" && (
-                    <div className="inline-flex items-center justify-center bg-orange-50 border border-orange-200 text-orange-900 px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-2xs">
-                      <Clock className="w-3.5 h-3.5 text-orange-600 mr-1.5 flex-shrink-0 animate-pulse" />
-                      <span>Validation Window:</span>
-                      <span className="font-mono font-black ml-1 text-orange-700">
-                        {formatRemainingTime(getRemainingValidationTime(activeReservation, schedule))} remaining
-                      </span>
-                    </div>
-                  )}
+
 
                   <span className="flex items-center text-gray-600 text-xs sm:text-sm font-semibold mt-1">
                     <MapPin className="w-3.5 h-3.5 mr-1 text-red-500 inline flex-shrink-0" />
@@ -310,16 +302,10 @@ export default function Dashboard() {
               <p>The queue is closed to new reservations. Existing reservations will be served.</p>
             </div>
           )}
-          {schedule.queueStatus !== 'not_started' && activeReservation.status === 'waiting_for_window' && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-amber-800 flex items-center text-xs sm:text-sm font-semibold max-w-lg mx-auto animate-in fade-in">
-              <AlertCircle className="w-4 h-4 text-amber-500 mr-2.5 flex-shrink-0" />
-              <p>Please wait comfortably at home. Your validation window will open when your consultation approaches.</p>
-            </div>
-          )}
-          {schedule.queueStatus !== 'not_started' && (activeReservation.status === "reserved" || activeReservation.status === "waiting" || activeReservation.status === "validation_open") && (
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-3.5 text-green-800 flex items-center text-xs sm:text-sm font-semibold max-w-lg mx-auto animate-in fade-in">
-              <AlertCircle className="w-4 h-4 text-green-600 mr-2.5 flex-shrink-0" />
-              <p>Your validation window is OPEN! Please proceed to the clinic and scan your QR code.</p>
+          {schedule.queueStatus !== 'not_started' && (activeReservation.status === "reserved" || activeReservation.status === "waiting") && (
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 text-blue-800 flex items-center text-xs sm:text-sm font-semibold max-w-lg mx-auto animate-in fade-in">
+              <AlertCircle className="w-4 h-4 text-blue-600 mr-2.5 flex-shrink-0" />
+              <p>Monitor your queue position from home. Travel to the clinic and show your QR Code to Check In when your turn approaches.</p>
             </div>
           )}
         </div>

@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle } from "lucide-react";
-import { subscribeToAllReservations } from "../../services/reservationService";
+import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle, AlertTriangle, UserPlus } from "lucide-react";
+import { subscribeToAllReservations, startConsultation, checkInReservation, penalizeReservation } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
-import { isReservationExpired } from "../../services/timeService";
+import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 
 export default function ManageQueue() {
+  const { user } = useAuth();
   const [reservations, setReservations] = useState([]);
   const [schedules, setSchedules] = useState({});
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(null);
 
   useEffect(() => {
     const unsubSchedules = subscribeToPublishedSchedules((data) => {
@@ -36,11 +38,15 @@ export default function ManageQueue() {
     );
   }
 
-  // Derived states
-  const waitingPatients = reservations.filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "expired", "validation_expired"].includes(r.status)).sort((a, b) => a.queuePosition - b.queuePosition);
-  const checkedInPatients = reservations.filter(r => r.status === "checked_in").sort((a, b) => a.queuePosition - b.queuePosition);
+  // Active queue sorted by dynamic queue position
+  const waitingPatients = reservations.filter(r => r.status === "reserved" || r.status === "waiting").sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
+  const checkedInPatients = reservations.filter(r => r.status === "checked_in").sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
   const inConsultationPatients = reservations.filter(r => r.status === "in_consultation");
-  const completedPatients = reservations.filter(r => r.status === "consultation_completed").sort((a, b) => b.consultationCompletedAt - a.consultationCompletedAt);
+  const completedPatients = reservations.filter(r => ["consultation_completed", "completed", "penalized", "late_limit_reached"].includes(r.status)).sort((a, b) => (b.consultationCompletedAt || b.penalizedAt || 0) - (a.consultationCompletedAt || a.penalizedAt || 0));
+
+  // Determine who is #1 in line across all active patients
+  const activeQueue = reservations.filter(r => ["reserved", "checked_in"].includes(r.status)).sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
+  const firstInQueueId = activeQueue.length > 0 ? activeQueue[0].id : null;
 
   const formatTime = (timestamp) => {
     if (!timestamp) return "N/A";
@@ -52,31 +58,56 @@ export default function ManageQueue() {
     return new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
-  const handleCallNext = async () => {
-    if (checkedInPatients.length === 0) {
-      toast.error("No patients are checked in.");
-      return;
+  const handleStartConsultation = async (res) => {
+    try {
+      setActionLoading(res.id);
+      await startConsultation(res.id);
+      toast.success(`Consultation started for ${res.childName}`);
+    } catch (err) {
+      toast.error("Failed to start consultation");
+    } finally {
+      setActionLoading(null);
     }
-    
-    // Placeholder action for Phase 1
-    toast.success(`Patient ${checkedInPatients[0].childName} has been called. Notification feature coming soon.`);
+  };
+
+  const handleCheckIn = async (res) => {
+    try {
+      setActionLoading(res.id);
+      await checkInReservation(res.id, user?.uid || "secretary");
+      toast.success(`${res.childName} checked in successfully`);
+    } catch (err) {
+      toast.error("Failed to check in patient");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handlePenalize = async (res) => {
+    try {
+      setActionLoading(res.id);
+      const schedule = schedules[res.scheduleId] || {};
+      await penalizeReservation(res.id, schedule, reservations);
+      const newPenaltyCount = (res.penaltyCount || 0) + 1;
+      const lateLimit = Number(schedule.lateLimit) || 3;
+      if (newPenaltyCount >= lateLimit) {
+        toast.error(`${res.childName} reached late limit (${lateLimit}) and was removed from the queue.`);
+      } else {
+        toast.success(`Penalty applied to ${res.childName} (${newPenaltyCount}/${lateLimit}). Moved back in queue.`);
+      }
+    } catch (err) {
+      toast.error("Failed to apply penalty");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   return (
     <div className="space-y-6 pb-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Manage Queue</h1>
-          <p className="text-gray-500 text-sm mt-1">Monitor all queue stages in real time.</p>
+          <h1 className="text-2xl font-bold text-gray-800">Queue Flow Manager</h1>
+          <p className="text-gray-500 text-sm mt-1">Manage patient check-ins, queue order, penalties, and start doctor consultations.</p>
         </div>
-        <button
-          onClick={handleCallNext}
-          disabled={checkedInPatients.length === 0}
-          className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-        >
-          <PlayCircle className="w-5 h-5 mr-2" />
-          Call Next Patient
-        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -113,7 +144,7 @@ export default function ManageQueue() {
           </div>
         </div>
 
-        {/* Checked In */}
+        {/* Checked In Patients */}
         <div className="lg:col-span-1 space-y-4">
           <div className="flex items-center justify-between border-b border-gray-200 pb-2">
             <h2 className="text-lg font-bold text-gray-800 flex items-center">
@@ -124,18 +155,47 @@ export default function ManageQueue() {
           </div>
 
           <div className="space-y-3">
-            {checkedInPatients.length > 0 ? checkedInPatients.map(res => (
-              <div key={res.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-green-400"></div>
-                <div className="flex items-start justify-between mb-2">
-                  <div className="font-bold text-gray-800 text-sm">{res.childName}</div>
-                  <div className="text-xs font-black text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">#{res.queuePosition}</div>
+            {checkedInPatients.length > 0 ? checkedInPatients.map((res, index) => {
+              const isFirstInEntireQueue = res.id === firstInQueueId;
+              const canStartConsultation = inConsultationPatients.length === 0 && isFirstInEntireQueue;
+
+              return (
+                <div key={res.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-green-400"></div>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="font-bold text-gray-800 text-sm">{res.childName}</div>
+                    <div className="text-xs font-black text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">#{res.queuePosition}</div>
+                  </div>
+                  <div className="text-xs text-gray-500 flex flex-col gap-1 mt-3 mb-3">
+                    <div className="flex items-center"><Clock className="w-3.5 h-3.5 mr-1 text-green-600" /> Checked in at {formatTime(res.checkedInAt)}</div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                    {canStartConsultation && (
+                      <button
+                        onClick={() => handleStartConsultation(res)}
+                        disabled={actionLoading === res.id}
+                        className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 shadow-sm"
+                      >
+                        <PlayCircle className="w-3.5 h-3.5" />
+                        Start Consultation
+                      </button>
+                    )}
+                    {isFirstInEntireQueue && (
+                      <button
+                        onClick={() => handlePenalize(res)}
+                        disabled={actionLoading === res.id}
+                        className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 border border-amber-200"
+                        title="Penalize absent patient (#1 in line)"
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        Penalize ({res.penaltyCount || 0})
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500 flex flex-col gap-1 mt-3">
-                  <div className="flex items-center"><Clock className="w-3.5 h-3.5 mr-1 text-green-600" /> Checked in at {formatTime(res.checkedInAt)}</div>
-                </div>
-              </div>
-            )) : (
+              );
+            }) : (
               <div className="bg-white p-6 rounded-xl border border-gray-200 border-dashed text-center">
                 <p className="text-xs text-gray-500 font-medium">No checked-in patients</p>
               </div>
@@ -143,12 +203,12 @@ export default function ManageQueue() {
           </div>
         </div>
 
-        {/* Waiting */}
+        {/* Waiting (Not Yet Checked In) */}
         <div className="lg:col-span-1 space-y-4">
           <div className="flex items-center justify-between border-b border-gray-200 pb-2">
             <h2 className="text-lg font-bold text-gray-800 flex items-center">
               <Clock className="w-5 h-5 mr-2 text-amber-500" />
-              Waiting
+              Not Checked In
             </h2>
             <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">{waitingPatients.length}</span>
           </div>
@@ -157,26 +217,47 @@ export default function ManageQueue() {
             {waitingPatients.length > 0 ? waitingPatients.map(res => {
               const schedule = schedules[res.scheduleId] || {};
               const isIncomplete = !res.childName || !res.age || !res.sex;
-              const expired = isReservationExpired(res, schedule) || ["expired", "validation_expired"].includes(res.status);
+              const isFirstInEntireQueue = res.id === firstInQueueId;
+
               return (
-                <div key={res.id} className={`bg-white p-4 rounded-xl border ${expired ? 'border-red-200' : 'border-gray-200'} shadow-sm relative overflow-hidden`}>
-                  <div className={`absolute top-0 left-0 w-1 h-full ${expired ? 'bg-red-500' : res.status === 'validation_open' ? 'bg-green-500' : res.status === 'waiting_for_window' ? 'bg-amber-300' : 'bg-amber-400'}`}></div>
+                <div key={res.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-amber-400"></div>
                   <div className="flex items-start justify-between mb-2">
                     <div className="font-bold text-gray-800 text-sm">{isIncomplete ? <span className="text-amber-600 italic">Incomplete Info</span> : res.childName}</div>
                     <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                      {expired ? (
-                        <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100 uppercase">Validation Expired</span>
-                      ) : res.status === 'validation_open' ? (
-                        <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-200 uppercase">Validation Open</span>
-                      ) : res.status === 'waiting_for_window' ? (
-                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 uppercase">Waiting for Window</span>
-                      ) : null}
+                      {res.penaltyCount > 0 && (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 uppercase">
+                          Late ({res.penaltyCount})
+                        </span>
+                      )}
                       <div className="text-xs font-black text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">#{res.queuePosition || "?"}</div>
                     </div>
                   </div>
-                  <div className="text-xs text-gray-500 flex flex-col gap-1 mt-3">
+                  <div className="text-xs text-gray-500 flex flex-col gap-1 mt-3 mb-3">
                     <div className="flex items-center"><Hash className="w-3.5 h-3.5 mr-1" /> Code: <b>{res.reservationCode}</b></div>
                     <div className="flex items-center"><MapPin className="w-3.5 h-3.5 mr-1" /> {schedule.branch || "Unknown"}</div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                    <button
+                      onClick={() => handleCheckIn(res)}
+                      disabled={actionLoading === res.id || isIncomplete}
+                      className="flex-1 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 shadow-sm"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      Check In
+                    </button>
+                    {isFirstInEntireQueue && (
+                      <button
+                        onClick={() => handlePenalize(res)}
+                        disabled={actionLoading === res.id}
+                        className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 border border-amber-200"
+                        title="Penalize absent patient (#1 in line)"
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        Penalize
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -188,12 +269,12 @@ export default function ManageQueue() {
           </div>
         </div>
 
-        {/* Completed */}
+        {/* Completed & History */}
         <div className="lg:col-span-1 space-y-4">
           <div className="flex items-center justify-between border-b border-gray-200 pb-2">
             <h2 className="text-lg font-bold text-gray-800 flex items-center">
               <CheckCircle className="w-5 h-5 mr-2 text-purple-500" />
-              Completed
+              Completed & History
             </h2>
             <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded-full">{completedPatients.length}</span>
           </div>
@@ -201,12 +282,19 @@ export default function ManageQueue() {
           <div className="space-y-3">
             {completedPatients.length > 0 ? completedPatients.map(res => {
               const schedule = schedules[res.scheduleId] || {};
+              const isPenalized = res.status === "penalized" || res.status === "late_limit_reached";
               return (
                 <div key={res.id} className="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm">
-                  <div className="font-bold text-gray-600 text-sm mb-2">{res.childName}</div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-bold text-gray-600 text-sm">{res.childName}</div>
+                    {isPenalized ? (
+                      <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded">Late Limit Reached</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded">Completed</span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-500 flex flex-col gap-1">
                     <div className="flex items-center"><Calendar className="w-3.5 h-3.5 mr-1" /> {formatDate(schedule.clinicDate)}</div>
-                    <div className="flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Finished at {formatTime(res.consultationCompletedAt)}</div>
                   </div>
                 </div>
               );

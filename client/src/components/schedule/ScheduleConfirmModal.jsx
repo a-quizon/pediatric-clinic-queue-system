@@ -75,13 +75,9 @@ export default function ScheduleConfirmModal({
                 <span className="text-gray-500 flex items-center"><Clock className="w-4 h-4 mr-2 text-gray-400"/> Clinic Time</span>
                 <span className="font-bold text-gray-800">{formatTime(schedule.openingTime)} – {formatTime(schedule.closingTime)}</span>
               </div>
-              <div className="flex justify-between items-center pb-2 border-b border-gray-100 pt-1">
-                <span className="text-gray-500 flex items-center"><Clock className="w-4 h-4 mr-2 text-blue-500"/> Validation Window</span>
-                <span className="font-bold text-blue-600">{schedule.validationWindow || 15} minutes</span>
-              </div>
               <div className="flex justify-between items-center pt-1">
-                <span className="text-gray-500 flex items-center"><Clock className="w-4 h-4 mr-2 text-indigo-500"/> Active Val. Queue</span>
-                <span className="font-bold text-indigo-600">{schedule.activeValidationQueue || 3} patients</span>
+                <span className="text-gray-500 flex items-center"><Clock className="w-4 h-4 mr-2 text-red-500"/> Late Limit</span>
+                <span className="font-bold text-gray-800">{schedule.lateLimit || 3} penalties</span>
               </div>
             </div>
           </div>

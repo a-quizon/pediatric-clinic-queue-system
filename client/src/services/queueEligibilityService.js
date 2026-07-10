@@ -11,23 +11,17 @@
 // Statuses that hold a queue position and block subsequent queue numbers from advancing
 export const BLOCKING_STATUSES = [
   'reserved',
-  'waiting',
-  'waiting_for_window',
-  'validation_open',
   'checked_in',
-  // Future blocking statuses (e.g., 'grace_period') can be added here
 ];
 
 // Statuses that do NOT block subsequent queue numbers
 export const NON_BLOCKING_STATUSES = [
   'consultation_completed',
+  'completed',
   'cancelled',
   'in_consultation',
-  // Future non-blocking / bypassed statuses can be added here:
-  'penalty',
-  'skipped',
-  'forfeited',
-  'no_show'
+  'penalized',
+  'late_limit_reached',
 ];
 
 /**
@@ -97,7 +91,7 @@ export const getNextEligiblePatient = (reservations = []) => {
     eligible: false,
     blocked: true,
     reason: 'earlier_queue_waiting',
-    waitingMessage: `Waiting for Queue #${firstInLine.queuePosition || 'N/A'} to validate their QR Code.`
+    waitingMessage: `Waiting for Queue #${firstInLine.queuePosition || 'N/A'} to check in at the clinic.`
   };
 };
 

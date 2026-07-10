@@ -205,38 +205,18 @@ export default function ParentQRCode() {
                 <p className="text-gray-500 text-sm mt-2 font-medium">View details in Reservation History.</p>
               )}
             </div>
-          ) : isReservationExpired(reservation, schedule) ? (
+          ) : ["penalized", "late_limit_reached"].includes(reservation.status) ? (
             <div className="py-8 px-4 text-center w-full">
               <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500 border border-red-100 shadow-sm">
                 <AlertCircle className="w-10 h-10" />
               </div>
-              <h2 className="text-xl font-bold text-gray-800 mb-2">Validation Window Expired</h2>
-              <p className="text-gray-500 text-sm mt-2 font-medium max-w-xs mx-auto">You were unable to validate within the allowed time. Your queue reservation has expired.</p>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Late Limit Reached</h2>
+              <p className="text-gray-500 text-sm mt-2 font-medium max-w-xs mx-auto">This reservation exceeded the late limit and was removed from the queue.</p>
               <button
                 onClick={() => navigate("/parent/reserve")}
                 className="mt-6 py-2.5 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-sm"
               >
                 Reserve Another Slot
-              </button>
-            </div>
-          ) : reservation.status === 'waiting_for_window' ? (
-            <div className="py-8 px-4 text-center w-full">
-              <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-600 border border-amber-100 shadow-sm">
-                <AlertCircle className="w-10 h-10" />
-              </div>
-              <h2 className="text-xl font-bold text-gray-800 mb-2">Waiting for Validation Window</h2>
-              <p className="text-gray-500 text-sm mt-2 font-medium max-w-xs mx-auto">Please wait comfortably at home. Your QR code will unlock when your consultation turn approaches.</p>
-              
-              <div className="mt-6 mb-2">
-                <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Reservation Code</span>
-                <div className="text-4xl font-black text-gray-800 tracking-wider mt-1">{reservation.reservationCode || "------"}</div>
-              </div>
-              <button 
-                onClick={handleCopyCode}
-                className="flex items-center mx-auto text-sm font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-4 py-2 rounded-lg mt-2 transition-colors"
-              >
-                <Copy className="w-4 h-4 mr-2" />
-                Copy Code
               </button>
             </div>
           ) : (
@@ -247,7 +227,7 @@ export default function ParentQRCode() {
                   {reservation.status === "checked_in" && (
                     <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] rounded-2xl flex items-center justify-center">
                       <div className="bg-green-100 text-green-700 px-4 py-2 rounded-xl font-bold shadow-sm border border-green-200">
-                        Already Validated
+                        Checked In at Clinic
                       </div>
                     </div>
                   )}

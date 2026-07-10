@@ -92,15 +92,9 @@ export default function ScheduleCard({
             <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
             <span className="text-gray-600">Checked In: <span className="font-bold text-green-600">{checkedInCount !== undefined ? checkedInCount : 0}</span></span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center">
-              <Clock className="w-3.5 h-3.5 mr-1 text-blue-500" />
-              <span className="text-xs text-gray-600">Window: <span className="font-bold text-gray-800">{schedule.validationWindow || 15}m</span></span>
-            </div>
-            <div className="flex items-center">
-              <Clock className="w-3.5 h-3.5 mr-1 text-indigo-500" />
-              <span className="text-xs text-gray-600">Queue Size: <span className="font-bold text-gray-800">{schedule.activeValidationQueue || 3}</span></span>
-            </div>
+          <div className="flex items-center">
+            <Clock className="w-3.5 h-3.5 mr-1 text-red-500" />
+            <span className="text-xs text-gray-600">Late Limit: <span className="font-bold text-gray-800">{schedule.lateLimit || 3}</span></span>
           </div>
         </div>
       </div>

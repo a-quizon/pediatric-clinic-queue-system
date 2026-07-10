@@ -335,40 +335,24 @@ export default function MyReservation() {
                 </div>
               ) : (
                 <div className="px-6 sm:px-8 py-4 text-center flex flex-col items-center bg-white">
-                  {/* Countdown Information Card */}
-                  {schedule?.queueStatus === 'active' && activeReservation.status === 'validation_open' && (
-                    <div className="bg-orange-50/90 border border-orange-200 rounded-2xl p-3.5 mb-4 w-full text-left shadow-2xs">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-bold text-orange-900">Validation Window</span>
-                        <span className="text-xs font-black text-orange-700 font-mono">{formatRemainingTime(getRemainingValidationTime(activeReservation, schedule))} remaining</span>
-                      </div>
-                      <div className="text-[11px] text-orange-800 font-medium">
-                        Please validate your QR Code at the clinic before the timer expires.
-                      </div>
+                  {/* Guidance Information */}
+                  <div className="bg-blue-50/90 border border-blue-200 rounded-2xl p-3.5 mb-4 w-full text-center shadow-2xs">
+                    <div className="text-xs font-bold text-blue-900 mb-0.5">Clinic Check-In QR Pass</div>
+                    <div className="text-[11px] text-blue-800 font-medium">
+                      Present this QR Code to the Secretary when you arrive at the clinic.
                     </div>
-                  )}
-                  {activeReservation.status === 'waiting_for_window' ? (
-                    <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-6 mb-4 w-full text-center shadow-2xs flex flex-col items-center">
-                      <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 mb-3 shadow-xs">
-                        <Clock className="w-6 h-6" />
+                  </div>
+
+                  <div className="bg-white p-3 rounded-3xl border border-gray-100 shadow-sm mb-4 w-52 h-52 sm:w-56 sm:h-56 flex items-center justify-center relative group">
+                    {qrImageUrl ? (
+                      <img src={qrImageUrl} alt="QR Arrival Pass" className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-gray-400 text-xs">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
+                        Generating QR...
                       </div>
-                      <h4 className="text-sm font-black text-amber-900 mb-1">Waiting for Validation Window</h4>
-                      <p className="text-xs text-amber-800/90 font-medium leading-relaxed max-w-xs mb-2">
-                        Please wait comfortably at home. Your validation window and QR code will unlock when your consultation turn approaches.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="bg-white p-3 rounded-3xl border border-gray-100 shadow-sm mb-4 w-52 h-52 sm:w-56 sm:h-56 flex items-center justify-center relative group">
-                      {qrImageUrl ? (
-                        <img src={qrImageUrl} alt="QR Arrival Pass" className="w-full h-full object-contain" />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center text-gray-400 text-xs">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
-                          Generating QR...
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Reservation Code</span>
                   <div className="text-3xl font-black text-gray-800 tracking-wider mt-0.5 font-mono">
@@ -376,14 +360,12 @@ export default function MyReservation() {
                   </div>
 
                   <div className="flex flex-col items-center justify-center gap-2.5 mt-4 w-full">
-                    {activeReservation.status !== 'waiting_for_window' && (
-                      <button 
-                        onClick={() => setIsQrModalOpen(true)}
-                        className="w-full py-2.5 px-4 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl text-xs sm:text-sm transition-all shadow-2xs flex items-center justify-center focus:outline-none"
-                      >
-                        <Maximize2 className="w-4 h-4 mr-2" /> Expand QR Code
-                      </button>
-                    )}
+                    <button 
+                      onClick={() => setIsQrModalOpen(true)}
+                      className="w-full py-2.5 px-4 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl text-xs sm:text-sm transition-all shadow-2xs flex items-center justify-center focus:outline-none"
+                    >
+                      <Maximize2 className="w-4 h-4 mr-2" /> Expand QR Code
+                    </button>
                     {activeReservation.status !== "checked_in" && activeReservation.status !== "in_consultation" && (
                       <button
                         onClick={() => handleCancelClick(activeReservation)}

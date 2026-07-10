@@ -2,18 +2,6 @@ import React from 'react';
 
 export const getReservationStatusBadge = (status) => {
   switch (status) {
-    case 'waiting_for_window':
-      return {
-        label: 'Waiting for Window',
-        color: 'bg-gray-100 text-gray-700 border-gray-200',
-        dot: 'bg-gray-400'
-      };
-    case 'validation_open':
-      return {
-        label: 'Validation Open',
-        color: 'bg-orange-100 text-orange-800 border-orange-200',
-        dot: 'bg-orange-500 animate-pulse'
-      };
     case 'checked_in':
     case 'validated':
       return {
@@ -40,23 +28,17 @@ export const getReservationStatusBadge = (status) => {
         color: 'bg-red-100 text-red-700 border-red-200',
         dot: 'bg-red-500'
       };
-    case 'expired':
-    case 'validation_expired':
+    case 'penalized':
+    case 'late_limit_reached':
       return {
-        label: 'Validation Expired',
+        label: 'Late Limit Reached',
         color: 'bg-red-100 text-red-700 border-red-200',
         dot: 'bg-red-500'
-      };
-    case 'penalized':
-      return {
-        label: 'Penalized',
-        color: 'bg-amber-100 text-amber-800 border-amber-200',
-        dot: 'bg-amber-500'
       };
     case 'reserved':
     case 'waiting':
       return {
-        label: 'Awaiting Arrival',
+        label: 'Reserved',
         color: 'bg-blue-50 text-blue-700 border-blue-200',
         dot: 'bg-blue-500'
       };

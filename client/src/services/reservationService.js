@@ -127,7 +127,13 @@ export const calculateDynamicQueuePositions = (reservations) => {
   const activeStatuses = ["reserved", "checked_in", "waiting", "validation_open", "waiting_for_window"];
   
   Object.values(groupedBySchedule).forEach(scheduleReservations => {
-    const active = scheduleReservations.filter(r => activeStatuses.includes(r.status)).sort((a, b) => a.createdAt - b.createdAt);
+    const active = scheduleReservations
+      .filter(r => activeStatuses.includes(r.status))
+      .sort((a, b) => {
+        const timeA = a.sortTimestamp || a.createdAt || 0;
+        const timeB = b.sortTimestamp || b.createdAt || 0;
+        return timeA - timeB;
+      });
     const inactive = scheduleReservations.filter(r => !activeStatuses.includes(r.status));
     
     const rankedActive = active.map((r, index) => ({
@@ -219,4 +225,54 @@ export const updatePatientInfo = async (reservationId, patientInfo) => {
     ...patientInfo,
     patientInfoCompleted: true
   });
+};
+
+export const penalizeReservation = async (reservationId, schedule, allScheduleReservations = []) => {
+  const snap = await get(ref(database, `reservations/${reservationId}`));
+  if (!snap.exists()) return;
+  const val = snap.val();
+  
+  const currentPenaltyCount = (val.penaltyCount || 0) + 1;
+  const lateLimit = Number(schedule?.lateLimit) || 3;
+
+  if (currentPenaltyCount >= lateLimit) {
+    // Exceeded Late Limit: Remove reservation from today's queue into history
+    await update(ref(database, `reservations/${reservationId}`), {
+      status: "penalized",
+      penaltyCount: currentPenaltyCount,
+      penalizedAt: Date.now()
+    });
+  } else {
+    // Move behind the next two waiting patients
+    const activePipeline = allScheduleReservations
+      .filter(r => r.scheduleId === val.scheduleId && ["reserved", "checked_in", "waiting", "validation_open", "waiting_for_window"].includes(r.status))
+      .sort((a, b) => {
+        const timeA = a.sortTimestamp || a.createdAt || 0;
+        const timeB = b.sortTimestamp || b.createdAt || 0;
+        return timeA - timeB;
+      });
+
+    const index = activePipeline.findIndex(r => r.id === reservationId);
+    let newSortTimestamp = Date.now();
+
+    if (index >= 0 && activePipeline.length > 1) {
+      const targetBehindIndex = Math.min(activePipeline.length - 1, index + 2);
+      const targetBehind = activePipeline[targetBehindIndex];
+      const nextAfterTarget = activePipeline[targetBehindIndex + 1];
+
+      const targetTime = targetBehind.sortTimestamp || targetBehind.createdAt || 0;
+      if (nextAfterTarget) {
+        const nextTime = nextAfterTarget.sortTimestamp || nextAfterTarget.createdAt || 0;
+        newSortTimestamp = (targetTime + nextTime) / 2;
+      } else {
+        newSortTimestamp = targetTime + 60000;
+      }
+    }
+
+    await update(ref(database, `reservations/${reservationId}`), {
+      penaltyCount: currentPenaltyCount,
+      sortTimestamp: newSortTimestamp,
+      lastPenalizedAt: Date.now()
+    });
+  }
 };
