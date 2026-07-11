@@ -1,6 +1,7 @@
 import { database } from "../firebase/database";
 import { ref, push, set, get, onValue, update } from "firebase/database";
 import { recalculateRollingValidation } from "./rollingValidationService";
+import { recalculateEntireQueue, enrichReservationsWithState } from "./queueEngine";
 
 const generateReservationCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -35,6 +36,7 @@ export const createReservation = async (reservationData) => {
   });
   if (reservationData.scheduleId) {
     await recalculateRollingValidation(reservationData.scheduleId);
+    await recalculateEntireQueue(reservationData.scheduleId);
   }
   return reservationRef.key;
 };
@@ -97,6 +99,7 @@ export const expireReservation = async (reservationId) => {
     });
     if (val.scheduleId) {
       await recalculateRollingValidation(val.scheduleId);
+      await recalculateEntireQueue(val.scheduleId);
     }
   }
 };
@@ -170,7 +173,7 @@ export const calculateDynamicQueuePositions = (reservations) => {
     processedReservations = [...processedReservations, ...rankedActive, ...inactive];
   });
 
-  return processedReservations;
+  return enrichReservationsWithState(processedReservations);
 };
 
 export const subscribeToAllReservations = (callback) => {
@@ -194,7 +197,10 @@ export const cancelReservation = async (reservationId) => {
     status: "cancelled",
     cancelledAt: Date.now()
   });
-  if (scheduleId) await recalculateRollingValidation(scheduleId);
+  if (scheduleId) {
+    await recalculateRollingValidation(scheduleId);
+    await recalculateEntireQueue(scheduleId);
+  }
 };
 
 export const validateReservationByCode = async (code) => {
@@ -222,7 +228,10 @@ export const checkInReservation = async (reservationId, secretaryUid) => {
     checkedInBy: secretaryUid,
     status: "checked_in"
   });
-  if (scheduleId) await recalculateRollingValidation(scheduleId);
+  if (scheduleId) {
+    await recalculateRollingValidation(scheduleId);
+    await recalculateEntireQueue(scheduleId);
+  }
 };
 
 export const startConsultation = async (reservationId) => {
@@ -232,7 +241,10 @@ export const startConsultation = async (reservationId) => {
     status: "in_consultation",
     consultationStartedAt: Date.now()
   });
-  if (scheduleId) await recalculateRollingValidation(scheduleId);
+  if (scheduleId) {
+    await recalculateRollingValidation(scheduleId);
+    await recalculateEntireQueue(scheduleId);
+  }
 };
 
 export const sendToDoctor = async (reservationId) => {
@@ -243,7 +255,10 @@ export const sendToDoctor = async (reservationId) => {
     sentToDoctorAt: Date.now(),
     consultationStartedAt: Date.now()
   });
-  if (scheduleId) await recalculateRollingValidation(scheduleId);
+  if (scheduleId) {
+    await recalculateRollingValidation(scheduleId);
+    await recalculateEntireQueue(scheduleId);
+  }
 };
 
 export const completeConsultation = async (reservationId, doctorNotes) => {
@@ -254,7 +269,10 @@ export const completeConsultation = async (reservationId, doctorNotes) => {
     consultationCompletedAt: Date.now(),
     doctorNotes: doctorNotes || ""
   });
-  if (scheduleId) await recalculateRollingValidation(scheduleId);
+  if (scheduleId) {
+    await recalculateRollingValidation(scheduleId);
+    await recalculateEntireQueue(scheduleId);
+  }
 };
 
 export const updatePatientInfo = async (reservationId, patientInfo) => {
@@ -314,6 +332,7 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
       lastPenalizedAt: Date.now()
     });
   }
+  await recalculateEntireQueue(val.scheduleId);
 };
 
 export const requestCheckInReminder = async (reservationId) => {

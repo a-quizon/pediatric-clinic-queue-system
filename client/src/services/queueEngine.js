@@ -1,3 +1,6 @@
+import { database } from "../firebase/database";
+import { ref, get, update } from "firebase/database";
+
 /**
  * Queue Engine
  * Single Source of Truth for live queue state and relative queue positions across the system.
@@ -39,7 +42,7 @@ export const computeReservationState = (reservation, allReservations = []) => {
     return QUEUE_STATES.CHECKED_IN;
   }
 
-  // Active waiting reservations (awaiting arrival / validation)
+  // Active waiting reservations (awaiting arrival / validation) sorted by sortTimestamp
   const activeWaiting = allReservations
     .filter(
       (item) =>
@@ -47,10 +50,9 @@ export const computeReservationState = (reservation, allReservations = []) => {
         !['in_consultation', 'with_doctor', 'completed', 'consultation_completed', 'cancelled', 'forfeited', 'penalized', 'late_limit_reached', 'checked_in'].includes(item.status)
     )
     .sort((a, b) => {
-      const aNum = Number(a.queueNumber || a.queueOrder || 0);
-      const bNum = Number(b.queueNumber || b.queueOrder || 0);
-      if (aNum !== bNum) return aNum - bNum;
-      return (a.sortTimestamp || a.createdAt || 0) - (b.sortTimestamp || b.createdAt || 0);
+      const timeA = a.sortTimestamp || a.createdAt || 0;
+      const timeB = b.sortTimestamp || b.createdAt || 0;
+      return timeA - timeB;
     });
 
   const index = activeWaiting.findIndex((item) => item.id === reservation.id);
@@ -60,11 +62,107 @@ export const computeReservationState = (reservation, allReservations = []) => {
 };
 
 /**
- * Returns an enriched list of reservations where each reservation has a `.queueState` property.
+ * Computes Ahead Of You count for a reservation relative to active reservations in its schedule.
+ */
+export const computeAheadOfYou = (reservation, allReservations = []) => {
+  if (!reservation) return 0;
+  if (['with_doctor', 'in_consultation', 'completed', 'consultation_completed', 'cancelled', 'forfeited'].includes(reservation.status)) {
+    return 0;
+  }
+
+  const activePipeline = allReservations
+    .filter(
+      (item) =>
+        item.scheduleId === reservation.scheduleId &&
+        ['reserved', 'waiting', 'validation_open', 'waiting_for_window', 'checked_in', 'with_doctor', 'in_consultation'].includes(item.status)
+    )
+    .sort((a, b) => {
+      const timeA = a.sortTimestamp || a.createdAt || 0;
+      const timeB = b.sortTimestamp || b.createdAt || 0;
+      return timeA - timeB;
+    });
+
+  const index = activePipeline.findIndex((item) => item.id === reservation.id);
+  return index > 0 ? index : 0;
+};
+
+/**
+ * Returns an enriched list of reservations where each reservation has accurate `.queueState`, `.aheadOfYou`, and `.queueOrder` properties.
  */
 export const enrichReservationsWithState = (allReservations = []) => {
   return allReservations.map((r) => ({
     ...r,
     queueState: computeReservationState(r, allReservations),
+    aheadOfYou: computeAheadOfYou(r, allReservations),
   }));
+};
+
+/**
+ * Full Queue Recalculation Engine
+ * Whenever any queue movement occurs (Penalty, Cancellation, Forfeiture, Consultation transition, etc.),
+ * recalculates all derived queue data (Queue Order, Ahead Of You, Queue State) and writes back to Firebase.
+ */
+export const recalculateEntireQueue = async (scheduleId) => {
+  if (!scheduleId) return;
+
+  const snapshot = await get(ref(database, "reservations"));
+  if (!snapshot.exists()) return;
+
+  const allReservations = Object.entries(snapshot.val()).map(([id, val]) => ({
+    id,
+    ...val,
+  }));
+
+  const scheduleReservations = allReservations.filter((r) => r.scheduleId === scheduleId);
+  if (scheduleReservations.length === 0) return;
+
+  const activeStatuses = [
+    "reserved",
+    "waiting",
+    "validation_open",
+    "waiting_for_window",
+    "checked_in",
+    "with_doctor",
+    "in_consultation",
+  ];
+
+  // Step 1: Sort the active queue by actual sortTimestamp / createdAt
+  const activeQueue = scheduleReservations
+    .filter((r) => activeStatuses.includes(r.status))
+    .sort((a, b) => {
+      const timeA = a.sortTimestamp || a.createdAt || 0;
+      const timeB = b.sortTimestamp || b.createdAt || 0;
+      return timeA - timeB;
+    });
+
+  // Step 2-4: Assign Queue Numbers, Ahead Of You, and Queue State
+  const updates = {};
+
+  activeQueue.forEach((r, idx) => {
+    const queueOrder = idx + 1;
+    const aheadOfYou = ["with_doctor", "in_consultation"].includes(r.status) ? 0 : idx;
+    const queueState = computeReservationState(r, scheduleReservations);
+
+    updates[`reservations/${r.id}/queueOrder`] = queueOrder;
+    updates[`reservations/${r.id}/queuePosition`] = queueOrder;
+    updates[`reservations/${r.id}/aheadOfYou`] = aheadOfYou;
+    if (queueState) {
+      updates[`reservations/${r.id}/queueState`] = queueState;
+    }
+  });
+
+  // Ensure inactive reservations have their terminal state recorded
+  scheduleReservations
+    .filter((r) => !activeStatuses.includes(r.status))
+    .forEach((r) => {
+      const queueState = computeReservationState(r, scheduleReservations);
+      if (queueState) {
+        updates[`reservations/${r.id}/queueState`] = queueState;
+      }
+    });
+
+  // Step 7: Write ALL updated queue data back to Firebase
+  if (Object.keys(updates).length > 0) {
+    await update(ref(database), updates);
+  }
 };
