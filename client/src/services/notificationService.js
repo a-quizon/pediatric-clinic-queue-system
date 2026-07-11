@@ -1,0 +1,231 @@
+import React from 'react';
+import toast from 'react-hot-toast';
+import NotificationToast from '../components/common/NotificationToast';
+
+/**
+ * Notification Event IDs
+ * Single source of truth for system notification triggers across the clinic workflow.
+ */
+export const NOTIFICATION_EVENTS = {
+  SCHEDULE_AVAILABLE: 'SCHEDULE_AVAILABLE',
+  QUEUE_STARTED: 'QUEUE_STARTED',
+  QUEUE_PAUSED: 'QUEUE_PAUSED',
+  QUEUE_RESUMED: 'QUEUE_RESUMED',
+  QUEUE_CLOSED: 'QUEUE_CLOSED',
+  CLINIC_SESSION_ENDED: 'CLINIC_SESSION_ENDED',
+  NEAR_TURN: 'NEAR_TURN',
+  ALMOST_NEXT: 'ALMOST_NEXT',
+  QR_VERIFIED: 'QR_VERIFIED',
+  CONSULTATION_STARTED: 'CONSULTATION_STARTED',
+  CONSULTATION_COMPLETED: 'CONSULTATION_COMPLETED',
+  PENALIZED: 'PENALIZED',
+  FORFEITED: 'FORFEITED',
+};
+
+/**
+ * Configuration mapping each Event ID to its display hierarchy, title, and message.
+ */
+const NOTIFICATION_CONFIG = {
+  [NOTIFICATION_EVENTS.SCHEDULE_AVAILABLE]: {
+    type: 'info',
+    title: 'Schedule Available',
+    message: 'New clinic schedule is now available for reservation.',
+    duration: 5000,
+  },
+  [NOTIFICATION_EVENTS.QUEUE_STARTED]: {
+    type: 'info',
+    title: 'Queue Started',
+    message: 'The clinic queue has started.',
+    duration: 5000,
+  },
+  [NOTIFICATION_EVENTS.QUEUE_PAUSED]: {
+    type: 'warning',
+    title: 'Queue Paused',
+    message: 'The clinic queue has been paused.',
+    duration: 6000,
+  },
+  [NOTIFICATION_EVENTS.QUEUE_RESUMED]: {
+    type: 'info',
+    title: 'Queue Resumed',
+    message: 'The clinic queue has resumed.',
+    duration: 5000,
+  },
+  [NOTIFICATION_EVENTS.QUEUE_CLOSED]: {
+    type: 'warning',
+    title: 'Queue Closed',
+    message: "Reservations are now closed for today's clinic.",
+    duration: 6000,
+  },
+  [NOTIFICATION_EVENTS.CLINIC_SESSION_ENDED]: {
+    type: 'warning',
+    title: 'Clinic Session Ended',
+    message: "Today's clinic session has ended.",
+    duration: 6000,
+  },
+  [NOTIFICATION_EVENTS.NEAR_TURN]: {
+    type: 'info',
+    title: 'Turn Approaching',
+    message: 'Your turn is approaching. Please prepare to travel to the clinic.',
+    duration: 7000,
+  },
+  [NOTIFICATION_EVENTS.ALMOST_NEXT]: {
+    type: 'warning',
+    title: 'Almost Next',
+    message: "You're almost next. Please proceed to the clinic and have your QR Code ready.",
+    duration: 8000,
+  },
+  [NOTIFICATION_EVENTS.QR_VERIFIED]: {
+    type: 'success',
+    title: 'Arrival Verified',
+    message: 'Your arrival has been verified.',
+    duration: 5000,
+  },
+  [NOTIFICATION_EVENTS.CONSULTATION_STARTED]: {
+    type: 'success',
+    title: 'Consultation Started',
+    message: 'Your consultation has started.',
+    duration: 5000,
+  },
+  [NOTIFICATION_EVENTS.CONSULTATION_COMPLETED]: {
+    type: 'success',
+    title: 'Consultation Completed',
+    message: 'Your consultation has been completed.',
+    duration: 5000,
+  },
+  [NOTIFICATION_EVENTS.PENALIZED]: {
+    type: 'error',
+    title: 'Queue Position Adjusted',
+    message: 'You were moved back in today\'s queue because you were unavailable.',
+    duration: 7000,
+  },
+  [NOTIFICATION_EVENTS.FORFEITED]: {
+    type: 'error',
+    title: 'Reservation Forfeited',
+    message: "Your reservation has been forfeited after exceeding the clinic's late arrival limit.",
+    duration: 8000,
+  },
+};
+
+// In-memory cache for deduplication during the active JS session
+const seenNotificationKeys = new Set();
+
+class NotificationService {
+  constructor() {
+    this.storagePrefix = 'pcqs_notif_seen_';
+  }
+
+  /**
+   * Check whether a notification event has already been shown for this specific entity/state.
+   */
+  isDuplicate(dedupeKey) {
+    if (!dedupeKey) return false;
+    if (seenNotificationKeys.has(dedupeKey)) return true;
+
+    try {
+      const stored = sessionStorage.getItem(`${this.storagePrefix}${dedupeKey}`);
+      if (stored) {
+        seenNotificationKeys.add(dedupeKey);
+        return true;
+      }
+    } catch (e) {
+      // Ignore storage access errors
+    }
+
+    return false;
+  }
+
+  /**
+   * Mark a notification signature as shown.
+   */
+  markAsShown(dedupeKey) {
+    if (!dedupeKey) return;
+    seenNotificationKeys.add(dedupeKey);
+    try {
+      sessionStorage.setItem(`${this.storagePrefix}${dedupeKey}`, Date.now().toString());
+    } catch (e) {
+      // Ignore storage access errors
+    }
+  }
+
+  /**
+   * Trigger a system notification by Event ID.
+   *
+   * @param {string} eventId - One of NOTIFICATION_EVENTS
+   * @param {object} context - { dedupeKey, customMessage, ... }
+   * @returns {boolean} Whether the notification was dispatched
+   */
+  notify(eventId, context = {}) {
+    const config = NOTIFICATION_CONFIG[eventId];
+    if (!config) {
+      console.warn(`[NotificationService] Unknown notification event ID: ${eventId}`);
+      return false;
+    }
+
+    // Deduplication check
+    const dedupeKey = context.dedupeKey || `${eventId}_default`;
+    if (this.isDuplicate(dedupeKey)) {
+      return false;
+    }
+
+    this.markAsShown(dedupeKey);
+
+    const message = context.customMessage || config.message;
+    const title = config.title;
+    const type = config.type;
+    const duration = config.duration || 5000;
+
+    // Phase 1: Dispatch Toast Notification
+    this.displayToast({
+      eventId,
+      type,
+      title,
+      message,
+      duration,
+    });
+
+    // Phase 2 / Phase 3 architecture hook:
+    this.dispatchToFuturePhases(eventId, {
+      ...config,
+      message,
+      ...context,
+    });
+
+    return true;
+  }
+
+  /**
+   * Displays a responsive, clean Toast Notification conforming to design hierarchy.
+   */
+  displayToast({ type, title, message, duration }) {
+    toast.custom(
+      (t) =>
+        React.createElement(NotificationToast, {
+          t,
+          type,
+          title,
+          message,
+          onDismiss: () => toast.dismiss(t.id),
+        }),
+      { duration }
+    );
+  }
+
+  /**
+   * Future-Ready Architecture Hook
+   * Phase 2: In-App Notification Center
+   * Phase 3: Web Push / Mobile Push / SMS / Email
+   */
+  dispatchToFuturePhases(eventId, payload) {
+    // Reserved for Phase 2 (Notification Center persistent log) & Phase 3 (Push service dispatch)
+  }
+
+  /**
+   * Reset deduplication cache (useful for testing or logout)
+   */
+  clearCache() {
+    seenNotificationKeys.clear();
+  }
+}
+
+export const notificationService = new NotificationService();
+export default notificationService;

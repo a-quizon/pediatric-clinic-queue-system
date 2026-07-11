@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Activity, Clock, CalendarPlus, Ticket, User, ChevronRight, CheckCircle2, History, MapPin, AlertCircle } from "lucide-react";
-import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
 import { subscribeToAllReservations } from "../../services/reservationService";
 import { getSchedules, subscribeToAllSchedules } from "../../services/scheduleService";
@@ -35,32 +34,10 @@ export default function Dashboard() {
     const myRes = allReservations.filter(r => r.parentId === user.uid);
     const active = myRes.find(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation"].includes(r.status));
     if (active) return active;
-    return myRes.find(r => ["expired", "validation_expired"].includes(r.status));
+    return myRes.find(r => ["expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"].includes(r.status));
   }, [allReservations, user]);
 
   const schedule = activeReservation ? schedules[activeReservation.scheduleId] : null;
-
-  const prevQueueStatusRef = useRef(null);
-  useEffect(() => {
-    if (schedule) {
-      if (prevQueueStatusRef.current === 'not_started' && schedule.queueStatus === 'active') {
-        toast.success("Queue Open\nThe clinic queue is now open.", { duration: 4000 });
-      }
-      prevQueueStatusRef.current = schedule.queueStatus;
-    }
-  }, [schedule?.queueStatus]);
-
-  const prevResStatusRef = useRef(null);
-  useEffect(() => {
-    if (activeReservation) {
-      if (prevResStatusRef.current !== 'validation_open' && activeReservation.status === 'validation_open') {
-        toast.success("Validation Window Open!\nIt is now your turn. Please proceed to the clinic to validate your QR code.", { duration: 6000 });
-      }
-      prevResStatusRef.current = activeReservation.status;
-    } else {
-      prevResStatusRef.current = null;
-    }
-  }, [activeReservation?.status]);
 
   const [tick, setTick] = useState(0);
   useEffect(() => {
