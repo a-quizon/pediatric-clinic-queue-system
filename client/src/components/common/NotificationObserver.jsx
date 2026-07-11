@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { subscribeToAllSchedules } from '../../services/scheduleService';
 import { subscribeToAllReservations } from '../../services/reservationService';
 import notificationService, { NOTIFICATION_EVENTS } from '../../services/notificationService';
+import { evaluatePositionEvents } from '../../services/positionEventEngine';
 
 /**
  * Global Notification Observer
@@ -172,48 +173,14 @@ export default function NotificationObserver() {
               });
             }
           }
-
-          // Queue Progress threshold checks (NEAR_TURN & ALMOST_NEXT)
-          if (['reserved', 'waiting', 'checked_in', 'validation_open', 'waiting_for_window'].includes(r.status)) {
-            // Calculate patients ahead dynamically on this schedule
-            const activeLine = data
-              .filter(
-                (item) =>
-                  item.scheduleId === r.scheduleId &&
-                  ['reserved', 'waiting', 'checked_in', 'in_consultation', 'validation_open', 'waiting_for_window'].includes(item.status)
-              )
-              .sort((a, b) => {
-                if (a.queueOrder !== undefined && b.queueOrder !== undefined) {
-                  return a.queueOrder - b.queueOrder;
-                }
-                return (a.sortTimestamp || a.createdAt || 0) - (b.sortTimestamp || b.createdAt || 0);
-              });
-
-            const myIndex = activeLine.findIndex((item) => item.id === r.id);
-            const patientsAhead = myIndex >= 0 ? myIndex : 0;
-            const prevAhead = prevPatientsAheadRef.current[r.id];
-
-            if (prevAhead !== undefined && patientsAhead < prevAhead) {
-              if (patientsAhead === 1) {
-                notificationService.notify(NOTIFICATION_EVENTS.ALMOST_NEXT, {
-                  entityId: r.id,
-                  dedupeKey: `almost_next_${r.id}`,
-                });
-              } else if (patientsAhead > 1 && patientsAhead <= 3) {
-                notificationService.notify(NOTIFICATION_EVENTS.NEAR_TURN, {
-                  entityId: r.id,
-                  dedupeKey: `near_turn_${r.id}_ahead_${patientsAhead}`,
-                });
-              }
-            }
-
-            prevPatientsAheadRef.current[r.id] = patientsAhead;
-          }
         } else {
           // Initialize tracking for newly found reservation
           prevMyReservationsRef.current[r.id] = r;
         }
       });
+
+      // Position Event Architecture: Re-evaluate position thresholds across active reservations
+      evaluatePositionEvents(data, prevSchedulesRef.current, user);
 
       prevMyReservationsRef.current = { ...myResMap };
     });

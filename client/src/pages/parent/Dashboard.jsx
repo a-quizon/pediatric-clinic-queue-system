@@ -55,8 +55,8 @@ export default function Dashboard() {
 
   const todaySchedule = useMemo(() => {
     const allScheds = Object.values(schedules || {});
-    const activeToday = allScheds.find(s => s.clinicDate === todayStr && ['active', 'paused', 'closed'].includes(s.queueStatus));
-    if (activeToday) return activeToday;
+    const activeSession = allScheds.find(s => ['active', 'paused', 'closed'].includes(s.queueStatus));
+    if (activeSession) return activeSession;
     const publishedToday = allScheds.find(s => s.clinicDate === todayStr && s.status === 'published' && s.queueStatus !== 'ended' && s.queueStatus !== 'completed');
     if (publishedToday) return publishedToday;
     return null;
