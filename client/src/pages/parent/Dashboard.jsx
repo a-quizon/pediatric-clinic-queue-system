@@ -33,9 +33,15 @@ export default function Dashboard() {
     if (!user) return null;
     const myRes = allReservations.filter(r => r.parentId === user.uid);
     const active = myRes.find(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation"].includes(r.status));
-    if (active) return active;
-    return myRes.find(r => ["expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"].includes(r.status));
-  }, [allReservations, user]);
+    if (!active) return null;
+
+    const sched = schedules[active.scheduleId];
+    if (sched && (sched.status === 'completed' || sched.queueStatus === 'completed' || sched.queueStatus === 'ended')) {
+      return null;
+    }
+
+    return active;
+  }, [allReservations, schedules, user]);
 
   const schedule = activeReservation ? schedules[activeReservation.scheduleId] : null;
 
@@ -72,7 +78,12 @@ export default function Dashboard() {
     
     const activeLine = resWithPNum
       .filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation"].includes(r.status))
-      .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
+      .sort((a, b) => {
+        if (a.queueOrder !== undefined && b.queueOrder !== undefined) {
+          return a.queueOrder - b.queueOrder;
+        }
+        return (a.sortTimestamp || a.createdAt || 0) - (b.sortTimestamp || b.createdAt || 0);
+      });
     
     let servingText = "—";
     if (!schedule || schedule.queueStatus === 'not_started') {

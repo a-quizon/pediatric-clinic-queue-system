@@ -36,11 +36,21 @@ export default function NotificationObserver() {
 
         if (!prevSched) {
           // New schedule published today or future
-          notificationService.notify(NOTIFICATION_EVENTS.SCHEDULE_AVAILABLE, {
-            entityId: schedId,
-            dedupeKey: `sched_avail_${schedId}`,
-          });
+          if (sched.status === 'published') {
+            notificationService.notify(NOTIFICATION_EVENTS.SCHEDULE_AVAILABLE, {
+              entityId: schedId,
+              dedupeKey: `sched_avail_${schedId}`,
+            });
+          }
         } else {
+          // Check if draft schedule transitioned to published
+          if (prevSched.status !== 'published' && sched.status === 'published') {
+            notificationService.notify(NOTIFICATION_EVENTS.SCHEDULE_AVAILABLE, {
+              entityId: schedId,
+              dedupeKey: `sched_avail_${schedId}`,
+            });
+          }
+
           // Check transitions in queueStatus / status
           const prevStatus = prevSched.queueStatus;
           const currStatus = sched.queueStatus;
@@ -114,6 +124,16 @@ export default function NotificationObserver() {
         if (prevRes) {
           const prevStatus = prevRes.status;
           const currStatus = r.status;
+          const prevPenalty = prevRes.penaltyCount || 0;
+          const currPenalty = r.penaltyCount || 0;
+
+          // Check penalty increment while reservation is still active (not forfeited)
+          if (currPenalty > prevPenalty && currStatus !== 'forfeited') {
+            notificationService.notify(NOTIFICATION_EVENTS.PENALIZED, {
+              entityId: r.id,
+              dedupeKey: `penalized_${r.id}_${currPenalty}_${r.lastPenalizedAt || Date.now()}`,
+            });
+          }
 
           if (prevStatus !== currStatus) {
             if (currStatus === 'checked_in') {
@@ -134,7 +154,7 @@ export default function NotificationObserver() {
             } else if (currStatus === 'penalized') {
               notificationService.notify(NOTIFICATION_EVENTS.PENALIZED, {
                 entityId: r.id,
-                dedupeKey: `penalized_${r.id}_${r.penaltyCount || 1}`,
+                dedupeKey: `penalized_${r.id}_${currPenalty}_${r.lastPenalizedAt || Date.now()}`,
               });
             } else if (currStatus === 'forfeited') {
               notificationService.notify(NOTIFICATION_EVENTS.FORFEITED, {
@@ -145,15 +165,20 @@ export default function NotificationObserver() {
           }
 
           // Queue Progress threshold checks (NEAR_TURN & ALMOST_NEXT)
-          if (['reserved', 'waiting'].includes(r.status)) {
-            // Calculate patients ahead on this schedule
+          if (['reserved', 'waiting', 'checked_in', 'validation_open', 'waiting_for_window'].includes(r.status)) {
+            // Calculate patients ahead dynamically on this schedule
             const activeLine = data
               .filter(
                 (item) =>
                   item.scheduleId === r.scheduleId &&
-                  ['reserved', 'waiting', 'checked_in', 'in_consultation'].includes(item.status)
+                  ['reserved', 'waiting', 'checked_in', 'in_consultation', 'validation_open', 'waiting_for_window'].includes(item.status)
               )
-              .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
+              .sort((a, b) => {
+                if (a.queueOrder !== undefined && b.queueOrder !== undefined) {
+                  return a.queueOrder - b.queueOrder;
+                }
+                return (a.sortTimestamp || a.createdAt || 0) - (b.sortTimestamp || b.createdAt || 0);
+              });
 
             const myIndex = activeLine.findIndex((item) => item.id === r.id);
             const patientsAhead = myIndex >= 0 ? myIndex : 0;
