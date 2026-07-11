@@ -56,36 +56,45 @@ export default function NotificationObserver() {
           const currStatus = sched.queueStatus;
 
           if (prevStatus !== currStatus) {
-            if ((prevStatus === 'not_started' || !prevStatus) && currStatus === 'active') {
-              notificationService.notify(NOTIFICATION_EVENTS.QUEUE_STARTED, {
-                entityId: schedId,
-                dedupeKey: `queue_start_${schedId}_${sched.clinicDate}`,
-              });
-            } else if (prevStatus === 'active' && currStatus === 'paused') {
-              notificationService.notify(NOTIFICATION_EVENTS.QUEUE_PAUSED, {
-                entityId: schedId,
-                dedupeKey: `queue_paused_${schedId}_${Date.now()}`,
-              });
-            } else if (prevStatus === 'paused' && currStatus === 'active') {
-              notificationService.notify(NOTIFICATION_EVENTS.QUEUE_RESUMED, {
-                entityId: schedId,
-                dedupeKey: `queue_resumed_${schedId}_${Date.now()}`,
-              });
-            } else if (currStatus === 'closed' && prevStatus !== 'closed') {
-              notificationService.notify(NOTIFICATION_EVENTS.QUEUE_CLOSED, {
-                entityId: schedId,
-                dedupeKey: `queue_closed_${schedId}_${sched.clinicDate}`,
-              });
-            } else if (
-              (currStatus === 'ended' || currStatus === 'completed' || sched.status === 'completed') &&
-              prevStatus !== 'ended' &&
-              prevStatus !== 'completed' &&
-              prevSched.status !== 'completed'
-            ) {
-              notificationService.notify(NOTIFICATION_EVENTS.CLINIC_SESSION_ENDED, {
-                entityId: schedId,
-                dedupeKey: `clinic_ended_${schedId}_${sched.clinicDate}`,
-              });
+            // Only parents with an active reservation on this schedule receive queue-related notifications
+            const hasActiveRes = user && Object.values(prevMyReservationsRef.current).some(
+              (r) =>
+                r.scheduleId === schedId &&
+                ['reserved', 'waiting', 'checked_in', 'validation_open', 'waiting_for_window', 'in_consultation'].includes(r.status)
+            );
+
+            if (hasActiveRes) {
+              if ((prevStatus === 'not_started' || !prevStatus) && currStatus === 'active') {
+                notificationService.notify(NOTIFICATION_EVENTS.QUEUE_STARTED, {
+                  entityId: schedId,
+                  dedupeKey: `queue_start_${schedId}_${sched.clinicDate}`,
+                });
+              } else if (prevStatus === 'active' && currStatus === 'paused') {
+                notificationService.notify(NOTIFICATION_EVENTS.QUEUE_PAUSED, {
+                  entityId: schedId,
+                  dedupeKey: `queue_paused_${schedId}_${Date.now()}`,
+                });
+              } else if (prevStatus === 'paused' && currStatus === 'active') {
+                notificationService.notify(NOTIFICATION_EVENTS.QUEUE_RESUMED, {
+                  entityId: schedId,
+                  dedupeKey: `queue_resumed_${schedId}_${Date.now()}`,
+                });
+              } else if (currStatus === 'closed' && prevStatus !== 'closed') {
+                notificationService.notify(NOTIFICATION_EVENTS.QUEUE_CLOSED, {
+                  entityId: schedId,
+                  dedupeKey: `queue_closed_${schedId}_${sched.clinicDate}`,
+                });
+              } else if (
+                (currStatus === 'ended' || currStatus === 'completed' || sched.status === 'completed') &&
+                prevStatus !== 'ended' &&
+                prevStatus !== 'completed' &&
+                prevSched.status !== 'completed'
+              ) {
+                notificationService.notify(NOTIFICATION_EVENTS.CLINIC_SESSION_ENDED, {
+                  entityId: schedId,
+                  dedupeKey: `clinic_ended_${schedId}_${sched.clinicDate}`,
+                });
+              }
             }
           }
         }

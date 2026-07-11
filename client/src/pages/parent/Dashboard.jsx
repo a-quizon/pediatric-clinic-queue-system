@@ -45,6 +45,30 @@ export default function Dashboard() {
 
   const schedule = activeReservation ? schedules[activeReservation.scheduleId] : null;
 
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const todaySchedule = useMemo(() => {
+    const allScheds = Object.values(schedules || {});
+    const activeToday = allScheds.find(s => s.clinicDate === todayStr && ['active', 'paused', 'closed'].includes(s.queueStatus));
+    if (activeToday) return activeToday;
+    const publishedToday = allScheds.find(s => s.clinicDate === todayStr && s.status === 'published' && s.queueStatus !== 'ended' && s.queueStatus !== 'completed');
+    if (publishedToday) return publishedToday;
+    return null;
+  }, [schedules, todayStr]);
+
+  const childName = activeReservation?.childName || "N/A";
+  const nameSizeClass = childName.length > 24
+    ? "text-base sm:text-lg"
+    : childName.length > 16
+    ? "text-lg sm:text-xl"
+    : "text-xl sm:text-2xl";
+
   const [tick, setTick] = useState(0);
   useEffect(() => {
     if (activeReservation?.status !== "validation_open") return;
@@ -190,12 +214,14 @@ export default function Dashboard() {
         <div className="space-y-4">
           <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden max-w-lg mx-auto animate-in fade-in slide-in-from-bottom-4">
             {/* Two-Column Header */}
-            <div className="bg-gray-50/80 border-b border-gray-100 px-6 sm:px-8 py-5 flex justify-between items-start sm:items-center">
-              <div className="text-left">
+            <div className="bg-gray-50/80 border-b border-gray-100 px-6 sm:px-8 py-5 flex justify-between items-center">
+              <div className="text-left min-w-0 flex-1 mr-3">
                 <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Patient</span>
-                <h2 className="text-xl sm:text-2xl font-black text-gray-800 truncate">{activeReservation.childName || "N/A"}</h2>
+                <h2 className={`${nameSizeClass} font-black text-gray-800 truncate leading-tight block`} title={childName}>
+                  {childName}
+                </h2>
                 {(user?.fullName || user?.displayName || user?.name) && (
-                  <span className="text-xs font-medium text-gray-500 block mt-0.5">Parent: {user?.fullName || user?.displayName || user?.name}</span>
+                  <span className="text-xs font-medium text-gray-500 block mt-0.5 truncate">Parent: {user?.fullName || user?.displayName || user?.name}</span>
                 )}
               </div>
 
@@ -298,21 +324,84 @@ export default function Dashboard() {
           )}
         </div>
       ) : (
-        /* Empty State */
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-10 sm:p-14 text-center max-w-lg mx-auto animate-in fade-in">
-          <div className="mx-auto w-20 h-20 bg-blue-50 text-blue-400 rounded-full flex items-center justify-center mb-6">
-            <CalendarPlus className="w-10 h-10" />
+        /* Today's Clinic Status Card (Public Overview when no active reservation) */
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-lg overflow-hidden max-w-lg mx-auto animate-in fade-in slide-in-from-bottom-4">
+          <div className="bg-gray-50/80 border-b border-gray-100 px-6 sm:px-8 py-5 flex justify-between items-center">
+            <div className="text-left">
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Public Status</span>
+              <h2 className="text-xl sm:text-2xl font-black text-gray-800">Today&apos;s Clinic Status</h2>
+            </div>
+            {todaySchedule && (
+              <span className="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-xs bg-blue-100 text-blue-700 border-blue-200">
+                {todaySchedule.branch || "Angeles"}
+              </span>
+            )}
           </div>
-          <h2 className="text-2xl font-black text-gray-800 mb-3">No Active Reservation</h2>
-          <p className="text-gray-500 mb-8 max-w-xs mx-auto">
-            You currently do not have an active queue position. Book an appointment to get started.
-          </p>
-          <Link 
-            to="/parent/reserve" 
-            className="inline-flex items-center justify-center px-8 py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            Make Reservation
-          </Link>
+
+          <div className="p-6 sm:p-8 space-y-6">
+            {todaySchedule ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Status</span>
+                    <span className="text-xs sm:text-sm font-black text-gray-800">
+                      {['active', 'paused', 'closed'].includes(todaySchedule.queueStatus) ? 'In Progress' : 'Scheduled'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Branch</span>
+                    <span className="text-xs sm:text-sm font-black text-gray-800">{todaySchedule.branch || 'Angeles'}</span>
+                  </div>
+
+                  <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Queue</span>
+                    <span className={`text-xs sm:text-sm font-black ${todaySchedule.queueStatus === 'active' ? 'text-green-600' : todaySchedule.queueStatus === 'closed' ? 'text-red-600' : 'text-gray-800'}`}>
+                      {todaySchedule.queueStatus === 'active' ? 'Open' : todaySchedule.queueStatus === 'paused' ? 'Paused' : todaySchedule.queueStatus === 'closed' ? 'Closed' : 'Not Started'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-100">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Reservations</span>
+                    <span className={`text-xs sm:text-sm font-black ${todaySchedule.queueStatus === 'closed' ? 'text-red-600' : 'text-green-600'}`}>
+                      {todaySchedule.queueStatus === 'closed' ? 'Closed' : 'Available'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-4 text-center">
+                  <p className="text-xs font-semibold text-blue-900">
+                    {todaySchedule.queueStatus === 'closed'
+                      ? "Today's clinic is currently serving existing reservations."
+                      : todaySchedule.queueStatus === 'active'
+                      ? "Today's clinic session is live and serving patients."
+                      : todaySchedule.queueStatus === 'paused'
+                      ? "Today's clinic session is temporarily paused."
+                      : "Today's clinic session is available for reservation."}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="py-6 text-center space-y-3">
+                <div className="mx-auto w-14 h-14 bg-gray-100 text-gray-400 rounded-2xl flex items-center justify-center">
+                  <Clock className="w-7 h-7" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800">No Active Clinic Session</h3>
+                  <p className="text-xs text-gray-500 mt-1">No clinic session is currently active today.</p>
+                </div>
+              </div>
+            )}
+
+            <div className="text-center pt-2">
+              <Link
+                to="/parent/reserve"
+                className="inline-flex items-center justify-center px-8 py-3.5 bg-blue-600 text-white font-bold text-sm rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+              >
+                Make Reservation
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 
