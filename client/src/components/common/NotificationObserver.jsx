@@ -4,6 +4,7 @@ import { subscribeToAllSchedules } from '../../services/scheduleService';
 import { subscribeToAllReservations } from '../../services/reservationService';
 import notificationService, { NOTIFICATION_EVENTS } from '../../services/notificationService';
 import { evaluatePositionEvents } from '../../services/positionEventEngine';
+import { cleanupNonParentNotifications } from '../../services/notificationCenterService';
 
 /**
  * Global Notification Observer
@@ -11,7 +12,11 @@ import { evaluatePositionEvents } from '../../services/positionEventEngine';
  * Never triggers toasts on initial mount/refresh, only on actual application state transitions.
  */
 export default function NotificationObserver() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+
+  useEffect(() => {
+    cleanupNonParentNotifications();
+  }, []);
 
   const isInitialSchedulesLoad = useRef(true);
   const isInitialReservationsLoad = useRef(true);
@@ -21,6 +26,8 @@ export default function NotificationObserver() {
   const prevPatientsAheadRef = useRef({});
 
   useEffect(() => {
+    if (!user || role !== 'parent') return;
+
     // Subscribe to all schedules for schedule state transitions
     const unsubSchedules = subscribeToAllSchedules((data) => {
       const currentSchedules = data || {};
@@ -112,10 +119,10 @@ export default function NotificationObserver() {
     });
 
     return () => unsubSchedules();
-  }, []);
+  }, [user, role]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || role !== 'parent') return;
 
     // Subscribe to all reservations for parent reservation transitions & queue progress
     const unsubReservations = subscribeToAllReservations((allReservations) => {
@@ -199,7 +206,7 @@ export default function NotificationObserver() {
     });
 
     return () => unsubReservations();
-  }, [user]);
+  }, [user, role]);
 
   return null;
 }
