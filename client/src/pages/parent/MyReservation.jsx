@@ -84,7 +84,7 @@ export default function MyReservation() {
   const activeReservation = useMemo(() => {
     if (!user) return null;
     const myRes = allReservations.filter(r => r.parentId === user.uid);
-    const active = myRes.find(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation"].includes(r.status));
+    const active = myRes.find(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation", "with_doctor"].includes(r.status));
     if (active) return active;
     return myRes.find(r => ["expired", "validation_expired"].includes(r.status));
   }, [allReservations, user]);
@@ -112,7 +112,7 @@ export default function MyReservation() {
     return activeReservation.queueNumber || activeReservation.originalQueueNumber || activeReservation.queuePosition || null;
   }, [activeReservation]);
 
-  const isValidated = activeReservation && (activeReservation.checkedIn || ["checked_in", "in_consultation", "consultation_completed", "completed"].includes(activeReservation.status));
+  const isValidated = activeReservation && (activeReservation.checkedIn || ["checked_in", "in_consultation", "with_doctor", "consultation_completed", "completed"].includes(activeReservation.status));
 
   useEffect(() => {
     if (activeReservation && activeReservation.reservationCode && !isValidated && activeReservation.status !== 'waiting_for_window') {
@@ -213,6 +213,8 @@ export default function MyReservation() {
         return { text: 'Awaiting Arrival', color: 'bg-blue-50 text-blue-700 border-blue-200' };
       case 'checked_in': 
         return { text: 'Checked In', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' };
+      case 'with_doctor': 
+        return { text: 'With Doctor', color: 'bg-purple-100 text-purple-800 border-purple-200' };
       case 'in_consultation': 
         return { text: 'In Consultation', color: 'bg-purple-100 text-purple-800 border-purple-200' };
       case 'consultation_completed': 
@@ -352,7 +354,7 @@ export default function MyReservation() {
                     >
                       <Maximize2 className="w-4 h-4 mr-2" /> Expand QR Code
                     </button>
-                    {activeReservation.status !== "checked_in" && activeReservation.status !== "in_consultation" && (
+                    {activeReservation.status !== "checked_in" && activeReservation.status !== "in_consultation" && activeReservation.status !== "with_doctor" && (
                       <button
                         onClick={() => handleCancelClick(activeReservation)}
                         className="w-full py-2.5 px-4 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center focus:outline-none"

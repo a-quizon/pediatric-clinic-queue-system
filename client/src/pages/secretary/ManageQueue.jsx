@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle, AlertTriangle } from "lucide-react";
-import { subscribeToAllReservations, startConsultation, penalizeReservation, requestCheckInReminder } from "../../services/reservationService";
+import { subscribeToAllReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
@@ -74,8 +74,8 @@ export default function ManageQueue() {
   // Active queue for today's started schedule
   const activeReservations = reservations.filter(r => r.scheduleId === activeStartedSchedule.id);
   
-  // Region 1 data: Current active consultation(s)
-  const inConsultationPatients = activeReservations.filter(r => r.status === "in_consultation");
+  // Region 1 data: Current active consultation(s) / with doctor
+  const inConsultationPatients = activeReservations.filter(r => r.status === "in_consultation" || r.status === "with_doctor");
 
   // Region 2 data: Remaining patients waiting in line sorted by current queue order (turn in line)
   const waitingQueue = activeReservations
@@ -94,6 +94,13 @@ export default function ManageQueue() {
 
   const renderStatusBadge = (status) => {
     switch (status) {
+      case "with_doctor":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200 shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse" />
+            With Doctor
+          </span>
+        );
       case "in_consultation":
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200 shrink-0">
@@ -121,13 +128,13 @@ export default function ManageQueue() {
     }
   };
 
-  const handleStartConsultation = async (res) => {
+  const handleSendToDoctor = async (res) => {
     try {
       setActionLoading(res.id);
-      await startConsultation(res.id);
-      toast.success(`Consultation started for ${res.childName}`);
+      await sendToDoctor(res.id);
+      toast.success(`Sent ${res.childName || "patient"} to Doctor room`);
     } catch (err) {
-      toast.error("Failed to start consultation");
+      toast.error("Failed to send patient to Doctor");
     } finally {
       setActionLoading(null);
     }
@@ -275,7 +282,7 @@ export default function ManageQueue() {
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-blue-200/50 shrink-0">
-                  {renderStatusBadge("in_consultation")}
+                  {renderStatusBadge(res.status)}
                 </div>
               </div>
             </div>
@@ -301,7 +308,7 @@ export default function ManageQueue() {
           <div className="space-y-3">
             {waitingQueue.map((res, idx) => {
               const isFirstWaiting = idx === 0;
-              const canStartConsultation =
+              const canSendToDoctor =
                 noActiveConsultation &&
                 isFirstWaiting &&
                 res.status === "checked_in";
@@ -353,14 +360,15 @@ export default function ManageQueue() {
                     <div className="flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100 shrink-0">
                       {renderStatusBadge(res.status)}
 
-                      {canStartConsultation && (
+                      {canSendToDoctor && (
                         <button
-                          onClick={() => handleStartConsultation(res)}
+                          onClick={() => handleSendToDoctor(res)}
                           disabled={actionLoading === res.id}
                           className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
+                          title="Send patient to Doctor room"
                         >
                           <PlayCircle className="w-4 h-4" />
-                          Start Consultation
+                          Send to Doctor
                         </button>
                       )}
 

@@ -137,7 +137,7 @@ export const calculateDynamicQueuePositions = (reservations) => {
   });
   
   let processedReservations = [];
-  const activeStatuses = ["reserved", "checked_in", "waiting", "in_consultation", "validation_open", "waiting_for_window"];
+  const activeStatuses = ["reserved", "checked_in", "waiting", "in_consultation", "with_doctor", "validation_open", "waiting_for_window"];
   
   Object.values(groupedBySchedule).forEach(scheduleReservations => {
     // 1. Assign/preserve permanent Queue Number based on creation order
@@ -230,6 +230,17 @@ export const startConsultation = async (reservationId) => {
   const scheduleId = snap.exists() ? snap.val().scheduleId : null;
   await update(ref(database, `reservations/${reservationId}`), {
     status: "in_consultation",
+    consultationStartedAt: Date.now()
+  });
+  if (scheduleId) await recalculateRollingValidation(scheduleId);
+};
+
+export const sendToDoctor = async (reservationId) => {
+  const snap = await get(ref(database, `reservations/${reservationId}`));
+  const scheduleId = snap.exists() ? snap.val().scheduleId : null;
+  await update(ref(database, `reservations/${reservationId}`), {
+    status: "with_doctor",
+    sentToDoctorAt: Date.now(),
     consultationStartedAt: Date.now()
   });
   if (scheduleId) await recalculateRollingValidation(scheduleId);

@@ -146,6 +146,7 @@ export default function ParentQRCode() {
             {isReservationExpired(reservation, schedule) ? "Validation Window Expired" :
              ['forfeited', 'penalized', 'late_limit_reached'].includes(reservation.status) ? "Reservation Forfeited" :
              reservation.status === "checked_in" ? "Already Validated" : 
+             reservation.status === "with_doctor" ? "With Doctor" :
              reservation.status === "in_consultation" ? "Currently In Consultation" :
              reservation.status === "consultation_completed" ? "Consultation Completed" :
              "Scan this at the clinic"}
@@ -197,13 +198,13 @@ export default function ParentQRCode() {
               <h2 className="text-xl font-bold text-gray-800 mb-2">Clinic Closed</h2>
               <p className="text-gray-500 text-sm mt-2 font-medium">Today's clinic session has ended. Your reservation remains available in history.</p>
             </div>
-          ) : ["in_consultation", "consultation_completed"].includes(reservation.status) ? (
+          ) : ["with_doctor", "in_consultation", "consultation_completed"].includes(reservation.status) ? (
             <div className="py-8 px-4 text-center w-full">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
                 <Activity className="w-10 h-10" />
               </div>
               <h2 className="text-xl font-bold text-gray-800 mb-2">
-                {reservation.status === "in_consultation" ? "Currently In Consultation" : "Consultation Completed"}
+                {reservation.status === "with_doctor" ? "With Doctor" : reservation.status === "in_consultation" ? "Currently In Consultation" : "Consultation Completed"}
               </h2>
               {reservation.status === "consultation_completed" && (
                 <p className="text-gray-500 text-sm mt-2 font-medium">View details in Reservation History.</p>
@@ -295,7 +296,7 @@ export default function ParentQRCode() {
 
         {/* Footer Actions */}
         <div className="p-6 pt-0 bg-gray-50/50">
-          {qrImageUrl && schedule?.queueStatus !== 'ended' && schedule?.queueStatus !== 'completed' && reservation.status !== "waiting_for_window" && reservation.status !== "in_consultation" && reservation.status !== "consultation_completed" && reservation.status !== "checked_in" && (
+          {qrImageUrl && schedule?.queueStatus !== 'ended' && schedule?.queueStatus !== 'completed' && reservation.status !== "waiting_for_window" && reservation.status !== "with_doctor" && reservation.status !== "in_consultation" && reservation.status !== "consultation_completed" && reservation.status !== "checked_in" && (
             <a 
               href={qrImageUrl} 
               download={`reservation-${reservation.reservationCode || 'code'}.png`}

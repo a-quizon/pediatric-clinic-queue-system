@@ -9,6 +9,12 @@ export const getReservationStatusBadge = (status) => {
         color: 'bg-green-100 text-green-800 border-green-200',
         dot: 'bg-green-600'
       };
+    case 'with_doctor':
+      return {
+        label: 'With Doctor',
+        color: 'bg-purple-100 text-purple-800 border-purple-200',
+        dot: 'bg-purple-600 animate-pulse'
+      };
     case 'in_consultation':
       return {
         label: 'In Consultation',

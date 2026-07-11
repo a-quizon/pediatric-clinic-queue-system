@@ -12,7 +12,7 @@ export const evaluatePositionEvents = (allReservations = [], schedules = {}, use
   const myActiveReservations = allReservations.filter(
     (r) =>
       r.parentId === user.uid &&
-      ['reserved', 'waiting', 'checked_in', 'validation_open', 'waiting_for_window'].includes(r.status)
+      !['in_consultation', 'with_doctor', 'completed', 'consultation_completed', 'cancelled', 'forfeited'].includes(r.status)
   );
 
   myActiveReservations.forEach((r) => {
@@ -24,7 +24,7 @@ export const evaluatePositionEvents = (allReservations = [], schedules = {}, use
       .filter(
         (item) =>
           item.scheduleId === r.scheduleId &&
-          ['reserved', 'waiting', 'checked_in', 'validation_open', 'waiting_for_window'].includes(item.status)
+          !['in_consultation', 'with_doctor', 'completed', 'consultation_completed', 'cancelled', 'forfeited'].includes(item.status)
       )
       .sort((a, b) => {
         const aNum = Number(a.queueNumber || a.queueOrder || 0);

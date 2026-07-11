@@ -178,7 +178,7 @@ export default function NotificationObserver() {
                 parentId: r.parentId,
                 dedupeKey: `qr_verified_${r.id}`,
               });
-            } else if (currStatus === 'in_consultation') {
+            } else if (currStatus === 'in_consultation' || currStatus === 'with_doctor') {
               notificationService.notify(NOTIFICATION_EVENTS.CONSULTATION_STARTED, {
                 entityId: r.id,
                 parentId: r.parentId,

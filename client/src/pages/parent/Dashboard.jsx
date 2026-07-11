@@ -123,7 +123,7 @@ export default function Dashboard() {
     }
 
     let ahead = 0;
-    if (activeReservation.status === "in_consultation" || activeReservation.status === "consultation_completed") {
+    if (["in_consultation", "with_doctor", "consultation_completed"].includes(activeReservation.status)) {
       ahead = 0;
     } else {
       const myIndex = activeLine.findIndex(r => r.id === activeReservation.id);
@@ -132,7 +132,7 @@ export default function Dashboard() {
 
     const myPNum = permanentQueueNumber || 1;
     let percent = 0;
-    if (activeReservation.status === "in_consultation" || activeReservation.status === "consultation_completed") {
+    if (["in_consultation", "with_doctor", "consultation_completed"].includes(activeReservation.status)) {
       percent = 100;
     } else if (myPNum > 1) {
       percent = Math.min(100, Math.max(0, Math.round((compCount / (myPNum - 1)) * 100)));
@@ -249,7 +249,7 @@ export default function Dashboard() {
                   to="/parent/reservations"
                   className="group inline-block focus:outline-none transition-transform active:scale-95"
                 >
-                  {activeReservation.status === "in_consultation" ? (
+                  {["in_consultation", "with_doctor"].includes(activeReservation.status) ? (
                     <div className="text-5xl sm:text-6xl font-black text-blue-600 tracking-tight group-hover:text-blue-700 transition-colors">
                       IN CLINIC
                     </div>
@@ -285,7 +285,7 @@ export default function Dashboard() {
                 <div className={`text-2xl sm:text-3xl font-black tracking-tight ${activeReservation.status === "consultation_completed" ? "text-gray-400" : "text-orange-500"}`}>
                   {activeReservation.status === "consultation_completed"
                     ? "—"
-                    : activeReservation.status === "in_consultation"
+                    : ["in_consultation", "with_doctor"].includes(activeReservation.status)
                     ? "0 Patients Remaining"
                     : patientsAhead === 0
                     ? "You're Next"

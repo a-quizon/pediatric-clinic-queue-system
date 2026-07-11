@@ -74,12 +74,12 @@ export default function Queue() {
     const checkedIn = scheduleReservations.filter(r => r.status === "checked_in")
       .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
 
-    const inCons = scheduleReservations.find(r => r.status === "in_consultation");
+    const inCons = scheduleReservations.find(r => r.status === "in_consultation" || r.status === "with_doctor");
 
     const completed = scheduleReservations.filter(r => r.status === "consultation_completed")
       .sort((a, b) => (b.consultationCompletedAt || 0) - (a.consultationCompletedAt || 0));
 
-    const reservedCount = scheduleReservations.filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation", "expired", "validation_expired"].includes(r.status)).length;
+    const reservedCount = scheduleReservations.filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation", "with_doctor", "expired", "validation_expired"].includes(r.status)).length;
     
     return {
       waitingValidationQueue: waitingValidation,

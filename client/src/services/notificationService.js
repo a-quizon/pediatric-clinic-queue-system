@@ -84,8 +84,8 @@ const NOTIFICATION_CONFIG = {
   },
   [NOTIFICATION_EVENTS.CONSULTATION_STARTED]: {
     type: 'success',
-    title: 'Consultation Started',
-    message: 'Your consultation has started.',
+    title: 'With Doctor',
+    message: 'You are now with the doctor.',
     duration: 5000,
   },
   [NOTIFICATION_EVENTS.CONSULTATION_COMPLETED]: {
