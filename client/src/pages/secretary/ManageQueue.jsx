@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle, AlertTriangle } from "lucide-react";
 import { subscribeToAllReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
+import { computeReservationState, QUEUE_STATES } from "../../services/queueEngine";
 import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 
@@ -160,21 +161,13 @@ export default function ManageQueue() {
   };
 
   const getNextEligibleCheckIn = () => {
-    const sortedQueue = [...activeReservations].sort((a, b) => {
-      const aNum = Number(a.queueNumber || a.queueOrder || 0);
-      const bNum = Number(b.queueNumber || b.queueOrder || 0);
-      if (aNum !== bNum) return aNum - bNum;
-      return (a.sortTimestamp || a.createdAt || 0) - (b.sortTimestamp || b.createdAt || 0);
+    return activeReservations.find((r) => {
+      const state = computeReservationState(r, activeReservations);
+      return (
+        state === QUEUE_STATES.YOU_ARE_NEXT &&
+        !["checked_in", "with_doctor", "in_consultation", "completed", "consultation_completed", "cancelled", "forfeited", "penalized", "late_limit_reached"].includes(r.status)
+      );
     });
-
-    return sortedQueue.find((r) =>
-      r.status !== "checked_in" &&
-      r.status !== "in_consultation" &&
-      r.status !== "completed" &&
-      r.status !== "consultation_completed" &&
-      r.status !== "cancelled" &&
-      r.status !== "forfeited"
-    );
   };
 
   const nextEligibleRes = getNextEligibleCheckIn();

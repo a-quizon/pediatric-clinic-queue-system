@@ -6,6 +6,7 @@ import { subscribeToAllReservations } from "../../services/reservationService";
 import { getSchedules, subscribeToAllSchedules } from "../../services/scheduleService";
 import { isReservationExpired, getRemainingValidationTime, formatRemainingTime } from "../../services/timeService";
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
+import { computeReservationState, QUEUE_STATES } from "../../services/queueEngine";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -86,8 +87,8 @@ export default function Dashboard() {
 
   const permanentQueueNumber = activeReservation ? getPermanentQueueNumber(activeReservation.id, activeReservation.scheduleId) : null;
 
-  const { nowServing, patientsAhead, nowServingText, completedCount, progressPercent } = useMemo(() => {
-    if (!activeReservation) return { nowServing: null, patientsAhead: 0, nowServingText: "—", completedCount: 0, progressPercent: 0 };
+  const { nowServing, patientsAhead, nowServingText, completedCount, progressPercent, queueState } = useMemo(() => {
+    if (!activeReservation) return { nowServing: null, patientsAhead: 0, nowServingText: "—", completedCount: 0, progressPercent: 0, queueState: null };
     
     const scheduleRes = allReservations
       .filter(r => r.scheduleId === activeReservation.scheduleId)
@@ -145,7 +146,8 @@ export default function Dashboard() {
       patientsAhead: ahead, 
       nowServingText: servingText,
       completedCount: compCount,
-      progressPercent: percent
+      progressPercent: percent,
+      queueState: computeReservationState(activeReservation, allReservations)
     };
   }, [allReservations, activeReservation, permanentQueueNumber, schedule]);
 
@@ -262,7 +264,7 @@ export default function Dashboard() {
 
                 {/* Logical Reading Order: Reservation Status -> Validation Window (if open) -> Branch */}
                 <div className="mt-3.5 flex flex-col items-center justify-center gap-2">
-                  <ReservationStatusBadge status={effectiveStatus} className="shadow-2xs px-3 py-1" />
+                  <ReservationStatusBadge status={queueState || effectiveStatus} className="shadow-2xs px-3 py-1" />
 
 
 
@@ -283,13 +285,13 @@ export default function Dashboard() {
               <div className="pt-6 pb-2">
                 <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Ahead of You</span>
                 <div className={`text-2xl sm:text-3xl font-black tracking-tight ${activeReservation.status === "consultation_completed" ? "text-gray-400" : "text-orange-500"}`}>
-                  {activeReservation.status === "consultation_completed"
+                  {queueState === QUEUE_STATES.COMPLETED || activeReservation.status === "consultation_completed"
                     ? "—"
-                    : ["in_consultation", "with_doctor"].includes(activeReservation.status)
+                    : ["in_consultation", "with_doctor"].includes(activeReservation.status) || queueState === QUEUE_STATES.WITH_DOCTOR
                     ? "0 Patients Remaining"
-                    : patientsAhead === 0
+                    : queueState === QUEUE_STATES.YOU_ARE_NEXT || patientsAhead === 0
                     ? "You're Next"
-                    : patientsAhead === 1
+                    : queueState === QUEUE_STATES.ALMOST_NEXT || patientsAhead === 1
                     ? "1 Patient Remaining"
                     : `${patientsAhead} Patients Remaining`}
                 </div>
