@@ -151,6 +151,17 @@ export default function NotificationObserver() {
           const prevPenalty = prevRes.penaltyCount || 0;
           const currPenalty = r.penaltyCount || 0;
 
+          // Check check-in request reminder from Secretary
+          const prevCheckInReq = prevRes.checkInRequestedAt || 0;
+          const currCheckInReq = r.checkInRequestedAt || 0;
+          if (currCheckInReq > prevCheckInReq) {
+            notificationService.notify(NOTIFICATION_EVENTS.CHECK_IN_REQUESTED, {
+              entityId: r.id,
+              parentId: r.parentId,
+              dedupeKey: `check_in_req_${r.id}_${currCheckInReq}`,
+            });
+          }
+
           // Check penalty increment while reservation is still active (not forfeited)
           if (currPenalty > prevPenalty && currStatus !== 'forfeited') {
             notificationService.notify(NOTIFICATION_EVENTS.PENALIZED, {

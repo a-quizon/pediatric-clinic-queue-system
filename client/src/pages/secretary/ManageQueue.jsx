@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle, AlertTriangle } from "lucide-react";
-import { subscribeToAllReservations, startConsultation, penalizeReservation } from "../../services/reservationService";
+import { subscribeToAllReservations, startConsultation, penalizeReservation, requestCheckInReminder } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
@@ -11,6 +11,13 @@ export default function ManageQueue() {
   const [schedules, setSchedules] = useState({});
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
+  const [requestingCheckIn, setRequestingCheckIn] = useState(false);
+  const [nowTs, setNowTs] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const unsubSchedules = subscribeToPublishedSchedules((data) => {
@@ -145,6 +152,57 @@ export default function ManageQueue() {
     }
   };
 
+  const getNextEligibleCheckIn = () => {
+    const sortedQueue = [...activeReservations].sort((a, b) => {
+      const aNum = Number(a.queueNumber || a.queueOrder || 0);
+      const bNum = Number(b.queueNumber || b.queueOrder || 0);
+      if (aNum !== bNum) return aNum - bNum;
+      return (a.sortTimestamp || a.createdAt || 0) - (b.sortTimestamp || b.createdAt || 0);
+    });
+
+    return sortedQueue.find((r) =>
+      r.status !== "checked_in" &&
+      r.status !== "in_consultation" &&
+      r.status !== "completed" &&
+      r.status !== "consultation_completed" &&
+      r.status !== "cancelled" &&
+      r.status !== "forfeited"
+    );
+  };
+
+  const nextEligibleRes = getNextEligibleCheckIn();
+  const nextEligibleElapsed = nextEligibleRes
+    ? nowTs - (nextEligibleRes.checkInRequestedAt || 0)
+    : 999999;
+  const nextEligibleCooldownSec =
+    nextEligibleElapsed < 30000
+      ? Math.ceil((30000 - nextEligibleElapsed) / 1000)
+      : 0;
+
+  const handleRequestCheckIn = async () => {
+    if (!nextEligibleRes) {
+      toast.error("All patients in queue are already checked in or processed.");
+      return;
+    }
+
+    if (nextEligibleCooldownSec > 0) {
+      toast.error("Check-in request already sent. Please wait before sending another reminder.");
+      return;
+    }
+
+    try {
+      setRequestingCheckIn(true);
+      await requestCheckInReminder(nextEligibleRes.id);
+      toast.success(
+        `Check-in reminder sent to Queue #${nextEligibleRes.queueNumber || "?"} (${nextEligibleRes.childName || "Patient"})`
+      );
+    } catch (err) {
+      toast.error("Failed to send check-in reminder.");
+    } finally {
+      setRequestingCheckIn(false);
+    }
+  };
+
   const noActiveConsultation = inConsultationPatients.length === 0;
 
   return (
@@ -157,9 +215,28 @@ export default function ManageQueue() {
             Real-time active queue for {activeStartedSchedule.branch || "Today's Clinic Session"}
           </p>
         </div>
-        <div className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full text-xs font-bold text-gray-700">
-          <Users className="w-4 h-4 text-blue-600" />
-          <span>{inConsultationPatients.length + waitingQueue.length} Total Active</span>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={handleRequestCheckIn}
+            disabled={requestingCheckIn || nextEligibleCooldownSec > 0}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-bold text-sm shadow-sm transition-all"
+            title={
+              nextEligibleCooldownSec > 0
+                ? "Check-in request already sent. Please wait before sending another reminder."
+                : "Remind the next awaiting patient to proceed to the clinic for QR validation"
+            }
+          >
+            <UserCheck className="w-4 h-4" />
+            <span>
+              {nextEligibleCooldownSec > 0
+                ? `Request Check-In (${nextEligibleCooldownSec}s)`
+                : "Request Check-In"}
+            </span>
+          </button>
+          <div className="flex items-center gap-2 bg-gray-100 px-3.5 py-2 rounded-full text-xs font-bold text-gray-700">
+            <Users className="w-4 h-4 text-blue-600" />
+            <span>{inConsultationPatients.length + waitingQueue.length} Total Active</span>
+          </div>
         </div>
       </div>
 

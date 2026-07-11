@@ -21,6 +21,7 @@ export const NOTIFICATION_EVENTS = {
   CONSULTATION_COMPLETED: 'CONSULTATION_COMPLETED',
   PENALIZED: 'PENALIZED',
   FORFEITED: 'FORFEITED',
+  CHECK_IN_REQUESTED: 'CHECK_IN_REQUESTED',
 };
 
 /**
@@ -104,6 +105,12 @@ const NOTIFICATION_CONFIG = {
     title: 'Reservation Forfeited',
     message: "Your reservation has been forfeited after exceeding the clinic's late arrival limit.",
     duration: 8000,
+  },
+  [NOTIFICATION_EVENTS.CHECK_IN_REQUESTED]: {
+    type: 'info',
+    title: 'Check-In Requested',
+    message: 'Please proceed to the clinic and have your QR Code validated by the secretary.',
+    duration: 6000,
   },
 };
 

@@ -304,3 +304,10 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
     });
   }
 };
+
+export const requestCheckInReminder = async (reservationId) => {
+  if (!reservationId) return;
+  await update(ref(database, `reservations/${reservationId}`), {
+    checkInRequestedAt: Date.now(),
+  });
+};

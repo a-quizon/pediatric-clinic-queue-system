@@ -57,12 +57,22 @@ export default function ParentLayout() {
       return { title: "Reservation History", showBack: true, backPath: "/parent/profile" };
     }
     if (path.includes("/notifications")) {
-      return { title: "Notifications", showBack: true, backPath: "/parent/profile" };
+      return { title: "Notifications", showBack: true, useHistoryBack: true, backPath: "/parent" };
     }
     return { title: "Home", showBack: false };
   };
 
   const headerInfo = getHeaderInfo();
+
+  const handleBack = () => {
+    if (headerInfo.useHistoryBack && window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else if (headerInfo.backPath) {
+      navigate(headerInfo.backPath);
+    } else {
+      navigate("/parent");
+    }
+  };
 
   return (
     <div className="flex h-screen bg-white md:bg-gray-50 md:flex-row flex-col font-sans overflow-hidden">
@@ -109,7 +119,7 @@ export default function ParentLayout() {
           <div className="flex items-center gap-3">
             {headerInfo.showBack ? (
               <button
-                onClick={() => navigate(headerInfo.backPath)}
+                onClick={handleBack}
                 className="w-9 h-9 bg-gray-50 border border-gray-200/80 rounded-full flex items-center justify-center text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-2xs focus:outline-none flex-shrink-0 group"
                 aria-label="Go back"
               >
