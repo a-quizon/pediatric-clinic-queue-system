@@ -201,7 +201,8 @@ export const checkBranchInUse = async (branchName) => {
     if (reservationsSnapshot.exists()) {
       const reservations = reservationsSnapshot.val();
       for (const res of Object.values(reservations)) {
-        if (scheduleIds.includes(res.scheduleId) && res.status !== "cancelled" && res.status !== "completed") {
+        const inactiveStatuses = ["cancelled", "completed", "consultation_completed", "forfeited", "penalized", "late_limit_reached", "expired", "validation_expired"];
+        if (scheduleIds.includes(res.scheduleId) && !inactiveStatuses.includes(res.status)) {
           hasActiveReservations = true;
           break;
         }

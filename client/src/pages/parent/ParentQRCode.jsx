@@ -125,6 +125,9 @@ export default function ParentQRCode() {
       case 'waiting': return 'bg-orange-50 text-orange-600 border-orange-100';
       case 'validated': return 'bg-green-50 text-green-600 border-green-100';
       case 'completed': return 'bg-gray-100 text-gray-600 border-gray-200';
+      case 'forfeited':
+      case 'penalized':
+      case 'late_limit_reached':
       case 'cancelled': return 'bg-red-50 text-red-600 border-red-100';
       default: return 'bg-gray-50 text-gray-600 border-gray-100';
     }
@@ -141,6 +144,7 @@ export default function ParentQRCode() {
           <h1 className="text-xl font-bold text-white mb-1">Reservation Key</h1>
           <p className="text-blue-100 text-sm font-medium">
             {isReservationExpired(reservation, schedule) ? "Validation Window Expired" :
+             ['forfeited', 'penalized', 'late_limit_reached'].includes(reservation.status) ? "Reservation Forfeited" :
              reservation.status === "checked_in" ? "Already Validated" : 
              reservation.status === "in_consultation" ? "Currently In Consultation" :
              reservation.status === "consultation_completed" ? "Consultation Completed" :

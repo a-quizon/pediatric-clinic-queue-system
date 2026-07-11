@@ -52,7 +52,8 @@ export const getReservationsBySchedule = async (scheduleId) => {
 
 export const checkExistingReservation = async (scheduleId, parentId) => {
   const reservations = await getReservationsBySchedule(scheduleId);
-  return reservations.some((res) => res.parentId === parentId && res.status !== "cancelled" && res.status !== "completed");
+  const inactiveStatuses = ["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"];
+  return reservations.some((res) => res.parentId === parentId && !inactiveStatuses.includes(res.status));
 };
 
 export const checkExistingReservationOnDate = async (parentId, clinicDate) => {
@@ -75,7 +76,7 @@ export const checkExistingReservationOnDate = async (parentId, clinicDate) => {
   return Object.values(reservations).some((res) => 
     res.parentId === parentId && 
     targetScheduleIds.includes(res.scheduleId) &&
-    !["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized"].includes(res.status)
+    !["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"].includes(res.status)
   );
 };
 
@@ -261,10 +262,12 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
   const lateLimit = Number(schedule?.lateLimit) || 3;
 
   if (currentPenaltyCount >= lateLimit) {
-    // Exceeded Late Limit: Remove reservation from today's queue into history
+    // Exceeded Late Limit: Remove reservation from today's queue into history permanently as forfeited
     await update(ref(database, `reservations/${reservationId}`), {
-      status: "penalized",
+      status: "forfeited",
+      forfeitureReason: "Exceeded the clinic's late arrival limit.",
       penaltyCount: currentPenaltyCount,
+      forfeitedAt: Date.now(),
       penalizedAt: Date.now()
     });
   } else {

@@ -28,10 +28,11 @@ export const getReservationStatusBadge = (status) => {
         color: 'bg-red-100 text-red-700 border-red-200',
         dot: 'bg-red-500'
       };
+    case 'forfeited':
     case 'penalized':
     case 'late_limit_reached':
       return {
-        label: 'Late Limit Reached',
+        label: 'Forfeited',
         color: 'bg-red-100 text-red-700 border-red-200',
         dot: 'bg-red-500'
       };

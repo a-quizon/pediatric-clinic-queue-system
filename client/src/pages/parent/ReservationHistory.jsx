@@ -32,7 +32,7 @@ export default function ReservationHistory() {
       unsub = subscribeToAllReservations((data) => {
         const history = data.filter(r => 
           r.parentId === user.uid && 
-          ["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "penalized"].includes(r.status)
+          ["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"].includes(r.status)
         );
         setReservations(history);
         setLoading(false);
@@ -42,7 +42,7 @@ export default function ReservationHistory() {
   }, [user]);
 
   const getTerminalTimestamp = (res) => {
-    return res.consultationCompletedAt || res.completedAt || res.cancelledAt || res.expiredAt || res.penalizedAt || res.createdAt;
+    return res.consultationCompletedAt || res.completedAt || res.cancelledAt || res.forfeitedAt || res.expiredAt || res.penalizedAt || res.createdAt;
   };
 
   const filteredAndSortedReservations = reservations
@@ -50,7 +50,7 @@ export default function ReservationHistory() {
       if (activeFilter === "All") return true;
       if (activeFilter === "Completed") return ["completed", "consultation_completed"].includes(res.status);
       if (activeFilter === "Cancelled") return res.status === "cancelled";
-      if (activeFilter === "Late Limit Reached") return ["penalized", "late_limit_reached"].includes(res.status);
+      if (activeFilter === "Forfeited" || activeFilter === "Late Limit Reached") return ["forfeited", "penalized", "late_limit_reached"].includes(res.status);
       if (activeFilter === "With Notes") {
         return ["completed", "consultation_completed"].includes(res.status) && !!res.doctorNotes && res.doctorNotes.trim() !== "";
       }
@@ -69,8 +69,8 @@ export default function ReservationHistory() {
     if (status === "cancelled") {
       return { label: "Cancelled", color: "bg-red-100 text-red-700 border-red-200" };
     }
-    if (["penalized", "late_limit_reached"].includes(status)) {
-      return { label: "Late Limit Reached", color: "bg-red-100 text-red-700 border-red-200" };
+    if (["forfeited", "penalized", "late_limit_reached"].includes(status)) {
+      return { label: "Forfeited", color: "bg-red-100 text-red-700 border-red-200" };
     }
     return { label: status.replace("_", " "), color: "bg-gray-100 text-gray-700 border-gray-200 uppercase" };
   };
@@ -79,7 +79,8 @@ export default function ReservationHistory() {
     switch (activeFilter) {
       case "Completed": return "No completed clinic reservations yet.";
       case "Cancelled": return "You have no cancelled clinic reservations.";
-      case "Late Limit Reached": return "You have no reservations removed for late limit.";
+      case "Forfeited":
+      case "Late Limit Reached": return "You have no forfeited reservations.";
       case "With Notes": return "No completed consultations with doctor's notes yet.";
       default: return "You haven't logged any past clinic reservations yet.";
     }
@@ -94,7 +95,7 @@ export default function ReservationHistory() {
 
       <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs sticky top-16 z-10">
         <div className="flex sm:flex-wrap gap-2 sm:gap-2.5 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide w-full -mx-4 px-4 sm:mx-0 sm:px-0">
-          {["All", "Completed", "Cancelled", "Late Limit Reached", "With Notes"].map(filter => (
+          {["All", "Completed", "Cancelled", "Forfeited", "With Notes"].map(filter => (
             <button
               key={filter}
               onClick={() => setActiveFilter(filter)}

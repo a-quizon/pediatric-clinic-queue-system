@@ -38,6 +38,41 @@ export default function ReserveQueue() {
     sex: "",
     concern: ""
   });
+  const [ageError, setAgeError] = useState("");
+
+  const handleAgeChange = (e) => {
+    const rawVal = e.target.value;
+    if (/[^0-9]/.test(rawVal)) {
+      setAgeError("Please enter numbers only (no letters, decimals, or negative signs).");
+      const cleanVal = rawVal.replace(/[^0-9]/g, "");
+      setFormData(prev => ({ ...prev, age: cleanVal }));
+    } else {
+      const numVal = parseInt(rawVal, 10);
+      if (rawVal && (numVal < 0 || numVal > 25)) {
+        setAgeError("Please enter a valid pediatric age (0 - 25).");
+      } else {
+        setAgeError("");
+      }
+      setFormData(prev => ({ ...prev, age: rawVal }));
+    }
+  };
+
+  const handleAgePaste = (e) => {
+    const pasteData = e.clipboardData.getData("text");
+    if (/[^0-9]/.test(pasteData)) {
+      e.preventDefault();
+      setAgeError("Pasted text contained invalid characters. Only whole numeric ages are allowed.");
+      const cleanVal = pasteData.replace(/[^0-9]/g, "");
+      setFormData(prev => ({ ...prev, age: cleanVal }));
+    }
+  };
+
+  const handleAgeKeyDown = (e) => {
+    if (["e", "E", "+", "-", "."].includes(e.key)) {
+      e.preventDefault();
+      setAgeError("Special characters, decimals, and negative signs are not allowed.");
+    }
+  };
 
   const [messageModalState, setMessageModalState] = useState({
     isOpen: false,
@@ -461,14 +496,23 @@ export default function ReserveQueue() {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Age *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Age (numeric) *</label>
                     <input 
                       type="text" 
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={formData.age}
-                      onChange={e => setFormData(prev => ({ ...prev, age: e.target.value }))}
-                      placeholder="e.g. 5 yrs"
-                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      onChange={handleAgeChange}
+                      onPaste={handleAgePaste}
+                      onKeyDown={handleAgeKeyDown}
+                      placeholder="e.g. 5"
+                      className={`w-full px-4 py-2.5 bg-white border rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none transition-all ${
+                        ageError ? "border-red-500 text-red-600" : "border-gray-200 focus:border-blue-500"
+                      }`}
                     />
+                    {ageError && (
+                      <p className="text-xs font-semibold text-red-600 mt-1 leading-tight">{ageError}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Sex *</label>
@@ -500,7 +544,7 @@ export default function ReserveQueue() {
             <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
               <button 
                 onClick={handleSubmitPatientInfo}
-                disabled={isSubmitting || !formData.childName.trim() || !formData.age.trim() || !formData.sex}
+                disabled={isSubmitting || !formData.childName.trim() || !formData.age.trim() || !!ageError || !/^\d+$/.test(formData.age) || !formData.sex}
                 className="px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors flex items-center disabled:opacity-70 disabled:cursor-not-allowed w-full justify-center"
               >
                 {isSubmitting ? (

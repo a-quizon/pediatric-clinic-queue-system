@@ -105,8 +105,9 @@ export const completeSchedule = async ( scheduleId ) => {
 
   const reservations = await getReservationsBySchedule(scheduleId);
   const updates = {};
+  const finalStatuses = ["cancelled", "completed", "consultation_completed", "forfeited", "penalized", "late_limit_reached", "expired", "validation_expired"];
   reservations.forEach(res => {
-    if (res.status !== "cancelled" && res.status !== "completed") {
+    if (!finalStatuses.includes(res.status)) {
       updates[`reservations/${res.id}/status`] = "completed";
       updates[`reservations/${res.id}/completedAt`] = now;
     }

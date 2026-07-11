@@ -152,7 +152,7 @@ export default function ManageQueue() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-200 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Live Clinic Floor Monitor</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Live Queue Monitor</h1>
           <p className="text-gray-500 text-sm mt-0.5">
             Real-time active queue for {activeStartedSchedule.branch || "Today's Clinic Session"}
           </p>
@@ -167,7 +167,7 @@ export default function ManageQueue() {
       <div className="space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
           <Activity className="w-4 h-4 text-blue-600" />
-          Region 1 — Current Consultation
+          Current Consultation
         </h2>
 
         {inConsultationPatients.length > 0 ? (
@@ -216,7 +216,7 @@ export default function ManageQueue() {
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
             <Clock className="w-4 h-4 text-amber-500" />
-            Region 2 — Waiting Queue ({waitingQueue.length})
+            Waiting Queue ({waitingQueue.length})
           </h2>
         </div>
 

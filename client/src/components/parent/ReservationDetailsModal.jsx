@@ -74,8 +74,8 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
     timelineEvents.push({ label: "Cancelled", time: formatDateTime(reservation.cancelledAt) });
   } else if (status === 'expired') {
     timelineEvents.push({ label: "Expired", time: formatDateTime(reservation.expiredAt) });
-  } else if (status === 'penalized') {
-    timelineEvents.push({ label: "Penalized", time: formatDateTime(reservation.penalizedAt) });
+  } else if (['forfeited', 'penalized', 'late_limit_reached'].includes(status)) {
+    timelineEvents.push({ label: "Forfeited", time: formatDateTime(reservation.forfeitedAt || reservation.penalizedAt) });
   }
 
   return (
@@ -102,6 +102,17 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Status</span>
             <ReservationStatusBadge status={status} className="px-3.5 py-1" />
           </div>
+
+          {['forfeited', 'penalized', 'late_limit_reached'].includes(status) && (
+            <div className="pt-3">
+              <div className="bg-red-50/80 border border-red-200 rounded-2xl p-4 text-xs">
+                <div className="font-bold text-red-800 mb-0.5">Reason:</div>
+                <div className="text-red-700 font-medium">
+                  {reservation.forfeitureReason || "Exceeded the clinic's late arrival limit."}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Patient Information */}
           <div className="pt-5 space-y-3">
