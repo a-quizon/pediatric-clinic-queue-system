@@ -40,6 +40,7 @@ export default function NotificationObserver() {
           if (sched.status === 'published') {
             notificationService.notify(NOTIFICATION_EVENTS.SCHEDULE_AVAILABLE, {
               entityId: schedId,
+              parentId: user?.uid,
               dedupeKey: `sched_avail_${schedId}`,
             });
           }
@@ -48,6 +49,7 @@ export default function NotificationObserver() {
           if (prevSched.status !== 'published' && sched.status === 'published') {
             notificationService.notify(NOTIFICATION_EVENTS.SCHEDULE_AVAILABLE, {
               entityId: schedId,
+              parentId: user?.uid,
               dedupeKey: `sched_avail_${schedId}`,
             });
           }
@@ -68,21 +70,25 @@ export default function NotificationObserver() {
               if ((prevStatus === 'not_started' || !prevStatus) && currStatus === 'active') {
                 notificationService.notify(NOTIFICATION_EVENTS.QUEUE_STARTED, {
                   entityId: schedId,
+                  parentId: user?.uid,
                   dedupeKey: `queue_start_${schedId}_${sched.clinicDate}`,
                 });
               } else if (prevStatus === 'active' && currStatus === 'paused') {
                 notificationService.notify(NOTIFICATION_EVENTS.QUEUE_PAUSED, {
                   entityId: schedId,
+                  parentId: user?.uid,
                   dedupeKey: `queue_paused_${schedId}_${Date.now()}`,
                 });
               } else if (prevStatus === 'paused' && currStatus === 'active') {
                 notificationService.notify(NOTIFICATION_EVENTS.QUEUE_RESUMED, {
                   entityId: schedId,
+                  parentId: user?.uid,
                   dedupeKey: `queue_resumed_${schedId}_${Date.now()}`,
                 });
               } else if (currStatus === 'closed' && prevStatus !== 'closed') {
                 notificationService.notify(NOTIFICATION_EVENTS.QUEUE_CLOSED, {
                   entityId: schedId,
+                  parentId: user?.uid,
                   dedupeKey: `queue_closed_${schedId}_${sched.clinicDate}`,
                 });
               } else if (
@@ -93,6 +99,7 @@ export default function NotificationObserver() {
               ) {
                 notificationService.notify(NOTIFICATION_EVENTS.CLINIC_SESSION_ENDED, {
                   entityId: schedId,
+                  parentId: user?.uid,
                   dedupeKey: `clinic_ended_${schedId}_${sched.clinicDate}`,
                 });
               }
@@ -141,6 +148,7 @@ export default function NotificationObserver() {
           if (currPenalty > prevPenalty && currStatus !== 'forfeited') {
             notificationService.notify(NOTIFICATION_EVENTS.PENALIZED, {
               entityId: r.id,
+              parentId: r.parentId,
               dedupeKey: `penalized_${r.id}_${currPenalty}_${r.lastPenalizedAt || Date.now()}`,
             });
           }
@@ -149,26 +157,31 @@ export default function NotificationObserver() {
             if (currStatus === 'checked_in') {
               notificationService.notify(NOTIFICATION_EVENTS.QR_VERIFIED, {
                 entityId: r.id,
+                parentId: r.parentId,
                 dedupeKey: `qr_verified_${r.id}`,
               });
             } else if (currStatus === 'in_consultation') {
               notificationService.notify(NOTIFICATION_EVENTS.CONSULTATION_STARTED, {
                 entityId: r.id,
+                parentId: r.parentId,
                 dedupeKey: `consult_start_${r.id}`,
               });
             } else if (currStatus === 'completed' || currStatus === 'consultation_completed') {
               notificationService.notify(NOTIFICATION_EVENTS.CONSULTATION_COMPLETED, {
                 entityId: r.id,
+                parentId: r.parentId,
                 dedupeKey: `consult_complete_${r.id}`,
               });
             } else if (currStatus === 'penalized') {
               notificationService.notify(NOTIFICATION_EVENTS.PENALIZED, {
                 entityId: r.id,
+                parentId: r.parentId,
                 dedupeKey: `penalized_${r.id}_${currPenalty}_${r.lastPenalizedAt || Date.now()}`,
               });
             } else if (currStatus === 'forfeited') {
               notificationService.notify(NOTIFICATION_EVENTS.FORFEITED, {
                 entityId: r.id,
+                parentId: r.parentId,
                 dedupeKey: `forfeited_${r.id}`,
               });
             }

@@ -38,21 +38,21 @@ export const evaluatePositionEvents = (allReservations = [], schedules = {}, use
     const myIndex = activeLine.findIndex((item) => item.id === r.id);
     if (myIndex < 0) return;
 
-    const patientsAhead = myIndex;
-
-    // Evaluate Queue Alert Threshold (<= 3 patients ahead, > 0)
-    if (patientsAhead > 0 && patientsAhead <= 3) {
-      notificationService.notify(NOTIFICATION_EVENTS.NEAR_TURN, {
+    // Position #1 (first in line, 0 patients ahead) or exactly 1 patient ahead -> ALMOST_NEXT
+    if (myIndex === 0 || myIndex === 1) {
+      notificationService.notify(NOTIFICATION_EVENTS.ALMOST_NEXT, {
         entityId: r.id,
-        dedupeKey: `near_turn_${r.id}`,
+        parentId: r.parentId,
+        dedupeKey: `almost_next_${r.id}`,
       });
     }
 
-    // Evaluate Almost Next Threshold (exactly 1 patient ahead)
-    if (patientsAhead === 1) {
-      notificationService.notify(NOTIFICATION_EVENTS.ALMOST_NEXT, {
+    // Position #2 or #3 (1 or 2 patients ahead, within Queue Alert Threshold <= 3) -> NEAR_TURN
+    if (myIndex === 1 || myIndex === 2) {
+      notificationService.notify(NOTIFICATION_EVENTS.NEAR_TURN, {
         entityId: r.id,
-        dedupeKey: `almost_next_${r.id}`,
+        parentId: r.parentId,
+        dedupeKey: `near_turn_${r.id}`,
       });
     }
   });

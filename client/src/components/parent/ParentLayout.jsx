@@ -1,9 +1,23 @@
+import React, { useEffect, useState } from "react";
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, CalendarPlus, Ticket, User, Activity, ArrowLeft } from "lucide-react";
+import { Home, CalendarPlus, Ticket, User, Activity, ArrowLeft, Bell } from "lucide-react";
+import { useAuth } from "../../hooks/useAuth";
+import { subscribeToUserNotifications } from "../../services/notificationCenterService";
 
 export default function ParentLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = subscribeToUserNotifications(user.uid, (list) => {
+      const count = list.filter((n) => !n.read).length;
+      setUnreadCount(count);
+    });
+    return () => unsub();
+  }, [user]);
 
   const navItems = [
     { name: "Home", path: "/parent", icon: Home },
@@ -108,6 +122,19 @@ export default function ParentLayout() {
               {headerInfo.title}
             </h1>
           </div>
+
+          <button
+            onClick={() => navigate("/parent/notifications")}
+            className="relative p-2.5 rounded-full text-gray-600 hover:bg-gray-100 hover:text-blue-600 transition-colors focus:outline-none flex-shrink-0"
+            aria-label="Notifications"
+          >
+            <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-rose-600 rounded-full border-2 border-white shadow-xs">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </button>
         </header>
 
         <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-5xl mx-auto w-full flex-1">

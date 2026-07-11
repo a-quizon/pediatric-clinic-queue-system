@@ -1,6 +1,7 @@
 import React from 'react';
 import toast from 'react-hot-toast';
 import NotificationToast from '../components/common/NotificationToast';
+import { saveNotification } from './notificationCenterService';
 
 /**
  * Notification Event IDs
@@ -112,6 +113,8 @@ const seenNotificationKeys = new Set();
 class NotificationService {
   constructor() {
     this.storagePrefix = 'pcqs_notif_seen_';
+    this.toastQueue = [];
+    this.isToastActive = false;
   }
 
   /**
@@ -151,7 +154,7 @@ class NotificationService {
    * Trigger a system notification by Event ID.
    *
    * @param {string} eventId - One of NOTIFICATION_EVENTS
-   * @param {object} context - { dedupeKey, customMessage, ... }
+   * @param {object} context - { dedupeKey, customMessage, parentId, ... }
    * @returns {boolean} Whether the notification was dispatched
    */
   notify(eventId, context = {}) {
@@ -172,10 +175,21 @@ class NotificationService {
     const message = context.customMessage || config.message;
     const title = config.title;
     const type = config.type;
-    const duration = config.duration || 5000;
+    const duration = 3000; // ~3 seconds sequential display
 
-    // Phase 1: Dispatch Toast Notification
-    this.displayToast({
+    // Phase 2: Save to persistent In-App Notification Center
+    if (context.parentId) {
+      saveNotification(context.parentId, {
+        eventId,
+        type,
+        title,
+        message,
+        ...context,
+      });
+    }
+
+    // Enqueue toast for sequential non-overlapping display
+    this.toastQueue.push({
       eventId,
       type,
       title,
@@ -183,7 +197,9 @@ class NotificationService {
       duration,
     });
 
-    // Phase 2 / Phase 3 architecture hook:
+    this.processToastQueue();
+
+    // Phase 3 architecture hook:
     this.dispatchToFuturePhases(eventId, {
       ...config,
       message,
@@ -191,6 +207,24 @@ class NotificationService {
     });
 
     return true;
+  }
+
+  /**
+   * Process sequential non-overlapping toast display
+   */
+  processToastQueue() {
+    if (this.isToastActive || this.toastQueue.length === 0) return;
+
+    this.isToastActive = true;
+    const nextToast = this.toastQueue.shift();
+    const duration = nextToast.duration || 3000;
+
+    this.displayToast(nextToast);
+
+    setTimeout(() => {
+      this.isToastActive = false;
+      this.processToastQueue();
+    }, duration + 350);
   }
 
   /**
@@ -206,17 +240,16 @@ class NotificationService {
           message,
           onDismiss: () => toast.dismiss(t.id),
         }),
-      { duration }
+      { duration: duration || 3000 }
     );
   }
 
   /**
    * Future-Ready Architecture Hook
-   * Phase 2: In-App Notification Center
    * Phase 3: Web Push / Mobile Push / SMS / Email
    */
   dispatchToFuturePhases(eventId, payload) {
-    // Reserved for Phase 2 (Notification Center persistent log) & Phase 3 (Push service dispatch)
+    // Reserved for Phase 3 (Push service dispatch)
   }
 
   /**
