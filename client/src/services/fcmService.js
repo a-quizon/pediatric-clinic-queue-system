@@ -1,15 +1,15 @@
 // src/services/fcmService.js
-import app from "../firebase/firebaseConfig";
 import { database } from "../firebase/database";
 import { ref, update } from "firebase/database";
-import { getMessaging, getToken, isSupported } from "firebase/messaging";
-
-const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U";
-
-let messagingInstance = null;
+import { getToken } from "firebase/messaging";
+import {
+  checkMessagingSupported,
+  getMessagingInstance,
+  VAPID_KEY,
+} from "../firebase/messaging";
 
 /**
- * Helper for development logging
+ * Helper for development-only logging
  */
 const debugLog = (message, ...args) => {
   if (import.meta.env.DEV) {
@@ -32,21 +32,18 @@ export const registerFcmTokenForParent = async (user) => {
       return null;
     }
 
-    // Check browser support
-    if (typeof window === "undefined" || !("Notification" in window)) {
-      debugLog("Browser does not support desktop/mobile notifications.");
+    // Check browser support via dedicated messaging module
+    const supported = await checkMessagingSupported();
+    if (!supported) {
+      debugLog("Registration failure: Browser does not support desktop/mobile notifications or Service Workers.");
       return null;
     }
 
-    const supported = await isSupported().catch(() => false);
-    if (!supported) {
-      debugLog("Firebase Cloud Messaging is not supported in this browser environment.");
-      return null;
-    }
+    debugLog("✓ Browser supports FCM");
 
     // Request Notification Permission
     const permission = await Notification.requestPermission();
-    debugLog("Notification permission status:", permission);
+    debugLog("✓ Notification permission status:", permission);
 
     if (permission !== "granted") {
       // Denied or Default -> Continue using Toast Notifications only without blocking
@@ -61,25 +58,43 @@ export const registerFcmTokenForParent = async (user) => {
       return null;
     }
 
-    // Initialize Messaging
-    if (!messagingInstance) {
-      messagingInstance = getMessaging(app);
+    if (!VAPID_KEY || VAPID_KEY === "PASTE_YOUR_PUBLIC_VAPID_KEY_HERE") {
+      debugLog("Registration failure: VITE_FIREBASE_VAPID_KEY is not configured in .env.");
+      return null;
     }
 
-    // Generate Registration Token
+    // Step 4: Explicit Service Worker Registration
+    let serviceWorkerRegistration;
+    try {
+      serviceWorkerRegistration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+      debugLog("✓ Service Worker registered:", serviceWorkerRegistration.scope);
+    } catch (swError) {
+      debugLog("Registration failure: Failed to register /firebase-messaging-sw.js:", swError.message || swError);
+      return null;
+    }
+
+    // Initialize Messaging instance from dedicated module
+    const messagingInstance = await getMessagingInstance();
+    if (!messagingInstance) {
+      debugLog("Registration failure: Failed to initialize Firebase Messaging instance.");
+      return null;
+    }
+
+    // Generate Registration Token passing explicit serviceWorkerRegistration and VAPID Key
     const token = await getToken(messagingInstance, {
       vapidKey: VAPID_KEY,
+      serviceWorkerRegistration,
     }).catch((err) => {
-      debugLog("Registration errors during token generation:", err.message || err);
+      debugLog("Registration failure during token generation:", err.message || err);
       return null;
     });
 
     if (!token) {
-      debugLog("FCM Registration Token generated as empty/null.");
+      debugLog("Registration failure: FCM Registration Token generated as empty/null.");
       return null;
     }
 
-    debugLog("FCM Registration Token generated successfully.");
+    debugLog("✓ FCM Token generated successfully");
 
     // Store token inside User entity
     await update(ref(database, `users/${user.uid}`), {
@@ -88,10 +103,10 @@ export const registerFcmTokenForParent = async (user) => {
       notificationTokenUpdatedAt: Date.now(),
     });
 
-    debugLog("Token successfully saved to users/" + user.uid);
+    debugLog("✓ Token saved to Firebase under users/" + user.uid);
     return token;
   } catch (error) {
-    debugLog("Registration errors caught in registerFcmTokenForParent:", error);
+    debugLog("Registration failure caught in registerFcmTokenForParent:", error);
     // Do not crash the application. Toast Notifications and Notification Center continue working normally.
     return null;
   }
