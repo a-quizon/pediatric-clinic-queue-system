@@ -179,44 +179,61 @@ class NotificationService {
 
     this.markAsShown(dedupeKey);
 
-    const message = context.customMessage || config.message;
+    const body = context.customMessage || config.message;
     const title = config.title;
-    const type = config.type;
-    const duration = 3000; // ~3 seconds sequential display
+    const severity = config.type;
+    const duration = config.duration || 3000;
 
-    // Phase 2.0: Save to clean persistent In-App Notification Center entity
+    // Step 1: Standardized Notification Object conforming to system schema
+    const notificationObject = {
+      title,
+      body,
+      message: body,
+      type: eventId,
+      severity,
+      createdAt: Date.now(),
+      read: false,
+      reservationId: context.reservationId || context.entityId || null,
+      branchId: context.branchId || null,
+      metadata: context.metadata || null,
+    };
+
+    // Step 2: Save to persistent In-App Notification Center (isolated error handling)
     if (context.parentId) {
-      saveNotification(context.parentId, {
-        eventId,
-        type: eventId,
-        severity: type,
-        title,
-        body: message,
-        message,
-        reservationId: context.reservationId || context.entityId || null,
-        branchId: context.branchId || null,
-        metadata: context.metadata || null,
-        ...context,
-      });
+      try {
+        saveNotification(context.parentId, {
+          ...notificationObject,
+          ...context,
+        }).catch((err) => {
+          console.error("[NotificationService] Failed to save notification to Notification Center:", err);
+        });
+      } catch (storageError) {
+        console.error("[NotificationService] Storage delivery exception:", storageError);
+      }
     }
 
-    // Enqueue toast for sequential non-overlapping display
-    this.toastQueue.push({
-      eventId,
-      type,
-      title,
-      message,
-      duration,
-    });
+    // Step 3: Display Toast Notification sequentially (isolated error handling)
+    if (context.showToast !== false) {
+      try {
+        this.toastQueue.push({
+          eventId,
+          type: severity,
+          title,
+          message: body,
+          duration,
+        });
+        this.processToastQueue();
+      } catch (toastError) {
+        console.error("[NotificationService] Toast delivery exception:", toastError);
+      }
+    }
 
-    this.processToastQueue();
-
-    // Phase 3 architecture hook:
-    this.dispatchToFuturePhases(eventId, {
-      ...config,
-      message,
-      ...context,
-    });
+    // Step 4: Extension Point — Forward to Push Notification (Phase 2.2 / Future channels)
+    try {
+      this.dispatchPushNotification(eventId, notificationObject, context);
+    } catch (pushError) {
+      console.error("[NotificationService] Push delivery exception:", pushError);
+    }
 
     return true;
   }
@@ -257,11 +274,12 @@ class NotificationService {
   }
 
   /**
-   * Future-Ready Architecture Hook
-   * Phase 3: Web Push / Mobile Push / SMS / Email
+   * Extension Point: Push Notification Channel (Phase 2.2 / Future)
+   * Forward the standardized notification object to Firebase Cloud Messaging / Mobile Push / Web Push.
+   * Do NOT implement push delivery logic yet.
    */
-  dispatchToFuturePhases(eventId, payload) {
-    // Reserved for Phase 3 (Push service dispatch)
+  dispatchPushNotification(eventId, notificationObject, context) {
+    // Phase 2.2 Hook: FCM push delivery pipeline extension point
   }
 
   /**
