@@ -84,19 +84,6 @@ export const computeAheadOfYou = (reservation, allReservations = [], options = {
     return 0;
   }
 
-  // Check if consultation progression has officially advanced
-  const hasConsultationStarted =
-    options.consultationActive === true ||
-    allReservations.some(
-      (item) =>
-        item.scheduleId === reservation.scheduleId &&
-        (['with_doctor', 'in_consultation', 'completed', 'consultation_completed'].includes(item.status) || item.sentToDoctorAt)
-    );
-
-  if (!hasConsultationStarted) {
-    return reservation.aheadOfYou !== undefined ? reservation.aheadOfYou : 0;
-  }
-
   const activePipeline = allReservations
     .filter(
       (item) =>
@@ -168,24 +155,19 @@ export const recalculateEntireQueue = async (scheduleId, options = {}) => {
 
   activeQueue.forEach((r, idx) => {
     const queueOrder = idx + 1;
+    const aheadOfYou = ["with_doctor", "in_consultation"].includes(r.status) ? 0 : idx;
+
     updates[`reservations/${r.id}/queueOrder`] = queueOrder;
     updates[`reservations/${r.id}/queuePosition`] = queueOrder;
+    updates[`reservations/${r.id}/aheadOfYou`] = aheadOfYou;
 
-    // Only recalculate Ahead Of You and trigger YOU_ARE_NEXT / ALMOST_NEXT states
-    // when consultation officially advances (Secretary clicked Send to Doctor)
+    // Only allow YOU_ARE_NEXT / ALMOST_NEXT queue states when consultation officially advances
     if (advanceConsultation) {
-      const aheadOfYou = ["with_doctor", "in_consultation"].includes(r.status) ? 0 : idx;
       const queueState = computeReservationState(r, scheduleReservations, { consultationActive: true });
-
-      updates[`reservations/${r.id}/aheadOfYou`] = aheadOfYou;
       if (queueState) {
         updates[`reservations/${r.id}/queueState`] = queueState;
       }
     } else {
-      // Ensure newly created reservations have an initial non-notifying static aheadOfYou
-      if (r.aheadOfYou === undefined) {
-        updates[`reservations/${r.id}/aheadOfYou`] = idx;
-      }
       const queueState = computeReservationState(r, scheduleReservations, { consultationActive: false });
       if (queueState && !['YOU_ARE_NEXT', 'ALMOST_NEXT'].includes(queueState)) {
         updates[`reservations/${r.id}/queueState`] = queueState;
