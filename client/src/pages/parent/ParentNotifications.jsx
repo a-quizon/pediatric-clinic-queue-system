@@ -62,12 +62,21 @@ export default function ParentNotifications() {
     return `${date.toLocaleDateString()} ${timeString}`;
   };
 
-  const getNotificationIcon = (type) => {
-    switch (type) {
+  const getNotificationIcon = (n) => {
+    const typeOrSeverity = typeof n === 'object' ? (n.severity || n.type) : n;
+    switch (typeOrSeverity) {
       case 'success':
+      case 'QR_VERIFIED':
+      case 'CONSULTATION_STARTED':
+      case 'CONSULTATION_COMPLETED':
         return <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />;
       case 'error':
       case 'warning':
+      case 'ALMOST_NEXT':
+      case 'YOU_ARE_NEXT':
+      case 'PENALTY':
+      case 'PENALIZED':
+      case 'FORFEITED':
         return <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />;
       default:
         return <Info className="w-5 h-5 text-blue-600 flex-shrink-0" />;
@@ -122,7 +131,7 @@ export default function ParentNotifications() {
             >
               <div className="flex items-start gap-3.5">
                 <div className="mt-0.5 p-2 bg-gray-50 rounded-xl">
-                  {getNotificationIcon(n.type)}
+                  {getNotificationIcon(n)}
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -140,7 +149,7 @@ export default function ParentNotifications() {
                     )}
                   </div>
                   <p className="text-sm text-gray-700 mt-1 leading-relaxed">
-                    {n.message}
+                    {n.body || n.message}
                   </p>
                 </div>
               </div>

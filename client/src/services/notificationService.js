@@ -184,13 +184,18 @@ class NotificationService {
     const type = config.type;
     const duration = 3000; // ~3 seconds sequential display
 
-    // Phase 2: Save to persistent In-App Notification Center
+    // Phase 2.0: Save to clean persistent In-App Notification Center entity
     if (context.parentId) {
       saveNotification(context.parentId, {
         eventId,
-        type,
+        type: eventId,
+        severity: type,
         title,
+        body: message,
         message,
+        reservationId: context.reservationId || context.entityId || null,
+        branchId: context.branchId || null,
+        metadata: context.metadata || null,
         ...context,
       });
     }

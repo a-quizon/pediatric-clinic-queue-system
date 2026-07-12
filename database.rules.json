@@ -1,0 +1,24 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "notifications": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "schedules": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "reservations": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}
