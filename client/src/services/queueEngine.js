@@ -22,7 +22,7 @@ export const QUEUE_STATES = {
 /**
  * Computes the live Queue State for a single reservation relative to all reservations in its schedule.
  */
-export const computeReservationState = (reservation, allReservations = []) => {
+export const computeReservationState = (reservation, allReservations = [], options = {}) => {
   if (!reservation) return null;
 
   // Terminal / absolute states
@@ -38,16 +38,29 @@ export const computeReservationState = (reservation, allReservations = []) => {
   if (['with_doctor', 'in_consultation'].includes(reservation.status)) {
     return QUEUE_STATES.WITH_DOCTOR;
   }
-  if (reservation.status === 'checked_in') {
-    return QUEUE_STATES.CHECKED_IN;
+  // Check if consultation progression has officially advanced
+  // (Either options.consultationActive is true OR any reservation in this schedule is with_doctor / in_consultation / completed / has sentToDoctorAt)
+  const hasConsultationStarted =
+    options.consultationActive === true ||
+    allReservations.some(
+      (item) =>
+        item.scheduleId === reservation.scheduleId &&
+        (['with_doctor', 'in_consultation', 'completed', 'consultation_completed'].includes(item.status) || item.sentToDoctorAt)
+    );
+
+  if (!hasConsultationStarted) {
+    if (reservation.status === 'checked_in') {
+      return QUEUE_STATES.CHECKED_IN;
+    }
+    return QUEUE_STATES.WAITING;
   }
 
-  // Active waiting reservations (awaiting arrival / validation) sorted by sortTimestamp
+  // Active waiting reservations sorted by sortTimestamp / createdAt
   const activeWaiting = allReservations
     .filter(
       (item) =>
         item.scheduleId === reservation.scheduleId &&
-        !['in_consultation', 'with_doctor', 'completed', 'consultation_completed', 'cancelled', 'forfeited', 'penalized', 'late_limit_reached', 'checked_in'].includes(item.status)
+        ['reserved', 'waiting', 'validation_open', 'waiting_for_window', 'checked_in'].includes(item.status)
     )
     .sort((a, b) => {
       const timeA = a.sortTimestamp || a.createdAt || 0;
@@ -58,16 +71,30 @@ export const computeReservationState = (reservation, allReservations = []) => {
   const index = activeWaiting.findIndex((item) => item.id === reservation.id);
   if (index === 0) return QUEUE_STATES.YOU_ARE_NEXT;
   if (index === 1) return QUEUE_STATES.ALMOST_NEXT;
+  if (reservation.status === 'checked_in') return QUEUE_STATES.CHECKED_IN;
   return QUEUE_STATES.WAITING;
 };
 
 /**
  * Computes Ahead Of You count for a reservation relative to active reservations in its schedule.
  */
-export const computeAheadOfYou = (reservation, allReservations = []) => {
+export const computeAheadOfYou = (reservation, allReservations = [], options = {}) => {
   if (!reservation) return 0;
   if (['with_doctor', 'in_consultation', 'completed', 'consultation_completed', 'cancelled', 'forfeited'].includes(reservation.status)) {
     return 0;
+  }
+
+  // Check if consultation progression has officially advanced
+  const hasConsultationStarted =
+    options.consultationActive === true ||
+    allReservations.some(
+      (item) =>
+        item.scheduleId === reservation.scheduleId &&
+        (['with_doctor', 'in_consultation', 'completed', 'consultation_completed'].includes(item.status) || item.sentToDoctorAt)
+    );
+
+  if (!hasConsultationStarted) {
+    return reservation.aheadOfYou !== undefined ? reservation.aheadOfYou : 0;
   }
 
   const activePipeline = allReservations
@@ -102,7 +129,7 @@ export const enrichReservationsWithState = (allReservations = []) => {
  * Whenever any queue movement occurs (Penalty, Cancellation, Forfeiture, Consultation transition, etc.),
  * recalculates all derived queue data (Queue Order, Ahead Of You, Queue State) and writes back to Firebase.
  */
-export const recalculateEntireQueue = async (scheduleId) => {
+export const recalculateEntireQueue = async (scheduleId, options = {}) => {
   if (!scheduleId) return;
 
   const snapshot = await get(ref(database, "reservations"));
@@ -137,17 +164,32 @@ export const recalculateEntireQueue = async (scheduleId) => {
 
   // Step 2-4: Assign Queue Numbers, Ahead Of You, and Queue State
   const updates = {};
+  const advanceConsultation = options.advanceConsultation === true;
 
   activeQueue.forEach((r, idx) => {
     const queueOrder = idx + 1;
-    const aheadOfYou = ["with_doctor", "in_consultation"].includes(r.status) ? 0 : idx;
-    const queueState = computeReservationState(r, scheduleReservations);
-
     updates[`reservations/${r.id}/queueOrder`] = queueOrder;
     updates[`reservations/${r.id}/queuePosition`] = queueOrder;
-    updates[`reservations/${r.id}/aheadOfYou`] = aheadOfYou;
-    if (queueState) {
-      updates[`reservations/${r.id}/queueState`] = queueState;
+
+    // Only recalculate Ahead Of You and trigger YOU_ARE_NEXT / ALMOST_NEXT states
+    // when consultation officially advances (Secretary clicked Send to Doctor)
+    if (advanceConsultation) {
+      const aheadOfYou = ["with_doctor", "in_consultation"].includes(r.status) ? 0 : idx;
+      const queueState = computeReservationState(r, scheduleReservations, { consultationActive: true });
+
+      updates[`reservations/${r.id}/aheadOfYou`] = aheadOfYou;
+      if (queueState) {
+        updates[`reservations/${r.id}/queueState`] = queueState;
+      }
+    } else {
+      // Ensure newly created reservations have an initial non-notifying static aheadOfYou
+      if (r.aheadOfYou === undefined) {
+        updates[`reservations/${r.id}/aheadOfYou`] = idx;
+      }
+      const queueState = computeReservationState(r, scheduleReservations, { consultationActive: false });
+      if (queueState && !['YOU_ARE_NEXT', 'ALMOST_NEXT'].includes(queueState)) {
+        updates[`reservations/${r.id}/queueState`] = queueState;
+      }
     }
   });
 
@@ -155,7 +197,7 @@ export const recalculateEntireQueue = async (scheduleId) => {
   scheduleReservations
     .filter((r) => !activeStatuses.includes(r.status))
     .forEach((r) => {
-      const queueState = computeReservationState(r, scheduleReservations);
+      const queueState = computeReservationState(r, scheduleReservations, { consultationActive: false });
       if (queueState) {
         updates[`reservations/${r.id}/queueState`] = queueState;
       }

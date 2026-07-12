@@ -161,13 +161,16 @@ export default function ManageQueue() {
   };
 
   const getNextEligibleCheckIn = () => {
-    return activeReservations.find((r) => {
-      const state = computeReservationState(r, activeReservations);
-      return (
-        state === QUEUE_STATES.YOU_ARE_NEXT &&
+    const awaitingPatients = activeReservations
+      .filter((r) =>
         !["checked_in", "with_doctor", "in_consultation", "completed", "consultation_completed", "cancelled", "forfeited", "penalized", "late_limit_reached"].includes(r.status)
-      );
-    });
+      )
+      .sort((a, b) => {
+        const timeA = a.sortTimestamp || a.createdAt || 0;
+        const timeB = b.sortTimestamp || b.createdAt || 0;
+        return timeA - timeB;
+      });
+    return awaitingPatients[0];
   };
 
   const nextEligibleRes = getNextEligibleCheckIn();

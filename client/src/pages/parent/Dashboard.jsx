@@ -6,7 +6,7 @@ import { subscribeToAllReservations } from "../../services/reservationService";
 import { getSchedules, subscribeToAllSchedules } from "../../services/scheduleService";
 import { isReservationExpired, getRemainingValidationTime, formatRemainingTime } from "../../services/timeService";
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
-import { computeReservationState, QUEUE_STATES } from "../../services/queueEngine";
+import { computeReservationState, computeAheadOfYou, QUEUE_STATES } from "../../services/queueEngine";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -123,13 +123,7 @@ export default function Dashboard() {
       servingText = "Waiting for the first consultation";
     }
 
-    let ahead = 0;
-    if (["in_consultation", "with_doctor", "consultation_completed"].includes(activeReservation.status)) {
-      ahead = 0;
-    } else {
-      const myIndex = activeLine.findIndex(r => r.id === activeReservation.id);
-      ahead = myIndex >= 0 ? myIndex : 0;
-    }
+    const ahead = computeAheadOfYou(activeReservation, allReservations);
 
     const myPNum = permanentQueueNumber || 1;
     let percent = 0;
