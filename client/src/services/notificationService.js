@@ -274,12 +274,22 @@ class NotificationService {
   }
 
   /**
-   * Extension Point: Push Notification Channel (Phase 2.2 / Future)
-   * Forward the standardized notification object to Firebase Cloud Messaging / Mobile Push / Web Push.
-   * Do NOT implement push delivery logic yet.
+   * Extension Point: Push Notification Channel (Phase 2.2 / Phase 2.3)
+   * Detects whether Push Notifications are available and exposes the Push Provider interface.
+   * Phase 2.2: Do NOT send Push Notifications yet. Prepared but inactive for Phase 2.3.
    */
   dispatchPushNotification(eventId, notificationObject, context) {
-    // Phase 2.2 Hook: FCM push delivery pipeline extension point
+    const isPushAvailable =
+      typeof window !== "undefined" &&
+      "Notification" in window &&
+      Notification.permission === "granted";
+
+    if (import.meta.env.DEV) {
+      console.log(
+        `[NotificationService] Push Provider prepared (available: ${isPushAvailable}, inactive for Phase 2.2):`,
+        eventId
+      );
+    }
   }
 
   /**

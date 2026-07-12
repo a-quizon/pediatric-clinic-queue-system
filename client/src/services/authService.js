@@ -3,6 +3,7 @@ import { ref, set } from "firebase/database";
 
 import { auth } from "../firebase/auth";
 import { database } from "../firebase/database";
+import { cleanupFcmTokenOnLogout } from "./fcmService";
 
 export const registerUser = async (
   name,
@@ -55,6 +56,9 @@ export const loginUser = async (
   return userCredential.user;
 };
 
-export const logoutUser = async () => {
+export const logoutUser = async (user) => {
+  if (user && user.role === "parent") {
+    await cleanupFcmTokenOnLogout(user);
+  }
   await signOut(auth);
 };

@@ -4,6 +4,7 @@ import { ref, get } from "firebase/database";
 
 import { auth } from "../firebase/auth";
 import { database } from "../firebase/database";
+import { registerFcmTokenForParent, cleanupFcmTokenOnLogout } from "../services/fcmService";
 
 export const AuthContext = createContext();
 
@@ -26,15 +27,21 @@ export function AuthProvider({ children }) {
 
                         if (snapshot.exists()) {
                             const userData = snapshot.val();
+                            const enrichedUser = {
+                                ...currentUser,
+                                ...userData,
+                                uid: currentUser.uid,
+                                displayName: userData.name || currentUser?.displayName || userData.fullName,
+                                fullName: userData.name || currentUser?.displayName || userData.fullName,
+                                name: userData.name || currentUser?.displayName || userData.fullName,
+                            };
 
                             setRole(userData.role);
-                            setUser((prevUser) => ({
-                                ...prevUser,
-                                ...userData,
-                                displayName: userData.name || prevUser?.displayName || userData.fullName,
-                                fullName: userData.name || prevUser?.displayName || userData.fullName,
-                                name: userData.name || prevUser?.displayName || userData.fullName,
-                            }));
+                            setUser(enrichedUser);
+
+                            if (userData.role === "parent") {
+                                registerFcmTokenForParent(enrichedUser).catch(() => {});
+                            }
 
                             console.log("Role:", userData.role);
                         }
@@ -42,7 +49,12 @@ export function AuthProvider({ children }) {
                         console.error(error);
                     }
                 } else {
-                    setUser(null);
+                    setUser((prevUser) => {
+                        if (prevUser && prevUser.role === "parent") {
+                            cleanupFcmTokenOnLogout(prevUser).catch(() => {});
+                        }
+                        return null;
+                    });
                     setRole(null);
                 }
 
