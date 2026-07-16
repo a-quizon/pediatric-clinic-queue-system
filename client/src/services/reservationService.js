@@ -132,6 +132,9 @@ export const checkCompletedConsultationOnDate = async (parentId, clinicDate, doc
   );
 };
 
+// list of active reservation statuses na nag-ooccupy pa ng slot at nasa queue
+export const ACTIVE_RESERVATION_STATUSES = ["reserved", "checked_in", "waiting", "in_consultation", "with_doctor", "validation_open", "waiting_for_window"];
+
 export const calculateDynamicQueuePositions = (reservations) => {
   const groupedBySchedule = {};
   reservations.forEach(r => {
@@ -140,7 +143,7 @@ export const calculateDynamicQueuePositions = (reservations) => {
   });
   
   let processedReservations = [];
-  const activeStatuses = ["reserved", "checked_in", "waiting", "in_consultation", "with_doctor", "validation_open", "waiting_for_window"];
+  const activeStatuses = ACTIVE_RESERVATION_STATUSES;
   
   Object.values(groupedBySchedule).forEach(scheduleReservations => {
     // 1. Assign/preserve permanent Queue Number based on creation order

@@ -1,5 +1,6 @@
 import { database } from "../firebase/database";
 import { ref, get, update } from "firebase/database";
+import { ACTIVE_RESERVATION_STATUSES } from "./reservationService";
 
 /**
  * Queue Engine
@@ -130,15 +131,7 @@ export const recalculateEntireQueue = async (scheduleId, options = {}) => {
   const scheduleReservations = allReservations.filter((r) => r.scheduleId === scheduleId);
   if (scheduleReservations.length === 0) return;
 
-  const activeStatuses = [
-    "reserved",
-    "waiting",
-    "validation_open",
-    "waiting_for_window",
-    "checked_in",
-    "with_doctor",
-    "in_consultation",
-  ];
+  const activeStatuses = ACTIVE_RESERVATION_STATUSES;
 
   // Step 1: Sort the active queue by actual sortTimestamp / createdAt
   const activeQueue = scheduleReservations

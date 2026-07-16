@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Activity, Clock, CalendarPlus, Ticket, User, ChevronRight, CheckCircle2, History, MapPin, AlertCircle } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
-import { subscribeToAllReservations } from "../../services/reservationService";
+import { subscribeToAllReservations, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
 import { getSchedules, subscribeToAllSchedules } from "../../services/scheduleService";
 import { isReservationExpired, getRemainingValidationTime, formatRemainingTime } from "../../services/timeService";
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
@@ -33,7 +33,7 @@ export default function Dashboard() {
   const activeReservation = useMemo(() => {
     if (!user) return null;
     const myRes = allReservations.filter(r => r.parentId === user.uid);
-    const active = myRes.find(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation"].includes(r.status));
+    const active = myRes.find(r => ACTIVE_RESERVATION_STATUSES.includes(r.status));
     if (!active) return null;
 
     const sched = schedules[active.scheduleId];
@@ -97,12 +97,12 @@ export default function Dashboard() {
     // Assign permanent queue numbers
     const resWithPNum = scheduleRes.map((r, idx) => ({ ...r, pNum: idx + 1 }));
     
-    const inConsultation = resWithPNum.find(r => r.status === "in_consultation");
+    const inConsultation = resWithPNum.find(r => r.status === "in_consultation" || r.status === "with_doctor");
     const completedList = resWithPNum.filter(r => r.status === "consultation_completed");
     const compCount = completedList.length;
     
     const activeLine = resWithPNum
-      .filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation"].includes(r.status))
+      .filter(r => ACTIVE_RESERVATION_STATUSES.includes(r.status))
       .sort((a, b) => {
         if (a.queueOrder !== undefined && b.queueOrder !== undefined) {
           return a.queueOrder - b.queueOrder;

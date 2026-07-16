@@ -8,7 +8,8 @@ import {
   checkExistingReservationOnDate, 
   checkCompletedConsultationOnDate,
   getReservationsBySchedule,
-  updatePatientInfo
+  updatePatientInfo,
+  ACTIVE_RESERVATION_STATUSES
 } from "../../services/reservationService";
 import { useAuth } from "../../hooks/useAuth";
 import MessageModal from "../../components/common/MessageModal";
@@ -116,8 +117,9 @@ export default function ReserveQueue() {
     };
   }, [user]);
 
+  // count active reservations that occupy slots (including in_consultation and with_doctor)
   const getReservationCount = (scheduleId) => {
-    return reservations.filter(r => r.scheduleId === scheduleId && ['reserved', 'waiting', 'validation_open', 'waiting_for_window', 'checked_in', 'in_consultation'].includes(r.status)).length;
+    return reservations.filter(r => r.scheduleId === scheduleId && ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
   };
 
   const handleReserveClick = async (schedule) => {
@@ -291,7 +293,7 @@ export default function ReserveQueue() {
             // Check if parent has an active reservation on this schedule's clinicDate
             const hasReservedOnDate = reservations.some(r => 
               r.parentId === user?.uid && 
-              ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation"].includes(r.status) && 
+              ACTIVE_RESERVATION_STATUSES.includes(r.status) && 
               schedules.find(s => s.id === r.scheduleId)?.clinicDate === schedule.clinicDate
             );
 

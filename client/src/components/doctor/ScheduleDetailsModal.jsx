@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, MapPin, CalendarDays, Clock, Users, Activity, CheckCircle2, User } from 'lucide-react';
+import { ACTIVE_RESERVATION_STATUSES } from '../../services/reservationService';
 
 export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reservations = [] }) {
   if (!isOpen || !schedule) return null;
@@ -27,7 +28,8 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
   // Filter reservations for this schedule
   const scheduleReservations = reservations.filter(r => r.scheduleId === schedule.id);
 
-  const activeStatuses = ["reserved", "checked_in", "in_consultation", "expired", "validation_expired"];
+  // use active statuses para occupied pa ang slot habang in_consultation/with_doctor
+  const activeStatuses = ACTIVE_RESERVATION_STATUSES;
   
   const displayReservations = isCompletedSchedule 
     ? scheduleReservations.filter(r => r.status === 'completed' || r.status === 'cancelled').sort((a, b) => (a.queuePosition || 0) - (b.queuePosition || 0))

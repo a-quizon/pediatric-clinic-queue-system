@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSchedules, deleteSchedule, publishSchedule, completeSchedule } from "../../services/scheduleService";
-import { subscribeToAllReservations } from "../../services/reservationService";
+import { subscribeToAllReservations, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
 import ScheduleCard from "../../components/schedule/ScheduleCard";
 import ScheduleFormModal from "../../components/schedule/ScheduleFormModal";
 import ScheduleDetailsModal from "../../components/doctor/ScheduleDetailsModal";
@@ -156,12 +156,13 @@ export default function ScheduleManagement() {
     navigate("/doctor/queue");
   };
 
+  // compute available and reserved slots gamit ang active statuses para hindi mag-release habang in_consultation/with_doctor pa
   const getAvailableSlots = (schedule) => {
-    const count = reservations.filter(r => r.scheduleId === schedule.id && ['reserved', 'checked_in', 'in_consultation', 'validation_open', 'waiting_for_window'].includes(r.status)).length;
+    const count = reservations.filter(r => r.scheduleId === schedule.id && ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
     return schedule.slotCapacity - count;
   };
   const getReservedCount = (schedule) => {
-    return reservations.filter(r => r.scheduleId === schedule.id && ['reserved', 'checked_in', 'in_consultation', 'validation_open', 'waiting_for_window'].includes(r.status)).length;
+    return reservations.filter(r => r.scheduleId === schedule.id && ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
   };
   const getCheckedInCount = (schedule) => {
     return reservations.filter(r => r.scheduleId === schedule.id && (r.status === 'checked_in' || r.checkedIn)).length;

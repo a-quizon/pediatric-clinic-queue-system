@@ -20,6 +20,7 @@ export const NON_BLOCKING_STATUSES = [
   'completed',
   'cancelled',
   'in_consultation',
+  'with_doctor',
   'penalized',
   'late_limit_reached',
 ];
@@ -48,7 +49,7 @@ export const getNextEligiblePatient = (reservations = []) => {
   }
 
   // 1. Check if there is currently an ongoing consultation
-  const inConsultation = reservations.find(r => r.status === 'in_consultation');
+  const inConsultation = reservations.find(r => r.status === 'in_consultation' || r.status === 'with_doctor');
   if (inConsultation) {
     return {
       eligible: false,

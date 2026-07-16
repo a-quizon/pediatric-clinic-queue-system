@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { subscribeToAllSchedules } from '../../services/scheduleService';
-import { subscribeToAllReservations } from '../../services/reservationService';
+import { subscribeToAllReservations, ACTIVE_RESERVATION_STATUSES } from '../../services/reservationService';
 import notificationService, { NOTIFICATION_EVENTS } from '../../services/notificationService';
 import { evaluatePositionEvents } from '../../services/positionEventEngine';
 import { cleanupNonParentNotifications } from '../../services/notificationCenterService';
@@ -70,7 +70,7 @@ export default function NotificationObserver() {
             const hasActiveRes = user && Object.values(prevMyReservationsRef.current).some(
               (r) =>
                 r.scheduleId === schedId &&
-                ['reserved', 'waiting', 'checked_in', 'validation_open', 'waiting_for_window', 'in_consultation'].includes(r.status)
+                ACTIVE_RESERVATION_STATUSES.includes(r.status)
             );
 
             if (hasActiveRes) {

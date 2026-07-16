@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { subscribeToPublishedSchedules, updateQueueStatus, completeSchedule } from "../../services/scheduleService";
-import { subscribeToAllReservations, startConsultation, completeConsultation, expireReservation } from "../../services/reservationService";
+import { subscribeToAllReservations, startConsultation, completeConsultation, expireReservation, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
 import { getNextEligiblePatient } from "../../services/queueEligibilityService";
 import { isReservationExpired } from "../../services/timeService";
 import { Activity, Play, Pause, Square, CheckCircle, User, AlertCircle, FileText, X, Clock, MapPin, Users, CheckCircle2, Lock } from "lucide-react";
@@ -79,7 +79,8 @@ export default function Queue() {
     const completed = scheduleReservations.filter(r => r.status === "consultation_completed")
       .sort((a, b) => (b.consultationCompletedAt || 0) - (a.consultationCompletedAt || 0));
 
-    const reservedCount = scheduleReservations.filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "checked_in", "in_consultation", "with_doctor", "expired", "validation_expired"].includes(r.status)).length;
+    // count all active reservations na nag-ooccupy ng capacity
+    const reservedCount = scheduleReservations.filter(r => ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
     
     return {
       waitingValidationQueue: waitingValidation,
