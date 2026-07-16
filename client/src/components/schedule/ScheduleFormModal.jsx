@@ -42,10 +42,13 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
     }
   }, [isOpen, mode, schedule]);
 
+  // load clinic hours automatically from branch config when branch or date changes
   useEffect(() => {
+    let isActive = true;
     const fetchHours = async () => {
-      if (formData.branch && formData.clinicDate && mode === "create") {
+      if (formData.branch && formData.clinicDate && (mode === "create" || (mode === "edit" && schedule?.status !== "published"))) {
         const hours = await getClinicHours(formData.branch, formData.clinicDate);
+        if (!isActive) return;
         if (hours) {
           setFormData(prev => ({ ...prev, openingTime: hours.openingTime, closingTime: hours.closingTime }));
         } else {
@@ -55,13 +58,26 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
       }
     };
     fetchHours();
-  }, [formData.branch, formData.clinicDate, mode]);
+    return () => {
+      isActive = false;
+    };
+  }, [formData.branch, formData.clinicDate, mode, schedule?.status]);
   
   if (!isOpen) return null;
 
+  // update form fields and clear old clinic hours if branch or date changes
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "branch" || name === "clinicDate") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        openingTime: "",
+        closingTime: "",
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const formatTime = (time) => {
@@ -134,7 +150,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
       <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
         
-        {/* Header (Sticky) */}
+        {/* sticky header for title and close btn */}
         <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-white">
           <h2 className="text-xl font-bold text-gray-800">
             {mode === "create" ? "Create Schedule" : "Edit Schedule"}
@@ -147,7 +163,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
           </button>
         </div>
 
-        {/* Body (Scrollable) */}
+        {/* scrollable body ng schedule form */}
         <div className="p-5 overflow-y-auto flex-1">
 
           {mode === "edit" && schedule?.status === "published" && (
@@ -233,7 +249,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
           </form>
         </div>
 
-        {/* Footer (Sticky) */}
+        {/* sticky footer para sa cancel and submit buttons */}
         <div className="p-5 border-t border-gray-100 bg-gray-50 shrink-0 flex items-center justify-end gap-3">
           <button
             type="button"
@@ -246,9 +262,9 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
           <button
             type="submit"
             form="schedule-form"
-            disabled={loading || (mode === "create" && (!formData.openingTime || !formData.closingTime))}
+            disabled={loading || !formData.openingTime || !formData.closingTime}
             className={`px-6 py-2.5 font-bold rounded-xl shadow-sm transition-all ${
-              loading || (mode === "create" && (!formData.openingTime || !formData.closingTime))
+              loading || !formData.openingTime || !formData.closingTime
                 ? "bg-blue-400 text-white opacity-70 cursor-not-allowed" 
                 : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow"
             }`}
