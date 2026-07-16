@@ -119,11 +119,19 @@ export default function ScheduleManagement() {
       schedule: scheduleObj,
     });
   };
+  // check closing time validation bago i-publish
   const executeScheduleAction = async () => {
     if (!scheduleActionModal.schedule || !scheduleActionModal.action) return;
     setIsProcessing(true);
     try {
       if (scheduleActionModal.action === "publish") {
+        const { validateScheduleClosingTime } = await import("../../services/scheduleService");
+        const timeValidation = await validateScheduleClosingTime(scheduleActionModal.schedule.branch, scheduleActionModal.schedule.clinicDate);
+        if (!timeValidation.valid) {
+          toast.error(timeValidation.message);
+          setIsProcessing(false);
+          return;
+        }
         await publishSchedule(scheduleActionModal.schedule.id);
         await loadSchedules();
         toast.success("The schedule is now visible to parents.");
@@ -138,7 +146,7 @@ export default function ScheduleManagement() {
       }
     } catch (error) {
       console.error(error);
-      toast.error("An error occurred while processing your request.");
+      toast.error(error.message || "An error occurred while processing your request.");
     } finally {
       setIsProcessing(false);
     }

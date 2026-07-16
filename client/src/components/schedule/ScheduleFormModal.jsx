@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createSchedule, updateSchedule, scheduleExists } from '../../services/scheduleService';
+import { createSchedule, updateSchedule, scheduleExists, validateScheduleClosingTime } from '../../services/scheduleService';
 import { getBranchConfigurations, getClinicHours } from '../../services/branchConfigurationService';
 import { useAuth } from '../../hooks/useAuth';
 import { X, AlertCircle, Clock } from 'lucide-react';
@@ -20,6 +20,20 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
   const [formData, setFormData] = useState(initialFormState);
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState([]);
+
+  // helper to get local date string yyyy-mm-dd
+  const getLocalDateString = (offsetDays = 0) => {
+    const d = new Date();
+    if (offsetDays !== 0) {
+      d.setDate(d.getDate() + offsetDays);
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [minSelectableDate, setMinSelectableDate] = useState(() => getLocalDateString(0));
 
   useEffect(() => {
     getBranchConfigurations().then(setBranches);
@@ -42,11 +56,46 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
     }
   }, [isOpen, mode, schedule]);
 
+  // update min date: kung past closing time na ang branch ngayon, i-disable today by setting min date to tomorrow
+  useEffect(() => {
+    let isActive = true;
+    const checkMinDate = async () => {
+      const todayStr = getLocalDateString(0);
+      if (!formData.branch) {
+        if (isActive) setMinSelectableDate(todayStr);
+        return;
+      }
+      const validation = await validateScheduleClosingTime(formData.branch, todayStr);
+      if (!isActive) return;
+      if (!validation.valid && validation.message?.includes("closing time")) {
+        setMinSelectableDate(getLocalDateString(1));
+        if (formData.clinicDate === todayStr) {
+          setFormData(prev => ({ ...prev, clinicDate: "", openingTime: "", closingTime: "" }));
+        }
+      } else {
+        setMinSelectableDate(todayStr);
+      }
+    };
+    checkMinDate();
+    return () => { isActive = false; };
+  }, [formData.branch]);
+
   // load clinic hours automatically from branch config when branch or date changes
   useEffect(() => {
     let isActive = true;
+    // check if past closing time na bago i-load clinic hours or i-submit
     const fetchHours = async () => {
       if (formData.branch && formData.clinicDate && (mode === "create" || (mode === "edit" && schedule?.status !== "published"))) {
+        const timeValidation = await validateScheduleClosingTime(formData.branch, formData.clinicDate);
+        if (!isActive) return;
+        if (!timeValidation.valid && timeValidation.message?.includes("closing time")) {
+          setFormData(prev => ({ ...prev, openingTime: "", closingTime: "" }));
+          return;
+        } else if (!timeValidation.valid) {
+          setFormData(prev => ({ ...prev, openingTime: "", closingTime: "" }));
+          toast.error(timeValidation.message);
+          return;
+        }
         const hours = await getClinicHours(formData.branch, formData.clinicDate);
         if (!isActive) return;
         if (hours) {
@@ -92,6 +141,17 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+
+    const timeValidation = await validateScheduleClosingTime(formData.branch, formData.clinicDate);
+    if (!timeValidation.valid) {
+      if (timeValidation.message?.includes("closing time")) {
+        setLoading(false);
+        return;
+      }
+      toast.error(timeValidation.message);
+      setLoading(false);
+      return;
+    }
 
     if (!formData.openingTime || !formData.closingTime) {
       toast.error("No schedule pattern found for this branch and date. Please check Branch Configuration.");
@@ -195,7 +255,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
               <label htmlFor="clinicDate" className="block text-sm font-semibold text-gray-700 mb-1.5">Clinic Date</label>
               <input
                 type="date"
-                min={new Date().toISOString().split("T")[0]}
+                min={minSelectableDate}
                 id="clinicDate"
                 name="clinicDate"
                 value={formData.clinicDate}

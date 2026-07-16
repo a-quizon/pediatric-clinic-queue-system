@@ -2,8 +2,17 @@ import { database } from "../firebase/database";
 import { ref, push, set, get, update, remove, onValue, serverTimestamp } from "firebase/database";
 import { getReservationsBySchedule } from "./reservationService";
 import { recalculateRollingValidation } from "./rollingValidationService";
+import { validateScheduleClosingTime } from "./branchConfigurationService";
 
+export { validateScheduleClosingTime };
+
+// check muna if hindi pa past closing time ng branch for today before creating
 export const createSchedule = async ( scheduleData ) => {
+  const timeValidation = await validateScheduleClosingTime(scheduleData.branch, scheduleData.clinicDate);
+  if (!timeValidation.valid) {
+    throw new Error(timeValidation.message);
+  }
+
   const scheduleRef = push(ref(database, "schedules"));
 
   await set(scheduleRef, {
@@ -44,6 +53,7 @@ export const scheduleExists = async ( branch, clinicDate ) => {
   return Object.values(schedules).some( (schedule) => schedule.branch === branch && schedule.clinicDate === clinicDate);
 };
 
+// check closing time before updating draft schedule or publishing
 export const updateSchedule = async ( scheduleId, updatedData ) => {
   const snapshot = await get(ref(database, `schedules/${scheduleId}`));
   if (snapshot.exists()) {
@@ -51,6 +61,13 @@ export const updateSchedule = async ( scheduleId, updatedData ) => {
     if (currentSchedule.status === "published") {
       delete updatedData.branch;
       delete updatedData.clinicDate;
+    } else {
+      const branch = updatedData.branch || currentSchedule.branch;
+      const clinicDate = updatedData.clinicDate || currentSchedule.clinicDate;
+      const timeValidation = await validateScheduleClosingTime(branch, clinicDate);
+      if (!timeValidation.valid) {
+        throw new Error(timeValidation.message);
+      }
     }
   }
   await update(ref(database,`schedules/${scheduleId}`), updatedData);
@@ -61,6 +78,14 @@ export const deleteSchedule = async (scheduleId) => {
 };
 
 export const publishSchedule = async ( scheduleId ) => {
+  const snapshot = await get(ref(database, `schedules/${scheduleId}`));
+  if (snapshot.exists()) {
+    const currentSchedule = snapshot.val();
+    const timeValidation = await validateScheduleClosingTime(currentSchedule.branch, currentSchedule.clinicDate);
+    if (!timeValidation.valid) {
+      throw new Error(timeValidation.message);
+    }
+  }
   await update( ref(database, `schedules/${scheduleId}`), {
     status: "published", 
     queueStatus: "not_started", // Default queue status when published

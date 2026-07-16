@@ -178,6 +178,46 @@ export const getClinicHours = async (branchName, clinicDate) => {
   return null;
 };
 
+// check kung tapos na yung closing time ng branch for today's schedule
+export const validateScheduleClosingTime = async (branchName, clinicDate) => {
+  if (!branchName || !clinicDate) {
+    return { valid: true };
+  }
+
+  // check if selected schedule date matches today's local date
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const todayStr = `${year}-${month}-${day}`;
+
+  if (clinicDate !== todayStr) {
+    return { valid: true };
+  }
+
+  // retrieve closing time from the currently selected branch configuration
+  const hours = await getClinicHours(branchName, clinicDate);
+  if (!hours || !hours.closingTime) {
+    return {
+      valid: false,
+      message: "This branch is closed on the selected date."
+    };
+  }
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const [closeH, closeM] = hours.closingTime.split(":").map(Number);
+  const closingMinutes = closeH * 60 + closeM;
+
+  if (currentMinutes >= closingMinutes) {
+    return {
+      valid: false,
+      message: "You can no longer create or update today's schedule because the selected branch has already reached its closing time. Please choose another date."
+    };
+  }
+
+  return { valid: true };
+};
+
 export const checkBranchInUse = async (branchName) => {
   const schedulesSnapshot = await get(ref(database, "schedules"));
   let hasPublishedSchedules = false;
