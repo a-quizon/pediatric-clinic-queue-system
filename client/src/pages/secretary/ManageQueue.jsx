@@ -88,6 +88,10 @@ export default function ManageQueue() {
       return (a.sortTimestamp || a.createdAt || 0) - (b.sortTimestamp || b.createdAt || 0);
     });
 
+  const firstUncheckedIdx = waitingQueue.findIndex(
+    (r) => r.status === "reserved" || r.status === "waiting"
+  );
+
   const formatTime = (timestamp) => {
     if (!timestamp) return "N/A";
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -206,7 +210,6 @@ export default function ManageQueue() {
     }
   };
 
-  const noActiveConsultation = inConsultationPatients.length === 0;
 
   return (
     <div className="space-y-6 pb-8 max-w-4xl mx-auto">
@@ -305,19 +308,16 @@ export default function ManageQueue() {
             {waitingQueue.map((res, idx) => {
               const isFirstWaiting = idx === 0;
               const canSendToDoctor =
-                noActiveConsultation &&
                 isFirstWaiting &&
                 res.status === "checked_in";
               const canPenalize =
-                noActiveConsultation &&
-                isFirstWaiting &&
-                (res.status === "reserved" || res.status === "waiting");
+                idx === firstUncheckedIdx && firstUncheckedIdx !== -1;
 
               return (
                 <div
                   key={res.id}
                   className={`p-4 sm:p-5 rounded-2xl border transition-all ${
-                    isFirstWaiting && noActiveConsultation
+                    isFirstWaiting
                       ? "bg-white border-blue-300 ring-2 ring-blue-500/10 shadow-sm"
                       : "bg-white border-gray-200 shadow-2xs hover:border-gray-300"
                   }`}
@@ -327,7 +327,7 @@ export default function ManageQueue() {
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div
                         className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 font-black text-sm border ${
-                          isFirstWaiting && noActiveConsultation
+                          isFirstWaiting
                             ? "bg-gray-900 text-white border-gray-900"
                             : "bg-gray-100 text-gray-700 border-gray-200"
                         }`}
