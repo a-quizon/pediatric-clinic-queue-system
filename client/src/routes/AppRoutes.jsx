@@ -29,6 +29,14 @@ import DoctorReports from "../pages/doctor/Reports";
 import DoctorProfile from "../pages/doctor/Profile";
 import DoctorBranchConfig from "../pages/doctor/BranchConfiguration";
 
+// Admin Layout and Pages
+import AdminLayout from "../components/admin/AdminLayout";
+import AdminDashboard from "../pages/admin/Dashboard";
+import AdminUserManagement from "../pages/admin/UserManagement";
+import AdminBranchManagement from "../pages/admin/BranchManagement";
+import AdminActivity from "../pages/admin/Activity";
+import AdminProfile from "../pages/admin/Profile";
+
 import RoleRoute from "./RoleRoute";
 
 export default function AppRoutes() {
@@ -66,6 +74,15 @@ export default function AppRoutes() {
           <Route path="reports" element={<DoctorReports />} />
           <Route path="branch-config" element={<DoctorBranchConfig />} />
           <Route path="profile" element={<DoctorProfile />} />
+        </Route>
+
+        {/* Admin Routes */}
+        <Route path="/admin" element={<ProtectedRoute> <RoleRoute allowedRole="admin"><AdminLayout /></RoleRoute> </ProtectedRoute>}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<AdminUserManagement />} />
+          <Route path="branches" element={<AdminBranchManagement />} />
+          <Route path="activity" element={<AdminActivity />} />
+          <Route path="profile" element={<AdminProfile />} />
         </Route>
       </Routes>
     </BrowserRouter>

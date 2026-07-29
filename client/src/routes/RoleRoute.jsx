@@ -18,6 +18,9 @@ export default function RoleRoute({ children, allowedRole }) {
 
       case "doctor":
         return <Navigate to="/doctor" replace />;
+      
+      case "admin":
+        return <Navigate to="/admin" replace />;
 
       default:
         return <Navigate to="/" replace />;
