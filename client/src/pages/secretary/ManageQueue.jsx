@@ -46,9 +46,11 @@ export default function ManageQueue() {
     );
   }
 
-  // Find active schedule started by the Doctor
+  // Find active schedule started by the Doctor for the secretary's assigned branch
   const activeStartedSchedule = Object.values(schedules).find(s =>
-    s.status === "published" && ["active", "paused", "closed"].includes(s.queueStatus)
+    s.status === "published" && 
+    ["active", "paused", "closed"].includes(s.queueStatus) &&
+    s.branch === user.assignedBranch
   );
 
   if (!activeStartedSchedule) {
@@ -56,16 +58,16 @@ export default function ManageQueue() {
       <div className="space-y-6 pb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Manage Queue</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Control patient flow and consultations for today&apos;s active clinic session.</p>
+          <p className="text-gray-500 text-sm mt-0.5">Control patient flow and consultations for your assigned branch: <span className="font-bold text-gray-700">{user.assignedBranch}</span>.</p>
         </div>
 
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-12 text-center max-w-xl mx-auto my-12 animate-in fade-in">
           <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Clock className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Queue Has Not Started Yet</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">No Active Queue For {user.assignedBranch}</h2>
           <p className="text-gray-500 text-sm leading-relaxed max-w-md mx-auto">
-            Today&apos;s clinic queue has not been started by the Doctor yet. Patients can reserve slots and check in via the Validate section upon arrival, but queue flow control will become active once the Doctor starts the queue.
+            There is currently no active clinic queue running for your assigned branch ({user.assignedBranch}). Wait for the Doctor to start the session for this branch.
           </p>
         </div>
       </div>

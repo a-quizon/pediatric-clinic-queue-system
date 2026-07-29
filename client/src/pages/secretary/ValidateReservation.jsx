@@ -117,6 +117,13 @@ export default function ValidateReservation() {
     }
 
     const schedule = await getScheduleById(reservation.scheduleId);
+    
+    if (schedule && user.assignedBranch && schedule.branch !== user.assignedBranch) {
+      toast.error(`This reservation belongs to a different branch (${schedule.branch}).`);
+      setShowInvalidModal(true);
+      return;
+    }
+
     setValidatedDetails({ reservation, schedule });
 
     if (schedule && schedule.queueStatus === 'not_started') {

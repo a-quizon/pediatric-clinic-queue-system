@@ -1,6 +1,9 @@
-import { Calendar, Users, CheckCircle, Activity } from "lucide-react";
+import { Calendar, Users, CheckCircle, Activity, MapPin } from "lucide-react";
+import { useAuth } from "../../hooks/useAuth";
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  
   const stats = [
     { name: "Today's Schedules", value: "0", icon: Calendar, color: "text-blue-600", bgColor: "bg-blue-100" },
     { name: "Waiting Patients", value: "0", icon: Users, color: "text-amber-600", bgColor: "bg-amber-100" },
@@ -13,7 +16,10 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-1">Overview of today's clinic activities.</p>
+          <p className="text-gray-500 text-sm mt-1 flex items-center gap-1.5">
+            <MapPin className="w-4 h-4 text-gray-400" />
+            Overview of today's clinic activities for <span className="font-bold text-gray-700">{user?.assignedBranch}</span> branch.
+          </p>
         </div>
       </div>
 
