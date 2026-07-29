@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyBdCJu_ratr-Eys-522wsb648eZoRd48-I",
   authDomain: "pediatric-clinic-queue-system.firebaseapp.com",
   projectId: "pediatric-clinic-queue-system",
