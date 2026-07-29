@@ -1,8 +1,34 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { Home, CalendarDays, Users, Stethoscope, User, BarChart3, Activity } from "lucide-react";
+import PageHeader from "../common/PageHeader";
 
 export default function Layout() {
   const location = useLocation();
+
+  const getHeaderInfo = () => {
+    const path = location.pathname;
+    if (path === "/doctor" || path === "/doctor/") {
+      return { desktop: "Dashboard", mobile: "Home" };
+    }
+    if (path.startsWith("/doctor/schedules")) {
+      return { desktop: "Schedule", mobile: "Schedule" };
+    }
+    if (path.startsWith("/doctor/queue")) {
+      return { desktop: "Queue", mobile: "Queue" };
+    }
+    if (path.startsWith("/doctor/reports")) {
+      return { desktop: "Reports", mobile: "Reports" };
+    }
+    if (path.startsWith("/doctor/branch")) {
+      return { desktop: "Branch Management", mobile: "Branch Management" };
+    }
+    if (path.startsWith("/doctor/profile")) {
+      return { desktop: "Profile", mobile: "Profile" };
+    }
+    return { desktop: "Dashboard", mobile: "Home" };
+  };
+
+  const headerInfo = getHeaderInfo();
 
   const navItems = [
     { name: "Home", path: "/doctor", icon: Home },
@@ -58,16 +84,13 @@ export default function Layout() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-24 bg-gray-50 md:bg-transparent h-full relative">
-        {/* Mobile Header */}
-        <header className="md:hidden bg-white shadow-sm sticky top-0 z-30 p-4 border-b border-gray-100">
-          <div className="flex items-center justify-center">
-             <Activity className="w-5 h-5 text-blue-600 mr-2" />
-             <h1 className="text-lg font-bold text-gray-800">Doctor Portal</h1>
-          </div>
-        </header>
+      <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-24 bg-gray-50 md:bg-transparent h-full relative flex flex-col">
+        <PageHeader 
+          desktopTitle={headerInfo.desktop} 
+          mobileTitle={headerInfo.mobile} 
+        />
 
-        <div className="p-4 md:p-8 lg:p-10 max-w-5xl mx-auto min-h-full">
+        <div className="p-4 md:p-8 lg:p-10 max-w-5xl mx-auto flex-1 w-full">
           <Outlet />
         </div>
       </main>

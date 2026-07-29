@@ -1,8 +1,37 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { Home, QrCode, Users, Bell, User, Activity } from "lucide-react";
+import PageHeader from "../common/PageHeader";
 
 export default function SecretaryLayout() {
   const location = useLocation();
+
+  const getHeaderInfo = () => {
+    const path = location.pathname;
+    if (path === "/secretary" || path === "/secretary/") {
+      return { desktop: "Dashboard", mobile: "Home" };
+    }
+    if (path.startsWith("/secretary/validate")) {
+      return { desktop: "Validation", mobile: "Validation" };
+    }
+    if (path.startsWith("/secretary/queue")) {
+      return { desktop: "Queue", mobile: "Queue" };
+    }
+    if (path.startsWith("/secretary/reservations")) {
+      return { desktop: "Reservations", mobile: "Reservations" };
+    }
+    if (path.startsWith("/secretary/history")) {
+      return { desktop: "History", mobile: "History" };
+    }
+    if (path.startsWith("/secretary/profile")) {
+      return { desktop: "Profile", mobile: "Profile" };
+    }
+    if (path.startsWith("/secretary/notifications")) {
+      return { desktop: "Notifications", mobile: "Notifications" };
+    }
+    return { desktop: "Dashboard", mobile: "Home" };
+  };
+
+  const headerInfo = getHeaderInfo();
 
   const navItems = [
     { name: "Dashboard", path: "/secretary", icon: Home },
@@ -58,16 +87,13 @@ export default function SecretaryLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-24 bg-gray-50 md:bg-transparent h-full relative">
-        {/* Mobile Header */}
-        <header className="md:hidden bg-white shadow-sm sticky top-0 z-30 p-4 border-b border-gray-100">
-          <div className="flex items-center justify-center">
-             <Activity className="w-5 h-5 text-blue-600 mr-2" />
-             <h1 className="text-lg font-bold text-gray-800">Secretary Portal</h1>
-          </div>
-        </header>
+      <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-24 bg-gray-50 h-full relative flex flex-col">
+        <PageHeader 
+          desktopTitle={headerInfo.desktop} 
+          mobileTitle={headerInfo.mobile} 
+        />
 
-        <div className="p-4 md:p-8 lg:p-10 max-w-5xl mx-auto min-h-full">
+        <div className="p-4 md:p-8 lg:p-10 max-w-5xl mx-auto flex-1 w-full">
           <Outlet />
         </div>
       </main>
