@@ -26,7 +26,41 @@ export function AuthProvider({ children }) {
                         );
 
                         if (snapshot.exists()) {
-                            const userData = snapshot.val();
+                            let userData = snapshot.val();
+                            
+                            // Phase 1 Schema Standardization: Auto-initialize missing fields safely
+                            let needsUpdate = false;
+                            const updates = {};
+                            const now = Date.now();
+                            
+                            if (!userData.status) {
+                                userData.status = "active";
+                                updates.status = "active";
+                                needsUpdate = true;
+                            }
+                            if (!userData.createdAt) {
+                                userData.createdAt = now;
+                                updates.createdAt = now;
+                                needsUpdate = true;
+                            }
+                            if (!userData.updatedAt) {
+                                userData.updatedAt = now;
+                                updates.updatedAt = now;
+                                needsUpdate = true;
+                            }
+                            if (userData.role === "secretary" && !userData.assignedBranch) {
+                                userData.assignedBranch = "Angeles"; // Default mandatory branch for existing secretaries
+                                updates.assignedBranch = "Angeles";
+                                needsUpdate = true;
+                            }
+                            
+                            if (needsUpdate) {
+                                // Background save, no need to await so it doesn't block login
+                                import("firebase/database").then(({ update, ref }) => {
+                                    update(ref(database, `users/${currentUser.uid}`), updates).catch(console.error);
+                                });
+                            }
+
                             const enrichedUser = {
                                 ...currentUser,
                                 ...userData,

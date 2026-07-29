@@ -25,6 +25,7 @@ export const registerUser = async (
 
     console.log("User created:", user.uid);
 
+    const now = Date.now();
     await set(
     ref(database, `users/${user.uid}`),
         {
@@ -32,7 +33,10 @@ export const registerUser = async (
             name,
             email,
             phone,
-            role: "parent"
+            role: "parent",
+            status: "active",
+            createdAt: now,
+            updatedAt: now
         }
     );
 

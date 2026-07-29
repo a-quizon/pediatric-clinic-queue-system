@@ -17,7 +17,7 @@ export default function AdminLayout() {
       return { desktop: "Branch Management", mobile: "Branches" };
     }
     if (path.startsWith("/admin/activity")) {
-      return { desktop: "Activity", mobile: "Activity" };
+      return { desktop: "System Activity", mobile: "System Activity" };
     }
     if (path.startsWith("/admin/profile")) {
       return { desktop: "Profile", mobile: "Profile" };
@@ -31,7 +31,7 @@ export default function AdminLayout() {
     { name: "Dashboard", path: "/admin", icon: Home },
     { name: "User Management", mobileName: "Users", path: "/admin/users", icon: Users },
     { name: "Branch Management", mobileName: "Branches", path: "/admin/branches", icon: MapPin },
-    { name: "Activity", path: "/admin/activity", icon: ActivityIcon },
+    { name: "System Activity", path: "/admin/activity", icon: ActivityIcon },
     { name: "Profile", path: "/admin/profile", icon: User },
   ];
 
