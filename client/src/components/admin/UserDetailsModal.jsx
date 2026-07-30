@@ -254,12 +254,6 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
             </div>
           ) : (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <button 
-                onClick={onClose}
-                className="order-4 sm:order-1 w-full sm:w-auto px-6 py-2.5 text-gray-500 font-bold hover:bg-gray-200 hover:text-gray-700 rounded-xl transition-colors"
-              >
-                Close
-              </button>
               
               <div className="order-1 sm:order-2 flex flex-col sm:flex-row gap-3 sm:ml-auto">
                 <button 

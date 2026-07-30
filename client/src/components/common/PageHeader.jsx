@@ -1,7 +1,7 @@
 import React from 'react';
 import { Activity } from 'lucide-react';
 
-export default function PageHeader({ desktopTitle, mobileTitle, icon: Icon = Activity }) {
+export default function PageHeader({ desktopTitle, mobileTitle, icon: Icon = Activity, action }) {
   const finalMobileTitle = mobileTitle || desktopTitle;
   
   return (
@@ -13,6 +13,11 @@ export default function PageHeader({ desktopTitle, mobileTitle, icon: Icon = Act
           <span className="md:hidden">{finalMobileTitle}</span>
         </h1>
       </div>
+      {action && (
+        <div className="flex items-center shrink-0 ml-4">
+          {action}
+        </div>
+      )}
     </header>
   );
 }

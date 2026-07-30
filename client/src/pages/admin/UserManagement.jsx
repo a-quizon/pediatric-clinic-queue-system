@@ -2,13 +2,11 @@ import React, { useState, useEffect } from "react";
 import { Plus, Search, Filter, MoreVertical, Shield, Stethoscope, UserCog, User, MapPin, Mail, Phone } from "lucide-react";
 import { ref, onValue } from "firebase/database";
 import { database } from "../../firebase/database";
-import AddStaffModal from "../../components/admin/AddStaffModal";
 import UserDetailsModal from "../../components/admin/UserDetailsModal";
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -85,58 +83,47 @@ export default function UserManagement() {
 
   return (
     <div className="space-y-6 pb-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
-          <p className="text-gray-500 mt-1">Manage system accounts and roles</p>
-        </div>
-        <button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-sm hover:bg-blue-700 hover:shadow transition-all flex items-center shrink-0"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Add Staff
-        </button>
-      </div>
-
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Search by name or email..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-800"
-          />
-        </div>
-        
-        <div className="flex gap-3">
-          <div className="relative">
-            <select 
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="appearance-none pl-10 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-700 font-medium cursor-pointer"
-            >
-              <option value="all">All Roles</option>
-              <option value="doctor">Doctor</option>
-              <option value="secretary">Secretary</option>
-              <option value="parent">Parent</option>
-              <option value="admin">Admin</option>
-            </select>
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      {/* Sticky Search & Filters Toolbar */}
+      <div className="sticky top-[64px] z-20 bg-gray-50/95 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 md:-mx-8 md:px-8 lg:-mx-10 lg:px-10 -mt-2 sm:-mt-4">
+        <div className="bg-white p-3 sm:p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="Search by name or email..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-800"
+            />
           </div>
+          
+          <div className="flex gap-3">
+            <div className="relative flex-1 md:flex-none">
+              <select 
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="w-full appearance-none pl-10 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-700 font-medium cursor-pointer"
+              >
+                <option value="all">All Roles</option>
+                <option value="doctor">Doctor</option>
+                <option value="secretary">Secretary</option>
+                <option value="parent">Parent</option>
+                <option value="admin">Admin</option>
+              </select>
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            </div>
 
-          <div className="relative">
-            <select 
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none px-4 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-700 font-medium cursor-pointer"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+            <div className="relative flex-1 md:flex-none">
+              <select 
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full appearance-none px-4 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-700 font-medium cursor-pointer"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -257,12 +244,6 @@ export default function UserManagement() {
           </div>
         )}
       </div>
-
-      <AddStaffModal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
-        onSuccess={() => setIsAddModalOpen(false)} 
-      />
 
       <UserDetailsModal
         isOpen={isDetailsModalOpen}

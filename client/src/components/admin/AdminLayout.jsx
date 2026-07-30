@@ -1,9 +1,12 @@
+import React, { useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { Home, Users, MapPin, Activity as ActivityIcon, User, Shield } from "lucide-react";
+import { Home, Users, MapPin, Activity as ActivityIcon, User, Shield, Plus } from "lucide-react";
 import PageHeader from "../common/PageHeader";
+import AddStaffModal from "./AddStaffModal";
 
 export default function AdminLayout() {
   const location = useLocation();
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const getHeaderInfo = () => {
     const path = location.pathname;
@@ -11,7 +14,7 @@ export default function AdminLayout() {
       return { desktop: "Dashboard", mobile: "Home" };
     }
     if (path.startsWith("/admin/users")) {
-      return { desktop: "User Management", mobile: "Users" };
+      return { desktop: "Users", mobile: "Users", showAddStaff: true };
     }
     if (path.startsWith("/admin/branches")) {
       return { desktop: "Branch Management", mobile: "Branches" };
@@ -86,11 +89,27 @@ export default function AdminLayout() {
           desktopTitle={headerInfo.desktop} 
           mobileTitle={headerInfo.mobile}
           icon={Shield}
+          action={headerInfo.showAddStaff ? (
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="px-4 py-2 sm:px-5 sm:py-2 bg-blue-600 text-white font-bold rounded-xl shadow-sm hover:bg-blue-700 hover:shadow transition-all flex items-center shrink-0 text-sm sm:text-base"
+            >
+              <Plus className="w-5 h-5 mr-1.5 sm:mr-2" />
+              <span className="hidden sm:inline">Add Staff</span>
+              <span className="sm:hidden">Add</span>
+            </button>
+          ) : null}
         />
 
         <div className="p-4 md:p-8 lg:p-10 max-w-5xl mx-auto flex-1 w-full">
           <Outlet />
         </div>
+
+        <AddStaffModal 
+          isOpen={isAddModalOpen} 
+          onClose={() => setIsAddModalOpen(false)} 
+          onSuccess={() => setIsAddModalOpen(false)} 
+        />
       </main>
 
       {/* Mobile Bottom Navigation */}
