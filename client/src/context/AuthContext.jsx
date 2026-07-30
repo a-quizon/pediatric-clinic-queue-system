@@ -61,6 +61,18 @@ export function AuthProvider({ children }) {
                                 });
                             }
 
+                            // Block deactivated users
+                            if (userData.status === "inactive") {
+                                import("firebase/auth").then(({ signOut }) => {
+                                    signOut(auth);
+                                });
+                                import("react-hot-toast").then(({ toast }) => {
+                                    toast.error("This account has been deactivated. Please contact the clinic administrator.");
+                                });
+                                setLoading(false);
+                                return;
+                            }
+
                             const enrichedUser = {
                                 ...currentUser,
                                 ...userData,

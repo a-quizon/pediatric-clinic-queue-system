@@ -3,12 +3,22 @@ import { Plus, Search, Filter, MoreVertical, Shield, Stethoscope, UserCog, User,
 import { ref, onValue } from "firebase/database";
 import { database } from "../../firebase/database";
 import AddStaffModal from "../../components/admin/AddStaffModal";
+import UserDetailsModal from "../../components/admin/UserDetailsModal";
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  
   const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+
+  // Force trigger to re-read from local state if needed, but onValue handles real-time updates natively
+  const [refreshTrigger, setRefreshTrigger] = useState(0); 
 
   useEffect(() => {
     const usersRef = ref(database, 'users');
@@ -19,7 +29,17 @@ export default function UserManagement() {
           id: key,
           ...usersData[key]
         }));
-        setUsers(usersList);
+        
+        // If details modal is open, sync the selected user with the fresh data
+        setUsers(prevUsers => {
+          if (isDetailsModalOpen && selectedUser) {
+            const updatedSelectedUser = usersList.find(u => u.id === selectedUser.id);
+            if (updatedSelectedUser) {
+              setSelectedUser(updatedSelectedUser);
+            }
+          }
+          return usersList;
+        });
       } else {
         setUsers([]);
       }
@@ -27,7 +47,7 @@ export default function UserManagement() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [isDetailsModalOpen, selectedUser?.id, refreshTrigger]);
 
   const getRoleIcon = (role) => {
     switch(role) {
@@ -49,12 +69,22 @@ export default function UserManagement() {
 
   const filteredUsers = users.filter(user => {
     const term = searchQuery.toLowerCase();
-    return (user.name && user.name.toLowerCase().includes(term)) || 
-           (user.email && user.email.toLowerCase().includes(term));
+    const matchesSearch = (user.name && user.name.toLowerCase().includes(term)) || 
+                          (user.email && user.email.toLowerCase().includes(term));
+    
+    const matchesRole = roleFilter === "all" || user.role === roleFilter;
+    const matchesStatus = statusFilter === "all" || user.status === statusFilter;
+
+    return matchesSearch && matchesRole && matchesStatus;
   });
 
+  const openUserDetails = (user) => {
+    setSelectedUser(user);
+    setIsDetailsModalOpen(true);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
@@ -69,21 +99,46 @@ export default function UserManagement() {
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row gap-3">
+      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input 
             type="text" 
-            placeholder="Search users..." 
+            placeholder="Search by name or email..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-800"
           />
         </div>
-        <button className="px-4 py-2.5 bg-gray-50 text-gray-600 font-semibold rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors flex items-center justify-center shrink-0">
-          <Filter className="w-4 h-4 mr-2" />
-          Filter Role
-        </button>
+        
+        <div className="flex gap-3">
+          <div className="relative">
+            <select 
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="appearance-none pl-10 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-700 font-medium cursor-pointer"
+            >
+              <option value="all">All Roles</option>
+              <option value="doctor">Doctor</option>
+              <option value="secretary">Secretary</option>
+              <option value="parent">Parent</option>
+              <option value="admin">Admin</option>
+            </select>
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          </div>
+
+          <div className="relative">
+            <select 
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="appearance-none px-4 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-700 font-medium cursor-pointer"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[300px]">
@@ -105,9 +160,13 @@ export default function UserManagement() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr 
+                    key={user.id} 
+                    onClick={() => openUserDetails(user)}
+                    className="hover:bg-gray-50/80 transition-colors cursor-pointer group"
+                  >
                     <td className="p-4 pl-6 min-w-[200px]">
-                      <div className="font-bold text-gray-800">{user.name || 'Unnamed'}</div>
+                      <div className="font-bold text-gray-800 group-hover:text-blue-600 transition-colors">{user.name || 'Unnamed'}</div>
                       <div className="text-sm text-gray-500 mt-0.5">{user.email}</div>
                     </td>
                     <td className="p-4 min-w-[120px]">
@@ -118,23 +177,29 @@ export default function UserManagement() {
                     </td>
                     <td className="p-4 min-w-[120px]">
                       {user.role === 'secretary' && user.assignedBranch ? (
-                        <span className="inline-flex items-center text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">
-                          <MapPin className="w-3.5 h-3.5 mr-1" />
+                        <span className="inline-flex items-center text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200">
+                          <MapPin className="w-3.5 h-3.5 mr-1 text-gray-400" />
                           {user.assignedBranch}
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-sm italic">N/A</span>
+                        <span className="text-gray-400 text-sm italic">--</span>
                       )}
                     </td>
                     <td className="p-4 min-w-[100px]">
                       <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
-                        user.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'
+                        user.status === 'active' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
                       }`}>
-                        {user.status || 'Unknown'}
+                        {user.status || 'unknown'}
                       </span>
                     </td>
                     <td className="p-4 text-right pr-6">
-                      <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                      <button 
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openUserDetails(user);
+                        }}
+                      >
                         <MoreVertical className="w-5 h-5" />
                       </button>
                     </td>
@@ -146,7 +211,13 @@ export default function UserManagement() {
         ) : (
           <div className="flex flex-col items-center justify-center p-12 text-center text-gray-500">
              <User className="w-12 h-12 text-gray-300 mb-3" />
-             <p className="font-semibold text-gray-600">No users found.</p>
+             <p className="font-semibold text-gray-600">No users found matching your filters.</p>
+             <button 
+               onClick={() => { setSearchQuery(""); setRoleFilter("all"); setStatusFilter("all"); }}
+               className="mt-4 text-sm text-blue-600 font-medium hover:underline"
+             >
+               Clear Filters
+             </button>
           </div>
         )}
       </div>
@@ -155,6 +226,13 @@ export default function UserManagement() {
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
         onSuccess={() => setIsAddModalOpen(false)} 
+      />
+
+      <UserDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        user={selectedUser}
+        onUpdate={() => setRefreshTrigger(prev => prev + 1)}
       />
     </div>
   );

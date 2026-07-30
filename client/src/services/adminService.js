@@ -86,3 +86,30 @@ export const createStaffAccount = async (staffData) => {
     throw error;
   }
 };
+
+export const updateUser = async (uid, updates) => {
+  const userRef = ref(database, `users/${uid}`);
+  const payload = {
+    ...updates,
+    updatedAt: Date.now()
+  };
+  
+  const { update } = await import("firebase/database");
+  return update(userRef, payload);
+};
+
+export const toggleUserStatus = async (uid, currentStatus) => {
+  const userRef = ref(database, `users/${uid}`);
+  const newStatus = currentStatus === "active" ? "inactive" : "active";
+  
+  const { update } = await import("firebase/database");
+  await update(userRef, { status: newStatus, updatedAt: Date.now() });
+  
+  return newStatus;
+};
+
+export const sendAdminPasswordResetEmail = async (email) => {
+  const auth = getAuth();
+  const { sendPasswordResetEmail } = await import("firebase/auth");
+  return sendPasswordResetEmail(auth, email);
+};
