@@ -26,7 +26,7 @@ export default function UserManagement() {
         const usersList = Object.keys(usersData).map(key => ({
           id: key,
           ...usersData[key]
-        }));
+        })).filter(user => user.role !== 'admin' && user.id !== 'admin');
         
         // If details modal is open, sync the selected user with the fresh data
         setUsers(prevUsers => {
@@ -108,7 +108,6 @@ export default function UserManagement() {
                 <option value="doctor">Doctor</option>
                 <option value="secretary">Secretary</option>
                 <option value="parent">Parent</option>
-                <option value="admin">Admin</option>
               </select>
               <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             </div>
@@ -151,11 +150,13 @@ export default function UserManagement() {
                           {getRoleIcon(user.role)}
                           {user.role}
                         </span>
-                        <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide border ${
-                          user.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
-                        }`}>
-                          {user.status || 'unknown'}
-                        </span>
+                        {user.role === 'secretary' && (
+                          <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide border ${
+                            user.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
+                          }`}>
+                            {user.status || 'unknown'}
+                          </span>
+                        )}
                       </div>
                     </div>
                     {user.role === 'secretary' && user.assignedBranch && (
@@ -219,11 +220,15 @@ export default function UserManagement() {
                         )}
                       </td>
                       <td className="p-4 min-w-[100px]">
-                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
-                          user.status === 'active' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
-                        }`}>
-                          {user.status || 'unknown'}
-                        </span>
+                        {user.role === 'secretary' ? (
+                          <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
+                            user.status === 'active' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+                          }`}>
+                            {user.status || 'unknown'}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-sm italic">--</span>
+                        )}
                       </td>
                     </tr>
                   ))}
