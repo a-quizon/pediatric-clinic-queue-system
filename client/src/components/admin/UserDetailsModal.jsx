@@ -2,12 +2,25 @@ import React, { useState, useEffect } from "react";
 import { X, Edit2, Shield, Stethoscope, UserCog, User, Mail, Phone, Calendar, Clock, MapPin, CheckCircle, AlertTriangle, Key } from "lucide-react";
 import { updateUser, toggleUserStatus, sendAdminPasswordResetEmail } from "../../services/adminService";
 import toast from "react-hot-toast";
+import ConfirmationModal from "../common/ConfirmationModal";
 
 export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  
+  const [confirmConfig, setConfirmConfig] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "",
+    isDestructive: false,
+    action: null
+  });
+
+  const closeConfirm = () => setConfirmConfig(prev => ({ ...prev, isOpen: false }));
 
   useEffect(() => {
     if (user && isOpen) {
@@ -58,32 +71,52 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
     }
   };
 
-  const handleToggleStatus = async () => {
-    if (window.confirm(`Are you sure you want to ${user.status === 'active' ? 'deactivate' : 'activate'} this user?`)) {
-      setIsTogglingStatus(true);
-      try {
-        await toggleUserStatus(user.id, user.status);
-        toast.success(`User successfully ${user.status === 'active' ? 'deactivated' : 'activated'}.`);
-        onUpdate();
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to change user status.");
-      } finally {
-        setIsTogglingStatus(false);
+  const handleToggleStatus = () => {
+    const isDeactivating = user.status === 'active';
+    setConfirmConfig({
+      isOpen: true,
+      title: isDeactivating ? "Deactivate User" : "Activate User",
+      message: `Are you sure you want to ${isDeactivating ? 'deactivate' : 'activate'} this user's account? ${isDeactivating ? 'They will no longer be able to access the system.' : 'They will regain access to the system.'}`,
+      confirmText: isDeactivating ? "Deactivate" : "Activate",
+      isDestructive: isDeactivating,
+      action: async () => {
+        setIsTogglingStatus(true);
+        try {
+          await toggleUserStatus(user.id, user.status);
+          toast.success(`User successfully ${isDeactivating ? 'deactivated' : 'activated'}.`);
+          onUpdate();
+          closeConfirm();
+        } catch (error) {
+          console.error(error);
+          toast.error("Failed to change user status.");
+        } finally {
+          setIsTogglingStatus(false);
+        }
       }
-    }
+    });
   };
 
-  const handlePasswordReset = async () => {
-    if (window.confirm(`Send password reset email to ${user.email}?`)) {
-      try {
-        await sendAdminPasswordResetEmail(user.email);
-        toast.success(`Password reset email sent to ${user.email}`);
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to send password reset email.");
+  const handlePasswordReset = () => {
+    setConfirmConfig({
+      isOpen: true,
+      title: "Reset Password",
+      message: `Are you sure you want to send a password reset email to ${user.email}? The user will receive instructions to set a new password.`,
+      confirmText: "Send Email",
+      isDestructive: false,
+      action: async () => {
+        setIsResettingPassword(true);
+        try {
+          await sendAdminPasswordResetEmail(user.email);
+          toast.success(`Password reset email sent to ${user.email}`);
+          closeConfirm();
+        } catch (error) {
+          console.error(error);
+          toast.error("Failed to send password reset email.");
+        } finally {
+          setIsResettingPassword(false);
+        }
       }
-    }
+    });
   };
 
   const getRoleIcon = (role) => {
@@ -291,6 +324,17 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
           )}
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={confirmConfig.isOpen}
+        onClose={closeConfirm}
+        onConfirm={confirmConfig.action}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        isDestructive={confirmConfig.isDestructive}
+        isLoading={isTogglingStatus || isResettingPassword}
+      />
     </div>
   );
 }
