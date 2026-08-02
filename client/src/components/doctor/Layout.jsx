@@ -19,9 +19,6 @@ export default function Layout() {
     if (path.startsWith("/doctor/reports")) {
       return { desktop: "Reports", mobile: "Reports" };
     }
-    if (path.startsWith("/doctor/branch")) {
-      return { desktop: "Branch Management", mobile: "Branch Management" };
-    }
     if (path.startsWith("/doctor/profile")) {
       return { desktop: "Profile", mobile: "Profile" };
     }

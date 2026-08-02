@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, UserPlus, Stethoscope, UserCog, Mail, Phone, Lock, MapPin, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { createStaffAccount } from "../../services/adminService";
+import { getBranchConfigurations } from "../../services/branchConfigurationService";
 
 export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   const [step, setStep] = useState(1);
@@ -19,6 +20,11 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [branches, setBranches] = useState([]);
+
+  useEffect(() => {
+    getBranchConfigurations().then(setBranches).catch(console.error);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -255,8 +261,9 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                       className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none appearance-none"
                     >
                       <option value="" disabled>Select assigned branch</option>
-                      <option value="Angeles">Angeles</option>
-                      <option value="Magalang">Magalang</option>
+                      {branches.map(b => (
+                        <option key={b.id} value={b.name}>{b.name}</option>
+                      ))}
                     </select>
                   </div>
                 </div>

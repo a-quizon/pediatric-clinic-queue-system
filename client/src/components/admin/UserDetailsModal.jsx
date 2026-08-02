@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Edit2, Shield, Stethoscope, UserCog, User, Mail, Phone, Calendar, Clock, MapPin, CheckCircle, AlertTriangle, Key } from "lucide-react";
 import { updateUser, toggleUserStatus, sendAdminPasswordResetEmail } from "../../services/adminService";
+import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import toast from "react-hot-toast";
 import ConfirmationModal from "../common/ConfirmationModal";
 
@@ -10,6 +11,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [branches, setBranches] = useState([]);
   
   const [confirmConfig, setConfirmConfig] = useState({
     isOpen: false,
@@ -21,6 +23,10 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
   });
 
   const closeConfirm = () => setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+
+  useEffect(() => {
+    getBranchConfigurations().then(setBranches).catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (user && isOpen) {
@@ -231,8 +237,10 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
                   <label className="text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5"/> Assigned Branch</label>
                   {isEditing ? (
                     <select name="assignedBranch" value={formData.assignedBranch} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-800 transition-colors">
-                      <option value="Angeles">Angeles Branch</option>
-                      <option value="Magalang">Magalang Branch</option>
+                      <option value="" disabled>Select assigned branch</option>
+                      {branches.map(b => (
+                        <option key={b.id} value={b.name}>{b.name}</option>
+                      ))}
                     </select>
                   ) : (
                     <span className="inline-flex items-center text-sm font-bold text-gray-700 bg-gray-100 px-3 py-1 rounded-full border border-gray-200">

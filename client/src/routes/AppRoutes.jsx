@@ -27,7 +27,6 @@ import DoctorSchedules from "../pages/doctor/Schedules";
 import DoctorQueue from "../pages/doctor/Queue";
 import DoctorReports from "../pages/doctor/Reports";
 import DoctorProfile from "../pages/doctor/Profile";
-import DoctorBranchConfig from "../pages/doctor/BranchConfiguration";
 
 // Admin Layout and Pages
 import AdminLayout from "../components/admin/AdminLayout";
@@ -72,7 +71,7 @@ export default function AppRoutes() {
           <Route path="schedules" element={<DoctorSchedules />} />
           <Route path="queue" element={<DoctorQueue />} />
           <Route path="reports" element={<DoctorReports />} />
-          <Route path="branch-config" element={<DoctorBranchConfig />} />
+
           <Route path="profile" element={<DoctorProfile />} />
         </Route>
 
