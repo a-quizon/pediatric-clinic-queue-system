@@ -17,7 +17,7 @@ export default function AdminLayout() {
       return { desktop: "Users", mobile: "Users", showAddStaff: true };
     }
     if (path.startsWith("/admin/branches")) {
-      return { desktop: "Branch Management", mobile: "Branches" };
+      return { desktop: "Branches", mobile: "Branches", showAddBranch: true };
     }
     if (path.startsWith("/admin/activity")) {
       return { desktop: "System Activity", mobile: "System Activity" };
@@ -89,16 +89,27 @@ export default function AdminLayout() {
           desktopTitle={headerInfo.desktop} 
           mobileTitle={headerInfo.mobile}
           icon={Shield}
-          action={headerInfo.showAddStaff ? (
-            <button 
-              onClick={() => setIsAddModalOpen(true)}
-              className="px-4 py-2 sm:px-5 sm:py-2 bg-blue-600 text-white font-bold rounded-xl shadow-sm hover:bg-blue-700 hover:shadow transition-all flex items-center shrink-0 text-sm sm:text-base"
-            >
-              <Plus className="w-5 h-5 mr-1.5 sm:mr-2" />
-              <span className="hidden sm:inline">Add Staff</span>
-              <span className="sm:hidden">Add</span>
-            </button>
-          ) : null}
+          action={
+            headerInfo.showAddStaff ? (
+              <button 
+                onClick={() => setIsAddModalOpen(true)}
+                className="px-4 py-2 sm:px-5 sm:py-2 bg-blue-600 text-white font-bold rounded-xl shadow-sm hover:bg-blue-700 hover:shadow transition-all flex items-center shrink-0 text-sm sm:text-base"
+              >
+                <Plus className="w-5 h-5 mr-1.5 sm:mr-2" />
+                <span className="hidden sm:inline">Add Staff</span>
+                <span className="sm:hidden">Add</span>
+              </button>
+            ) : headerInfo.showAddBranch ? (
+              <button 
+                onClick={() => window.dispatchEvent(new CustomEvent('openAddBranchModal'))}
+                className="px-4 py-2 sm:px-5 sm:py-2 bg-blue-600 text-white font-bold rounded-xl shadow-sm hover:bg-blue-700 hover:shadow transition-all flex items-center shrink-0 text-sm sm:text-base"
+              >
+                <Plus className="w-5 h-5 mr-1.5 sm:mr-2" />
+                <span className="hidden sm:inline">Add Branch</span>
+                <span className="sm:hidden">Add</span>
+              </button>
+            ) : null
+          }
         />
 
         <div className="p-4 md:p-8 lg:p-10 max-w-5xl mx-auto flex-1 w-full">
