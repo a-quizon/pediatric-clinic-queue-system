@@ -4,6 +4,7 @@ import { Ticket as TicketIcon, Clock, MapPin, CheckCircle2, XCircle, User, Maxim
 import QRCode from "qrcode";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
 import { subscribeToAllReservations, cancelReservation, updatePatientInfo, expireReservation } from "../../services/reservationService";
+import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { isReservationExpired, getRemainingValidationTime, formatRemainingTime } from "../../services/timeService";
 import { useAuth } from "../../hooks/useAuth";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
@@ -16,6 +17,7 @@ export default function MyReservation() {
   
   const [schedules, setSchedules] = useState({});
   const [allReservations, setAllReservations] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [qrImageUrl, setQrImageUrl] = useState("");
 
@@ -74,6 +76,8 @@ export default function MyReservation() {
       setAllReservations(data || []);
       setLoading(false);
     });
+
+    getBranchConfigurations().then(setBranches);
 
     return () => {
       unsubSchedules();
@@ -283,8 +287,13 @@ export default function MyReservation() {
               <div className="mt-5 pt-5 border-t border-white/15 grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <div className="text-blue-200 font-semibold mb-0.5">Clinic Branch</div>
-                  <div className="font-bold text-white text-sm flex items-center truncate">
-                    <MapPin className="w-3.5 h-3.5 mr-1.5 text-blue-300 shrink-0" /> {schedule.branch}
+                  <div className="flex flex-col">
+                    <div className="font-bold text-white text-sm flex items-center truncate">
+                      <MapPin className="w-3.5 h-3.5 mr-1.5 text-blue-300 shrink-0" /> {schedule.branch}
+                    </div>
+                    <div className="text-[10px] text-blue-200/90 mt-1 whitespace-pre-line leading-snug max-w-[150px]">
+                      {branches.find(b => b.name === schedule.branch)?.clinicAddress || "No clinic address provided."}
+                    </div>
                   </div>
                 </div>
                 <div className="text-right">

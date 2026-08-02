@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSchedules, deleteSchedule, publishSchedule, completeSchedule } from "../../services/scheduleService";
 import { subscribeToAllReservations, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
+import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import ScheduleCard from "../../components/schedule/ScheduleCard";
 import ScheduleFormModal from "../../components/schedule/ScheduleFormModal";
 import ScheduleDetailsModal from "../../components/doctor/ScheduleDetailsModal";
@@ -13,6 +14,7 @@ import toast from "react-hot-toast";
 export default function ScheduleManagement() {
   const navigate = useNavigate();
   const [schedules, setSchedules] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create");
@@ -30,6 +32,7 @@ export default function ScheduleManagement() {
     const unsub = subscribeToAllReservations((data) => {
       setReservations(data);
     });
+    getBranchConfigurations().then(setBranches);
     return () => unsub();
   }, []);
 
@@ -236,7 +239,10 @@ export default function ScheduleManagement() {
               </span>
             </div>
             <h2 className="text-2xl font-black">{activeQueue.branch} Branch</h2>
-            <div className="text-green-100 text-sm mt-1 flex flex-wrap items-center gap-2 sm:gap-4">
+            <div className="text-green-200 text-sm mt-0.5 whitespace-pre-line leading-tight">
+              {branches.find(b => b.name === activeQueue.branch)?.clinicAddress || "No clinic address provided."}
+            </div>
+            <div className="text-green-100 text-sm mt-2 flex flex-wrap items-center gap-2 sm:gap-4">
               <span>Clinic Date: <strong className="text-white">{new Date(activeQueue.clinicDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</strong></span>
               <span>•</span>
               <span>Time: <strong className="text-white">{formatTime(activeQueue.openingTime)} – {formatTime(activeQueue.closingTime)}</strong></span>
@@ -308,6 +314,7 @@ export default function ScheduleManagement() {
               onStartQueue={handleStartQueue}
               onOpenQueueControl={handleOpenQueueControl}
               isStartQueueDisabled={isAnyQueueActive}
+              clinicAddress={branches.find(b => b.name === schedule.branch)?.clinicAddress}
             />
           ))}
         </div>

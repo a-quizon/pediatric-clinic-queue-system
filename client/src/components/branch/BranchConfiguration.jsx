@@ -15,6 +15,7 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
   };
 
   const [branchName, setBranchName] = useState('');
+  const [clinicAddress, setClinicAddress] = useState('');
   const [schedule, setSchedule] = useState(defaultScheduleState);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,6 +25,7 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
       setErrorMsg('');
       if (mode === 'edit' && branch) {
         setBranchName(branch.name);
+        setClinicAddress(branch.clinicAddress || '');
         const loadedSchedule = { ...defaultScheduleState };
         if (branch.schedule) {
           Object.keys(defaultScheduleState).forEach(day => {
@@ -39,6 +41,7 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
         setSchedule(loadedSchedule);
       } else {
         setBranchName('');
+        setClinicAddress('');
         setSchedule(defaultScheduleState);
       }
     }
@@ -57,6 +60,11 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
     
     if (!branchName.trim()) {
       setErrorMsg('Branch name is required.');
+      return;
+    }
+
+    if (!clinicAddress.trim()) {
+      setErrorMsg('Clinic address is required.');
       return;
     }
     
@@ -81,6 +89,7 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
     
     const branchData = {
       name: branchName.trim(),
+      clinicAddress: clinicAddress.trim(),
       schedule
     };
 
@@ -145,6 +154,17 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
                 placeholder="e.g. San Fernando"
                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-800"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Clinic Address</label>
+              <textarea
+                value={clinicAddress}
+                onChange={(e) => setClinicAddress(e.target.value)}
+                placeholder="Enter the full clinic address..."
+                rows="3"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-800 resize-none"
+              ></textarea>
             </div>
 
             <div>

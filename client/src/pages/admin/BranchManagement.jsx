@@ -137,11 +137,23 @@ export default function BranchManagement() {
             className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-100 transition-all p-5 flex flex-col cursor-pointer"
             onClick={() => handleOpenEdit(branch)}
           >
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex justify-between items-start mb-2">
               <h3 className="text-xl font-bold text-gray-800 flex items-center">
-                <MapPin className="w-6 h-6 mr-2 text-blue-500 bg-blue-50 p-1 rounded-lg" />
-                {branch.name}
+                <MapPin className="w-6 h-6 mr-2 text-blue-500 bg-blue-50 p-1 rounded-lg shrink-0" />
+                <span className="truncate">{branch.name}</span>
               </h3>
+            </div>
+            
+            <div className="flex-1 mb-4">
+              {branch.clinicAddress ? (
+                <p className="text-sm text-gray-500 line-clamp-3 leading-relaxed whitespace-pre-line pl-8">
+                  {branch.clinicAddress}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-400 italic pl-8">
+                  No clinic address provided.
+                </p>
+              )}
             </div>
             
             <div className="flex items-center gap-2 pt-2 border-t border-gray-50 mt-auto">

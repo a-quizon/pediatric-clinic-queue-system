@@ -4,6 +4,7 @@ import { Activity, Clock, CalendarPlus, Ticket, User, ChevronRight, CheckCircle2
 import { useAuth } from "../../hooks/useAuth";
 import { subscribeToAllReservations, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
 import { getSchedules, subscribeToAllSchedules } from "../../services/scheduleService";
+import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { isReservationExpired, getRemainingValidationTime, formatRemainingTime } from "../../services/timeService";
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 import { computeReservationState, computeAheadOfYou, QUEUE_STATES } from "../../services/queueEngine";
@@ -13,6 +14,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [schedules, setSchedules] = useState({});
   const [allReservations, setAllReservations] = useState([]);
+  const [branches, setBranches] = useState([]);
 
   useEffect(() => {
     const unsubSchedules = subscribeToAllSchedules((data) => {
@@ -23,6 +25,8 @@ export default function Dashboard() {
       setAllReservations(data);
       setLoading(false);
     });
+
+    getBranchConfigurations().then(setBranches);
 
     return () => {
       unsubSchedules();
@@ -262,10 +266,15 @@ export default function Dashboard() {
 
 
 
-                  <span className="flex items-center text-gray-600 text-xs sm:text-sm font-semibold mt-1">
-                    <MapPin className="w-3.5 h-3.5 mr-1 text-red-500 inline flex-shrink-0" />
-                    {schedule.branch}{schedule.branch?.toLowerCase().includes('branch') ? '' : ' Branch'}
-                  </span>
+                  <div className="flex flex-col items-center mt-1">
+                    <span className="flex items-center text-gray-600 text-xs sm:text-sm font-semibold">
+                      <MapPin className="w-3.5 h-3.5 mr-1 text-red-500 inline flex-shrink-0" />
+                      {schedule.branch}{schedule.branch?.toLowerCase().includes('branch') ? '' : ' Branch'}
+                    </span>
+                    <span className="text-[11px] text-gray-500 mt-0.5 whitespace-pre-line text-center">
+                      {branches.find(b => b.name === schedule.branch)?.clinicAddress || "No clinic address provided."}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="mt-2.5 text-[11px] font-semibold text-gray-500">

@@ -12,7 +12,8 @@ export default function ScheduleCard({
   onStartQueue,
   onOpenQueueControl,
   onViewDetails,
-  isStartQueueDisabled
+  isStartQueueDisabled,
+  clinicAddress
 }) {
 
   let localStatus = 'unknown';
@@ -58,11 +59,14 @@ export default function ScheduleCard({
       )}
 
       <div className="flex justify-between items-start mb-4">
-        <div>
+        <div className="flex flex-col">
           <h3 className={`text-lg font-bold flex items-center ${isCompleted ? "text-gray-600" : "text-gray-800"}`}>
-            <MapPin className="w-5 h-5 mr-2 text-gray-400" />
+            <MapPin className="w-5 h-5 mr-2 text-gray-400 shrink-0" />
             {schedule.branch} Branch
           </h3>
+          <p className={`text-xs whitespace-pre-line ml-7 mt-0.5 line-clamp-3 ${isCompleted ? "text-gray-400" : "text-gray-500"}`}>
+            {clinicAddress || "No clinic address provided."}
+          </p>
         </div>
         <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center ${statusConfig.color}`}>
           <StatusIcon className="w-3.5 h-3.5 mr-1.5" />

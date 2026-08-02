@@ -249,6 +249,11 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
                   <option key={b.id} value={b.name}>{b.name}</option>
                 ))}
               </select>
+              {formData.branch && (
+                <p className="mt-2 text-sm text-gray-500 bg-gray-50 p-2.5 rounded-lg border border-gray-100 whitespace-pre-line leading-relaxed">
+                  {branches.find(b => b.name === formData.branch)?.clinicAddress || "No clinic address provided."}
+                </p>
+              )}
             </div>
 
             <div>

@@ -11,6 +11,7 @@ import {
   updatePatientInfo,
   ACTIVE_RESERVATION_STATUSES
 } from "../../services/reservationService";
+import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { useAuth } from "../../hooks/useAuth";
 import MessageModal from "../../components/common/MessageModal";
 
@@ -20,6 +21,7 @@ export default function ReserveQueue() {
   
   const [schedules, setSchedules] = useState([]);
   const [reservations, setReservations] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [parentReservation, setParentReservation] = useState(null);
 
@@ -110,6 +112,8 @@ export default function ReserveQueue() {
         setParentReservation(activeRes || null);
       }
     });
+
+    getBranchConfigurations().then(setBranches);
 
     return () => {
       unsubSchedules();
@@ -313,10 +317,15 @@ export default function ReserveQueue() {
             return (
               <div key={schedule.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-100 transition-all p-5 flex flex-col">
                 <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-lg font-bold text-gray-800 flex items-center">
-                    <MapPin className="w-5 h-5 mr-2 text-gray-400" />
-                    {schedule.branch} Branch
-                  </h3>
+                  <div className="flex flex-col">
+                    <h3 className="text-lg font-bold text-gray-800 flex items-center">
+                      <MapPin className="w-5 h-5 mr-2 text-gray-400 shrink-0" />
+                      {schedule.branch} Branch
+                    </h3>
+                    <p className="text-xs text-gray-500 whitespace-pre-line ml-7 mt-0.5 line-clamp-2">
+                      {branches.find(b => b.name === schedule.branch)?.clinicAddress || "No clinic address provided."}
+                    </p>
+                  </div>
                   {schedule.queueStatus === 'not_started' ? (
                     <div className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold flex items-center border border-amber-200">
                       <Clock className="w-3.5 h-3.5 mr-1.5" />
@@ -429,9 +438,14 @@ export default function ReserveQueue() {
             
             <div className="p-6 overflow-y-auto">
               <div className="bg-blue-50/50 rounded-xl p-4 mb-6 border border-blue-100/50">
-                <div className="flex items-center mb-2">
-                  <MapPin className="w-4 h-4 text-blue-600 mr-2" />
-                  <span className="font-semibold text-gray-800">Branch: {selectedSchedule.branch}</span>
+                <div className="flex items-start mb-3">
+                  <MapPin className="w-4 h-4 text-blue-600 mr-2 mt-0.5 shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-gray-800">Branch: {selectedSchedule.branch}</span>
+                    <span className="text-xs text-gray-500 whitespace-pre-line mt-0.5">
+                      {branches.find(b => b.name === selectedSchedule.branch)?.clinicAddress || "No clinic address provided."}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center">
                   <CalendarDays className="w-4 h-4 text-blue-600 mr-2" />
@@ -577,9 +591,14 @@ export default function ReserveQueue() {
                 <div className="text-4xl font-black text-blue-600 mb-4">{generatedQueuePosition}</div>
                 
                 <div className="flex flex-col space-y-2 text-sm text-left">
-                  <div className="flex justify-between border-t border-gray-200 pt-3">
-                    <span className="text-gray-500">Branch:</span>
-                    <span className="font-semibold text-gray-800">{selectedSchedule.branch}</span>
+                  <div className="flex justify-between items-start border-t border-gray-200 pt-3">
+                    <span className="text-gray-500 shrink-0 mr-4">Branch:</span>
+                    <div className="flex flex-col text-right">
+                      <span className="font-semibold text-gray-800">{selectedSchedule.branch}</span>
+                      <span className="text-xs text-gray-500 whitespace-pre-line mt-0.5">
+                        {branches.find(b => b.name === selectedSchedule.branch)?.clinicAddress || "No clinic address provided."}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Date:</span>

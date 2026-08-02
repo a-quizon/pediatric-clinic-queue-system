@@ -11,6 +11,7 @@ export default function ReservationHistory() {
   const navigate = useNavigate();
   const [reservations, setReservations] = useState([]);
   const [schedules, setSchedules] = useState({});
+  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Filters and Sorting
@@ -26,6 +27,10 @@ export default function ReservationHistory() {
       setSchedules(data || {});
     };
     fetchSchedules();
+
+    import("../../services/branchConfigurationService").then(({ getBranchConfigurations }) => {
+      getBranchConfigurations().then(setBranches);
+    });
 
     let unsub = () => {};
     if (user) {
@@ -154,12 +159,17 @@ export default function ReservationHistory() {
                         {schedule.clinicDate ? new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "Unknown Date"}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500 flex items-center text-xs font-semibold">
+                    <div className="flex items-start justify-between text-sm">
+                      <span className="text-gray-500 flex items-center text-xs font-semibold mt-0.5">
                         <MapPin className="w-3.5 h-3.5 mr-1.5 text-red-500 flex-shrink-0" />
                         Branch
                       </span>
-                      <span className="font-bold text-gray-800">{schedule.branch || "Unknown Branch"}</span>
+                      <div className="flex flex-col text-right">
+                        <span className="font-bold text-gray-800">{schedule.branch || "Unknown Branch"}</span>
+                        <span className="text-[10px] text-gray-500 whitespace-pre-line mt-0.5 max-w-[150px]">
+                          {branches.find(b => b.name === schedule.branch)?.clinicAddress || "No clinic address provided."}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-100">
                       <span className="text-gray-500 text-xs font-semibold">Queue Number</span>
@@ -203,6 +213,7 @@ export default function ReservationHistory() {
         onClose={() => setIsModalOpen(false)}
         reservation={selectedReservation}
         schedule={selectedReservation ? schedules[selectedReservation.scheduleId] : null}
+        clinicAddress={selectedReservation && schedules[selectedReservation.scheduleId] ? branches.find(b => b.name === schedules[selectedReservation.scheduleId].branch)?.clinicAddress : null}
       />
     </div>
   );

@@ -14,6 +14,7 @@ const defaultSchedule = () => ({
 const DEFAULT_BRANCHES = [
   {
     name: "Angeles",
+    clinicAddress: "McArthur Highway,\nSto. Domingo,\nAngeles City, Pampanga",
     schedule: {
       ...defaultSchedule(),
       monday: { isOpen: true, openingTime: "09:00", closingTime: "12:00" },
@@ -25,6 +26,7 @@ const DEFAULT_BRANCHES = [
   },
   {
     name: "Magalang",
+    clinicAddress: "Don Aniceto Gueco St,\nSan Nicolas 1st,\nMagalang, Pampanga",
     schedule: {
       ...defaultSchedule(),
       monday: { isOpen: true, openingTime: "14:00", closingTime: "17:00" },

@@ -2,7 +2,7 @@ import React from 'react';
 import { X, MapPin, CalendarDays, Clock, User, FileText, Activity, Hash } from 'lucide-react';
 import ReservationStatusBadge from '../common/ReservationStatusBadge';
 
-export default function ReservationDetailsModal({ isOpen, onClose, reservation, schedule }) {
+export default function ReservationDetailsModal({ isOpen, onClose, reservation, schedule, clinicAddress }) {
   if (!isOpen || !reservation) return null;
 
   const sched = schedule || {};
@@ -147,7 +147,12 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
                 <span className="text-xs text-gray-400 block mb-0.5 flex items-center">
                   <MapPin className="w-3 h-3 mr-1 text-red-500 inline" /> Branch
                 </span>
-                <span className="font-bold text-gray-800">{sched.branch || "Unknown Branch"}</span>
+                <span className="font-bold text-gray-800 block">{sched.branch || "Unknown Branch"}</span>
+                {clinicAddress && (
+                  <span className="text-[10px] text-gray-500 block mt-0.5 leading-snug pr-2">
+                    {clinicAddress}
+                  </span>
+                )}
               </div>
               <div>
                 <span className="text-xs text-gray-400 block mb-0.5 flex items-center">

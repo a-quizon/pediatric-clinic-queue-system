@@ -1,8 +1,24 @@
+import React, { useState, useEffect } from 'react';
 import { Calendar, Users, CheckCircle, Activity, MapPin } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import { getBranchConfigurations } from "../../services/branchConfigurationService";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const [clinicAddress, setClinicAddress] = useState("");
+
+  useEffect(() => {
+    const fetchAddress = async () => {
+      if (user?.assignedBranch) {
+        const branches = await getBranchConfigurations();
+        const branch = branches.find(b => b.name === user.assignedBranch);
+        if (branch && branch.clinicAddress) {
+          setClinicAddress(branch.clinicAddress);
+        }
+      }
+    };
+    fetchAddress();
+  }, [user?.assignedBranch]);
   
   const stats = [
     { name: "Today's Schedules", value: "0", icon: Calendar, color: "text-blue-600", bgColor: "bg-blue-100" },
@@ -16,9 +32,16 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-1 flex items-center gap-1.5">
-            <MapPin className="w-4 h-4 text-gray-400" />
-            Overview of today's clinic activities for <span className="font-bold text-gray-700">{user?.assignedBranch}</span> branch.
+          <p className="text-gray-500 text-sm mt-1 flex items-start gap-1.5">
+            <MapPin className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+            <span>
+              Overview of today's clinic activities for <span className="font-bold text-gray-700">{user?.assignedBranch}</span> branch.
+              {clinicAddress && (
+                <span className="block mt-1 text-xs text-gray-400 whitespace-pre-line leading-relaxed">
+                  {clinicAddress}
+                </span>
+              )}
+            </span>
           </p>
         </div>
       </div>
