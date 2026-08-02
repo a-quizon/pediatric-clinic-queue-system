@@ -25,30 +25,6 @@ export default function Profile() {
       path: "/parent/profile/history",
       color: "text-blue-600",
       bgColor: "bg-blue-50"
-    },
-    {
-      title: "Notifications",
-      description: "Configure your alerts and reminders",
-      icon: Bell,
-      path: "#",
-      color: "text-purple-600",
-      bgColor: "bg-purple-50"
-    },
-    {
-      title: "Help & Support (Future)",
-      description: "Get assistance and clinic FAQs",
-      icon: HelpCircle,
-      path: "#",
-      color: "text-amber-600",
-      bgColor: "bg-amber-50"
-    },
-    {
-      title: "About (Future)",
-      description: "App version and clinic information",
-      icon: Info,
-      path: "#",
-      color: "text-teal-600",
-      bgColor: "bg-teal-50"
     }
   ];
 

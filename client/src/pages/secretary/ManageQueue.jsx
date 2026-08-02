@@ -311,7 +311,8 @@ export default function ManageQueue() {
               const isFirstWaiting = idx === 0;
               const canSendToDoctor =
                 isFirstWaiting &&
-                res.status === "checked_in";
+                res.status === "checked_in" &&
+                inConsultationPatients.length === 0;
               const canPenalize =
                 idx === firstUncheckedIdx && firstUncheckedIdx !== -1;
 
