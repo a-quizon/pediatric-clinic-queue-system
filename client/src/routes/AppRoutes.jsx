@@ -12,6 +12,8 @@ import ParentReserveQueue from "../pages/parent/ReserveQueue";
 import ParentMyReservation from "../pages/parent/MyReservation";
 import ParentProfile from "../pages/parent/Profile";
 import ParentReservationHistory from "../pages/parent/ReservationHistory";
+import ParentPersonalInformation from "../pages/parent/PersonalInformation";
+import ParentSecurity from "../pages/parent/Security";
 import ParentNotifications from "../pages/parent/ParentNotifications";
 
 import SecretaryLayout from "../components/secretary/SecretaryLayout";
@@ -52,6 +54,8 @@ export default function AppRoutes() {
           <Route path="reservations" element={<ParentMyReservation />} />
           <Route path="reservations/:id/qr" element={<Navigate to="/parent/reservations" replace />} />
           <Route path="profile" element={<ParentProfile />} />
+          <Route path="profile/personal-info" element={<ParentPersonalInformation />} />
+          <Route path="profile/security" element={<ParentSecurity />} />
           <Route path="profile/history" element={<ParentReservationHistory />} />
           <Route path="notifications" element={<ParentNotifications />} />
         </Route>

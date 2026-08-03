@@ -1,5 +1,5 @@
-import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { ref, set } from "firebase/database";
+import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
+import { ref, set, update } from "firebase/database";
 
 import { auth } from "../firebase/auth";
 import { database } from "../firebase/database";
@@ -65,4 +65,32 @@ export const logoutUser = async (user) => {
     await cleanupFcmTokenOnLogout(user);
   }
   await signOut(auth);
+};
+
+export const updateUserProfile = async (uid, data) => {
+  if (!uid || !data) return;
+  const updates = { updatedAt: Date.now() };
+  if (data.name !== undefined) updates.name = data.name;
+  if (data.phone !== undefined) updates.phone = data.phone;
+
+  // Update Realtime Database
+  await update(ref(database, `users/${uid}`), updates);
+
+  // Update Auth Profile
+  const currentUser = auth.currentUser;
+  if (currentUser && currentUser.uid === uid && data.name) {
+    await updateProfile(currentUser, { displayName: data.name });
+  }
+};
+
+export const changeUserPassword = async (currentPassword, newPassword) => {
+  const user = auth.currentUser;
+  if (!user || !user.email) throw new Error("User not authenticated.");
+
+  // Re-authenticate
+  const credential = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+
+  // Update password
+  await updatePassword(user, newPassword);
 };
