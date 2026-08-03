@@ -56,6 +56,9 @@ export default function ParentLayout() {
     if (path.includes("/history")) {
       return { title: "Reservation History", showBack: true, backPath: "/parent/profile" };
     }
+    if (path.includes("/personal-info")) {
+      return { title: "Personal Information", showBack: true, backPath: "/parent/profile" };
+    }
     if (path.includes("/notifications")) {
       return { title: "Notifications", showBack: true, useHistoryBack: true, backPath: "/parent" };
     }

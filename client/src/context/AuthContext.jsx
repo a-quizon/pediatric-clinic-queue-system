@@ -111,12 +111,17 @@ export function AuthProvider({ children }) {
         return () => unsubscribe();
     }, []);
 
+    const updateContextUser = (updates) => {
+        setUser(prev => ({ ...prev, ...updates }));
+    };
+
     return (
         <AuthContext.Provider
             value={{
                 user,
                 role,
                 loading,
+                updateContextUser
             }}
         >
             {children}

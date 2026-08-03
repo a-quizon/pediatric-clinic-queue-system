@@ -273,14 +273,6 @@ export default function ReserveQueue() {
 
   return (
     <div className="space-y-6 pb-6 relative">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">Reserve Queue</h1>
-        <p className="text-gray-500 mt-1">
-          Select an available clinic schedule to reserve a slot.
-        </p>
-      </div>
-
 
       {loading ? (
         <div className="flex justify-center items-center py-20">

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { updateUserProfile } from "../../services/authService";
-import { User, Mail, Phone, ArrowLeft, Save } from "lucide-react";
+import { updateUserProfile, changeUserPassword } from "../../services/authService";
+import { User, Mail, Phone, Save, Lock, Shield, Key } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import InformationModal from "../../components/common/InformationModal";
 
 export default function PersonalInformation() {
-  const { user } = useAuth();
+  const { user, updateContextUser } = useAuth();
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
@@ -14,6 +14,15 @@ export default function PersonalInformation() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [successModalOpen, setSuccessModalOpen] = useState(false);
+
+  // Change Password Modal State
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccessModalOpen, setPasswordSuccessModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -28,7 +37,6 @@ export default function PersonalInformation() {
       return false;
     }
     
-    // Simple phone number validation (digits only, at least 10 chars usually)
     const phoneRegex = /^[0-9+\s-]{10,15}$/;
     if (!phone.trim() || !phoneRegex.test(phone)) {
       setError("Please enter a valid phone number.");
@@ -45,6 +53,13 @@ export default function PersonalInformation() {
     setIsSaving(true);
     try {
       await updateUserProfile(user.uid, { name: name.trim(), phone: phone.trim() });
+      updateContextUser({
+        name: name.trim(),
+        fullName: name.trim(),
+        displayName: name.trim(),
+        phone: phone.trim(),
+        phoneNumber: phone.trim()
+      });
       setSuccessModalOpen(true);
     } catch (err) {
       console.error("Failed to update profile:", err);
@@ -54,24 +69,48 @@ export default function PersonalInformation() {
     }
   };
 
-  const handleModalClose = () => {
-    setSuccessModalOpen(false);
-    navigate("/parent/profile");
+  const handlePasswordSave = async () => {
+    if (!currentPassword) {
+      setPasswordError("Current Password is required.");
+      return;
+    }
+    
+    const policyMet = newPassword.length >= 8 && /[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword) && /[0-9]/.test(newPassword) && /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
+    
+    if (!policyMet) {
+      setPasswordError("New password does not meet requirements.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await changeUserPassword(currentPassword, newPassword);
+      setPasswordModalOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordError("");
+      setTimeout(() => setPasswordSuccessModalOpen(true), 150);
+    } catch (err) {
+      console.error("Failed to change password:", err);
+      if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
+        setPasswordError("Current password is incorrect.");
+      } else if (err.code === "auth/too-many-requests") {
+        setPasswordError("Too many attempts. Please try again later.");
+      } else {
+        setPasswordError("Failed to update password. Please try again.");
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   return (
-    <div className="space-y-6 pb-8 max-w-2xl mx-auto mt-4 px-2">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <button 
-          onClick={() => navigate("/parent/profile")}
-          className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center hover:bg-gray-100 transition-colors focus:outline-none"
-        >
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </button>
-        <h1 className="text-3xl font-black text-gray-800 tracking-tight">Personal Information</h1>
-      </div>
-
+    <div className="space-y-6 pb-8 max-w-2xl mx-auto mt-2">
       <div className="bg-white rounded-3xl border border-gray-100 shadow-xs p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4">
         
         {error && (
@@ -133,17 +172,11 @@ export default function PersonalInformation() {
           </div>
 
           {/* Actions */}
-          <div className="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-gray-50">
-            <button
-              onClick={() => navigate("/parent/profile")}
-              className="px-6 py-3 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors w-full sm:w-auto focus:outline-none"
-            >
-              Cancel
-            </button>
+          <div className="pt-6 flex flex-col items-center gap-3 border-t border-gray-50 mt-6">
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm focus:outline-none"
+              className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm focus:outline-none min-w-[200px]"
             >
               {isSaving ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -154,17 +187,145 @@ export default function PersonalInformation() {
                 </>
               )}
             </button>
+            <button
+              onClick={() => {
+                setPasswordError("");
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmPassword("");
+                setPasswordModalOpen(true);
+              }}
+              className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors mt-2"
+            >
+              Change Password
+            </button>
           </div>
         </div>
       </div>
 
       <InformationModal
         isOpen={successModalOpen}
-        onClose={handleModalClose}
+        onClose={() => setSuccessModalOpen(false)}
         title="Profile Updated"
         message="Your personal information has been successfully updated."
-        buttonText="Back to Profile"
+        buttonText="Okay"
       />
+
+      <InformationModal
+        isOpen={passwordSuccessModalOpen}
+        onClose={() => setPasswordSuccessModalOpen(false)}
+        title="Password Updated"
+        message="Your password has been successfully changed."
+        buttonText="Okay"
+      />
+
+      {/* Change Password Modal */}
+      {passwordModalOpen && (
+        <div 
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 sm:p-6"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isChangingPassword) {
+              setPasswordModalOpen(false);
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden flex flex-col transform transition-all animate-in fade-in zoom-in-95 duration-200"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-full shrink-0 bg-purple-50">
+                  <Shield className="w-6 h-6 text-purple-600" />
+                </div>
+                
+                <div className="flex-1 mt-1">
+                  <h2 className="text-xl font-bold text-gray-800">Change Password</h2>
+                  <p className="mt-1 text-gray-600 text-sm">Update your account security.</p>
+                </div>
+              </div>
+
+              <div className="mt-6 space-y-4">
+                {passwordError && (
+                  <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-medium">
+                    {passwordError}
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Key className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <input
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none text-gray-800 text-sm"
+                      placeholder="Current Password"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none text-gray-800 text-sm"
+                      placeholder="New Password"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 px-1 pt-1">
+                    Password must contain: 8+ characters • Uppercase • Lowercase • Number • Special character
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none text-gray-800 text-sm"
+                      placeholder="Confirm New Password"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 rounded-b-3xl">
+              <button 
+                onClick={() => setPasswordModalOpen(false)}
+                disabled={isChangingPassword}
+                className="px-5 py-2 text-gray-600 font-bold hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50 text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handlePasswordSave}
+                disabled={isChangingPassword || !currentPassword || !newPassword || newPassword !== confirmPassword}
+                className="px-5 py-2 font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50 flex justify-center items-center bg-purple-600 hover:bg-purple-700 text-white text-sm min-w-[120px]"
+              >
+                {isChangingPassword ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                ) : (
+                  "Update"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

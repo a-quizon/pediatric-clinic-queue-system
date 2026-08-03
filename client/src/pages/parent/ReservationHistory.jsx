@@ -93,11 +93,6 @@ export default function ReservationHistory() {
 
   return (
     <div className="space-y-6 pb-8 relative">
-      <div className="mb-2">
-        <h1 className="text-2xl font-bold text-gray-800">Reservation History</h1>
-        <p className="text-gray-500 text-sm mt-0.5">View your past clinic visits, details, and doctor&apos;s consultation notes.</p>
-      </div>
-
       <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs sticky top-16 z-10">
         <div className="flex sm:flex-wrap gap-2 sm:gap-2.5 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide w-full -mx-4 px-4 sm:mx-0 sm:px-0">
           {["All", "Completed", "Cancelled", "Forfeited", "With Notes"].map(filter => (
