@@ -124,6 +124,13 @@ A notification transitions from `read: false` to `read: true` via a direct datab
 ## 15. Regression Protection Checklist
 When modifying the Notification System, developers must verify the following constraints remain intact:
 
+- [ ] ✓ Only one active consultation may exist at any time.
+- [ ] ✓ Queue penalties must never bypass the consultation lock.
+- [ ] ✓ Completed consultations immediately release schedule slots.
+- [ ] ✓ Secretary Branch Isolation remains enforced.
+- [ ] ✓ Permanent Ticket Numbers never change.
+- [ ] ✓ Queue recalculation never changes Ticket Numbers.
+- [ ] ✓ Reservation History remains immutable.
 - [ ] ✓ Notification metadata is strictly stored under `notifications/${parentId}`.
 - [ ] ✓ FCM token generates and attaches to the `user` document correctly upon permission grant.
 - [ ] ✓ FCM token is successfully wiped from the database upon logout.

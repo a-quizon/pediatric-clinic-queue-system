@@ -37,14 +37,15 @@ A reservation follows a strict linear progression, with early exits for cancella
 | **cancelled** | The reservation was abandoned. | Parent clicks "Cancel". | *(Terminal State)* |
 | **forfeited** | Exceeded late limit. Slot is lost. | Secretary applies final penalty. | *(Terminal State)* |
 
-*(Note: Statuses like `expired`, `validation_expired`, `validation_open`, and `waiting_for_window` exist in code strings for legacy compatibility but are effectively inactive in modern progression.)*
 
 ---
 
 ## 4. Reservation Creation Rules
-* **Schedule Selection**: Parents can only reserve slots on schedules marked as `published`.
-* **Slot Consumption**: Creating a reservation immediately consumes 1 slot from the schedule's `slotCapacity`.
-* **Unique Validation**: A parent may only have **one active reservation** per clinic date. The system actively checks for existing non-terminal reservations before allowing creation.
+* **Creation Requirements**: To successfully create a reservation, the following rigid conditions must be met:
+  1. The target schedule must be `published`.
+  2. The schedule must have active slot capacity available.
+  3. The branch's clinic operating hours must still be valid for that date.
+  4. The parent must not already have an active, non-terminal reservation for that specific clinic date.
 * **Identity Generation**: Upon creation, the system generates a 6-character alphanumeric `reservationCode`.
 * **Queue Number Assignment**: The system queries existing reservations for that schedule and assigns the next incremental integer as the permanent `queueNumber`.
 
@@ -145,10 +146,14 @@ When conflicting reservation events occur, the system evaluates them in this ord
 ## 16. Regression Protection Checklist
 When modifying the Reservation System, developers must verify the following constraints remain intact:
 
+- [ ] ✓ Only one active consultation may exist at any time.
+- [ ] ✓ Queue penalties must never bypass the consultation lock.
+- [ ] ✓ Completed consultations immediately release schedule slots.
+- [ ] ✓ Secretary Branch Isolation remains enforced.
+- [ ] ✓ Permanent Ticket Numbers never change.
+- [ ] ✓ Queue recalculation never changes Ticket Numbers.
+- [ ] ✓ Reservation History remains immutable.
 - [ ] ✓ Reservation creation always consumes a slot.
-- [ ] ✓ Completed consultation releases a slot back to the public pool.
 - [ ] ✓ Cancellation releases a slot back to the public pool.
-- [ ] ✓ A patient's original `queueNumber` never changes, even if their dynamic `queueOrder` does.
 - [ ] ✓ QR Code and Reservation Code remain static and valid for the duration of the active reservation.
-- [ ] ✓ Reservation History accurately preserves `consultation_completed`, `cancelled`, and `forfeited` records.
 - [ ] ✓ Queue Engine synchronization (`recalculateEntireQueue`) fires accurately on creation, check-in, cancellation, and completion.

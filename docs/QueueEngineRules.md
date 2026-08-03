@@ -145,10 +145,13 @@ Clinical safety and reality take precedence. No matter what a sorting algorithm 
 ## 14. Regression Protection Checklist
 Before merging any future Queue Engine changes, engineers **must** verify:
 
-- [ ] ✓ Only one Consultation In Progress can exist at any given time.
+- [ ] ✓ Only one active consultation may exist at any time.
+- [ ] ✓ Queue penalties must never bypass the consultation lock.
+- [ ] ✓ Completed consultations immediately release schedule slots.
+- [ ] ✓ Secretary Branch Isolation remains enforced.
+- [ ] ✓ Permanent Ticket Numbers never change.
+- [ ] ✓ Queue recalculation never changes Ticket Numbers.
+- [ ] ✓ Reservation History remains immutable.
 - [ ] ✓ No "Send to Doctor" button appears while a consultation is active.
-- [ ] ✓ Penalizing patients does not accidentally expose "Send to Doctor" if the doctor is busy.
 - [ ] ✓ New check-ins do not bypass the Active Consultation Rule.
 - [ ] ✓ Queue Position numbering remains consistent and does not skip unpredictably.
-- [ ] ✓ Queue recalculation faithfully respects terminal states (doesn't accidentally revive cancelled reservations).
-- [ ] ✓ Secretary Branch Isolation remains enforced (secretaries only see their branch's queue).
