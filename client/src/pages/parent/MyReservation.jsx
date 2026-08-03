@@ -432,20 +432,22 @@ export default function MyReservation() {
         </div>
       ) : (
         /* Empty State */
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-10 sm:p-14 text-center max-w-md mx-auto animate-in fade-in">
-          <div className="mx-auto w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-6 shadow-2xs">
-            <TicketIcon className="w-10 h-10" />
+        <div className="flex flex-col items-center justify-center min-h-[60vh] w-full">
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-10 sm:p-14 text-center max-w-md mx-auto animate-in fade-in w-full">
+            <div className="mx-auto w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-6 shadow-2xs">
+              <TicketIcon className="w-10 h-10" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-gray-800 mb-2">No Active Reservation</h2>
+            <p className="text-gray-500 text-sm max-w-xs mx-auto mb-8 leading-relaxed">
+              You don&apos;t have an active reservation yet. Reserve a queue slot to get started.
+            </p>
+            <button
+              onClick={() => navigate("/parent/reserve")}
+              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center justify-center text-sm sm:text-base focus:outline-none"
+            >
+              Reserve Queue
+            </button>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-gray-800 mb-2">No Active Reservation</h2>
-          <p className="text-gray-500 text-sm max-w-xs mx-auto mb-8 leading-relaxed">
-            You don&apos;t have an active reservation yet. Reserve a queue slot to get started.
-          </p>
-          <button
-            onClick={() => navigate("/parent/reserve")}
-            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center justify-center text-sm sm:text-base focus:outline-none"
-          >
-            Reserve Queue
-          </button>
         </div>
       )}
 
