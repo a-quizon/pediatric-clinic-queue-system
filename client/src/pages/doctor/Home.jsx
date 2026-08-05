@@ -97,87 +97,8 @@ export default function Home() {
     return `${formattedH}:${minutes} ${ampm}`;
   };
 
-  // Determine Today's Clinic Card Color
-  const getClinicCardStyle = () => {
-    if (!activeOrPublishedSchedule) return "";
-    
-    const status = activeOrPublishedSchedule.status;
-    const qStatus = activeOrPublishedSchedule.queueStatus;
-    
-    if (status === 'completed' || qStatus === 'completed' || qStatus === 'ended') {
-      return "bg-slate-600 border-slate-700"; // Neutral color for completed
-    }
-    
-    if (status === 'published') {
-      if (qStatus === 'active' || qStatus === 'paused' || qStatus === 'closed') {
-        return "bg-green-600 border-green-700"; // Green for active
-      }
-      return "bg-gray-600 border-gray-700"; // Gray for published but not started
-    }
-    
-    return "bg-gray-600 border-gray-700";
-  };
-
-  const getClinicStatusText = () => {
-    if (!activeOrPublishedSchedule) return "";
-    
-    const status = activeOrPublishedSchedule.status;
-    const qStatus = activeOrPublishedSchedule.queueStatus;
-    
-    if (status === 'completed' || qStatus === 'completed' || qStatus === 'ended') return "Completed";
-    if (qStatus === 'active') return "Active";
-    if (qStatus === 'paused') return "Paused";
-    if (qStatus === 'closed') return "Queue Closed";
-    if (status === 'published') return "Published";
-    
-    return "Unknown";
-  };
-
   return (
     <div className="space-y-6 pb-6">
-      
-      {/* 1. Today's Clinic (Hero Card) */}
-      {activeOrPublishedSchedule && (
-        <div className={`rounded-3xl p-8 text-white shadow-lg border ${getClinicCardStyle()} flex flex-col md:flex-row md:items-center justify-between gap-6 transition-colors duration-500`}>
-          <div className="flex-1">
-            <h2 className="text-3xl md:text-4xl font-black mb-2">{activeOrPublishedSchedule.branch} Branch</h2>
-            <div className="text-white/80 text-sm whitespace-pre-line leading-relaxed flex items-start max-w-lg mb-6">
-              <MapPin className="w-5 h-5 mr-2 shrink-0 mt-0.5" />
-              <span>{activeBranch?.clinicAddress || "No clinic address provided."}</span>
-            </div>
-            <div>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-white/20 text-white uppercase tracking-wider backdrop-blur-sm">
-                Status: {getClinicStatusText()}
-              </span>
-            </div>
-          </div>
-          <div className="shrink-0 bg-white/10 backdrop-blur-sm p-6 rounded-2xl border border-white/20 min-w-[250px]">
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-2 rounded-lg"><CalendarDays className="w-5 h-5" /></div>
-                <div>
-                  <div className="text-xs text-white/70 uppercase font-bold tracking-wider">Day</div>
-                  <div className="font-semibold text-lg">{new Date(activeOrPublishedSchedule.clinicDate).toLocaleDateString('en-US', { weekday: 'long' })}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-2 rounded-lg"><CalendarCheck className="w-5 h-5" /></div>
-                <div>
-                  <div className="text-xs text-white/70 uppercase font-bold tracking-wider">Date</div>
-                  <div className="font-semibold text-lg">{new Date(activeOrPublishedSchedule.clinicDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-2 rounded-lg"><Clock className="w-5 h-5" /></div>
-                <div>
-                  <div className="text-xs text-white/70 uppercase font-bold tracking-wider">Clinic Hours</div>
-                  <div className="font-semibold text-lg">{formatTime(activeOrPublishedSchedule.openingTime)} – {formatTime(activeOrPublishedSchedule.closingTime)}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Desktop side-by-side, Mobile stacked */}
       <div className="flex flex-col lg:flex-row gap-6">
