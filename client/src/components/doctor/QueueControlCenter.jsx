@@ -358,10 +358,10 @@ export default function QueueControlCenter() {
         )}
       </div>
 
-      {/* Info Modal / Drawer */}
+      {/* Info Modal */}
       {isInfoModalOpen && infoPatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center lg:justify-end lg:items-stretch bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200 p-4 lg:p-0">
-          <div className="bg-white w-full max-w-md rounded-2xl lg:rounded-none shadow-xl overflow-hidden animate-in zoom-in-95 lg:slide-in-from-right lg:zoom-in-100 duration-300 flex flex-col max-h-[90vh] lg:max-h-none lg:h-full">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-gray-50">
               <h2 className="text-lg font-bold text-gray-800 flex items-center">
                 <FileText className="w-5 h-5 mr-2 text-blue-600" />
