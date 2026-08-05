@@ -203,9 +203,6 @@ export default function QueueControlCenter() {
               <span className="flex items-center font-medium text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">
                 Late Limit: <strong className="ml-1">{activeSchedule.lateLimit || 3} penalties</strong>
               </span>
-              <span className="flex items-center font-medium text-gray-600 bg-gray-50 px-2.5 py-0.5 rounded-lg border border-gray-200">
-                Capacity: <strong className="ml-1">{activeSchedule.slotCapacity} slots</strong>
-              </span>
             </div>
           </div>
           
@@ -283,7 +280,7 @@ export default function QueueControlCenter() {
             <div className="mb-6">
               <div className="flex justify-between items-start">
                 <div className="text-2xl font-black text-gray-800 mb-1">{inConsultation.childName || "N/A"}</div>
-                <span className="text-xs text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded-lg">View Details</span>
+                <span className="text-xs text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded-lg border border-blue-200">View Details</span>
               </div>
               <div className="text-sm text-gray-500 flex items-center">
                 <User className="w-4 h-4 mr-1.5" /> Parent: {inConsultation.parentEmail}
@@ -317,7 +314,7 @@ export default function QueueControlCenter() {
         )}
       </div>
 
-      {/* 3. Waiting Queue */}
+      {/* 3. Waiting Queue (Read-Only) */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
         <h3 className="font-bold text-gray-800 mb-4 flex items-center">
           <Users className="w-5 h-5 mr-2 text-blue-600" /> 
@@ -330,12 +327,8 @@ export default function QueueControlCenter() {
               const expired = isReservationExpired(res, activeSchedule);
               return (
                 <div 
-                  key={res.id} 
-                  onClick={() => {
-                    setInfoPatient(res);
-                    setIsInfoModalOpen(true);
-                  }}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all"
+                  key={res.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200"
                 >
                   <div className="flex items-center">
                     <div className="w-12 h-12 bg-white border border-gray-200 rounded-xl flex items-center justify-center font-black text-gray-700 mr-4 shadow-sm text-lg">
@@ -365,10 +358,10 @@ export default function QueueControlCenter() {
         )}
       </div>
 
-      {/* Info Modal */}
+      {/* Info Modal / Drawer */}
       {isInfoModalOpen && infoPatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center lg:justify-end lg:items-stretch bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200 p-4 lg:p-0">
+          <div className="bg-white w-full max-w-md rounded-2xl lg:rounded-none shadow-xl overflow-hidden animate-in zoom-in-95 lg:slide-in-from-right lg:zoom-in-100 duration-300 flex flex-col max-h-[90vh] lg:max-h-none lg:h-full">
             <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-gray-50">
               <h2 className="text-lg font-bold text-gray-800 flex items-center">
                 <FileText className="w-5 h-5 mr-2 text-blue-600" />
@@ -379,7 +372,7 @@ export default function QueueControlCenter() {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto flex-1">
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <div className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Patient</div>
@@ -429,7 +422,7 @@ export default function QueueControlCenter() {
               </div>
             </div>
 
-            <div className="p-5 border-t border-gray-100 flex justify-end">
+            <div className="p-5 border-t border-gray-100 flex justify-end shrink-0">
               <button 
                 onClick={() => setIsInfoModalOpen(false)}
                 className="px-6 py-2.5 text-white font-bold bg-gray-800 rounded-xl hover:bg-gray-900 transition-colors shadow-sm"
