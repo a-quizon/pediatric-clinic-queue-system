@@ -235,10 +235,6 @@ export default function ValidateReservation() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-8 relative">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">Validate Reservation</h1>
-        <p className="text-gray-500 text-sm mt-1">Scan a patient's QR code or enter their reservation code manually.</p>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* QR Scanner Section */}

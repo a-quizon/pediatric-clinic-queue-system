@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { Home, QrCode, Users, Bell, User, Activity } from "lucide-react";
+import { Home, QrCode, Users, User, Activity } from "lucide-react";
 import PageHeader from "../common/PageHeader";
 
 export default function SecretaryLayout() {
@@ -25,9 +25,7 @@ export default function SecretaryLayout() {
     if (path.startsWith("/secretary/profile")) {
       return { desktop: "Profile", mobile: "Profile" };
     }
-    if (path.startsWith("/secretary/notifications")) {
-      return { desktop: "Notifications", mobile: "Notifications" };
-    }
+
     return { desktop: "Dashboard", mobile: "Home" };
   };
 
@@ -37,7 +35,7 @@ export default function SecretaryLayout() {
     { name: "Dashboard", path: "/secretary", icon: Home },
     { name: "Validate Reservation", mobileName: "Validate", path: "/secretary/validate", icon: QrCode },
     { name: "Manage Queue", mobileName: "Queue", path: "/secretary/queue", icon: Users },
-    { name: "Notifications", path: "/secretary/notifications", icon: Bell, desktopOnly: true },
+
     { name: "Profile", path: "/secretary/profile", icon: User },
   ];
 

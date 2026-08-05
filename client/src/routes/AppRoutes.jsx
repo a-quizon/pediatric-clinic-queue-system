@@ -19,7 +19,7 @@ import SecretaryLayout from "../components/secretary/SecretaryLayout";
 import SecretaryDashboard from "../pages/secretary/Dashboard";
 import SecretaryValidateReservation from "../pages/secretary/ValidateReservation";
 import SecretaryManageQueue from "../pages/secretary/ManageQueue";
-import SecretaryNotifications from "../pages/secretary/Notifications";
+
 import SecretaryProfile from "../pages/secretary/Profile";
 // Doctor Layout and Pages
 import DoctorLayout from "../components/doctor/Layout";
@@ -63,7 +63,7 @@ export default function AppRoutes() {
           <Route index element={<SecretaryDashboard />} />
           <Route path="validate" element={<SecretaryValidateReservation />} />
           <Route path="queue" element={<SecretaryManageQueue />} />
-          <Route path="notifications" element={<SecretaryNotifications />} />
+
           <Route path="profile" element={<SecretaryProfile />} />
         </Route>
         
