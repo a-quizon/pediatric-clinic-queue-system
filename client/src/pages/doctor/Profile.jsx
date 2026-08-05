@@ -12,11 +12,7 @@ export default function Profile() {
 
   return (
     <div className="space-y-6 pb-6 max-w-3xl mx-auto">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">Doctor Profile</h1>
-        <p className="text-gray-500 mt-1">Manage your account and clinic settings</p>
-      </div>
+
 
       {/* Profile Information */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

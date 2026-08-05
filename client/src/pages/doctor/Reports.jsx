@@ -3,13 +3,7 @@ import { BarChart3, TrendingUp, Users, Clock, AlertCircle, PieChart, Activity } 
 export default function Reports() {
   return (
     <div className="space-y-6 pb-6 relative">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">Reports & Analytics</h1>
-        <p className="text-gray-500 mt-1">
-          View clinic statistics and performance metrics.
-        </p>
-      </div>
+
 
       {/* Coming Soon Card */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

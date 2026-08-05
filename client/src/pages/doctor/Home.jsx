@@ -8,6 +8,7 @@ import {
   CalendarDays, Users, User, ChevronRight, Activity, 
   MapPin, Clock, CalendarCheck, CheckCircle2, Lock, FileText, XCircle, AlertTriangle 
 } from "lucide-react";
+import QueueControlCenter from "../../components/doctor/QueueControlCenter";
 
 export default function Home() {
   const { user } = useAuth();
@@ -123,62 +124,46 @@ export default function Home() {
 
   return (
     <div className="space-y-6 pb-6">
-      {/* Welcome Section */}
+      
+      {/* 1. Current Active Queue (Moved to Top) */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-800">Welcome Back, Doctor</h1>
-        <p className="text-gray-500 mt-1">Manage your clinic operations</p>
-      </div>
-
-      {/* 1. Today's Clinic Card */}
-      {activeOrPublishedSchedule ? (
-        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-800 flex items-center">
-              <CalendarCheck className="w-5 h-5 mr-2 text-blue-600" />
-              Today's Clinic
-            </h2>
-            <span className={`px-3 py-1 rounded-full font-bold text-xs flex items-center shadow-sm border ${
-              activeOrPublishedSchedule.queueStatus === 'active' || activeOrPublishedSchedule.queueStatus === 'paused' || activeOrPublishedSchedule.queueStatus === 'closed'
-                ? 'bg-green-100 text-green-700 border-green-200'
-                : 'bg-blue-100 text-blue-700 border-blue-200'
-            }`}>
-              <div className={`w-2 h-2 rounded-full mr-2 ${
-                activeOrPublishedSchedule.queueStatus === 'active' ? 'bg-green-500 animate-pulse' : 'bg-blue-500'
-              }`}></div>
-              {activeOrPublishedSchedule.queueStatus === 'active' || activeOrPublishedSchedule.queueStatus === 'paused' || activeOrPublishedSchedule.queueStatus === 'closed' 
-                ? 'Active' 
-                : 'Published'}
-            </span>
-          </div>
-          
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {activeQueue ? (
+          <div className="bg-gradient-to-r from-green-600 to-emerald-700 rounded-2xl p-6 md:p-8 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <div className="text-2xl font-black text-gray-800">{activeOrPublishedSchedule.branch} Branch</div>
-              <div className="text-gray-500 text-sm mt-1 flex items-center">
-                <MapPin className="w-4 h-4 mr-1" />
-                {activeBranch?.clinicAddress || "No clinic address provided."}
+              <div className="flex items-center gap-2 mb-3">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-white/20 text-white uppercase tracking-wider">
+                  Current Active Queue
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-900/40 text-green-200">
+                  Status: {activeQueue.queueStatus === 'closed' ? 'Queue Closed' : activeQueue.queueStatus === 'paused' ? 'Paused' : 'Active'}
+                </span>
+              </div>
+              <h2 className="text-2xl md:text-3xl font-black mb-2">{activeQueue.branch} Branch</h2>
+              <div className="text-green-200 text-sm whitespace-pre-line leading-tight mb-4 max-w-lg">
+                {branches.find(b => b.name === activeQueue.branch)?.clinicAddress || "No clinic address provided."}
+              </div>
+              <div className="text-green-100 text-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
+                <span className="flex items-center"><CalendarDays className="w-4 h-4 mr-1.5" /> <strong className="text-white ml-1">{new Date(activeQueue.clinicDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</strong></span>
+                <span className="flex items-center"><Clock className="w-4 h-4 mr-1.5" /> <strong className="text-white ml-1">{formatTime(activeQueue.openingTime)} – {formatTime(activeQueue.closingTime)}</strong></span>
               </div>
             </div>
-            
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-sm">
-              <div className="flex items-center text-gray-700 mb-2">
-                <CalendarDays className="w-4 h-4 mr-2 text-blue-600" />
-                <span className="font-semibold">{new Date(activeOrPublishedSchedule.clinicDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-              </div>
-              <div className="flex items-center text-gray-700">
-                <Clock className="w-4 h-4 mr-2 text-blue-600" />
-                <span className="font-semibold">{formatTime(activeOrPublishedSchedule.openingTime)} – {formatTime(activeOrPublishedSchedule.closingTime)}</span>
-              </div>
+            <div className="shrink-0 w-full md:w-auto">
+              <button 
+                onClick={() => navigate("/doctor/queue")}
+                className="px-6 py-4 bg-white text-green-700 font-bold rounded-xl shadow-md hover:bg-green-50 transition-all flex items-center justify-center w-full md:w-auto"
+              >
+                Open Queue Control <Activity className="w-5 h-5 ml-2" />
+              </button>
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm text-center">
-          <CalendarCheck className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-          <h2 className="text-lg font-bold text-gray-800 mb-1">No active clinic schedule</h2>
-          <p className="text-gray-500 text-sm">You do not have any published or active schedules for today.</p>
-        </div>
-      )}
+        ) : (
+          <div className="bg-gray-50 rounded-2xl p-8 border border-dashed border-gray-300 flex flex-col items-center justify-center text-center">
+            <Activity className="w-12 h-12 text-gray-300 mb-4" />
+            <h3 className="text-lg font-bold text-gray-600 mb-1">No Active Queue</h3>
+            <p className="text-gray-500 text-sm">Start a published schedule from Schedule Management to manage its queue.</p>
+          </div>
+        )}
+      </div>
 
       {/* 2. Today's Statistics */}
       {activeOrPublishedSchedule && (
@@ -228,80 +213,43 @@ export default function Home() {
         </div>
       )}
 
-      {/* Main Layout: Schedule Overview | Current Active Queue */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        
-        {/* 3. Schedule Overview */}
-        <div className="flex-1 bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-            <CalendarDays className="w-5 h-5 mr-2 text-blue-600" />
-            Schedule Overview
-          </h2>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
-              <span className="font-semibold text-gray-600 flex items-center">
-                <div className="w-2 h-2 rounded-full bg-gray-400 mr-2"></div> Draft
-              </span>
-              <span className="font-black text-gray-800">{scheduleOverview.Draft}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-blue-50 rounded-xl border border-blue-100">
-              <span className="font-semibold text-blue-700 flex items-center">
-                <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div> Published
-              </span>
-              <span className="font-black text-blue-800">{scheduleOverview.Published}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-green-50 rounded-xl border border-green-100">
-              <span className="font-semibold text-green-700 flex items-center">
-                <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div> Active
-              </span>
-              <span className="font-black text-green-800">{scheduleOverview.Active}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
-              <span className="font-semibold text-gray-600 flex items-center">
-                <div className="w-2 h-2 rounded-full bg-gray-400 mr-2"></div> Completed
-              </span>
-              <span className="font-black text-gray-800">{scheduleOverview.Completed}</span>
-            </div>
+      {/* 3. Schedule Overview */}
+      <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+          <CalendarDays className="w-5 h-5 mr-2 text-blue-600" />
+          Schedule Overview
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="flex flex-col p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <span className="font-semibold text-gray-600 flex items-center text-sm mb-1">
+              <div className="w-2 h-2 rounded-full bg-gray-400 mr-2"></div> Draft
+            </span>
+            <span className="text-2xl font-black text-gray-800">{scheduleOverview.Draft}</span>
+          </div>
+          <div className="flex flex-col p-4 bg-blue-50 rounded-xl border border-blue-100">
+            <span className="font-semibold text-blue-700 flex items-center text-sm mb-1">
+              <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div> Published
+            </span>
+            <span className="text-2xl font-black text-blue-800">{scheduleOverview.Published}</span>
+          </div>
+          <div className="flex flex-col p-4 bg-green-50 rounded-xl border border-green-100">
+            <span className="font-semibold text-green-700 flex items-center text-sm mb-1">
+              <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div> Active
+            </span>
+            <span className="text-2xl font-black text-green-800">{scheduleOverview.Active}</span>
+          </div>
+          <div className="flex flex-col p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <span className="font-semibold text-gray-600 flex items-center text-sm mb-1">
+              <div className="w-2 h-2 rounded-full bg-gray-400 mr-2"></div> Completed
+            </span>
+            <span className="text-2xl font-black text-gray-800">{scheduleOverview.Completed}</span>
           </div>
         </div>
+      </div>
 
-        {/* 4. Current Active Queue */}
-        <div className="flex-1">
-          {activeQueue ? (
-            <div className="h-full bg-gradient-to-r from-green-600 to-emerald-700 rounded-2xl p-6 text-white shadow-lg flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-white/20 text-white uppercase tracking-wider">
-                    Current Active Queue
-                  </span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-900/40 text-green-200">
-                    Status: {activeQueue.queueStatus === 'closed' ? 'Queue Closed' : activeQueue.queueStatus === 'paused' ? 'Paused' : 'Active'}
-                  </span>
-                </div>
-                <h2 className="text-2xl font-black mb-1">{activeQueue.branch} Branch</h2>
-                <div className="text-green-200 text-sm whitespace-pre-line leading-tight mb-4">
-                  {branches.find(b => b.name === activeQueue.branch)?.clinicAddress || "No clinic address provided."}
-                </div>
-                <div className="text-green-100 text-sm flex flex-col gap-1 mb-6">
-                  <span>Clinic Date: <strong className="text-white">{new Date(activeQueue.clinicDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</strong></span>
-                  <span>Time: <strong className="text-white">{formatTime(activeQueue.openingTime)} – {formatTime(activeQueue.closingTime)}</strong></span>
-                </div>
-              </div>
-              <button 
-                onClick={() => navigate("/doctor/queue")}
-                className="px-6 py-3.5 bg-white text-green-700 font-bold rounded-xl shadow-md hover:bg-green-50 transition-all flex items-center justify-center w-full"
-              >
-                Open Queue Control <Activity className="w-4 h-4 ml-2" />
-              </button>
-            </div>
-          ) : (
-            <div className="h-full bg-gray-50 rounded-2xl p-6 border border-dashed border-gray-300 flex flex-col items-center justify-center text-center">
-              <Activity className="w-10 h-10 text-gray-300 mb-3" />
-              <h3 className="text-lg font-bold text-gray-600 mb-1">No Active Queue</h3>
-              <p className="text-gray-500 text-sm">Start a published schedule to manage its queue.</p>
-            </div>
-          )}
-        </div>
+      {/* Queue Control Center (Desktop Only) */}
+      <div className="hidden lg:block">
+        <QueueControlCenter />
       </div>
 
       {/* 5. Recent Activity (Quick Actions) */}
