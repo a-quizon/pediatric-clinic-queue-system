@@ -47,7 +47,6 @@ export default function QueueControlCenter() {
   const scheduleReservations = useMemo(() => {
     if (!activeSchedule) return [];
     const res = reservations.filter(r => r.scheduleId === activeSchedule.id);
-    const sortedAll = [...res].sort((a, b) => a.createdAt - b.createdAt);
     return res.map(r => {
       const permNum = r.queueNumber || r.originalQueueNumber || (r.queuePosition || 1);
       return {
@@ -60,52 +59,23 @@ export default function QueueControlCenter() {
   }, [reservations, activeSchedule]);
 
   const {
-    checkedInQueue,
-    waitingValidationQueue,
+    waitingQueue,
     inConsultation,
-    completedConsultations,
-    stats
   } = useMemo(() => {
-    const waitingValidation = scheduleReservations.filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "expired", "validation_expired"].includes(r.status))
-      .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
-      
-    const checkedIn = scheduleReservations.filter(r => r.status === "checked_in")
+    const activeWaitingStatuses = ["checked_in", "reserved", "waiting", "validation_open", "waiting_for_window", "expired", "validation_expired"];
+    const waitingList = scheduleReservations
+      .filter(r => activeWaitingStatuses.includes(r.status))
       .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
 
     const inCons = scheduleReservations.find(r => r.status === "in_consultation" || r.status === "with_doctor");
-
-    const completed = scheduleReservations.filter(r => r.status === "consultation_completed")
-      .sort((a, b) => (b.consultationCompletedAt || 0) - (a.consultationCompletedAt || 0));
-
-    const reservedCount = scheduleReservations.filter(r => ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
     
     return {
-      waitingValidationQueue: waitingValidation,
-      checkedInQueue: checkedIn,
+      waitingQueue: waitingList,
       inConsultation: inCons,
-      completedConsultations: completed,
-      stats: {
-        checkedIn: checkedIn.length,
-        waitingValidation: waitingValidation.length,
-        inConsultationCount: inCons ? 1 : 0,
-        completedCount: completed.length,
-        availableSlots: activeSchedule ? Math.max(0, activeSchedule.slotCapacity - reservedCount) : 0
-      }
     };
-  }, [scheduleReservations, activeSchedule]);
-
-  const canEndSession = waitingValidationQueue.length === 0 && checkedInQueue.length === 0 && !inConsultation;
-
-  const nextEligiblePatient = useMemo(() => {
-    const result = getNextEligiblePatient(scheduleReservations);
-    if (result.eligible) {
-      return result.patient;
-    }
-    if (result.blocked) {
-      return { blocked: true, message: result.waitingMessage };
-    }
-    return null;
   }, [scheduleReservations]);
+
+  const canEndSession = waitingQueue.length === 0 && !inConsultation;
 
   const handleQueueControl = async (status) => {
     if (!activeSchedule) return;
@@ -217,8 +187,8 @@ export default function QueueControlCenter() {
 
   return (
     <div className="space-y-6 pb-6">
-      {/* Active Queue Session Card */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+      {/* 1. Active Queue Session Card (with embedded controls) */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-black text-gray-800 flex items-center">
@@ -233,32 +203,37 @@ export default function QueueControlCenter() {
               <span className="flex items-center font-medium text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">
                 Late Limit: <strong className="ml-1">{activeSchedule.lateLimit || 3} penalties</strong>
               </span>
+              <span className="flex items-center font-medium text-gray-600 bg-gray-50 px-2.5 py-0.5 rounded-lg border border-gray-200">
+                Capacity: <strong className="ml-1">{activeSchedule.slotCapacity} slots</strong>
+              </span>
             </div>
           </div>
+          
           <div className="flex flex-wrap items-center gap-4">
             {getQueueStatusBadge(activeSchedule.queueStatus)}
-            {activeSchedule.queueStatusUpdatedAt && (
-              <div className="text-sm text-gray-500">
-                Updated: {new Date(activeSchedule.queueStatusUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </div>
-            )}
+            
             <div className="flex items-center gap-2">
+              {activeSchedule.queueStatus === 'published' && (
+                <button onClick={() => handleQueueControl('active')} className="px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg transition-colors border border-green-200 text-sm font-bold flex items-center shadow-sm">
+                  <Play className="w-4 h-4 mr-1.5" /> Start Queue
+                </button>
+              )}
               {activeSchedule.queueStatus === 'active' && (
                 <>
-                  <button onClick={() => handleQueueControl('paused')} className="p-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors border border-amber-100" title="Pause Queue">
+                  <button onClick={() => handleQueueControl('paused')} className="p-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors border border-amber-200 shadow-sm" title="Pause Queue">
                     <Pause className="w-4 h-4" />
                   </button>
-                  <button onClick={() => handleQueueControl('closed')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Close Queue to New Reservations">
+                  <button onClick={() => handleQueueControl('closed')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-200 shadow-sm" title="Close Queue to New Reservations">
                     <Lock className="w-4 h-4" />
                   </button>
                 </>
               )}
               {activeSchedule.queueStatus === 'paused' && (
                 <>
-                  <button onClick={() => handleQueueControl('active')} className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors border border-green-100" title="Resume Queue">
+                  <button onClick={() => handleQueueControl('active')} className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors border border-green-200 shadow-sm" title="Resume Queue">
                     <Play className="w-4 h-4" />
                   </button>
-                  <button onClick={() => handleQueueControl('closed')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Close Queue to New Reservations">
+                  <button onClick={() => handleQueueControl('closed')} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-200 shadow-sm" title="Close Queue to New Reservations">
                     <Lock className="w-4 h-4" />
                   </button>
                 </>
@@ -277,303 +252,118 @@ export default function QueueControlCenter() {
                 </button>
               )}
               {(activeSchedule.queueStatus === 'ended' || activeSchedule.queueStatus === 'completed') && (
-                <span className="font-bold text-gray-500 px-3 py-1.5 bg-gray-100 rounded-xl">Clinic Session Ended</span>
+                <span className="font-bold text-gray-500 px-3 py-1.5 bg-gray-100 rounded-xl border border-gray-200">Clinic Session Ended</span>
               )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Informational Banner when Queue is Closed */}
-      {activeSchedule.queueStatus === 'closed' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-amber-800 flex items-start text-sm shadow-sm mb-6">
-          <Lock className="w-5 h-5 text-amber-600 mr-3 flex-shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-bold text-amber-900 mb-1">Queue Closed</h4>
-            <p className="text-amber-700 leading-relaxed">
-              No new reservations are being accepted. Existing reserved patients may still validate, check in, and complete their consultations.
-            </p>
-          </div>
+      {/* 2. Current Consultation */}
+      <div className="bg-white rounded-2xl shadow-sm border border-blue-200 overflow-hidden">
+        <div className="bg-blue-600 px-5 py-3 flex justify-between items-center">
+          <h3 className="font-bold text-white flex items-center">
+            <Activity className="w-4 h-4 mr-2" /> Current Consultation
+          </h3>
+          {inConsultation && (
+            <span className="bg-white/20 text-white text-xs px-2.5 py-1 rounded-full font-bold">
+              Queue #{inConsultation.queuePosition}
+            </span>
+          )}
         </div>
-      )}
-      
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Workflows */}
-        <div className="lg:col-span-5 space-y-6">
-          
-          {/* Current Consultation */}
-          <div className="bg-white rounded-2xl shadow-sm border border-blue-200 overflow-hidden">
-            <div className="bg-blue-600 px-5 py-3 flex justify-between items-center">
-              <h3 className="font-bold text-white flex items-center">
-                <Activity className="w-4 h-4 mr-2" /> Current Consultation
-              </h3>
-              {inConsultation && (
-                <span className="bg-white/20 text-white text-xs px-2.5 py-1 rounded-full font-bold">
-                  Queue #{inConsultation.queuePosition}
-                </span>
-              )}
+        
+        {inConsultation ? (
+          <div 
+            className="p-6 cursor-pointer hover:bg-blue-50/50 transition-colors"
+            onClick={() => {
+              setInfoPatient(inConsultation);
+              setIsInfoModalOpen(true);
+            }}
+          >
+            <div className="mb-6">
+              <div className="flex justify-between items-start">
+                <div className="text-2xl font-black text-gray-800 mb-1">{inConsultation.childName || "N/A"}</div>
+                <span className="text-xs text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded-lg">View Details</span>
+              </div>
+              <div className="text-sm text-gray-500 flex items-center">
+                <User className="w-4 h-4 mr-1.5" /> Parent: {inConsultation.parentEmail}
+              </div>
             </div>
             
-            {inConsultation ? (
-              <div 
-                className="p-6 cursor-pointer hover:bg-blue-50/50 transition-colors"
-                onClick={() => {
-                  setInfoPatient(inConsultation);
-                  setIsInfoModalOpen(true);
-                }}
-              >
-                <div className="mb-6">
-                  <div className="flex justify-between items-start">
-                    <div className="text-2xl font-black text-gray-800 mb-1">{inConsultation.childName || "N/A"}</div>
-                    <span className="text-xs text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded-lg">View Details</span>
-                  </div>
-                  <div className="text-sm text-gray-500 flex items-center">
-                    <User className="w-4 h-4 mr-1.5" /> Parent: {inConsultation.parentEmail}
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
-                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                    <div className="text-gray-400 font-bold text-xs uppercase mb-1">Checked In At</div>
-                    <div className="font-semibold text-gray-700">
-                      {inConsultation.checkedInAt ? new Date(inConsultation.checkedInAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "N/A"}
-                    </div>
-                  </div>
-                  <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                    <div className="text-blue-500 font-bold text-xs uppercase mb-1">Started At</div>
-                    <div className="font-semibold text-blue-700">
-                      {inConsultation.consultationStartedAt ? new Date(inConsultation.consultationStartedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "N/A"}
-                    </div>
-                  </div>
-                </div>
-                
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenCompleteModal(inConsultation);
+            <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100 mb-6">
+              <div className="text-xs text-amber-700 font-bold uppercase tracking-wider mb-2 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1.5" /> Concern / Reason for Visit
+              </div>
+              <div className="font-medium text-amber-900 text-sm whitespace-pre-wrap">
+                {inConsultation.concern || "No specific concern provided by the parent."}
+              </div>
+            </div>
+            
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenCompleteModal(inConsultation);
+              }}
+              className="w-full py-3.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors flex items-center justify-center shadow-sm relative z-10"
+            >
+              <CheckCircle className="w-5 h-5 mr-2" /> Complete Consultation
+            </button>
+          </div>
+        ) : (
+          <div className="p-10 text-center text-gray-400">
+            <Activity className="w-10 h-10 mx-auto mb-3 opacity-50" />
+            <p className="font-medium">No patient currently in consultation.</p>
+          </div>
+        )}
+      </div>
+
+      {/* 3. Waiting Queue */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+        <h3 className="font-bold text-gray-800 mb-4 flex items-center">
+          <Users className="w-5 h-5 mr-2 text-blue-600" /> 
+          Waiting Queue <span className="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-bold">{waitingQueue.length}</span>
+        </h3>
+        
+        {waitingQueue.length > 0 ? (
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+            {waitingQueue.map(res => {
+              const expired = isReservationExpired(res, activeSchedule);
+              return (
+                <div 
+                  key={res.id} 
+                  onClick={() => {
+                    setInfoPatient(res);
+                    setIsInfoModalOpen(true);
                   }}
-                  className="w-full py-3.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors flex items-center justify-center shadow-sm relative z-10"
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all"
                 >
-                  <CheckCircle className="w-5 h-5 mr-2" /> Complete Consultation
-                </button>
-              </div>
-            ) : (
-              <div className="p-10 text-center text-gray-400">
-                <Activity className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                <p className="font-medium">No patient currently in consultation.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Next Patient Monitoring (Secretary Controlled) */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="bg-gray-50 px-5 py-3 border-b border-gray-100">
-              <h3 className="font-bold text-gray-700 flex items-center">
-                <Users className="w-4 h-4 mr-2" /> Next Patient (Flow Managed by Secretary)
-              </h3>
-            </div>
-            
-            <div className="p-6">
-              {nextEligiblePatient && nextEligiblePatient.blocked ? (
-                <div className="bg-amber-50 rounded-xl border border-amber-200 p-5 flex flex-col items-center text-center text-amber-700">
-                  <AlertCircle className="w-8 h-8 mb-3 text-amber-500" />
-                  <div className="font-bold text-base mb-1">Waiting for Secretary Check-In</div>
-                  <div className="text-sm font-medium">{nextEligiblePatient.message || "Waiting for patient to check in at clinic."}</div>
-                </div>
-              ) : nextEligiblePatient ? (
-                <div>
-                  <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-white border border-gray-200 rounded-xl flex items-center justify-center font-black text-gray-700 mr-4 shadow-sm text-lg">
+                      {res.queuePosition}
+                    </div>
                     <div>
-                      <div className="text-xl font-black text-gray-800 mb-1">{nextEligiblePatient.childName || "N/A"}</div>
-                      <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                        Checked In - Ready
-                      </span>
-                    </div>
-                    <div className="bg-blue-50 text-blue-600 w-12 h-12 rounded-xl flex items-center justify-center border border-blue-100">
-                      <span className="font-black">#{nextEligiblePatient.queuePosition}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center text-sm text-gray-500 mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                    <Clock className="w-4 h-4 mr-2 text-gray-400" />
-                    Checked In: {nextEligiblePatient.checkedInAt ? new Date(nextEligiblePatient.checkedInAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "N/A"}
-                  </div>
-                  <p className="text-xs text-gray-500 italic text-center">Secretary will start consultation when you finish your current patient.</p>
-                </div>
-              ) : (
-                <div className="py-6 text-center text-gray-400">
-                  <p className="font-medium">Queue is currently empty.</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-        </div>
-
-        {/* Right Column: Queues */}
-        <div className="lg:col-span-7 space-y-6">
-          
-          {/* Checked In Queue */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
-            <h3 className="font-bold text-gray-800 mb-4 flex items-center">
-              <CheckCircle2 className="w-4 h-4 mr-2 text-green-600" /> 
-              Checked In Queue <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{checkedInQueue.length}</span>
-            </h3>
-            
-            {checkedInQueue.length > 0 ? (
-              <div className="space-y-3">
-                {checkedInQueue.map(res => (
-                  <div key={res.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 bg-white border border-gray-200 rounded-lg flex items-center justify-center font-black text-gray-700 mr-4 shadow-sm">
-                        {res.queuePosition}
-                      </div>
-                      <div>
-                        <div className="font-bold text-gray-800">{res.childName || "N/A"}</div>
-                        <div className="text-xs text-gray-500">Checked in: {res.checkedInAt ? new Date(res.checkedInAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : 'N/A'}</div>
-                      </div>
-                    </div>
-                    <ReservationStatusBadge status="checked_in" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-6 text-sm text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                No patients currently checked in.
-              </div>
-            )}
-          </div>
-
-          {/* Waiting Validation */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
-            <h3 className="font-bold text-gray-800 mb-4 flex items-center">
-              <Clock className="w-4 h-4 mr-2 text-amber-500" /> 
-              Waiting Validation <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{waitingValidationQueue.length}</span>
-            </h3>
-            
-            {waitingValidationQueue.length > 0 ? (
-              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                {waitingValidationQueue.map(res => {
-                  const expired = isReservationExpired(res, activeSchedule);
-                  return (
-                    <div key={res.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center font-bold text-gray-500 mr-3 text-sm">
-                          #{res.queuePosition}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-gray-700 text-sm">{res.childName || res.parentEmail}</div>
-                        </div>
-                      </div>
+                      <div className="font-bold text-gray-800 text-base mb-1">{res.childName || res.parentEmail}</div>
                       <ReservationStatusBadge status={expired ? "expired" : res.status} />
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-4 text-sm text-gray-400">
-                No patients waiting for validation.
-              </div>
-            )}
-          </div>
-
-          {/* Completed */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
-            <h3 className="font-bold text-gray-800 mb-4 flex items-center">
-              <CheckCircle className="w-4 h-4 mr-2 text-gray-500" /> 
-              Recently Completed <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{completedConsultations.length}</span>
-            </h3>
-            
-            {completedConsultations.length > 0 ? (
-              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                {completedConsultations.map(res => (
-                  <div key={res.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 opacity-75">
-                    <div className="flex items-center">
-                      <div className="font-semibold text-gray-700 text-sm">{res.childName || "N/A"}</div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {res.doctorNotes && (
-                        <span className="flex items-center text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded uppercase">
-                          <FileText className="w-3 h-3 mr-1" /> Notes
-                        </span>
-                      )}
-                      <span className="text-xs text-gray-400">{res.consultationCompletedAt ? new Date(res.consultationCompletedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : ''}</span>
-                    </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-4 text-sm text-gray-400">
-                No completed consultations yet.
-              </div>
-            )}
+                  {res.checkedInAt && (
+                    <div className="text-right hidden sm:block">
+                      <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Checked In</div>
+                      <div className="text-sm font-semibold text-gray-600">
+                        {new Date(res.checkedInAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-
-        </div>
+        ) : (
+          <div className="text-center py-10 text-sm text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+            No patients currently in the waiting queue.
+          </div>
+        )}
       </div>
-
-      {/* Complete Modal */}
-      {isCompleteModalOpen && selectedPatient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-800 flex items-center">
-                <CheckCircle className="w-5 h-5 mr-2 text-green-600" />
-                Complete Consultation
-              </h2>
-              <button onClick={() => setIsCompleteModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-50">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto">
-              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-6 flex justify-between items-center">
-                <div>
-                  <div className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Patient</div>
-                  <div className="font-bold text-gray-800 text-lg">{selectedPatient.childName}</div>
-                </div>
-                <div className="bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-sm font-bold text-gray-600 shadow-sm">
-                  #{selectedPatient.queuePosition}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Doctor's Notes (Optional)</label>
-                <p className="text-xs text-gray-500 mb-3">Add any medical notes, prescriptions, or follow-up instructions. These will be visible to the parent.</p>
-                <textarea 
-                  value={doctorNotes}
-                  onChange={(e) => setDoctorNotes(e.target.value)}
-                  placeholder="Enter consultation notes here..."
-                  rows={5}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none"
-                ></textarea>
-              </div>
-            </div>
-
-            <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
-              <button 
-                onClick={() => setIsCompleteModalOpen(false)}
-                disabled={isSubmitting}
-                className="px-5 py-2.5 text-gray-600 font-semibold bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleComplete}
-                disabled={isSubmitting}
-                className="px-5 py-2.5 text-white font-bold bg-green-600 rounded-xl hover:bg-green-700 transition-colors flex items-center shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Completing...
-                  </>
-                ) : "Complete Session"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Info Modal */}
       {isInfoModalOpen && infoPatient && (
@@ -645,6 +435,69 @@ export default function QueueControlCenter() {
                 className="px-6 py-2.5 text-white font-bold bg-gray-800 rounded-xl hover:bg-gray-900 transition-colors shadow-sm"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Complete Modal */}
+      {isCompleteModalOpen && selectedPatient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-5 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center">
+                <CheckCircle className="w-5 h-5 mr-2 text-green-600" />
+                Complete Consultation
+              </h2>
+              <button onClick={() => setIsCompleteModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-50">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto">
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-6 flex justify-between items-center">
+                <div>
+                  <div className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Patient</div>
+                  <div className="font-bold text-gray-800 text-lg">{selectedPatient.childName}</div>
+                </div>
+                <div className="bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-sm font-bold text-gray-600 shadow-sm">
+                  #{selectedPatient.queuePosition}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Doctor's Notes (Optional)</label>
+                <p className="text-xs text-gray-500 mb-3">Add any medical notes, prescriptions, or follow-up instructions. These will be visible to the parent.</p>
+                <textarea 
+                  value={doctorNotes}
+                  onChange={(e) => setDoctorNotes(e.target.value)}
+                  placeholder="Enter consultation notes here..."
+                  rows={5}
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none"
+                ></textarea>
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
+              <button 
+                onClick={() => setIsCompleteModalOpen(false)}
+                disabled={isSubmitting}
+                className="px-5 py-2.5 text-gray-600 font-semibold bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleComplete}
+                disabled={isSubmitting}
+                className="px-5 py-2.5 text-white font-bold bg-green-600 rounded-xl hover:bg-green-700 transition-colors flex items-center shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Completing...
+                  </>
+                ) : "Complete Session"}
               </button>
             </div>
           </div>
