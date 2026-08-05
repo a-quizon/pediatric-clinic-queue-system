@@ -81,7 +81,7 @@ export default function Dashboard() {
   activeReservations.forEach(res => {
     const name = res.childName || "Patient";
     
-    if (res.createdAt) activities.push({ time: res.createdAt, text: `${name} reserved a slot` });
+    if (res.createdAt) activities.push({ time: res.createdAt, text: `Parent/Guardian reserved a slot.` });
     if (res.checkedInAt) activities.push({ time: res.checkedInAt, text: `${name} checked in` });
     if (res.sentToDoctorAt) activities.push({ time: res.sentToDoctorAt, text: `${name} sent to Doctor` });
     if (res.consultationCompletedAt) activities.push({ time: res.consultationCompletedAt, text: `${name} consultation completed` });
@@ -236,67 +236,6 @@ export default function Dashboard() {
         {/* Information Sidebar (Right) */}
         <div className="lg:flex-1 flex flex-col gap-6 min-w-0">
           
-          {/* Current Queue Informational Widget */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-            <h2 className="text-sm font-black uppercase text-gray-700 tracking-wide mb-4 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-blue-600" />
-              Current Queue
-            </h2>
-            
-            {activeReservations.length === 0 ? (
-              <div className="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                <p className="text-gray-500 font-medium">No Queue Activity</p>
-                <p className="text-xs text-gray-400 mt-1">No patients are currently waiting.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {/* With Doctor */}
-                <div className="flex items-center justify-between p-3.5 rounded-xl bg-purple-50 border border-purple-100/60">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
-                      <Stethoscope className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-purple-700 uppercase tracking-wide">With Doctor</p>
-                      <p className="font-bold text-gray-900 text-sm truncate">
-                        {currentWithDoctor ? currentWithDoctor.childName || "Patient" : "None"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Next Checked In */}
-                <div className="flex items-center justify-between p-3.5 rounded-xl bg-green-50 border border-green-100/60">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0">
-                      <UserCheck className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-green-700 uppercase tracking-wide">Next Checked In</p>
-                      <p className="font-bold text-gray-900 text-sm truncate">
-                        {nextCheckedIn ? nextCheckedIn.childName || "Patient" : "None"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Next Waiting */}
-                <div className="flex items-center justify-between p-3.5 rounded-xl bg-amber-50 border border-amber-100/60">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                      <Clock className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide">Next Waiting</p>
-                      <p className="font-bold text-gray-900 text-sm truncate">
-                        {nextWaiting ? nextWaiting.childName || "Patient" : "None"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* Recent Activity */}
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col flex-1 min-h-[300px]">
