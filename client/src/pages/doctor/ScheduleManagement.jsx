@@ -226,37 +226,6 @@ export default function ScheduleManagement() {
   return (
     <div className="w-full pb-20 pt-4">
       
-      {/* Dedicated Active Queue Card */}
-      {activeQueue && (
-        <div className="bg-gradient-to-r from-green-600 to-emerald-700 rounded-2xl p-6 text-white shadow-lg mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 animate-in fade-in">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-white/20 text-white uppercase tracking-wider">
-                Current Active Queue
-              </span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-900/40 text-green-200">
-                Status: {activeQueue.queueStatus === 'closed' ? 'Queue Closed' : activeQueue.queueStatus === 'paused' ? 'Paused' : 'Active'}
-              </span>
-            </div>
-            <h2 className="text-2xl font-black">{activeQueue.branch} Branch</h2>
-            <div className="text-green-200 text-sm mt-0.5 whitespace-pre-line leading-tight">
-              {branches.find(b => b.name === activeQueue.branch)?.clinicAddress || "No clinic address provided."}
-            </div>
-            <div className="text-green-100 text-sm mt-2 flex flex-wrap items-center gap-2 sm:gap-4">
-              <span>Clinic Date: <strong className="text-white">{new Date(activeQueue.clinicDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</strong></span>
-              <span>•</span>
-              <span>Time: <strong className="text-white">{formatTime(activeQueue.openingTime)} – {formatTime(activeQueue.closingTime)}</strong></span>
-            </div>
-          </div>
-          <button 
-            onClick={() => navigate("/doctor/queue")}
-            className="px-6 py-3.5 bg-white text-green-700 font-bold rounded-xl shadow-md hover:bg-green-50 transition-all flex items-center shrink-0 w-full sm:w-auto justify-center"
-          >
-            Open Queue Control <Activity className="w-4 h-4 ml-2" />
-          </button>
-        </div>
-      )}
-
       {/* Filter and Search */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="relative flex-1">

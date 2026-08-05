@@ -308,26 +308,6 @@ export default function Queue() {
           </div>
         </div>
       )}
-          {/* Stats Grid - Removed In Consult Stat */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">
-              <div className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Checked In</div>
-              <div className="text-2xl font-black text-gray-800">{stats.checkedIn}</div>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">
-              <div className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Reserved</div>
-              <div className="text-2xl font-black text-gray-800">{stats.waitingValidation}</div>
-            </div>
-            <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-center">
-              <div className="text-green-600 text-xs font-bold uppercase tracking-wider mb-1">Completed</div>
-              <div className="text-2xl font-black text-green-700">{stats.completedCount}</div>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">
-              <div className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Slots Available</div>
-              <div className="text-2xl font-black text-gray-800">{stats.availableSlots}</div>
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Column: Workflows */}
             <div className="lg:col-span-5 space-y-6">
