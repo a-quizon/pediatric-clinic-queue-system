@@ -50,8 +50,8 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Tools & Insights Section */}
-      <div>
+      {/* Tools & Insights Section (Mobile Only) */}
+      <div className="md:hidden">
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 px-1">
           Tools & Insights
         </h3>

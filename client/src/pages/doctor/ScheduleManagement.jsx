@@ -220,7 +220,17 @@ export default function ScheduleManagement() {
         }
       }
       return true;
-    }).sort((a, b) => new Date(a.clinicDate) - new Date(b.clinicDate));
+    }).sort((a, b) => {
+      const statusOrder = { 'Published': 1, 'Draft': 2, 'Completed': 3 };
+      const statusA = getLocalStatus(a);
+      const statusB = getLocalStatus(b);
+      
+      if (statusOrder[statusA] !== statusOrder[statusB]) {
+        return (statusOrder[statusA] || 99) - (statusOrder[statusB] || 99);
+      }
+      
+      return new Date(a.clinicDate) - new Date(b.clinicDate);
+    });
   }, [schedules, currentFilter, searchQuery]);
 
   return (

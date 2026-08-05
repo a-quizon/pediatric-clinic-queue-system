@@ -28,7 +28,7 @@ export default function Layout() {
   const headerInfo = getHeaderInfo();
 
   const navItems = [
-    { name: "Home", path: "/doctor", icon: Home },
+    { name: "Dashboard", path: "/doctor", icon: Home },
     { name: "Schedules", path: "/doctor/schedules", icon: CalendarDays },
     { name: "Queue", path: "/doctor/queue", icon: Users },
     { name: "Reports & Analytics", path: "/doctor/reports", icon: BarChart3, desktopOnly: true },

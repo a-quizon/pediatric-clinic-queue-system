@@ -104,7 +104,7 @@ export default function Home() {
       <div className="flex flex-col lg:flex-row gap-6">
         
         {/* 2. Today's Statistics */}
-        {activeOrPublishedSchedule && (
+        {activeOrPublishedSchedule ? (
           <div className="flex-[2] bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col justify-between">
             <h2 className="text-lg font-bold text-gray-800 flex items-center mb-6">
               <Activity className="w-5 h-5 mr-2 text-blue-600" />
@@ -138,6 +138,12 @@ export default function Home() {
                 <span className="text-xl font-black text-amber-700">{stats.forfeited}</span>
               </div>
             </div>
+          </div>
+        ) : (
+          <div className="flex-[2] bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col justify-center items-center text-center">
+            <Activity className="w-16 h-16 text-gray-300 mb-4" />
+            <h2 className="text-xl font-bold text-gray-800 mb-2">No Active Clinic Session</h2>
+            <p className="text-gray-500 max-w-sm">You don't have an active clinic session today. Publish and start a schedule to begin monitoring today's clinic.</p>
           </div>
         )}
 
