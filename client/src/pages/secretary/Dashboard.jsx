@@ -44,23 +44,10 @@ export default function Dashboard() {
     };
   }, []);
 
-  // Use local date string instead of server for simple matching, or allow any active
-  const getLocalDateString = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-  const todayDateStr = getLocalDateString();
-
   // Primary active or published schedule for this branch
-  // Only display if status is "published" and queueStatus is "published", "not_started" (mapped to Published), or "active"
-  const publishedSchedule = Object.values(schedules).find(s => 
-    s.branch === user?.assignedBranch && 
-    (s.clinicDate === todayDateStr || ["active", "paused"].includes(s.queueStatus)) &&
-    s.status === "published"
-  );
+  // The service subscribeToPublishedSchedules already filters for status === "published".
+  // We just need to find the one for the assigned branch.
+  const publishedSchedule = Object.values(schedules).find(s => s.branch === user?.assignedBranch);
 
   const activeReservations = publishedSchedule ? reservations.filter(r => r.scheduleId === publishedSchedule.id) : [];
 
@@ -130,18 +117,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 pb-8">
-      {/* 1. Dashboard Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Secretary Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-1 flex items-center gap-1.5">
-            <MapPin className="w-4 h-4 text-blue-600" />
-            <span>Managing <span className="font-bold text-gray-700">{user?.assignedBranch}</span></span>
-          </p>
-        </div>
-      </div>
 
-      {/* 2. Primary Dashboard Cards */}
+
+      {/* 1. Primary Dashboard Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Card 1: Published Schedule */}
         <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-md">
@@ -238,7 +216,8 @@ export default function Dashboard() {
       <div className="flex flex-col lg:flex-row gap-6">
         
         {/* Main Content (Left) - Queue Management */}
-        <div className="lg:flex-[2.5] min-w-0">
+        {/* Hidden on mobile, visible on desktop */}
+        <div className="hidden lg:block lg:flex-[2.5] min-w-0">
           <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden relative">
             <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
               <h2 className="text-sm font-black uppercase text-gray-700 tracking-wide flex items-center gap-2">
