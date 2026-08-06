@@ -57,6 +57,12 @@ export default function Home() {
     return branches.find(b => b.name === activeOrPublishedSchedule.branch);
   }, [activeOrPublishedSchedule, branches]);
 
+  const isActiveSession = useMemo(() => {
+    if (!activeOrPublishedSchedule) return false;
+    const { status, queueStatus } = activeOrPublishedSchedule;
+    return status === 'published' && (queueStatus === 'active' || queueStatus === 'paused' || queueStatus === 'closed');
+  }, [activeOrPublishedSchedule]);
+
   // Compute Today's Statistics based on active or published schedule
   const stats = useMemo(() => {
     if (!activeOrPublishedSchedule) {
@@ -104,38 +110,46 @@ export default function Home() {
       <div className="flex flex-col lg:flex-row gap-6">
         
         {/* 2. Today's Statistics */}
-        {activeOrPublishedSchedule ? (
+        {isActiveSession ? (
           <div className="flex-[2] bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col justify-between">
             <h2 className="text-lg font-bold text-gray-800 flex items-center mb-6">
               <Activity className="w-5 h-5 mr-2 text-blue-600" />
               Today's Statistics
             </h2>
             
-            <div className="mb-8 text-center bg-blue-50 py-6 rounded-2xl border border-blue-100">
-              <div className="text-blue-600 text-sm font-black uppercase tracking-widest mb-1">Total Reservations</div>
-              <div className="text-5xl font-black text-blue-900">{stats.total}</div>
-            </div>
+            <div className="flex-1 flex flex-col gap-4">
+              {/* Tier 1: Total Reservations */}
+              <div className="text-center bg-blue-50 py-6 rounded-2xl border border-blue-100 flex-shrink-0">
+                <div className="text-blue-600 text-sm font-black uppercase tracking-widest mb-1">Total Reservations</div>
+                <div className="text-5xl font-black text-blue-900 leading-none">{stats.total}</div>
+              </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="bg-gray-50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                <span className="text-gray-500 text-xs font-bold uppercase mb-1">Waiting</span>
-                <span className="text-xl font-black text-gray-800">{stats.waiting}</span>
+              {/* Tier 2: Waiting & Completed */}
+              <div className="grid grid-cols-2 gap-4 flex-shrink-0">
+                <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100 flex flex-col items-center justify-center text-center shadow-sm">
+                  <span className="text-amber-600 text-xs font-bold uppercase tracking-wider mb-2">Waiting</span>
+                  <span className="text-3xl font-black text-amber-900 leading-none">{stats.waiting}</span>
+                </div>
+                <div className="bg-green-50 p-5 rounded-2xl border border-green-100 flex flex-col items-center justify-center text-center shadow-sm">
+                  <span className="text-green-600 text-xs font-bold uppercase tracking-wider mb-2">Completed</span>
+                  <span className="text-3xl font-black text-green-900 leading-none">{stats.completed}</span>
+                </div>
               </div>
-              <div className="bg-gray-50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                <span className="text-gray-500 text-xs font-bold uppercase mb-1">Checked In</span>
-                <span className="text-xl font-black text-gray-800">{stats.checkedIn}</span>
-              </div>
-              <div className="bg-green-50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                <span className="text-green-600 text-xs font-bold uppercase mb-1">Completed</span>
-                <span className="text-xl font-black text-green-700">{stats.completed}</span>
-              </div>
-              <div className="bg-red-50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                <span className="text-red-500 text-xs font-bold uppercase mb-1">Cancelled</span>
-                <span className="text-xl font-black text-red-700">{stats.cancelled}</span>
-              </div>
-              <div className="bg-amber-50 p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                <span className="text-amber-600 text-xs font-bold uppercase mb-1">Forfeited</span>
-                <span className="text-xl font-black text-amber-700">{stats.forfeited}</span>
+
+              {/* Tier 3: Checked In, Cancelled, Forfeited */}
+              <div className="grid grid-cols-3 gap-3 flex-shrink-0 mt-auto">
+                <div className="bg-gray-50 p-3 rounded-xl flex flex-col items-center justify-center text-center border border-gray-100">
+                  <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider mb-1">Checked In</span>
+                  <span className="text-lg font-black text-gray-800 leading-none">{stats.checkedIn}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl flex flex-col items-center justify-center text-center border border-gray-100">
+                  <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider mb-1">Cancelled</span>
+                  <span className="text-lg font-black text-gray-800 leading-none">{stats.cancelled}</span>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl flex flex-col items-center justify-center text-center border border-gray-100">
+                  <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider mb-1">Forfeited</span>
+                  <span className="text-lg font-black text-gray-800 leading-none">{stats.forfeited}</span>
+                </div>
               </div>
             </div>
           </div>
