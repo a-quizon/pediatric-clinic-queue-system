@@ -57,10 +57,10 @@ export default function Home() {
     return branches.find(b => b.name === activeOrPublishedSchedule.branch);
   }, [activeOrPublishedSchedule, branches]);
 
-  const isActiveSession = useMemo(() => {
+  const isCompletedSession = useMemo(() => {
     if (!activeOrPublishedSchedule) return false;
     const { status, queueStatus } = activeOrPublishedSchedule;
-    return status === 'published' && (queueStatus === 'active' || queueStatus === 'paused' || queueStatus === 'closed');
+    return status === 'completed' || queueStatus === 'completed' || queueStatus === 'ended';
   }, [activeOrPublishedSchedule]);
 
   // Compute Today's Statistics based on active or published schedule
@@ -110,12 +110,41 @@ export default function Home() {
       <div className="flex flex-col lg:flex-row gap-6">
         
         {/* 2. Today's Statistics */}
-        {isActiveSession ? (
+        {activeOrPublishedSchedule ? (
           <div className="flex-[2] bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col justify-between">
-            <h2 className="text-lg font-bold text-gray-800 flex items-center mb-6">
-              <Activity className="w-5 h-5 mr-2 text-blue-600" />
-              Today's Statistics
-            </h2>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800 flex items-center">
+                  {isCompletedSession ? (
+                    <>
+                      <CheckCircle2 className="w-5 h-5 mr-2 text-green-600" />
+                      Today's Clinic Completed
+                    </>
+                  ) : (
+                    <>
+                      <Activity className="w-5 h-5 mr-2 text-blue-600" />
+                      Today's Statistics
+                    </>
+                  )}
+                </h2>
+                {isCompletedSession && (
+                  <p className="text-sm text-gray-500 mt-1">This clinic session has been completed.</p>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {isCompletedSession && (
+                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full font-bold text-xs shadow-sm border border-green-200 flex items-center">
+                    <div className="w-2 h-2 rounded-full bg-green-500 mr-1.5"></div> Completed
+                  </span>
+                )}
+                {activeBranch && (
+                  <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full font-bold text-xs shadow-sm border border-gray-200 flex items-center">
+                    <MapPin className="w-3 h-3 mr-1" />
+                    {activeBranch.name}
+                  </span>
+                )}
+              </div>
+            </div>
             
             <div className="flex-1 flex flex-col gap-4">
               {/* Tier 1: Total Reservations */}
@@ -156,8 +185,8 @@ export default function Home() {
         ) : (
           <div className="flex-[2] bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col justify-center items-center text-center">
             <Activity className="w-16 h-16 text-gray-300 mb-4" />
-            <h2 className="text-xl font-bold text-gray-800 mb-2">No Active Clinic Session</h2>
-            <p className="text-gray-500 max-w-sm">You don't have an active clinic session today. Publish and start a schedule to begin monitoring today's clinic.</p>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">No Clinic Schedule Today</h2>
+            <p className="text-gray-500 max-w-sm">You don't have a published schedule for today. Publish a schedule to begin monitoring today's clinic.</p>
           </div>
         )}
 
