@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { useNavigate, Link } from "react-router-dom";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
@@ -39,27 +39,30 @@ export default function Home() {
     return Object.entries(schedules).map(([id, val]) => ({ id, ...val }));
   }, [schedules]);
 
-  const activeScheduleIdRef = useRef(null);
-
   // Identify active or published schedule for Today's Clinic
   const activeOrPublishedSchedule = useMemo(() => {
-    // 1. Look for a published schedule first (Active Session)
+    // 1. Schedule with queueStatus === "active"
+    const active = scheduleList.find(s => s.queueStatus === 'active');
+    if (active) return active;
+    
+    // 2. Schedule with queueStatus === "paused"
+    const paused = scheduleList.find(s => s.queueStatus === 'paused');
+    if (paused) return paused;
+    
+    // 3. Schedule with status === "published"
     const published = scheduleList.find(s => s.status === 'published');
-    if (published) {
-      activeScheduleIdRef.current = published.id;
-      return published;
-    }
-    
-    // 2. If no published schedule but we were just managing one, continue using it (Completed Session)
-    if (activeScheduleIdRef.current) {
-      const lockedSchedule = scheduleList.find(s => s.id === activeScheduleIdRef.current);
-      if (lockedSchedule) return lockedSchedule;
-    }
-    
-    // 3. Fallback for initial page load to find today's completed schedule
+    if (published) return published;
+
+    // 4. The most recently completed schedule for today
     const todayStr = new Date().toLocaleDateString('en-CA');
-    return scheduleList.find(s => s.status === 'completed' && s.clinicDate === todayStr) || 
-           scheduleList.find(s => s.status === 'completed' && new Date(s.clinicDate).toDateString() === new Date().toDateString());
+    const completedToday = scheduleList.filter(s => s.status === 'completed' && s.clinicDate === todayStr);
+    
+    if (completedToday.length > 0) {
+      completedToday.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+      return completedToday[0];
+    }
+    
+    return null;
   }, [scheduleList]);
 
   const activeBranch = useMemo(() => {
@@ -76,7 +79,7 @@ export default function Home() {
   // Compute Today's Statistics based on active or published schedule
   const stats = useMemo(() => {
     if (!activeOrPublishedSchedule) {
-      return { total: 0, waiting: 0, checkedIn: 0, completed: 0, cancelled: 0, forfeited: 0 };
+      return { total: 0, waiting: 0, checkedIn: 0, inConsultation: 0, completed: 0, cancelled: 0, forfeited: 0 };
     }
     const schedRes = reservations.filter(r => r.scheduleId === activeOrPublishedSchedule.id);
     
@@ -84,6 +87,7 @@ export default function Home() {
       total: schedRes.length,
       waiting: schedRes.filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window", "expired", "validation_expired"].includes(r.status)).length,
       checkedIn: schedRes.filter(r => r.status === "checked_in").length,
+      inConsultation: schedRes.filter(r => r.status === "in_consultation").length,
       completed: schedRes.filter(r => ["completed", "consultation_completed"].includes(r.status)).length,
       cancelled: schedRes.filter(r => r.status === "cancelled").length,
       forfeited: schedRes.filter(r => ["forfeited", "penalized", "late_limit_reached"].includes(r.status)).length,
@@ -128,7 +132,7 @@ export default function Home() {
                   {isCompletedSession ? (
                     <>
                       <CheckCircle2 className="w-5 h-5 mr-2 text-green-600" />
-                      Today's Clinic Completed
+                      Today's Clinic Summary
                     </>
                   ) : (
                     <>
@@ -163,15 +167,19 @@ export default function Home() {
                 <div className="text-5xl font-black text-blue-900 leading-none">{stats.total}</div>
               </div>
 
-              {/* Tier 2: Waiting & Completed */}
-              <div className="grid grid-cols-2 gap-4 flex-shrink-0">
-                <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100 flex flex-col items-center justify-center text-center shadow-sm">
-                  <span className="text-amber-600 text-xs font-bold uppercase tracking-wider mb-2">Waiting</span>
-                  <span className="text-3xl font-black text-amber-900 leading-none">{stats.waiting}</span>
+              {/* Tier 2: Waiting, In Consultation, Completed */}
+              <div className="grid grid-cols-3 gap-3 flex-shrink-0">
+                <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex flex-col items-center justify-center text-center shadow-sm">
+                  <span className="text-amber-600 text-[10px] font-bold uppercase tracking-wider mb-2">Waiting</span>
+                  <span className="text-2xl font-black text-amber-900 leading-none">{stats.waiting}</span>
                 </div>
-                <div className="bg-green-50 p-5 rounded-2xl border border-green-100 flex flex-col items-center justify-center text-center shadow-sm">
-                  <span className="text-green-600 text-xs font-bold uppercase tracking-wider mb-2">Completed</span>
-                  <span className="text-3xl font-black text-green-900 leading-none">{stats.completed}</span>
+                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex flex-col items-center justify-center text-center shadow-sm">
+                  <span className="text-blue-600 text-[10px] font-bold uppercase tracking-wider mb-2 text-nowrap">In Consult</span>
+                  <span className="text-2xl font-black text-blue-900 leading-none">{stats.inConsultation}</span>
+                </div>
+                <div className="bg-green-50 p-4 rounded-2xl border border-green-100 flex flex-col items-center justify-center text-center shadow-sm">
+                  <span className="text-green-600 text-[10px] font-bold uppercase tracking-wider mb-2">Completed</span>
+                  <span className="text-2xl font-black text-green-900 leading-none">{stats.completed}</span>
                 </div>
               </div>
 
