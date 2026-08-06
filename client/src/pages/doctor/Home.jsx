@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { useNavigate, Link } from "react-router-dom";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
@@ -39,15 +39,25 @@ export default function Home() {
     return Object.entries(schedules).map(([id, val]) => ({ id, ...val }));
   }, [schedules]);
 
+  const activeScheduleIdRef = useRef(null);
+
   // Identify active or published schedule for Today's Clinic
   const activeOrPublishedSchedule = useMemo(() => {
-    // Look for a published schedule first
+    // 1. Look for a published schedule first (Active Session)
     const published = scheduleList.find(s => s.status === 'published');
-    if (published) return published;
+    if (published) {
+      activeScheduleIdRef.current = published.id;
+      return published;
+    }
     
-    // Fallback to today's completed schedule so we can show the neutral state
-    const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local format
+    // 2. If no published schedule but we were just managing one, continue using it (Completed Session)
+    if (activeScheduleIdRef.current) {
+      const lockedSchedule = scheduleList.find(s => s.id === activeScheduleIdRef.current);
+      if (lockedSchedule) return lockedSchedule;
+    }
     
+    // 3. Fallback for initial page load to find today's completed schedule
+    const todayStr = new Date().toLocaleDateString('en-CA');
     return scheduleList.find(s => s.status === 'completed' && s.clinicDate === todayStr) || 
            scheduleList.find(s => s.status === 'completed' && new Date(s.clinicDate).toDateString() === new Date().toDateString());
   }, [scheduleList]);
