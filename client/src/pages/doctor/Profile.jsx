@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { logoutUser, updateUserProfile } from "../../services/authService";
+import { updateUserProfile } from "../../services/authService";
 import { subscribeToBranchConfigurations } from "../../services/branchConfigurationService";
 import { handlePasswordChangeRequest } from "../../utils/passwordUtils";
 import { LogOut, User as UserIcon, Edit2, Save, MapPin, X, Lock, ChevronRight, Info, ArrowLeft } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
+import LogoutButton from "../../components/common/LogoutButton";
 import toast from "react-hot-toast";
 
 export default function Profile() {
@@ -43,10 +44,6 @@ export default function Profile() {
     });
     return () => unsub();
   }, []);
-
-  const handleLogout = async () => {
-    await logoutUser();
-  };
 
   const handleSave = async () => {
     if (!fullName.trim()) {
@@ -320,13 +317,10 @@ export default function Profile() {
         {renderProfileCard()}
         {renderSecurityCard()}
         <div className="pt-4">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center p-4 bg-white text-red-600 rounded-2xl font-bold border border-gray-200 shadow-sm hover:bg-red-50 hover:border-red-100 transition-colors active:scale-[0.98]"
-          >
+          <LogoutButton className="w-full flex items-center justify-center p-4 bg-white text-red-600 rounded-2xl font-bold border border-gray-200 shadow-sm hover:bg-red-50 hover:border-red-100 transition-colors active:scale-[0.98]">
             <LogOut className="w-5 h-5 mr-2" />
             Sign Out
-          </button>
+          </LogoutButton>
         </div>
       </div>
 
@@ -365,13 +359,10 @@ export default function Profile() {
             </div>
             
             <div className="pt-2">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center p-4 bg-white text-red-600 rounded-2xl font-bold border border-gray-200 shadow-sm hover:bg-red-50 hover:border-red-100 transition-colors active:scale-[0.98]"
-              >
+              <LogoutButton className="w-full flex items-center justify-center p-4 bg-white text-red-600 rounded-2xl font-bold border border-gray-200 shadow-sm hover:bg-red-50 hover:border-red-100 transition-colors active:scale-[0.98]">
                 <LogOut className="w-5 h-5 mr-2" />
                 Sign Out
-              </button>
+              </LogoutButton>
             </div>
           </div>
         )}

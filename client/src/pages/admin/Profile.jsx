@@ -1,13 +1,12 @@
+import React from "react";
+import { User, Mail, Shield, Settings, LogOut } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
-import { logoutUser } from "../../services/authService";
-import { User, LogOut, Mail, Shield, Settings } from "lucide-react";
+import LogoutButton from "../../components/common/LogoutButton";
 
 export default function Profile() {
   const { user, role } = useAuth();
 
-  const handleLogout = async () => {
-    await logoutUser();
-  };
+  if (!user) return null;
 
   return (
     <div className="space-y-6 pb-6 max-w-3xl mx-auto">
@@ -55,13 +54,10 @@ export default function Profile() {
 
       {/* Actions */}
       <div className="pt-4">
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center justify-center p-4 bg-white text-red-600 rounded-2xl font-semibold border border-gray-200 shadow-sm hover:bg-red-50 hover:border-red-100 transition-colors"
-        >
+        <LogoutButton className="w-full flex items-center justify-center p-4 bg-white text-red-600 rounded-2xl font-semibold border border-gray-200 shadow-sm hover:bg-red-50 hover:border-red-100 transition-colors">
           <LogOut className="w-5 h-5 mr-2" />
           Sign Out
-        </button>
+        </LogoutButton>
       </div>
     </div>
   );

@@ -1,23 +1,13 @@
-import React, { useState } from "react";
+import React from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { logoutUser } from "../../services/authService";
 import { User, LogOut, History, ChevronRight } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
-import ConfirmationModal from "../../components/common/ConfirmationModal";
+import { Link } from "react-router-dom";
+import LogoutButton from "../../components/common/LogoutButton";
 
 export default function Profile() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
-  const handleLogout = async () => {
-    try {
-      await logoutUser(user);
-      navigate("/");
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
-  };
+  if (!user) return null;
 
   const menuItems = [
     {
@@ -77,26 +67,11 @@ export default function Profile() {
 
       {/* Logout Button */}
       <div className="pt-6 mt-8">
-        <button 
-          onClick={() => setIsLogoutModalOpen(true)}
-          className="w-full py-4 bg-red-50 text-red-600 font-extrabold rounded-2xl hover:bg-red-100 hover:shadow-sm transition-all flex items-center justify-center gap-2.5 shadow-xs text-base focus:outline-none"
-        >
+        <LogoutButton className="w-full py-4 bg-red-50 text-red-600 font-extrabold rounded-2xl hover:bg-red-100 hover:shadow-sm transition-all flex items-center justify-center gap-2.5 shadow-xs text-base focus:outline-none">
           <LogOut className="w-5 h-5" />
           Log Out
-        </button>
+        </LogoutButton>
       </div>
-
-      {/* Logout Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={isLogoutModalOpen}
-        onClose={() => setIsLogoutModalOpen(false)}
-        onConfirm={handleLogout}
-        title="Logout"
-        message="Are you sure you want to logout?"
-        confirmText="Logout"
-        cancelText="Cancel"
-        isDestructive={true}
-      />
     </div>
   );
 }

@@ -1,20 +1,14 @@
-import { useAuth } from "../../hooks/useAuth";
-import { logoutUser } from "../../services/authService";
+import React from "react";
 import { User, Mail, LogOut, MapPin, Phone } from "lucide-react";
+import { useAuth } from "../../hooks/useAuth";
+import LogoutButton from "../../components/common/LogoutButton";
 import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-      navigate("/");
-    } catch (error) {
-      console.error("Logout failed", error);
-    }
-  };
+  if (!user) return null;
 
   return (
     <div className="space-y-6 pb-8 max-w-2xl mx-auto flex flex-col min-h-[70vh]">
@@ -44,14 +38,10 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Logout Button */}
-      <button 
-        onClick={handleLogout}
-        className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-white border border-red-200 text-red-600 font-bold rounded-2xl hover:bg-red-50 transition-colors shadow-sm mt-auto"
-      >
+      <LogoutButton className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-white border border-red-200 text-red-600 font-bold rounded-2xl hover:bg-red-50 transition-colors shadow-sm mt-auto">
         <LogOut className="w-5 h-5" />
         Logout
-      </button>
+      </LogoutButton>
     </div>
   );
 }
