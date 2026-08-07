@@ -38,10 +38,9 @@ export default function Profile() {
         </div>
       </div>
 
-      <LogoutButton className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-white border border-red-200 text-red-600 font-bold rounded-2xl hover:bg-red-50 transition-colors shadow-sm mt-auto">
-        <LogOut className="w-5 h-5" />
-        Logout
-      </LogoutButton>
+      <div className="mt-auto pt-8">
+        <LogoutButton />
+      </div>
     </div>
   );
 }

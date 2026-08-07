@@ -65,12 +65,8 @@ export default function Profile() {
         ))}
       </div>
 
-      {/* Logout Button */}
       <div className="pt-6 mt-8">
-        <LogoutButton className="w-full py-4 bg-red-50 text-red-600 font-extrabold rounded-2xl hover:bg-red-100 hover:shadow-sm transition-all flex items-center justify-center gap-2.5 shadow-xs text-base focus:outline-none">
-          <LogOut className="w-5 h-5" />
-          Log Out
-        </LogoutButton>
+        <LogoutButton />
       </div>
     </div>
   );

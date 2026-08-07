@@ -317,10 +317,7 @@ export default function Profile() {
         {renderProfileCard()}
         {renderSecurityCard()}
         <div className="pt-4">
-          <LogoutButton className="w-full flex items-center justify-center p-4 bg-white text-red-600 rounded-2xl font-bold border border-gray-200 shadow-sm hover:bg-red-50 hover:border-red-100 transition-colors active:scale-[0.98]">
-            <LogOut className="w-5 h-5 mr-2" />
-            Sign Out
-          </LogoutButton>
+          <LogoutButton />
         </div>
       </div>
 
@@ -359,10 +356,7 @@ export default function Profile() {
             </div>
             
             <div className="pt-2">
-              <LogoutButton className="w-full flex items-center justify-center p-4 bg-white text-red-600 rounded-2xl font-bold border border-gray-200 shadow-sm hover:bg-red-50 hover:border-red-100 transition-colors active:scale-[0.98]">
-                <LogOut className="w-5 h-5 mr-2" />
-                Sign Out
-              </LogoutButton>
+              <LogoutButton />
             </div>
           </div>
         )}
