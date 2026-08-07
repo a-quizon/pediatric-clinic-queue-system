@@ -82,12 +82,12 @@ export default function Profile() {
         <p className="text-gray-500 text-sm mt-0.5">Manage your personal and clinic information.</p>
       </div>
 
-      {/* Account Information */}
+      {/* Unified Profile Information Card */}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-6 md:p-8 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/30">
           <h2 className="text-lg font-bold text-gray-800 flex items-center">
             <UserIcon className="w-5 h-5 mr-2 text-blue-600" />
-            Account Information
+            Profile Information
           </h2>
           {isEditing ? (
             <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -116,90 +116,81 @@ export default function Profile() {
               onClick={() => setIsEditing(true)} 
               className="w-full sm:w-auto flex items-center justify-center text-sm font-bold text-gray-700 bg-white border border-gray-200 px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors shadow-sm active:scale-95"
             >
-              <Edit2 className="w-4 h-4 mr-2" /> Edit Profile
+              <Edit2 className="w-4 h-4 mr-2" /> Edit Information
             </button>
           )}
         </div>
         
-        <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Full Name <span className="text-red-500">*</span>
-            </label>
-            {isEditing ? (
-              <input 
-                type="text" 
-                value={fullName} 
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
-                placeholder="e.g. Dr. Juan Dela Cruz"
-              />
-            ) : (
-              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
-                {user?.displayName || user?.name || "Not provided"}
-              </div>
-            )}
-          </div>
-          
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Email Address
-            </label>
-            <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100 truncate opacity-70 cursor-not-allowed" title="Email address cannot be changed here">
-              {user?.email || "Not provided"}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Professional Title
-            </label>
-            {isEditing ? (
-              <input 
-                type="text" 
-                value={professionalTitle} 
-                onChange={(e) => setProfessionalTitle(e.target.value)}
-                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
-                placeholder="e.g. Pediatrician"
-              />
-            ) : (
-              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
-                {user?.professionalTitle || "Not provided"}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Contact Number <span className="text-red-500">*</span>
-            </label>
-            {isEditing ? (
-              <input 
-                type="text" 
-                value={contactNumber} 
-                onChange={(e) => setContactNumber(e.target.value)}
-                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
-                placeholder="e.g. +63 912 345 6789"
-              />
-            ) : (
-              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
-                {user?.contactNumber || user?.phone || "Not provided"}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Clinic Information */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 md:p-8 border-b border-gray-100 bg-gray-50/30">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center">
-            <Building className="w-5 h-5 mr-2 text-blue-600" />
-            Clinic Information
-          </h2>
-        </div>
         <div className="p-6 md:p-8 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+            {/* Account Information Fields */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Full Name <span className="text-red-500">*</span>
+              </label>
+              {isEditing ? (
+                <input 
+                  type="text" 
+                  value={fullName} 
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  placeholder="e.g. Dr. Juan Dela Cruz"
+                />
+              ) : (
+                <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
+                  {user?.displayName || user?.name || "Not provided"}
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Professional Title
+              </label>
+              {isEditing ? (
+                <input 
+                  type="text" 
+                  value={professionalTitle} 
+                  onChange={(e) => setProfessionalTitle(e.target.value)}
+                  className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  placeholder="e.g. Pediatrician"
+                />
+              ) : (
+                <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
+                  {user?.professionalTitle || "Not provided"}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Email Address
+              </label>
+              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100 truncate opacity-70 cursor-not-allowed" title="Email address cannot be changed here">
+                {user?.email || "Not provided"}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Contact Number <span className="text-red-500">*</span>
+              </label>
+              {isEditing ? (
+                <input 
+                  type="text" 
+                  value={contactNumber} 
+                  onChange={(e) => setContactNumber(e.target.value)}
+                  className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  placeholder="e.g. +63 912 345 6789"
+                />
+              ) : (
+                <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
+                  {user?.contactNumber || user?.phone || "Not provided"}
+                </div>
+              )}
+            </div>
+
+            {/* Clinic Information Fields */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                 Clinic Name <span className="text-red-500">*</span>
@@ -230,7 +221,7 @@ export default function Profile() {
             </div>
           </div>
 
-          <div>
+          <div className="border-t border-gray-100 pt-8">
             <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center">
               <MapPin className="w-4 h-4 mr-2 text-gray-400" />
               Clinic Locations
