@@ -20,6 +20,9 @@ export default function Layout() {
       return { desktop: "Reports & Analytics", mobile: "Reports & Analytics", backTo: "/doctor" };
     }
     if (path.startsWith("/doctor/profile")) {
+      const view = new URLSearchParams(location.search).get("view");
+      if (view === "account") return { desktop: "Profile", mobile: "Account Settings", backTo: true };
+      if (view === "system") return { desktop: "Profile", mobile: "About System", backTo: true };
       return { desktop: "Profile", mobile: "Profile" };
     }
     return { desktop: "Dashboard", mobile: "Home" };

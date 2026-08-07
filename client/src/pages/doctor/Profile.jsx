@@ -3,6 +3,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { logoutUser, updateUserProfile, changeUserPassword } from "../../services/authService";
 import { subscribeToBranchConfigurations } from "../../services/branchConfigurationService";
 import { LogOut, User as UserIcon, Edit2, Save, MapPin, X, Lock, ChevronRight, Info, ArrowLeft } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 
 export default function Profile() {
@@ -24,8 +25,17 @@ export default function Profile() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Mobile navigation state
-  const [mobileView, setMobileView] = useState("hub"); // "hub", "account", "system"
+  // Mobile navigation state via URL params
+  const [searchParams, setSearchParams] = useSearchParams();
+  const mobileView = searchParams.get("view") || "hub";
+
+  const setMobileView = (view) => {
+    if (view === "hub") {
+      setSearchParams({});
+    } else {
+      setSearchParams({ view });
+    }
+  };
 
   useEffect(() => {
     const unsub = subscribeToBranchConfigurations((data) => {
@@ -422,12 +432,6 @@ export default function Profile() {
 
         {mobileView === "account" && (
           <div className="space-y-6 slide-in-from-right-4 animate-in fade-in">
-            <div className="flex items-center pb-4 mb-2 border-b border-gray-100">
-              <button onClick={() => setMobileView("hub")} className="mr-3 p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors">
-                <ArrowLeft className="w-6 h-6 text-gray-700" />
-              </button>
-              <h1 className="text-xl font-bold text-gray-800">Account Settings</h1>
-            </div>
             {renderProfileCard()}
             {renderSecurityCard()}
           </div>
@@ -435,13 +439,7 @@ export default function Profile() {
 
         {mobileView === "system" && (
           <div className="space-y-6 slide-in-from-right-4 animate-in fade-in">
-            <div className="flex items-center pb-4 mb-2 border-b border-gray-100">
-              <button onClick={() => setMobileView("hub")} className="mr-3 p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors">
-                <ArrowLeft className="w-6 h-6 text-gray-700" />
-              </button>
-              <h1 className="text-xl font-bold text-gray-800">About System</h1>
-            </div>
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-8 text-center">
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-8 text-center mt-2">
               <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-5">
                 <Info className="w-10 h-10" />
               </div>
