@@ -1,13 +1,131 @@
-import { CalendarDays, CheckCircle2, User, UserCog, Stethoscope, MapPin, TrendingUp, TrendingDown } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { CalendarDays, CheckCircle2, User, Users, MapPin, Activity } from "lucide-react";
+import { ref, onValue } from "firebase/database";
+import { database } from "../../firebase/database";
 
 export default function Dashboard() {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    todaysReservations: 0,
+    completedConsultations: 0,
+    activeQueues: 0,
+    registeredParents: 0,
+    activeStaff: 0,
+    branches: 0,
+  });
+
+  useEffect(() => {
+    // Refs
+    const usersRef = ref(database, "users");
+    const schedulesRef = ref(database, "schedules");
+    const reservationsRef = ref(database, "reservations");
+    const branchesRef = ref(database, "branchConfigurations");
+
+    // Helper for today's date
+    const getTodayStr = () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    let usersData = {};
+    let schedulesData = {};
+    let reservationsData = {};
+    let branchesData = {};
+
+    let usersLoaded = false;
+    let schedulesLoaded = false;
+    let reservationsLoaded = false;
+    let branchesLoaded = false;
+
+    const computeStats = () => {
+      if (!usersLoaded || !schedulesLoaded || !reservationsLoaded || !branchesLoaded) return;
+
+      const todayStr = getTodayStr();
+      
+      // Calculate Users Stats
+      const usersList = Object.values(usersData || {});
+      const registeredParents = usersList.filter(u => u.role === "parent").length;
+      const activeStaff = usersList.filter(u => 
+        (u.role === "doctor" || u.role === "secretary") && u.status === "active"
+      ).length;
+
+      // Calculate Branches Stats
+      const branches = Object.values(branchesData || {}).length;
+
+      // Calculate Schedule & Reservation Stats
+      const schedulesList = Object.keys(schedulesData || {}).map(key => ({
+        id: key,
+        ...schedulesData[key]
+      }));
+      
+      const todaysSchedules = schedulesList.filter(s => s.clinicDate === todayStr);
+      const todaysScheduleIds = todaysSchedules.map(s => s.id);
+      
+      const activeQueues = todaysSchedules.filter(s => 
+        s.status === "in_progress" || s.queueStatus === "in_progress"
+      ).length;
+
+      const reservationsList = Object.values(reservationsData || {});
+      const todaysReservationsList = reservationsList.filter(r => todaysScheduleIds.includes(r.scheduleId));
+      
+      const todaysReservations = todaysReservationsList.length;
+      const completedConsultations = todaysReservationsList.filter(r => 
+        ["completed", "consultation_completed"].includes(r.status)
+      ).length;
+
+      setStats({
+        todaysReservations,
+        completedConsultations,
+        activeQueues,
+        registeredParents,
+        activeStaff,
+        branches,
+      });
+      setLoading(false);
+    };
+
+    const unsubUsers = onValue(usersRef, (snapshot) => {
+      usersData = snapshot.val();
+      usersLoaded = true;
+      computeStats();
+    });
+
+    const unsubSchedules = onValue(schedulesRef, (snapshot) => {
+      schedulesData = snapshot.val();
+      schedulesLoaded = true;
+      computeStats();
+    });
+
+    const unsubReservations = onValue(reservationsRef, (snapshot) => {
+      reservationsData = snapshot.val();
+      reservationsLoaded = true;
+      computeStats();
+    });
+
+    const unsubBranches = onValue(branchesRef, (snapshot) => {
+      branchesData = snapshot.val();
+      branchesLoaded = true;
+      computeStats();
+    });
+
+    return () => {
+      unsubUsers();
+      unsubSchedules();
+      unsubReservations();
+      unsubBranches();
+    };
+  }, []);
+
   const statCards = [
-    { title: "Today's Reservations", value: "145", trend: "+12%", trendUp: true, icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-50" },
-    { title: "Completed Consultations", value: "89", trend: "+5%", trendUp: true, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { title: "Registered Parents", value: "1,204", trend: "+2%", trendUp: true, icon: User, color: "text-indigo-600", bg: "bg-indigo-50" },
-    { title: "Doctors", value: "12", trend: "0%", trendUp: true, icon: Stethoscope, color: "text-purple-600", bg: "bg-purple-50" },
-    { title: "Secretaries", value: "5", trend: "0%", trendUp: true, icon: UserCog, color: "text-amber-600", bg: "bg-amber-50" },
-    { title: "Branches", value: "3", trend: "+1", trendUp: true, icon: MapPin, color: "text-rose-600", bg: "bg-rose-50" },
+    { title: "Today's Reservations", value: stats.todaysReservations, icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Completed Consultations", value: stats.completedConsultations, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { title: "Active Queues", value: stats.activeQueues, icon: Activity, color: "text-pink-600", bg: "bg-pink-50" },
+    { title: "Registered Parents", value: stats.registeredParents, icon: User, color: "text-indigo-600", bg: "bg-indigo-50" },
+    { title: "Active Staff", value: stats.activeStaff, icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
+    { title: "Clinic Branches", value: stats.branches, icon: MapPin, color: "text-rose-600", bg: "bg-rose-50" },
   ];
 
   const recentActivity = [
@@ -27,21 +145,21 @@ export default function Dashboard() {
               <div className={`p-3 rounded-xl ${stat.bg}`}>
                 <stat.icon className={`w-6 h-6 ${stat.color}`} />
               </div>
-              <div className={`flex items-center text-sm font-semibold ${stat.trendUp ? 'text-green-600' : 'text-red-600'}`}>
-                {stat.trendUp ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-                {stat.trend}
-              </div>
             </div>
             <h3 className="text-gray-500 text-sm font-medium mb-1">{stat.title}</h3>
-            <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
+            {loading ? (
+              <div className="h-8 w-16 bg-gray-200 rounded animate-pulse mt-1"></div>
+            ) : (
+              <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
+            )}
           </div>
         ))}
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden opacity-60">
         <div className="p-6 border-b border-gray-50">
-          <h2 className="text-lg font-bold text-gray-800">Recent System Activity</h2>
+          <h2 className="text-lg font-bold text-gray-800">Recent System Activity (Coming Soon)</h2>
         </div>
         <div className="p-6">
           <div className="space-y-6">
