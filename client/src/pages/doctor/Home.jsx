@@ -6,7 +6,7 @@ import { subscribeToAllReservations } from "../../services/reservationService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { 
   CalendarDays, Users, User, ChevronRight, Activity, 
-  MapPin, Clock, CalendarCheck, CheckCircle2, Lock, FileText, XCircle, AlertTriangle 
+  MapPin, Clock, CalendarCheck, CheckCircle2, Lock, FileText, XCircle, AlertTriangle, X 
 } from "lucide-react";
 import QueueControlCenter from "../../components/doctor/QueueControlCenter";
 
@@ -35,36 +35,43 @@ export default function Home() {
     };
   }, []);
 
+  const [hiddenSchedules, setHiddenSchedules] = useState([]);
+  const [hideConfirmModal, setHideConfirmModal] = useState({ isOpen: false, schedule: null });
+
   const scheduleList = useMemo(() => {
     return Object.entries(schedules).map(([id, val]) => ({ id, ...val }));
   }, [schedules]);
 
-  const todayPublishedSchedules = useMemo(() => {
+  const dashboardSchedules = useMemo(() => {
     const todayStr = new Date().toLocaleDateString('en-CA');
     const todayFallback = new Date().toDateString();
     
-    const validSchedules = scheduleList.filter(s => 
-      (s.clinicDate === todayStr || new Date(s.clinicDate).toDateString() === todayFallback) && 
-      (s.status === 'published' || s.status === 'completed' || s.queueStatus === 'active' || s.queueStatus === 'paused' || s.queueStatus === 'completed')
-    );
-
-    const getPriority = (s) => {
-       if (s.queueStatus === 'active') return 1;
-       if (s.queueStatus === 'paused') return 2;
-       if (s.status === 'published') return 3;
-       if (s.status === 'completed' || s.queueStatus === 'completed') return 4;
-       return 5;
-    };
-
-    return validSchedules.sort((a, b) => {
-       const priorityA = getPriority(a);
-       const priorityB = getPriority(b);
-       if (priorityA !== priorityB) {
-          return priorityA - priorityB;
-       }
+    // 1. Current Schedules (Published, Active, Paused)
+    const current = scheduleList.filter(s => 
+      !hiddenSchedules.includes(s.id) &&
+      (s.status === 'published' || s.queueStatus === 'active' || s.queueStatus === 'paused') &&
+      s.status !== 'completed' && s.queueStatus !== 'completed' && s.queueStatus !== 'ended'
+    ).sort((a, b) => {
+       const dateA = new Date(a.clinicDate).getTime();
+       const dateB = new Date(b.clinicDate).getTime();
+       if (dateA !== dateB) return dateA - dateB;
        return (a.openingTime || '').localeCompare(b.openingTime || '');
     });
-  }, [scheduleList]);
+
+    // 2. Completed Today
+    const completedToday = scheduleList.filter(s => 
+      !hiddenSchedules.includes(s.id) &&
+      (s.clinicDate === todayStr || new Date(s.clinicDate).toDateString() === todayFallback) &&
+      (s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended')
+    ).sort((a, b) => {
+       const dateA = new Date(a.clinicDate).getTime();
+       const dateB = new Date(b.clinicDate).getTime();
+       if (dateA !== dateB) return dateA - dateB;
+       return (a.openingTime || '').localeCompare(b.openingTime || '');
+    });
+
+    return [...current, ...completedToday];
+  }, [scheduleList, hiddenSchedules]);
 
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [selectionMode, setSelectionMode] = useState('automatic');
@@ -80,19 +87,30 @@ export default function Home() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  const getDefaultSchedule = (schedules) => {
+    if (schedules.length === 0) return null;
+    const active = schedules.find(s => s.queueStatus === 'active');
+    if (active) return active;
+    const paused = schedules.find(s => s.queueStatus === 'paused');
+    if (paused) return paused;
+    const published = schedules.find(s => s.status === 'published' && s.queueStatus !== 'completed' && s.queueStatus !== 'ended');
+    if (published) return published;
+    return schedules[0];
+  };
+
   useEffect(() => {
-    if (todayPublishedSchedules.length === 0) {
+    if (dashboardSchedules.length === 0) {
       if (selectedSchedule) setSelectedSchedule(null);
       return;
     }
 
     if (!selectedSchedule) {
-      setSelectedSchedule(todayPublishedSchedules[0]);
+      setSelectedSchedule(getDefaultSchedule(dashboardSchedules));
       setSelectionMode('automatic');
       return;
     }
 
-    const currentLatest = todayPublishedSchedules.find(s => s.id === selectedSchedule.id);
+    const currentLatest = dashboardSchedules.find(s => s.id === selectedSchedule.id);
 
     if (currentLatest) {
       if (JSON.stringify(currentLatest) !== JSON.stringify(selectedSchedule)) {
@@ -102,16 +120,16 @@ export default function Home() {
       const isCompleted = currentLatest.status === 'completed' || currentLatest.queueStatus === 'completed' || currentLatest.queueStatus === 'ended';
       
       if (selectionMode === 'automatic' && isCompleted) {
-        const topSchedule = todayPublishedSchedules[0];
-        if (topSchedule.id !== currentLatest.id) {
+        const topSchedule = getDefaultSchedule(dashboardSchedules);
+        if (topSchedule && topSchedule.id !== currentLatest.id) {
           setSelectedSchedule(topSchedule);
         }
       }
     } else {
-      setSelectedSchedule(todayPublishedSchedules[0]);
+      setSelectedSchedule(getDefaultSchedule(dashboardSchedules));
       setSelectionMode('automatic');
     }
-  }, [todayPublishedSchedules, selectedSchedule, selectionMode]);
+  }, [dashboardSchedules, selectedSchedule, selectionMode]);
 
   // Identify active or published schedule for Today's Clinic
   const activeOrPublishedSchedule = useMemo(() => {
@@ -236,7 +254,7 @@ export default function Home() {
       <div className="flex flex-col lg:flex-row gap-6">
         
         {/* 2. Today's Statistics */}
-        {todayPublishedSchedules.length > 0 ? (
+        {dashboardSchedules.length > 0 ? (
           <div className="flex-[2] bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col justify-between">
             <div className="flex justify-between items-center mb-6 w-full">
               
@@ -274,8 +292,15 @@ export default function Home() {
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="absolute z-50 mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden flex flex-col">
-                    {todayPublishedSchedules.map(schedule => (
+                  <div className="absolute z-50 mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-lg overflow-y-auto max-h-96 flex flex-col">
+                    
+                    {/* Current Schedules Group */}
+                    {dashboardSchedules.filter(s => !(s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended')).length > 0 && (
+                      <div className="px-3 py-2 text-xs font-bold text-gray-500 bg-gray-50 border-b border-gray-100 uppercase tracking-wider sticky top-0 z-10">
+                        Current Schedules
+                      </div>
+                    )}
+                    {dashboardSchedules.filter(s => !(s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended')).map(schedule => (
                       <button
                         key={schedule.id}
                         onClick={() => {
@@ -298,6 +323,49 @@ export default function Home() {
                           {schedule.clinicDate} • {formatTime(schedule.openingTime)}
                         </div>
                       </button>
+                    ))}
+
+                    {/* Completed Today Group */}
+                    {dashboardSchedules.filter(s => s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended').length > 0 && (
+                      <div className="px-3 py-2 text-xs font-bold text-gray-500 bg-gray-50 border-y border-gray-100 uppercase tracking-wider sticky top-0 z-10">
+                        Completed Today
+                      </div>
+                    )}
+                    {dashboardSchedules.filter(s => s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended').map(schedule => (
+                      <div key={schedule.id} className="relative group w-full border-b border-gray-100 last:border-0">
+                        <button
+                          onClick={() => {
+                            setSelectedSchedule(schedule);
+                            setSelectionMode('manual');
+                            setIsDropdownOpen(false);
+                          }}
+                          className={`w-full flex flex-col text-left px-4 py-3 hover:bg-gray-50 transition-colors ${selectedSchedule?.id === schedule.id ? 'bg-blue-50/50' : ''}`}
+                        >
+                          <div className="flex items-center w-full mb-1.5 pr-8">
+                            <span className={`font-medium truncate mr-3 text-base ${selectedSchedule?.id === schedule.id ? 'text-blue-700' : 'text-gray-800'}`}>
+                              {schedule.branch}
+                            </span>
+                            <div className="flex-shrink-0 flex items-center">
+                              {renderBadge(schedule)}
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500 font-medium">
+                            {schedule.clinicDate} • {formatTime(schedule.openingTime)}
+                          </div>
+                        </button>
+                        {/* Dismiss Icon */}
+                        <div
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setHideConfirmModal({ isOpen: true, schedule }); 
+                            setIsDropdownOpen(false); 
+                          }}
+                          className="absolute right-3 top-4 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors opacity-0 md:group-hover:opacity-100"
+                          title="Hide this completed schedule"
+                        >
+                          <X className="w-4 h-4" />
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -404,6 +472,40 @@ export default function Home() {
       <div className="hidden lg:block mt-6">
         <QueueControlCenter />
       </div>
+
+      {/* Hide Confirm Modal */}
+      {hideConfirmModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Hide completed session?</h3>
+              <p className="text-sm text-gray-500 mb-2">You've already reviewed this completed clinic session.</p>
+              <p className="text-sm text-gray-500 mb-6">You can still access its full summary anytime from the Schedules section. Would you like to hide it from the Dashboard?</p>
+              
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setHideConfirmModal({ isOpen: false, schedule: null })}
+                  className="flex-1 py-2.5 bg-gray-50 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    setHiddenSchedules(prev => [...prev, hideConfirmModal.schedule.id]);
+                    setHideConfirmModal({ isOpen: false, schedule: null });
+                  }}
+                  className="flex-1 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors"
+                >
+                  Hide from Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
