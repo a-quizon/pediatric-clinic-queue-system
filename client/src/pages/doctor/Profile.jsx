@@ -10,7 +10,6 @@ import toast from "react-hot-toast";
 export default function Profile() {
   const { user } = useAuth();
   
-  const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
   const [fullName, setFullName] = useState(user?.displayName || user?.name || "");
@@ -72,21 +71,12 @@ export default function Profile() {
         clinicName: clinicName.trim()
       });
       toast.success("Profile updated successfully!");
-      setIsEditing(false);
     } catch (err) {
       console.error(err);
       toast.error("Failed to update profile.");
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleCancel = () => {
-    setFullName(user?.displayName || user?.name || "");
-    setContactNumber(user?.contactNumber || user?.phone || "");
-    setProfessionalTitle(user?.professionalTitle || "");
-    setClinicName(user?.clinicName || "L.A. Magat Pediatric Clinic");
-    setIsEditing(false);
   };
 
   const handleUpdatePassword = async () => {
@@ -148,36 +138,6 @@ export default function Profile() {
           <UserIcon className="w-5 h-5 mr-2 text-blue-600" />
           Profile Information
         </h2>
-        {isEditing ? (
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <button 
-              onClick={handleCancel}
-              disabled={isSaving}
-              className="flex-1 sm:flex-none flex items-center justify-center text-sm font-bold text-gray-700 bg-white border border-gray-300 px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
-            >
-              <X className="w-4 h-4 mr-2" /> Cancel
-            </button>
-            <button 
-              onClick={handleSave} 
-              disabled={!hasChanges || isSaving}
-              className="flex-1 sm:flex-none flex items-center justify-center text-sm font-bold text-white bg-blue-600 px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-colors shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSaving ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              Save Changes
-            </button>
-          </div>
-        ) : (
-          <button 
-            onClick={() => setIsEditing(true)} 
-            className="w-full sm:w-auto flex items-center justify-center text-sm font-bold text-gray-700 bg-white border border-gray-200 px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors shadow-sm active:scale-95"
-          >
-            <Edit2 className="w-4 h-4 mr-2" /> Edit Information
-          </button>
-        )}
       </div>
       
       <div className="p-6 md:p-8 space-y-8">
@@ -186,38 +146,26 @@ export default function Profile() {
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Full Name <span className="text-red-500">*</span>
             </label>
-            {isEditing ? (
-              <input 
-                type="text" 
-                value={fullName} 
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
-                placeholder="e.g. Dr. Juan Dela Cruz"
-              />
-            ) : (
-              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
-                {user?.displayName || user?.name || "Not provided"}
-              </div>
-            )}
+            <input 
+              type="text" 
+              value={fullName} 
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              placeholder="e.g. Dr. Juan Dela Cruz"
+            />
           </div>
           
           <div className="space-y-1.5">
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Professional Title
             </label>
-            {isEditing ? (
-              <input 
-                type="text" 
-                value={professionalTitle} 
-                onChange={(e) => setProfessionalTitle(e.target.value)}
-                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
-                placeholder="e.g. Pediatrician"
-              />
-            ) : (
-              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
-                {user?.professionalTitle || "Not provided"}
-              </div>
-            )}
+            <input 
+              type="text" 
+              value={professionalTitle} 
+              onChange={(e) => setProfessionalTitle(e.target.value)}
+              className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              placeholder="e.g. Pediatrician"
+            />
           </div>
 
           <div className="space-y-1.5">
@@ -233,38 +181,26 @@ export default function Profile() {
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Contact Number <span className="text-red-500">*</span>
             </label>
-            {isEditing ? (
-              <input 
-                type="text" 
-                value={contactNumber} 
-                onChange={(e) => setContactNumber(e.target.value)}
-                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
-                placeholder="e.g. +63 912 345 6789"
-              />
-            ) : (
-              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
-                {user?.contactNumber || user?.phone || "Not provided"}
-              </div>
-            )}
+            <input 
+              type="text" 
+              value={contactNumber} 
+              onChange={(e) => setContactNumber(e.target.value)}
+              className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              placeholder="e.g. +63 912 345 6789"
+            />
           </div>
 
           <div className="space-y-1.5 md:col-span-2">
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Clinic Name <span className="text-red-500">*</span>
             </label>
-            {isEditing ? (
-              <input 
-                type="text" 
-                value={clinicName} 
-                onChange={(e) => setClinicName(e.target.value)}
-                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
-                placeholder="e.g. L.A. Magat Pediatric Clinic"
-              />
-            ) : (
-              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
-                {user?.clinicName || "L.A. Magat Pediatric Clinic"}
-              </div>
-            )}
+            <input 
+              type="text" 
+              value={clinicName} 
+              onChange={(e) => setClinicName(e.target.value)}
+              className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              placeholder="e.g. L.A. Magat Pediatric Clinic"
+            />
           </div>
         </div>
 
@@ -289,6 +225,21 @@ export default function Profile() {
               No clinic branches have been configured yet. They will appear here once added by an administrator.
             </div>
           )}
+        </div>
+
+        <div className="pt-6 border-t border-gray-100 flex justify-end">
+          <button 
+            onClick={handleSave} 
+            disabled={!hasChanges || isSaving}
+            className="w-full sm:w-auto flex items-center justify-center text-sm font-bold text-white bg-blue-600 px-6 py-3 rounded-xl hover:bg-blue-700 transition-colors shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            Save Information
+          </button>
         </div>
       </div>
     </div>
