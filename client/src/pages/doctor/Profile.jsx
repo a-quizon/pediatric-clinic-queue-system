@@ -3,8 +3,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { updateUserProfile } from "../../services/authService";
 import { subscribeToBranchConfigurations } from "../../services/branchConfigurationService";
 import { handlePasswordChangeRequest } from "../../utils/passwordUtils";
-import { LogOut, User as UserIcon, Edit2, Save, MapPin, X, Lock, ChevronRight, Info, ArrowLeft } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { LogOut, User as UserIcon, Edit2, Save, MapPin, X, Lock, ChevronRight, Info, ArrowLeft, BarChart3 } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import LogoutButton from "../../components/common/LogoutButton";
 import toast from "react-hot-toast";
 
@@ -29,6 +29,7 @@ export default function Profile() {
   // Mobile navigation state via URL params
   const [searchParams, setSearchParams] = useSearchParams();
   const mobileView = searchParams.get("view") || "hub";
+  const navigate = useNavigate();
 
   const setMobileView = (view) => {
     if (view === "hub") {
@@ -336,6 +337,19 @@ export default function Profile() {
                   <div className="text-left">
                     <h3 className="font-bold text-gray-800 text-base">Account Settings</h3>
                     <p className="text-xs text-gray-500 mt-0.5">Manage account & clinic details</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </button>
+
+              <button onClick={() => navigate("/doctor/reports")} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl transition-colors mt-1">
+                <div className="flex items-center">
+                  <div className="bg-green-50 p-3 rounded-xl mr-4">
+                    <BarChart3 className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-bold text-gray-800 text-base">Reports & Analytics</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">View clinic performance data</p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-400" />
