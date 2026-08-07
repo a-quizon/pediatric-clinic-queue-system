@@ -68,6 +68,17 @@ export default function Home() {
 
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [selectionMode, setSelectionMode] = useState('automatic');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.custom-schedule-dropdown')) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (todayPublishedSchedules.length === 0) {
@@ -185,6 +196,39 @@ export default function Home() {
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   };
 
+  const renderBadge = (schedule) => {
+    if (!schedule) return null;
+    if (schedule.queueStatus === 'active') {
+      return (
+        <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-bold text-[10px] shadow-sm border border-green-200 flex items-center">
+          <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1"></div> Active
+        </span>
+      );
+    }
+    if (schedule.queueStatus === 'paused') {
+      return (
+        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold text-[10px] shadow-sm border border-amber-200 flex items-center">
+          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1"></div> Paused
+        </span>
+      );
+    }
+    if (schedule.status === 'published' && schedule.queueStatus !== 'completed' && schedule.queueStatus !== 'ended') {
+      return (
+        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold text-[10px] shadow-sm border border-blue-200 flex items-center">
+          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1"></div> Published
+        </span>
+      );
+    }
+    if (schedule.status === 'completed' || schedule.queueStatus === 'completed' || schedule.queueStatus === 'ended') {
+      return (
+        <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full font-bold text-[10px] shadow-sm border border-gray-200 flex items-center">
+          <div className="w-1.5 h-1.5 rounded-full bg-gray-500 mr-1"></div> Completed
+        </span>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6 pb-6">
 
@@ -197,41 +241,50 @@ export default function Home() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
               
               {/* Left Side: Dropdown */}
-              <div className="w-full md:w-auto flex-1 max-w-sm">
-                <select
-                  value={selectedSchedule?.id || ''}
-                  onChange={(e) => {
-                    const found = todayPublishedSchedules.find(s => s.id === e.target.value);
-                    if (found) {
-                      setSelectedSchedule(found);
-                      setSelectionMode('manual');
-                    }
-                  }}
-                  className="w-full text-lg font-bold text-gray-800 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
-                  style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234b5563'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 1rem center',
-                    backgroundSize: '1.25em 1.25em',
-                  }}
+              <div className="w-full md:w-auto flex-1 max-w-sm relative custom-schedule-dropdown">
+                <button
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="w-full flex justify-between items-center text-left text-lg font-bold text-gray-800 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm transition-colors hover:bg-gray-100"
                 >
-                  {todayPublishedSchedules.map(schedule => (
-                    <option key={schedule.id} value={schedule.id}>
-                      {schedule.branch}
-                    </option>
-                  ))}
-                </select>
+                  <span className="truncate mr-4">
+                    {selectedSchedule?.branch || 'Select Schedule'}
+                  </span>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    {renderBadge(selectedSchedule)}
+                    <svg className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute z-50 mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden flex flex-col">
+                    {todayPublishedSchedules.map(schedule => (
+                      <button
+                        key={schedule.id}
+                        onClick={() => {
+                          setSelectedSchedule(schedule);
+                          setSelectionMode('manual');
+                          setIsDropdownOpen(false);
+                        }}
+                        className={`w-full flex justify-between items-center text-left px-4 py-3 hover:bg-gray-50 transition-colors ${selectedSchedule?.id === schedule.id ? 'bg-blue-50/50' : ''}`}
+                      >
+                        <span className={`font-medium truncate mr-4 ${selectedSchedule?.id === schedule.id ? 'text-blue-700' : 'text-gray-700'}`}>
+                          {schedule.branch}
+                        </span>
+                        <div className="flex-shrink-0">
+                          {renderBadge(schedule)}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Right Side / Bottom: Date & Time */}
               {selectedSchedule && (
                 <div className="w-full md:w-auto flex flex-wrap items-center md:justify-end gap-3 text-sm text-gray-500 ml-1 md:ml-0">
                   <p>{formatDate(selectedSchedule.clinicDate)} • {formatTime(selectedSchedule.openingTime)}</p>
-                  {(selectedSchedule.status === 'completed' || selectedSchedule.queueStatus === 'completed') && (
-                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-bold text-[10px] shadow-sm border border-green-200 flex items-center">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1"></div> Completed
-                    </span>
-                  )}
                 </div>
               )}
               
