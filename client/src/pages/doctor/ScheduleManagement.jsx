@@ -170,6 +170,18 @@ export default function ScheduleManagement() {
   const getCheckedInCount = (schedule) => {
     return reservations.filter(r => r.scheduleId === schedule.id && (r.status === 'checked_in' || r.checkedIn)).length;
   };
+  const getTotalReservations = (schedule) => {
+    return reservations.filter(r => r.scheduleId === schedule.id).length;
+  };
+  const getCheckedUpCount = (schedule) => {
+    return reservations.filter(r => r.scheduleId === schedule.id && ["completed", "consultation_completed"].includes(r.status)).length;
+  };
+  const getCancelledCount = (schedule) => {
+    return reservations.filter(r => r.scheduleId === schedule.id && r.status === 'cancelled').length;
+  };
+  const getForfeitedCount = (schedule) => {
+    return reservations.filter(r => r.scheduleId === schedule.id && ["forfeited", "penalized", "late_limit_reached"].includes(r.status)).length;
+  };
 
   const getLocalStatus = (schedule) => {
     if (schedule.status === 'draft') return 'Draft';
@@ -286,6 +298,10 @@ export default function ScheduleManagement() {
               availableSlots={getAvailableSlots(schedule)}
               reservedCount={getReservedCount(schedule)}
               checkedInCount={getCheckedInCount(schedule)}
+              totalReservations={getTotalReservations(schedule)}
+              checkedUpCount={getCheckedUpCount(schedule)}
+              cancelledCount={getCancelledCount(schedule)}
+              forfeitedCount={getForfeitedCount(schedule)}
               onViewDetails={handleViewDetails}
               onEdit={handleOpenEditModal}
               onDelete={handleDelete}

@@ -6,6 +6,10 @@ export default function ScheduleCard({
   availableSlots, 
   reservedCount, 
   checkedInCount, 
+  totalReservations,
+  checkedUpCount,
+  cancelledCount,
+  forfeitedCount,
   onEdit, 
   onDelete, 
   onPublish, 
@@ -83,24 +87,74 @@ export default function ScheduleCard({
           <Clock className="w-4 h-4 mr-2 text-gray-400" />
           <span className="text-gray-600">{formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}</span>
         </div>
-        <div className="flex items-center text-sm">
-          <Users className="w-4 h-4 mr-2 text-gray-400" />
-          <span className="text-gray-600">Capacity: <span className="font-bold">{schedule.slotCapacity}</span></span>
-        </div>
-        <div className="flex items-center text-sm">
-          <Users className="w-4 h-4 mr-2 text-gray-400" />
-          <span className="text-gray-600">Reserved: <span className="font-bold">{reservedCount !== undefined ? reservedCount : (schedule.slotCapacity - (availableSlots || schedule.slotCapacity))}</span></span>
-        </div>
-        <div className="col-span-2 pt-2 mt-1 border-t border-gray-50 flex items-center justify-between text-sm">
-          <div className="flex items-center">
-            <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
-            <span className="text-gray-600">Checked In: <span className="font-bold text-green-600">{checkedInCount !== undefined ? checkedInCount : 0}</span></span>
+
+        {/* Draft Fields */}
+        {localStatus === 'draft' && (
+          <>
+            <div className="flex items-center text-sm">
+              <Users className="w-4 h-4 mr-2 text-gray-400" />
+              <span className="text-gray-600">Capacity: <span className="font-bold">{schedule.slotCapacity}</span></span>
+            </div>
+            <div className="flex items-center text-sm">
+              <Clock className="w-4 h-4 mr-2 text-gray-400" />
+              <span className="text-gray-600">Late Limit: <span className="font-bold">{schedule.lateLimit || 3}</span></span>
+            </div>
+          </>
+        )}
+
+        {/* Published Fields */}
+        {localStatus === 'published' && (
+          <div className="flex items-center text-sm">
+            <Users className="w-4 h-4 mr-2 text-gray-400" />
+            <span className="text-gray-600">Reserved: <span className="font-bold text-blue-600">{reservedCount !== undefined ? reservedCount : 0}</span></span>
           </div>
-          <div className="flex items-center">
-            <Clock className="w-3.5 h-3.5 mr-1 text-red-500" />
-            <span className="text-xs text-gray-600">Late Limit: <span className="font-bold text-gray-800">{schedule.lateLimit || 3}</span></span>
+        )}
+
+        {/* Active/Closed Fields (Original Default) */}
+        {(localStatus === 'active' || localStatus === 'closed') && (
+          <>
+            <div className="flex items-center text-sm">
+              <Users className="w-4 h-4 mr-2 text-gray-400" />
+              <span className="text-gray-600">Capacity: <span className="font-bold">{schedule.slotCapacity}</span></span>
+            </div>
+            <div className="flex items-center text-sm">
+              <Users className="w-4 h-4 mr-2 text-gray-400" />
+              <span className="text-gray-600">Reserved: <span className="font-bold">{reservedCount !== undefined ? reservedCount : 0}</span></span>
+            </div>
+            <div className="col-span-2 pt-2 mt-1 border-t border-gray-50 flex items-center justify-between text-sm">
+              <div className="flex items-center">
+                <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+                <span className="text-gray-600">Checked In: <span className="font-bold text-green-600">{checkedInCount !== undefined ? checkedInCount : 0}</span></span>
+              </div>
+              <div className="flex items-center">
+                <Clock className="w-3.5 h-3.5 mr-1 text-red-500" />
+                <span className="text-xs text-gray-600">Late Limit: <span className="font-bold text-gray-800">{schedule.lateLimit || 3}</span></span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Completed Fields */}
+        {localStatus === 'completed' && (
+          <div className="col-span-2 grid grid-cols-2 gap-y-2 mt-1 border-t border-gray-50 pt-3">
+            <div className="flex items-center text-sm">
+              <Users className="w-4 h-4 mr-2 text-gray-400" />
+              <span className="text-gray-600">Total: <span className="font-bold text-gray-800">{totalReservations !== undefined ? totalReservations : 0}</span></span>
+            </div>
+            <div className="flex items-center text-sm">
+              <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+              <span className="text-gray-600">Checked Up: <span className="font-bold text-green-600">{checkedUpCount !== undefined ? checkedUpCount : 0}</span></span>
+            </div>
+            <div className="flex items-center text-sm">
+              <AlertCircle className="w-4 h-4 mr-2 text-red-400" />
+              <span className="text-gray-600">Cancelled: <span className="font-bold text-red-500">{cancelledCount !== undefined ? cancelledCount : 0}</span></span>
+            </div>
+            <div className="flex items-center text-sm">
+              <AlertCircle className="w-4 h-4 mr-2 text-gray-400" />
+              <span className="text-gray-600">Forfeited: <span className="font-bold text-gray-800">{forfeitedCount !== undefined ? forfeitedCount : 0}</span></span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 pt-4 border-t border-gray-50 flex-wrap">
@@ -122,7 +176,7 @@ export default function ScheduleCard({
                 isStartQueueDisabled ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700"
               }`}
             >
-              Start Queue on this Branch
+              Start Queue
             </button>
           </>
         )}
