@@ -1,23 +1,79 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { logoutUser } from "../../services/authService";
-import { LogOut, User as UserIcon, Building, Edit2, Save, Shield, MapPin } from "lucide-react";
+import { logoutUser, updateUserProfile } from "../../services/authService";
+import { subscribeToBranchConfigurations } from "../../services/branchConfigurationService";
+import { LogOut, User as UserIcon, Building, Edit2, Save, Shield, MapPin, X } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function Profile() {
   const { user, role } = useAuth();
   
   const [isEditing, setIsEditing] = useState(false);
-  const [contactNumber, setContactNumber] = useState(user?.contactNumber || "+63");
-  const [professionalTitle, setProfessionalTitle] = useState(user?.professionalTitle || "Pediatrician");
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const [fullName, setFullName] = useState(user?.displayName || user?.name || "");
+  const [contactNumber, setContactNumber] = useState(user?.contactNumber || user?.phone || "");
+  const [professionalTitle, setProfessionalTitle] = useState(user?.professionalTitle || "");
+  const [clinicName, setClinicName] = useState(user?.clinicName || "L.A. Magat Pediatric Clinic");
+  
+  const [branches, setBranches] = useState([]);
+
+  useEffect(() => {
+    const unsub = subscribeToBranchConfigurations((data) => {
+      setBranches(data);
+    });
+    return () => unsub();
+  }, []);
 
   const handleLogout = async () => {
     await logoutUser();
   };
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // In Phase 1, we just exit edit mode. Data persistence logic is out of scope.
+  const handleSave = async () => {
+    if (!fullName.trim()) {
+      toast.error("Full Name is required.");
+      return;
+    }
+    if (!contactNumber.trim()) {
+      toast.error("Contact Number is required.");
+      return;
+    }
+    if (!clinicName.trim()) {
+      toast.error("Clinic Name is required.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await updateUserProfile(user.uid, {
+        name: fullName.trim(),
+        contactNumber: contactNumber.trim(),
+        professionalTitle: professionalTitle.trim(),
+        clinicName: clinicName.trim()
+      });
+      toast.success("Profile updated successfully!");
+      setIsEditing(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update profile.");
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  const handleCancel = () => {
+    setFullName(user?.displayName || user?.name || "");
+    setContactNumber(user?.contactNumber || user?.phone || "");
+    setProfessionalTitle(user?.professionalTitle || "");
+    setClinicName(user?.clinicName || "L.A. Magat Pediatric Clinic");
+    setIsEditing(false);
+  };
+
+  const hasChanges = 
+    fullName.trim() !== (user?.displayName || user?.name || "") ||
+    contactNumber.trim() !== (user?.contactNumber || user?.phone || "") ||
+    professionalTitle.trim() !== (user?.professionalTitle || "") ||
+    clinicName.trim() !== (user?.clinicName || "L.A. Magat Pediatric Clinic");
 
   return (
     <div className="space-y-6 pb-8 max-w-4xl mx-auto animate-in fade-in">
@@ -34,12 +90,27 @@ export default function Profile() {
             Account Information
           </h2>
           {isEditing ? (
-            <button 
-              onClick={handleSave} 
-              className="w-full sm:w-auto flex items-center justify-center text-sm font-bold text-white bg-blue-600 px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-colors shadow-sm active:scale-95"
-            >
-              <Save className="w-4 h-4 mr-2" /> Save Changes
-            </button>
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <button 
+                onClick={handleCancel}
+                disabled={isSaving}
+                className="flex-1 sm:flex-none flex items-center justify-center text-sm font-bold text-gray-700 bg-white border border-gray-300 px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
+              >
+                <X className="w-4 h-4 mr-2" /> Cancel
+              </button>
+              <button 
+                onClick={handleSave} 
+                disabled={!hasChanges || isSaving}
+                className="flex-1 sm:flex-none flex items-center justify-center text-sm font-bold text-white bg-blue-600 px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-colors shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Save Changes
+              </button>
+            </div>
           ) : (
             <button 
               onClick={() => setIsEditing(true)} 
@@ -53,19 +124,29 @@ export default function Profile() {
         <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
           <div className="space-y-1.5">
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Full Name
+              Full Name <span className="text-red-500">*</span>
             </label>
-            <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
-              {user?.displayName || "Dr. L.A. Magat"}
-            </div>
+            {isEditing ? (
+              <input 
+                type="text" 
+                value={fullName} 
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                placeholder="e.g. Dr. Juan Dela Cruz"
+              />
+            ) : (
+              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
+                {user?.displayName || user?.name || "Not provided"}
+              </div>
+            )}
           </div>
           
           <div className="space-y-1.5">
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Email Address
             </label>
-            <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100 truncate">
-              {user?.email || "doctor@clinic.com"}
+            <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100 truncate opacity-70 cursor-not-allowed" title="Email address cannot be changed here">
+              {user?.email || "Not provided"}
             </div>
           </div>
 
@@ -82,15 +163,15 @@ export default function Profile() {
                 placeholder="e.g. Pediatrician"
               />
             ) : (
-              <div className="font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border border-gray-200">
-                {professionalTitle}
+              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
+                {user?.professionalTitle || "Not provided"}
               </div>
             )}
           </div>
 
           <div className="space-y-1.5">
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Contact Number
+              Contact Number <span className="text-red-500">*</span>
             </label>
             {isEditing ? (
               <input 
@@ -101,8 +182,8 @@ export default function Profile() {
                 placeholder="e.g. +63 912 345 6789"
               />
             ) : (
-              <div className="font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border border-gray-200">
-                {contactNumber}
+              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
+                {user?.contactNumber || user?.phone || "Not provided"}
               </div>
             )}
           </div>
@@ -121,18 +202,28 @@ export default function Profile() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                Clinic Name
+                Clinic Name <span className="text-red-500">*</span>
               </label>
-              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
-                L.A. Magat Pediatric Clinic
-              </div>
+              {isEditing ? (
+                <input 
+                  type="text" 
+                  value={clinicName} 
+                  onChange={(e) => setClinicName(e.target.value)}
+                  className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  placeholder="e.g. L.A. Magat Pediatric Clinic"
+                />
+              ) : (
+                <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
+                  {user?.clinicName || "L.A. Magat Pediatric Clinic"}
+                </div>
+              )}
             </div>
             
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                 Role
               </label>
-              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100 flex items-center">
+              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100 flex items-center opacity-70">
                 <Shield className="w-4 h-4 mr-2 text-blue-600" />
                 Doctor / Clinic Owner
               </div>
@@ -144,20 +235,22 @@ export default function Profile() {
               <MapPin className="w-4 h-4 mr-2 text-gray-400" />
               Clinic Locations
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:border-gray-300 transition-colors">
-                <h4 className="font-bold text-gray-800 mb-1">Angeles Branch</h4>
-                <p className="text-sm text-gray-500 leading-relaxed">
-                  Angeles City, Pampanga
-                </p>
+            {branches.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                {branches.map(branch => (
+                  <div key={branch.id} className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:border-gray-300 transition-colors">
+                    <h4 className="font-bold text-gray-800 mb-1">{branch.name} Branch</h4>
+                    <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-line">
+                      {branch.clinicAddress || "Address not provided"}
+                    </p>
+                  </div>
+                ))}
               </div>
-              <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:border-gray-300 transition-colors">
-                <h4 className="font-bold text-gray-800 mb-1">Magalang Branch</h4>
-                <p className="text-sm text-gray-500 leading-relaxed">
-                  Magalang, Pampanga
-                </p>
+            ) : (
+              <div className="text-sm text-gray-500 italic p-4 bg-gray-50 rounded-xl border border-gray-100">
+                No clinic branches have been configured yet. They will appear here once added by an administrator.
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

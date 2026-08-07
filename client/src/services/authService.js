@@ -72,6 +72,9 @@ export const updateUserProfile = async (uid, data) => {
   const updates = { updatedAt: Date.now() };
   if (data.name !== undefined) updates.name = data.name;
   if (data.phone !== undefined) updates.phone = data.phone;
+  if (data.contactNumber !== undefined) updates.contactNumber = data.contactNumber;
+  if (data.professionalTitle !== undefined) updates.professionalTitle = data.professionalTitle;
+  if (data.clinicName !== undefined) updates.clinicName = data.clinicName;
 
   // Update Realtime Database
   await update(ref(database, `users/${uid}`), updates);
