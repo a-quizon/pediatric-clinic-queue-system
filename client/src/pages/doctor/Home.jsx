@@ -194,8 +194,10 @@ export default function Home() {
         {/* 2. Today's Statistics */}
         {todayPublishedSchedules.length > 0 ? (
           <div className="flex-[2] bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col justify-between">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <div className="w-full sm:w-auto flex-1 max-w-sm">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+              
+              {/* Left Side: Dropdown */}
+              <div className="w-full md:w-auto flex-1 max-w-sm">
                 <select
                   value={selectedSchedule?.id || ''}
                   onChange={(e) => {
@@ -213,26 +215,26 @@ export default function Home() {
                     backgroundSize: '1.25em 1.25em',
                   }}
                 >
-                  {todayPublishedSchedules.map(schedule => {
-                    const isCompleted = schedule.status === 'completed' || schedule.queueStatus === 'completed';
-                    return (
-                      <option key={schedule.id} value={schedule.id}>
-                        {schedule.branch} {isCompleted ? '(Completed)' : ''} • {formatDate(schedule.clinicDate)} • {formatTime(schedule.openingTime)}
-                      </option>
-                    );
-                  })}
+                  {todayPublishedSchedules.map(schedule => (
+                    <option key={schedule.id} value={schedule.id}>
+                      {schedule.branch}
+                    </option>
+                  ))}
                 </select>
-                {selectedSchedule && (
-                  <div className="text-sm text-gray-500 mt-2 ml-1 flex flex-wrap items-center gap-3">
-                    <p>{formatDate(selectedSchedule.clinicDate)} • {formatTime(selectedSchedule.openingTime)}</p>
-                    {(selectedSchedule.status === 'completed' || selectedSchedule.queueStatus === 'completed') && (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-bold text-[10px] shadow-sm border border-green-200 flex items-center">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1"></div> Completed
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
+
+              {/* Right Side / Bottom: Date & Time */}
+              {selectedSchedule && (
+                <div className="w-full md:w-auto flex flex-wrap items-center md:justify-end gap-3 text-sm text-gray-500 ml-1 md:ml-0">
+                  <p>{formatDate(selectedSchedule.clinicDate)} • {formatTime(selectedSchedule.openingTime)}</p>
+                  {(selectedSchedule.status === 'completed' || selectedSchedule.queueStatus === 'completed') && (
+                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-bold text-[10px] shadow-sm border border-green-200 flex items-center">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1"></div> Completed
+                    </span>
+                  )}
+                </div>
+              )}
+              
             </div>
             
             <div className="flex-1 flex flex-col gap-4">
