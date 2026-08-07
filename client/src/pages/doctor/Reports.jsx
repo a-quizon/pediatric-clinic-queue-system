@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { BarChart3, TrendingUp, Users, Clock, AlertCircle, PieChart, Activity, CheckCircle, XCircle, Calendar, MapPin, Inbox, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Clock, AlertCircle, PieChart, Activity, CheckCircle, XCircle, Calendar, MapPin, Inbox, Loader2, ChevronLeft, ChevronRight, RefreshCcw } from "lucide-react";
 import { useReportsData } from "../../hooks/useReportsData";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, Legend } from 'recharts';
 
 export default function Reports() {
-  const { loading, error, dataset, filters } = useReportsData();
+  const { loading, error, dataset, unfilteredDataset, filters } = useReportsData();
   const { branch, setBranch, dateRange, setDateRange } = filters;
   const [branches, setBranches] = useState([]);
 
@@ -22,14 +22,6 @@ export default function Reports() {
     setCurrentPage(1);
   }, [dataset]);
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-blue-500">
-        <Loader2 className="w-10 h-10 animate-spin mb-4" />
-        <span className="font-medium">Loading reports...</span>
-      </div>
-    );
-  }
   if (error) return <div className="text-red-500 text-center py-10">Failed to load reports data.</div>;
 
   const aggregated = dataset.reduce((acc, curr) => {
@@ -82,45 +74,117 @@ export default function Reports() {
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  const handleResetFilters = () => {
+    setBranch("All Branches");
+    setDateRange("This Month");
+  };
+
+  const isFiltered = branch !== "All Branches" || dateRange !== "This Month";
+
   return (
     <div className="space-y-6 pb-6 relative">
       
-      {/* Filters Only */}
-      <div className="flex justify-end gap-3 mb-6">
-        <div className="relative min-w-[180px]">
-          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-          <select 
-            value={branch}
-            onChange={(e) => setBranch(e.target.value)}
-            className="w-full pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm font-medium text-gray-700 shadow-sm appearance-none cursor-pointer"
-          >
-            <option value="All Branches">All Branches</option>
-            {branches.map(b => (
-              <option key={b.id} value={b.name}>{b.name}</option>
-            ))}
-          </select>
+      {/* Filters and Summary */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+        <div className="flex flex-col">
+          <span className="text-sm text-gray-500 font-medium">Showing:</span>
+          <div className="flex items-center gap-3 mt-1">
+            <span className="text-gray-800 font-semibold">{branch}</span>
+            <span className="text-gray-400">•</span>
+            <span className="text-gray-800 font-semibold">{dateRange}</span>
+            {isFiltered && (
+              <button 
+                onClick={handleResetFilters}
+                className="ml-2 flex items-center text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 px-2 py-1 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                aria-label="Reset filters"
+              >
+                <RefreshCcw className="w-3 h-3 mr-1" /> Reset
+              </button>
+            )}
+          </div>
         </div>
-        <div className="relative min-w-[160px]">
-          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-          <select 
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="w-full pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm font-medium text-gray-700 shadow-sm appearance-none cursor-pointer"
-          >
-            <option value="Today">Today</option>
-            <option value="This Week">This Week</option>
-            <option value="This Month">This Month</option>
-          </select>
+        
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative min-w-[180px]">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <select 
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+              className="w-full pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm font-medium text-gray-700 shadow-sm appearance-none cursor-pointer"
+              aria-label="Filter by Branch"
+            >
+              <option value="All Branches">All Branches</option>
+              {branches.map(b => (
+                <option key={b.id} value={b.name}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="relative min-w-[160px]">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <select 
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              className="w-full pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm font-medium text-gray-700 shadow-sm appearance-none cursor-pointer"
+              aria-label="Filter by Date Range"
+            >
+              <option value="Today">Today</option>
+              <option value="This Week">This Week</option>
+              <option value="This Month">This Month</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {dataset.length === 0 ? (
+      {loading ? (
+        <div className="space-y-6 animate-pulse">
+          {/* Summary Cards Skeleton */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm col-span-1 h-[104px] flex flex-col">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-9 h-9 bg-gray-200 rounded-lg"></div>
+                  <div className="h-4 bg-gray-200 rounded w-20"></div>
+                </div>
+                <div className="h-8 bg-gray-200 rounded w-12 mt-auto"></div>
+              </div>
+            ))}
+          </div>
+          {/* Charts Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 h-[340px]">
+              <div className="h-6 bg-gray-200 rounded w-40 mb-6"></div>
+              <div className="h-64 bg-gray-100 rounded"></div>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 h-[340px]">
+              <div className="h-6 bg-gray-200 rounded w-40 mb-6"></div>
+              <div className="h-64 bg-gray-100 rounded-full mx-auto w-64"></div>
+            </div>
+          </div>
+          {/* Table Skeleton */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm h-64 p-6 mt-6">
+             <div className="h-6 bg-gray-200 rounded w-32 mb-6"></div>
+             <div className="space-y-4">
+               {[1, 2, 3, 4].map(i => (
+                 <div key={i} className="h-4 bg-gray-100 rounded w-full"></div>
+               ))}
+             </div>
+          </div>
+        </div>
+      ) : dataset.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
           <div className="mx-auto w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mb-4">
             <Inbox className="w-8 h-8" />
           </div>
-          <h3 className="text-lg font-bold text-gray-800 mb-1">No analytics available for the selected filters.</h3>
-          <p className="text-gray-500 text-sm">Complete a clinic session to generate analytics.</p>
+          <h3 className="text-lg font-bold text-gray-800 mb-1">
+            {unfilteredDataset && unfilteredDataset.length === 0 
+              ? "No completed clinic sessions yet" 
+              : "No reports available for these filters"}
+          </h3>
+          <p className="text-gray-500 text-sm max-w-sm mx-auto">
+            {unfilteredDataset && unfilteredDataset.length === 0 
+              ? "Complete a clinic session to start viewing analytics and historical reports."
+              : "Try adjusting your branch or date range to see more results."}
+          </p>
         </div>
       ) : (
         <>
@@ -295,7 +359,7 @@ export default function Reports() {
                           <td className="p-4 text-center font-medium text-green-600">{session.metrics.checkedUp}</td>
                           <td className="p-4 text-center font-medium text-red-600">{session.metrics.cancelled}</td>
                           <td className="p-4 text-center font-medium text-orange-600">{session.metrics.forfeited}</td>
-                          <td className="p-4 text-center font-bold text-purple-600">{session.metrics.completionRate}%</td>
+                          <td className="p-4 text-center font-bold text-purple-600">{(session.metrics.completionRate || 0).toFixed(1)}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -320,7 +384,7 @@ export default function Reports() {
                         </div>
                         <div className="flex flex-col">
                           <span className="text-gray-500 text-xs">Completion</span>
-                          <span className="font-bold text-purple-600">{session.metrics.completionRate}%</span>
+                          <span className="font-bold text-purple-600">{(session.metrics.completionRate || 0).toFixed(1)}%</span>
                         </div>
                         <div className="flex flex-col">
                           <span className="text-gray-500 text-xs">Checked Up</span>
