@@ -111,6 +111,31 @@ export default function Profile() {
     professionalTitle.trim() !== (user?.professionalTitle || "") ||
     clinicName.trim() !== (user?.clinicName || "L.A. Magat Pediatric Clinic");
 
+  const getInitials = (name) => {
+    if (!name) return "U";
+    const cleanName = name.replace(/^Dr\.?\s+/i, "");
+    const parts = cleanName.trim().split(" ");
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return cleanName.substring(0, 2).toUpperCase();
+  };
+
+  const renderMobileSummary = () => {
+    const currentName = user?.displayName || user?.name || "Doctor";
+    const initials = getInitials(currentName);
+    
+    return (
+      <div className="flex flex-col items-center justify-center pt-4 pb-8 text-center">
+        <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-full flex items-center justify-center text-3xl font-bold shadow-lg mb-4 ring-4 ring-blue-50">
+          {initials}
+        </div>
+        <h2 className="text-xl font-bold text-gray-800">{currentName}</h2>
+        <p className="text-sm text-gray-500 mt-1">{user?.email}</p>
+      </div>
+    );
+  };
+
   const renderProfileCard = () => (
     <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="p-6 md:p-8 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/30">
@@ -152,7 +177,6 @@ export default function Profile() {
       
       <div className="p-6 md:p-8 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-          {/* Account Information Fields */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Full Name <span className="text-red-500">*</span>
@@ -219,7 +243,6 @@ export default function Profile() {
             )}
           </div>
 
-          {/* Clinic Information Fields */}
           <div className="space-y-1.5 md:col-span-2">
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Clinic Name <span className="text-red-500">*</span>
@@ -355,6 +378,8 @@ export default function Profile() {
       <div className="block md:hidden pb-8 animate-in fade-in">
         {mobileView === "hub" && (
           <div className="space-y-4">
+            {renderMobileSummary()}
+            
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-2">
               <button onClick={() => setMobileView("account")} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl transition-colors">
                 <div className="flex items-center">
@@ -397,11 +422,11 @@ export default function Profile() {
 
         {mobileView === "account" && (
           <div className="space-y-6 slide-in-from-right-4 animate-in fade-in">
-            <div className="flex items-center mb-2 px-1">
-              <button onClick={() => setMobileView("hub")} className="p-2 mr-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-95 transition-transform">
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <div className="flex items-center pb-4 mb-2 border-b border-gray-100">
+              <button onClick={() => setMobileView("hub")} className="mr-3 p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors">
+                <ArrowLeft className="w-6 h-6 text-gray-700" />
               </button>
-              <h2 className="text-xl font-bold text-gray-800">Account Settings</h2>
+              <h1 className="text-xl font-bold text-gray-800">Account Settings</h1>
             </div>
             {renderProfileCard()}
             {renderSecurityCard()}
@@ -410,11 +435,11 @@ export default function Profile() {
 
         {mobileView === "system" && (
           <div className="space-y-6 slide-in-from-right-4 animate-in fade-in">
-            <div className="flex items-center mb-2 px-1">
-              <button onClick={() => setMobileView("hub")} className="p-2 mr-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-95 transition-transform">
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <div className="flex items-center pb-4 mb-2 border-b border-gray-100">
+              <button onClick={() => setMobileView("hub")} className="mr-3 p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors">
+                <ArrowLeft className="w-6 h-6 text-gray-700" />
               </button>
-              <h2 className="text-xl font-bold text-gray-800">About System</h2>
+              <h1 className="text-xl font-bold text-gray-800">About System</h1>
             </div>
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-8 text-center">
               <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-5">
