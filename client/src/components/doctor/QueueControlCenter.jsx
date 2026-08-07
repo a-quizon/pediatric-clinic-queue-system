@@ -3,6 +3,7 @@ import { subscribeToPublishedSchedules, updateQueueStatus, completeSchedule } fr
 import { subscribeToAllReservations, startConsultation, completeConsultation, expireReservation, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
 import { getNextEligiblePatient } from "../../services/queueEligibilityService";
 import { isReservationExpired } from "../../services/timeService";
+import { sortActiveQueue } from "../../services/queueEngine";
 import { Activity, Play, Pause, Square, CheckCircle, User, AlertCircle, FileText, X, Clock, MapPin, Users, CheckCircle2, Lock } from "lucide-react";
 import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal";
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
@@ -46,26 +47,17 @@ export default function QueueControlCenter() {
   
   const scheduleReservations = useMemo(() => {
     if (!activeSchedule) return [];
-    const res = reservations.filter(r => r.scheduleId === activeSchedule.id);
-    return res.map(r => {
-      const permNum = r.queueNumber || r.originalQueueNumber || (r.queuePosition || 1);
-      return {
-        ...r,
-        queueNumber: permNum,
-        queuePosition: permNum,
-        permanentQueueNumber: permNum
-      };
-    });
+    return reservations.filter(r => r.scheduleId === activeSchedule.id);
   }, [reservations, activeSchedule]);
 
   const {
     waitingQueue,
     inConsultation,
   } = useMemo(() => {
-    const activeWaitingStatuses = ["checked_in", "reserved", "waiting", "validation_open", "waiting_for_window", "expired", "validation_expired"];
-    const waitingList = scheduleReservations
-      .filter(r => activeWaitingStatuses.includes(r.status))
-      .sort((a, b) => (a.queuePosition || 999) - (b.queuePosition || 999));
+    const activeWaitingStatuses = ["checked_in", "reserved", "waiting"];
+    const waitingList = sortActiveQueue(
+      scheduleReservations.filter(r => activeWaitingStatuses.includes(r.status))
+    );
 
     const inCons = scheduleReservations.find(r => r.status === "in_consultation" || r.status === "with_doctor");
     
@@ -265,7 +257,7 @@ export default function QueueControlCenter() {
           </h3>
           {inConsultation && (
             <span className="bg-white/20 text-white text-xs px-2.5 py-1 rounded-full font-bold">
-              Queue #{inConsultation.queuePosition}
+              Queue #{inConsultation.queueNumber || inConsultation.queuePosition}
             </span>
           )}
         </div>
@@ -333,7 +325,7 @@ export default function QueueControlCenter() {
                 >
                   <div className="flex items-center">
                     <div className="w-12 h-12 bg-white border border-gray-200 rounded-xl flex items-center justify-center font-black text-gray-700 mr-4 shadow-sm text-lg">
-                      {res.queuePosition}
+                      {res.queueNumber || res.queuePosition}
                     </div>
                     <div>
                       <div className="font-bold text-gray-800 text-base mb-1">{res.childName || res.parentEmail}</div>
@@ -381,7 +373,7 @@ export default function QueueControlCenter() {
                   <div className="text-2xl font-black text-gray-800">{infoPatient.childName || "N/A"}</div>
                 </div>
                 <div className="bg-blue-50 text-blue-600 border border-blue-100 px-4 py-2 rounded-xl text-lg font-black shadow-sm">
-                  #{infoPatient.queuePosition}
+                  #{infoPatient.queueNumber || infoPatient.queuePosition}
                 </div>
               </div>
               
@@ -457,7 +449,7 @@ export default function QueueControlCenter() {
                   <div className="font-bold text-gray-800 text-lg">{selectedPatient.childName}</div>
                 </div>
                 <div className="bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-sm font-bold text-gray-600 shadow-sm">
-                  #{selectedPatient.queuePosition}
+                  #{selectedPatient.queueNumber || selectedPatient.queuePosition}
                 </div>
               </div>
 

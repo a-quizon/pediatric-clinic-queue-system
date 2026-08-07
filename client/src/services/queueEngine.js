@@ -21,6 +21,19 @@ export const QUEUE_STATES = {
 };
 
 /**
+ * Standard sorting logic for active waiting queues.
+ * Sorts primarily by dynamically calculated queueOrder, falling back to sortTimestamp or createdAt.
+ */
+export const sortActiveQueue = (reservations) => {
+  return [...reservations].sort((a, b) => {
+    if (a.queueOrder !== undefined && b.queueOrder !== undefined) {
+      return a.queueOrder - b.queueOrder;
+    }
+    return (a.sortTimestamp || a.createdAt || 0) - (b.sortTimestamp || b.createdAt || 0);
+  });
+};
+
+/**
  * Computes the live Queue State for a single reservation relative to all reservations in its schedule.
  */
 export const computeReservationState = (reservation, allReservations = [], options = {}) => {

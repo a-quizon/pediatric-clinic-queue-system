@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle, AlertTriangle } from "lucide-react";
 import { subscribeToAllReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
-import { computeReservationState, QUEUE_STATES } from "../../services/queueEngine";
+import { computeReservationState, QUEUE_STATES, sortActiveQueue } from "../../services/queueEngine";
 import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 
@@ -81,14 +81,9 @@ export default function ManageQueue() {
   const inConsultationPatients = activeReservations.filter(r => r.status === "in_consultation" || r.status === "with_doctor");
 
   // Region 2 data: Remaining patients waiting in line sorted by current queue order (turn in line)
-  const waitingQueue = activeReservations
-    .filter(r => ["checked_in", "reserved", "waiting"].includes(r.status))
-    .sort((a, b) => {
-      if (a.queueOrder !== undefined && b.queueOrder !== undefined) {
-        return a.queueOrder - b.queueOrder;
-      }
-      return (a.sortTimestamp || a.createdAt || 0) - (b.sortTimestamp || b.createdAt || 0);
-    });
+  const waitingQueue = sortActiveQueue(
+    activeReservations.filter(r => ["checked_in", "reserved", "waiting"].includes(r.status))
+  );
 
   const firstUncheckedIdx = waitingQueue.findIndex(
     (r) => r.status === "reserved" || r.status === "waiting"
