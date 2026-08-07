@@ -256,8 +256,9 @@ export default function QueueControlCenter() {
         </div>
       </div>
 
-      {/* 2. Current Consultation */}
-      <div className="bg-white rounded-2xl shadow-sm border border-blue-200 overflow-hidden">
+      <div className="flex flex-col lg:flex-row gap-6 items-stretch">
+        {/* 2. Current Consultation */}
+        <div className="flex-[4] bg-white rounded-2xl shadow-sm border border-blue-200 overflow-hidden flex flex-col">
         <div className="bg-blue-600 px-5 py-3 flex justify-between items-center">
           <h3 className="font-bold text-white flex items-center">
             <Activity className="w-4 h-4 mr-2" /> Current Consultation
@@ -314,8 +315,8 @@ export default function QueueControlCenter() {
         )}
       </div>
 
-      {/* 3. Waiting Queue (Read-Only) */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+        {/* 3. Waiting Queue (Read-Only) */}
+        <div className="flex-[6] bg-white rounded-2xl shadow-sm border border-gray-200 p-5 flex flex-col">
         <h3 className="font-bold text-gray-800 mb-4 flex items-center">
           <Users className="w-5 h-5 mr-2 text-blue-600" /> 
           Waiting Queue <span className="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-bold">{waitingQueue.length}</span>
@@ -356,6 +357,7 @@ export default function QueueControlCenter() {
             No patients currently in the waiting queue.
           </div>
         )}
+        </div>
       </div>
 
       {/* Info Modal */}
