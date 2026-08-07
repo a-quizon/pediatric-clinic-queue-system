@@ -40,8 +40,9 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
 
   // Completed Stats
   const totalReservations = scheduleReservations.length;
-  const patientsCheckedUp = scheduleReservations.filter(r => r.status === 'completed').length;
+  const patientsCheckedUp = scheduleReservations.filter(r => ["completed", "consultation_completed"].includes(r.status)).length;
   const cancelledReservations = scheduleReservations.filter(r => r.status === 'cancelled').length;
+  const forfeitedReservations = scheduleReservations.filter(r => ["forfeited", "penalized", "late_limit_reached"].includes(r.status)).length;
   
   const checkedInCount = scheduleReservations.filter(r => r.status === 'checked_in' || r.checkedIn).length;
 
@@ -96,8 +97,8 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
                 <div className="text-xl font-bold text-red-600">{cancelledReservations}</div>
               </div>
               <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                <div className="text-xs text-gray-500 mb-1">Status</div>
-                <div className="text-sm font-bold text-gray-800 capitalize mt-1">{schedule.status}</div>
+                <div className="text-xs text-gray-500 mb-1 flex items-center"><X className="w-3.5 h-3.5 mr-1"/> Forfeited</div>
+                <div className="text-xl font-bold text-gray-800">{forfeitedReservations}</div>
               </div>
             </div>
           )}
