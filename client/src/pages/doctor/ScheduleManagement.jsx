@@ -10,6 +10,7 @@ import ConfirmationModal from "../../components/common/ConfirmationModal";
 import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal";
 import { Plus, Search, Filter, PlayCircle, CalendarX, CalendarCheck, Activity } from "lucide-react";
 import toast from "react-hot-toast";
+import { sortSchedules } from "../../utils/scheduleUtils";
 
 export default function ScheduleManagement() {
   const navigate = useNavigate();
@@ -207,12 +208,7 @@ export default function ScheduleManagement() {
 
   // Filter & Search
   const filteredSchedules = useMemo(() => {
-    return schedules.filter(s => {
-      const isActiveQueue = s.status === 'published' && (s.queueStatus === 'active' || s.queueStatus === 'paused' || s.queueStatus === 'closed');
-      if (isActiveQueue) {
-        return false;
-      }
-
+    const validSchedules = schedules.filter(s => {
       const stat = getLocalStatus(s);
       
       // Filter dropdown
@@ -232,17 +228,9 @@ export default function ScheduleManagement() {
         }
       }
       return true;
-    }).sort((a, b) => {
-      const statusOrder = { 'Published': 1, 'Draft': 2, 'Completed': 3 };
-      const statusA = getLocalStatus(a);
-      const statusB = getLocalStatus(b);
-      
-      if (statusOrder[statusA] !== statusOrder[statusB]) {
-        return (statusOrder[statusA] || 99) - (statusOrder[statusB] || 99);
-      }
-      
-      return new Date(a.clinicDate) - new Date(b.clinicDate);
     });
+
+    return sortSchedules(validSchedules);
   }, [schedules, currentFilter, searchQuery]);
 
   return (

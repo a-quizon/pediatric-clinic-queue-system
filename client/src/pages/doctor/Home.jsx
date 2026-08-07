@@ -9,6 +9,7 @@ import {
   MapPin, Clock, CalendarCheck, CheckCircle2, Lock, FileText, XCircle, AlertTriangle, X 
 } from "lucide-react";
 import QueueControlCenter from "../../components/doctor/QueueControlCenter";
+import { sortSchedules } from "../../utils/scheduleUtils";
 
 export default function Home() {
   const { user } = useAuth();
@@ -45,32 +46,19 @@ export default function Home() {
   const dashboardSchedules = useMemo(() => {
     const todayStr = new Date().toLocaleDateString('en-CA');
     const todayFallback = new Date().toDateString();
-    
-    // 1. Current Schedules (Published, Active, Paused)
-    const current = scheduleList.filter(s => 
-      !hiddenSchedules.includes(s.id) &&
-      (s.status === 'published' || s.queueStatus === 'active' || s.queueStatus === 'paused') &&
-      s.status !== 'completed' && s.queueStatus !== 'completed' && s.queueStatus !== 'ended'
-    ).sort((a, b) => {
-       const dateA = new Date(a.clinicDate).getTime();
-       const dateB = new Date(b.clinicDate).getTime();
-       if (dateA !== dateB) return dateA - dateB;
-       return (a.openingTime || '').localeCompare(b.openingTime || '');
+
+    const validForDashboard = scheduleList.filter(s => {
+      if (hiddenSchedules.includes(s.id)) return false;
+      if (s.status === 'draft') return false;
+      
+      const isCompleted = s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended';
+      const isToday = s.clinicDate === todayStr || new Date(s.clinicDate).toDateString() === todayFallback;
+      
+      // Keep if not completed (Current schedules), OR if completed today
+      return !isCompleted || isToday;
     });
 
-    // 2. Completed Today
-    const completedToday = scheduleList.filter(s => 
-      !hiddenSchedules.includes(s.id) &&
-      (s.clinicDate === todayStr || new Date(s.clinicDate).toDateString() === todayFallback) &&
-      (s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended')
-    ).sort((a, b) => {
-       const dateA = new Date(a.clinicDate).getTime();
-       const dateB = new Date(b.clinicDate).getTime();
-       if (dateA !== dateB) return dateA - dateB;
-       return (a.openingTime || '').localeCompare(b.openingTime || '');
-    });
-
-    return [...current, ...completedToday];
+    return sortSchedules(validForDashboard);
   }, [scheduleList, hiddenSchedules]);
 
   const [selectedSchedule, setSelectedSchedule] = useState(null);
