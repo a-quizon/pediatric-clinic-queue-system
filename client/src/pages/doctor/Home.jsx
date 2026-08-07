@@ -43,12 +43,27 @@ export default function Home() {
     const todayStr = new Date().toLocaleDateString('en-CA');
     const todayFallback = new Date().toDateString();
     
-    const published = scheduleList.filter(s => 
+    const validSchedules = scheduleList.filter(s => 
       (s.clinicDate === todayStr || new Date(s.clinicDate).toDateString() === todayFallback) && 
-      s.status === 'published'
+      (s.status === 'published' || s.status === 'completed' || s.queueStatus === 'active' || s.queueStatus === 'paused' || s.queueStatus === 'completed')
     );
 
-    return published.sort((a, b) => (a.openingTime || '').localeCompare(b.openingTime || ''));
+    const getPriority = (s) => {
+       if (s.queueStatus === 'active') return 1;
+       if (s.queueStatus === 'paused') return 2;
+       if (s.status === 'published') return 3;
+       if (s.status === 'completed' || s.queueStatus === 'completed') return 4;
+       return 5;
+    };
+
+    return validSchedules.sort((a, b) => {
+       const priorityA = getPriority(a);
+       const priorityB = getPriority(b);
+       if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+       }
+       return (a.openingTime || '').localeCompare(b.openingTime || '');
+    });
   }, [scheduleList]);
 
   const [selectedSchedule, setSelectedSchedule] = useState(null);
@@ -167,15 +182,23 @@ export default function Home() {
                     backgroundSize: '1.25em 1.25em',
                   }}
                 >
-                  {todayPublishedSchedules.map(schedule => (
-                    <option key={schedule.id} value={schedule.id}>
-                      {schedule.branch} • {formatDate(schedule.clinicDate)} • {formatTime(schedule.openingTime)}
-                    </option>
-                  ))}
+                  {todayPublishedSchedules.map(schedule => {
+                    const isCompleted = schedule.status === 'completed' || schedule.queueStatus === 'completed';
+                    return (
+                      <option key={schedule.id} value={schedule.id}>
+                        {schedule.branch} {isCompleted ? '(Completed)' : ''} • {formatDate(schedule.clinicDate)} • {formatTime(schedule.openingTime)}
+                      </option>
+                    );
+                  })}
                 </select>
                 {selectedSchedule && (
-                  <div className="text-sm text-gray-500 mt-2 ml-1">
+                  <div className="text-sm text-gray-500 mt-2 ml-1 flex flex-wrap items-center gap-3">
                     <p>{formatDate(selectedSchedule.clinicDate)} • {formatTime(selectedSchedule.openingTime)}</p>
+                    {(selectedSchedule.status === 'completed' || selectedSchedule.queueStatus === 'completed') && (
+                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-bold text-[10px] shadow-sm border border-green-200 flex items-center">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1"></div> Completed
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
