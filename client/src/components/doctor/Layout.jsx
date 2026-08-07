@@ -11,13 +11,13 @@ export default function Layout() {
       return { desktop: "Dashboard", mobile: "Home" };
     }
     if (path.startsWith("/doctor/schedules")) {
-      return { desktop: "Schedule", mobile: "Schedule" };
+      return { desktop: "Schedules", mobile: "Schedules" };
     }
     if (path.startsWith("/doctor/queue")) {
       return { desktop: "Queue", mobile: "Queue" };
     }
     if (path.startsWith("/doctor/reports")) {
-      return { desktop: "Reports", mobile: "Reports" };
+      return { desktop: "Reports & Analytics", mobile: "Reports & Analytics", backTo: "/doctor" };
     }
     if (path.startsWith("/doctor/profile")) {
       return { desktop: "Profile", mobile: "Profile" };
@@ -84,7 +84,8 @@ export default function Layout() {
       <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-24 bg-gray-50 md:bg-transparent h-full relative flex flex-col">
         <PageHeader 
           desktopTitle={headerInfo.desktop} 
-          mobileTitle={headerInfo.mobile} 
+          mobileTitle={headerInfo.mobile}
+          backTo={headerInfo.backTo}
         />
 
         <div className="p-4 md:p-8 lg:p-10 max-w-5xl mx-auto flex-1 w-full">
@@ -113,7 +114,7 @@ export default function Layout() {
                     <span className={`text-[10px] transition-colors ${
                       active ? "text-blue-600 font-semibold" : "text-gray-500 font-medium"
                     }`}>
-                      {item.name === "Reports & Analytics" ? "Reports" : item.name}
+                      {item.name === "Dashboard" ? "Home" : item.name === "Reports & Analytics" ? "Reports" : item.name}
                     </span>
                   </>
                 );
