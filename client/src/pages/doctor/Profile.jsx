@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { logoutUser, updateUserProfile } from "../../services/authService";
+import { logoutUser, updateUserProfile, changeUserPassword } from "../../services/authService";
 import { subscribeToBranchConfigurations } from "../../services/branchConfigurationService";
-import { LogOut, User as UserIcon, Building, Edit2, Save, Shield, MapPin, X } from "lucide-react";
+import { LogOut, User as UserIcon, Building, Edit2, Save, Shield, MapPin, X, Lock, Key } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function Profile() {
@@ -17,6 +17,13 @@ export default function Profile() {
   const [clinicName, setClinicName] = useState(user?.clinicName || "L.A. Magat Pediatric Clinic");
   
   const [branches, setBranches] = useState([]);
+
+  // Password state
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
     const unsub = subscribeToBranchConfigurations((data) => {
@@ -67,6 +74,34 @@ export default function Profile() {
     setProfessionalTitle(user?.professionalTitle || "");
     setClinicName(user?.clinicName || "L.A. Magat Pediatric Clinic");
     setIsEditing(false);
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!currentPassword) return toast.error("Current Password is required.");
+    if (!newPassword) return toast.error("New Password is required.");
+    if (!confirmPassword) return toast.error("Confirm Password is required.");
+    if (newPassword !== confirmPassword) return toast.error("New Passwords do not match.");
+    if (currentPassword === newPassword) return toast.error("New password must be different from current.");
+    if (newPassword.length < 6) return toast.error("New password must be at least 6 characters.");
+
+    setIsUpdatingPassword(true);
+    try {
+      await changeUserPassword(currentPassword, newPassword);
+      toast.success("Password updated successfully!");
+      setIsChangingPassword(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      console.error(err);
+      if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
+        toast.error("Incorrect current password.");
+      } else {
+        toast.error(err.message || "Failed to update password.");
+      }
+    } finally {
+      setIsUpdatingPassword(false);
+    }
   };
 
   const hasChanges = 
@@ -243,6 +278,104 @@ export default function Profile() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Security Information */}
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="p-6 md:p-8 border-b border-gray-100 bg-gray-50/30">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center">
+            <Lock className="w-5 h-5 mr-2 text-blue-600" />
+            Security
+          </h2>
+        </div>
+        <div className="p-6 md:p-8">
+          {!isChangingPassword ? (
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                  Password
+                </label>
+                <div className="font-semibold text-gray-800 flex items-center text-2xl tracking-widest pt-1 leading-none">
+                  ••••••••••••
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsChangingPassword(true)}
+                className="w-full sm:w-auto flex items-center justify-center text-sm font-bold text-gray-700 bg-white border border-gray-200 px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors shadow-sm active:scale-95"
+              >
+                <Key className="w-4 h-4 mr-2" /> Change Password
+              </button>
+            </div>
+          ) : (
+            <div className="max-w-md space-y-5 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                  Current Password <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="password" 
+                  value={currentPassword} 
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  placeholder="Enter current password"
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                  New Password <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="password" 
+                  value={newPassword} 
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  placeholder="Enter new password"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                  Confirm New Password <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="password" 
+                  value={confirmPassword} 
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  placeholder="Confirm new password"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button 
+                  onClick={() => {
+                    setIsChangingPassword(false);
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}
+                  disabled={isUpdatingPassword}
+                  className="flex-1 flex items-center justify-center text-sm font-bold text-gray-700 bg-white border border-gray-300 px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
+                >
+                  <X className="w-4 h-4 mr-2" /> Cancel
+                </button>
+                <button 
+                  onClick={handleUpdatePassword} 
+                  disabled={isUpdatingPassword || !currentPassword || !newPassword || !confirmPassword}
+                  className="flex-1 flex items-center justify-center text-sm font-bold text-white bg-blue-600 px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-colors shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isUpdatingPassword ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Update Password
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
