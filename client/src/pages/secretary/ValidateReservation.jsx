@@ -378,7 +378,7 @@ export default function ValidateReservation() {
                 <span className="font-bold text-gray-800">{validatedDetails.reservation.childName}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Queue Position</span>
+                <span className="text-sm text-gray-500">Queue Number</span>
                 <span className="font-bold text-gray-800">#{validatedDetails.reservation.queuePosition}</span>
               </div>
             </div>
