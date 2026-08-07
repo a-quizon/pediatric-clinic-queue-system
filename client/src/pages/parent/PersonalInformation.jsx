@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { updateUserProfile, changeUserPassword } from "../../services/authService";
+import { updateUserProfile } from "../../services/authService";
 import { User, Mail, Phone, Save, Lock, Shield, Key } from "lucide-react";
+import { handlePasswordChangeRequest } from "../../utils/passwordUtils";
 import { useNavigate } from "react-router-dom";
 import InformationModal from "../../components/common/InformationModal";
 
@@ -70,40 +71,25 @@ export default function PersonalInformation() {
   };
 
   const handlePasswordSave = async () => {
-    if (!currentPassword) {
-      setPasswordError("Current Password is required.");
-      return;
-    }
-    
-    const policyMet = newPassword.length >= 8 && /[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword) && /[0-9]/.test(newPassword) && /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
-    
-    if (!policyMet) {
-      setPasswordError("New password does not meet requirements.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords do not match.");
-      return;
-    }
-
     setIsChangingPassword(true);
+    setPasswordError("");
+    
     try {
-      await changeUserPassword(currentPassword, newPassword);
-      setPasswordModalOpen(false);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setPasswordError("");
-      setTimeout(() => setPasswordSuccessModalOpen(true), 150);
-    } catch (err) {
-      console.error("Failed to change password:", err);
-      if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
-        setPasswordError("Current password is incorrect.");
-      } else if (err.code === "auth/too-many-requests") {
-        setPasswordError("Too many attempts. Please try again later.");
+      const result = await handlePasswordChangeRequest(currentPassword, newPassword, confirmPassword);
+      
+      if (result.success) {
+        setPasswordModalOpen(false);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setPasswordError("");
+        setTimeout(() => setPasswordSuccessModalOpen(true), 150);
       } else {
-        setPasswordError("Failed to update password. Please try again.");
+        setPasswordError(result.error);
       }
+    } catch (err) {
+      console.error(err);
+      setPasswordError("An unexpected error occurred. Please try again.");
     } finally {
       setIsChangingPassword(false);
     }

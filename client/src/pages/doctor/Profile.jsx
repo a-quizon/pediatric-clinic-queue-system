@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { logoutUser, updateUserProfile, changeUserPassword } from "../../services/authService";
+import { logoutUser, updateUserProfile } from "../../services/authService";
 import { subscribeToBranchConfigurations } from "../../services/branchConfigurationService";
+import { handlePasswordChangeRequest } from "../../utils/passwordUtils";
 import { LogOut, User as UserIcon, Edit2, Save, MapPin, X, Lock, ChevronRight, Info, ArrowLeft } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -89,27 +90,21 @@ export default function Profile() {
   };
 
   const handleUpdatePassword = async () => {
-    if (!currentPassword) return toast.error("Current Password is required.");
-    if (!newPassword) return toast.error("New Password is required.");
-    if (!confirmPassword) return toast.error("Confirm Password is required.");
-    if (newPassword !== confirmPassword) return toast.error("New Passwords do not match.");
-    if (currentPassword === newPassword) return toast.error("New password must be different from current.");
-    if (newPassword.length < 6) return toast.error("New password must be at least 6 characters.");
-
     setIsUpdatingPassword(true);
     try {
-      await changeUserPassword(currentPassword, newPassword);
-      toast.success("Password updated successfully!");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
+      const result = await handlePasswordChangeRequest(currentPassword, newPassword, confirmPassword);
+      
+      if (result.success) {
+        toast.success("Password updated successfully!");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        toast.error(result.error);
+      }
     } catch (err) {
       console.error(err);
-      if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
-        toast.error("Incorrect current password.");
-      } else {
-        toast.error(err.message || "Failed to update password.");
-      }
+      toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsUpdatingPassword(false);
     }
