@@ -17,7 +17,7 @@ export default function Layout() {
       return { desktop: "Queue", mobile: "Queue" };
     }
     if (path.startsWith("/doctor/reports")) {
-      return { desktop: "Reports & Analytics", mobile: "Reports & Analytics", backTo: "/doctor" };
+      return { desktop: "Reports & Analytics", mobile: "Reports & Analytics", backTo: true };
     }
     if (path.startsWith("/doctor/profile")) {
       const view = new URLSearchParams(location.search).get("view");
