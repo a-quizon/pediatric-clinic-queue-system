@@ -39,6 +39,26 @@ export default function Home() {
     return Object.entries(schedules).map(([id, val]) => ({ id, ...val }));
   }, [schedules]);
 
+  const todayPublishedSchedules = useMemo(() => {
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const todayFallback = new Date().toDateString();
+    
+    const published = scheduleList.filter(s => 
+      (s.clinicDate === todayStr || new Date(s.clinicDate).toDateString() === todayFallback) && 
+      s.status === 'published'
+    );
+
+    return published.sort((a, b) => (a.openingTime || '').localeCompare(b.openingTime || ''));
+  }, [scheduleList]);
+
+  const [selectedSchedule, setSelectedSchedule] = useState(null);
+
+  useEffect(() => {
+    if (todayPublishedSchedules.length > 0 && !selectedSchedule) {
+      setSelectedSchedule(todayPublishedSchedules[0]);
+    }
+  }, [todayPublishedSchedules, selectedSchedule]);
+
   // Identify active or published schedule for Today's Clinic
   const activeOrPublishedSchedule = useMemo(() => {
     // 1. Schedule with queueStatus === "active"
@@ -78,10 +98,10 @@ export default function Home() {
 
   // Compute Today's Statistics based on active or published schedule
   const stats = useMemo(() => {
-    if (!activeOrPublishedSchedule) {
+    if (!selectedSchedule) {
       return { total: 0, waiting: 0, checkedIn: 0, inConsultation: 0, completed: 0, cancelled: 0, forfeited: 0 };
     }
-    const schedRes = reservations.filter(r => r.scheduleId === activeOrPublishedSchedule.id);
+    const schedRes = reservations.filter(r => r.scheduleId === selectedSchedule.id);
     
     return {
       total: schedRes.length,
@@ -92,7 +112,7 @@ export default function Home() {
       cancelled: schedRes.filter(r => r.status === "cancelled").length,
       forfeited: schedRes.filter(r => ["forfeited", "penalized", "late_limit_reached"].includes(r.status)).length,
     };
-  }, [reservations, activeOrPublishedSchedule]);
+  }, [reservations, selectedSchedule]);
 
   // Compute Schedule Overview counts
   const scheduleOverview = useMemo(() => {
@@ -117,6 +137,11 @@ export default function Home() {
     return `${formattedH}:${minutes} ${ampm}`;
   };
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
   return (
     <div className="space-y-6 pb-6">
 
@@ -124,38 +149,34 @@ export default function Home() {
       <div className="flex flex-col lg:flex-row gap-6">
         
         {/* 2. Today's Statistics */}
-        {activeOrPublishedSchedule ? (
+        {todayPublishedSchedules.length > 0 ? (
           <div className="flex-[2] bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col justify-between">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <div>
-                <h2 className="text-lg font-bold text-gray-800 flex items-center">
-                  {isCompletedSession ? (
-                    <>
-                      <CheckCircle2 className="w-5 h-5 mr-2 text-green-600" />
-                      Today's Clinic Summary
-                    </>
-                  ) : (
-                    <>
-                      <Activity className="w-5 h-5 mr-2 text-blue-600" />
-                      Today's Statistics
-                    </>
-                  )}
-                </h2>
-                {isCompletedSession && (
-                  <p className="text-sm text-gray-500 mt-1">This clinic session has been completed.</p>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {isCompletedSession && (
-                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full font-bold text-xs shadow-sm border border-green-200 flex items-center">
-                    <div className="w-2 h-2 rounded-full bg-green-500 mr-1.5"></div> Completed
-                  </span>
-                )}
-                {activeBranch && (
-                  <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full font-bold text-xs shadow-sm border border-gray-200 flex items-center">
-                    <MapPin className="w-3 h-3 mr-1" />
-                    {activeBranch.name}
-                  </span>
+              <div className="w-full sm:w-auto flex-1 max-w-sm">
+                <select
+                  value={selectedSchedule?.id || ''}
+                  onChange={(e) => {
+                    const found = todayPublishedSchedules.find(s => s.id === e.target.value);
+                    if (found) setSelectedSchedule(found);
+                  }}
+                  className="w-full text-lg font-bold text-gray-800 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234b5563'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 1rem center',
+                    backgroundSize: '1.25em 1.25em',
+                  }}
+                >
+                  {todayPublishedSchedules.map(schedule => (
+                    <option key={schedule.id} value={schedule.id}>
+                      {schedule.branch} • {formatDate(schedule.clinicDate)} • {formatTime(schedule.openingTime)}
+                    </option>
+                  ))}
+                </select>
+                {selectedSchedule && (
+                  <div className="text-sm text-gray-500 mt-2 ml-1">
+                    <p>{formatDate(selectedSchedule.clinicDate)} • {formatTime(selectedSchedule.openingTime)}</p>
+                  </div>
                 )}
               </div>
             </div>
