@@ -33,9 +33,9 @@ export default function LogoutButton({
         isOpen={isLogoutModalOpen}
         onClose={closeLogoutModal}
         onConfirm={handleLogout}
-        title="Sign Out"
-        message="Are you sure you want to sign out?"
-        confirmText="Sign Out"
+        title="Log Out"
+        message="Are you sure you want to logout?"
+        confirmText="Log Out"
         cancelText="Cancel"
         isLoading={isLoggingOut}
         isDestructive={true}
