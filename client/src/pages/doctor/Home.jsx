@@ -216,6 +216,20 @@ export default function Home() {
 
   const renderBadge = (schedule) => {
     if (!schedule) return null;
+    if (schedule.status === 'completed' || schedule.queueStatus === 'completed' || schedule.queueStatus === 'ended') {
+      return (
+        <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full font-bold text-[10px] shadow-sm border border-gray-200 flex items-center">
+          <div className="w-1.5 h-1.5 rounded-full bg-gray-500 mr-1"></div> Completed
+        </span>
+      );
+    }
+    if (schedule.queueStatus === 'closed') {
+      return (
+        <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-bold text-[10px] shadow-sm border border-red-200 flex items-center">
+          <div className="w-1.5 h-1.5 rounded-full bg-red-500 mr-1"></div> Closed
+        </span>
+      );
+    }
     if (schedule.queueStatus === 'active') {
       return (
         <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-bold text-[10px] shadow-sm border border-green-200 flex items-center">
@@ -230,17 +244,10 @@ export default function Home() {
         </span>
       );
     }
-    if (schedule.status === 'published' && schedule.queueStatus !== 'completed' && schedule.queueStatus !== 'ended') {
+    if (schedule.status === 'published') {
       return (
         <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold text-[10px] shadow-sm border border-blue-200 flex items-center">
           <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1"></div> Published
-        </span>
-      );
-    }
-    if (schedule.status === 'completed' || schedule.queueStatus === 'completed' || schedule.queueStatus === 'ended') {
-      return (
-        <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full font-bold text-[10px] shadow-sm border border-gray-200 flex items-center">
-          <div className="w-1.5 h-1.5 rounded-full bg-gray-500 mr-1"></div> Completed
         </span>
       );
     }
