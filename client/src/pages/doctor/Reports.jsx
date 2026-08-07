@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { BarChart3, TrendingUp, Users, Clock, AlertCircle, PieChart, Activity, CheckCircle, XCircle, Calendar, MapPin, Inbox, Loader2 } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Clock, AlertCircle, PieChart, Activity, CheckCircle, XCircle, Calendar, MapPin, Inbox, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useReportsData } from "../../hooks/useReportsData";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, Legend } from 'recharts';
@@ -9,9 +9,18 @@ export default function Reports() {
   const { branch, setBranch, dateRange, setDateRange } = filters;
   const [branches, setBranches] = useState([]);
 
+  // Pagination state must be declared before any conditional returns
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   useEffect(() => {
     getBranchConfigurations().then(setBranches);
   }, []);
+
+  // Reset pagination when dataset changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [dataset]);
 
   if (loading) {
     return (
@@ -57,6 +66,21 @@ export default function Reports() {
     { name: 'Cancelled', value: aggregated.cancelled, color: '#dc2626' },
     { name: 'Forfeited', value: aggregated.forfeited, color: '#ea580c' },
   ].filter(item => item.value > 0);
+
+  const sortedDataset = [...dataset].sort((a, b) => {
+    const dateA = new Date(a.clinicDate).getTime();
+    const dateB = new Date(b.clinicDate).getTime();
+    if (dateA !== dateB) return dateB - dateA;
+    return (a.openingTime || '').localeCompare(b.openingTime || '');
+  });
+
+  const totalPages = Math.ceil(sortedDataset.length / itemsPerPage);
+  const paginatedDataset = sortedDataset.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   return (
     <div className="space-y-6 pb-6 relative">
@@ -230,6 +254,115 @@ export default function Reports() {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Session History Table */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-6">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800">Session History</h3>
+            </div>
+            {paginatedDataset.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 text-sm">
+                No completed clinic sessions match the selected filters.
+              </div>
+            ) : (
+              <>
+                {/* Desktop/Tablet Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                        <th className="p-4 font-semibold">Clinic Date</th>
+                        <th className="p-4 font-semibold">Branch</th>
+                        <th className="p-4 font-semibold text-center">Total</th>
+                        <th className="p-4 font-semibold text-center">Checked Up</th>
+                        <th className="p-4 font-semibold text-center">Cancelled</th>
+                        <th className="p-4 font-semibold text-center">Forfeited</th>
+                        <th className="p-4 font-semibold text-center">Completion</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 text-sm">
+                      {paginatedDataset.map((session) => (
+                        <tr key={session.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="p-4 text-gray-800 font-medium whitespace-nowrap">
+                            {formatDate(session.clinicDate)}
+                            <div className="text-xs text-gray-500 font-normal mt-0.5">
+                              {session.openingTime} - {session.closingTime}
+                            </div>
+                          </td>
+                          <td className="p-4 text-gray-600 whitespace-nowrap">{session.branch}</td>
+                          <td className="p-4 text-center font-medium text-gray-800">{session.metrics.totalReservations}</td>
+                          <td className="p-4 text-center font-medium text-green-600">{session.metrics.checkedUp}</td>
+                          <td className="p-4 text-center font-medium text-red-600">{session.metrics.cancelled}</td>
+                          <td className="p-4 text-center font-medium text-orange-600">{session.metrics.forfeited}</td>
+                          <td className="p-4 text-center font-bold text-purple-600">{session.metrics.completionRate}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="block md:hidden divide-y divide-gray-100">
+                  {paginatedDataset.map((session) => (
+                    <div key={session.id} className="p-4 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-bold text-gray-800">{formatDate(session.clinicDate)}</div>
+                          <div className="text-xs text-gray-500">{session.openingTime} - {session.closingTime}</div>
+                        </div>
+                        <div className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">{session.branch}</div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm bg-gray-50 p-3 rounded-xl">
+                        <div className="flex flex-col">
+                          <span className="text-gray-500 text-xs">Total</span>
+                          <span className="font-medium text-gray-800">{session.metrics.totalReservations}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-gray-500 text-xs">Completion</span>
+                          <span className="font-bold text-purple-600">{session.metrics.completionRate}%</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-gray-500 text-xs">Checked Up</span>
+                          <span className="font-medium text-green-600">{session.metrics.checkedUp}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-gray-500 text-xs">Cancelled/Forfeited</span>
+                          <span className="font-medium text-gray-800">
+                            <span className="text-red-600">{session.metrics.cancelled}</span> / <span className="text-orange-600">{session.metrics.forfeited}</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <span className="text-sm text-gray-500">
+                  Showing <span className="font-medium text-gray-700">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium text-gray-700">{Math.min(currentPage * itemsPerPage, sortedDataset.length)}</span> of <span className="font-medium text-gray-700">{sortedDataset.length}</span> sessions
+                </span>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
