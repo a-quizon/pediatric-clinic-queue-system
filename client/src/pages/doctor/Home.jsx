@@ -67,12 +67,40 @@ export default function Home() {
   }, [scheduleList]);
 
   const [selectedSchedule, setSelectedSchedule] = useState(null);
+  const [selectionMode, setSelectionMode] = useState('automatic');
 
   useEffect(() => {
-    if (todayPublishedSchedules.length > 0 && !selectedSchedule) {
-      setSelectedSchedule(todayPublishedSchedules[0]);
+    if (todayPublishedSchedules.length === 0) {
+      if (selectedSchedule) setSelectedSchedule(null);
+      return;
     }
-  }, [todayPublishedSchedules, selectedSchedule]);
+
+    if (!selectedSchedule) {
+      setSelectedSchedule(todayPublishedSchedules[0]);
+      setSelectionMode('automatic');
+      return;
+    }
+
+    const currentLatest = todayPublishedSchedules.find(s => s.id === selectedSchedule.id);
+
+    if (currentLatest) {
+      if (JSON.stringify(currentLatest) !== JSON.stringify(selectedSchedule)) {
+        setSelectedSchedule(currentLatest);
+      }
+
+      const isCompleted = currentLatest.status === 'completed' || currentLatest.queueStatus === 'completed' || currentLatest.queueStatus === 'ended';
+      
+      if (selectionMode === 'automatic' && isCompleted) {
+        const topSchedule = todayPublishedSchedules[0];
+        if (topSchedule.id !== currentLatest.id) {
+          setSelectedSchedule(topSchedule);
+        }
+      }
+    } else {
+      setSelectedSchedule(todayPublishedSchedules[0]);
+      setSelectionMode('automatic');
+    }
+  }, [todayPublishedSchedules, selectedSchedule, selectionMode]);
 
   // Identify active or published schedule for Today's Clinic
   const activeOrPublishedSchedule = useMemo(() => {
@@ -172,7 +200,10 @@ export default function Home() {
                   value={selectedSchedule?.id || ''}
                   onChange={(e) => {
                     const found = todayPublishedSchedules.find(s => s.id === e.target.value);
-                    if (found) setSelectedSchedule(found);
+                    if (found) {
+                      setSelectedSchedule(found);
+                      setSelectionMode('manual');
+                    }
                   }}
                   className="w-full text-lg font-bold text-gray-800 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
                   style={{
