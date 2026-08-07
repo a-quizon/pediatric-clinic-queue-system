@@ -1,79 +1,164 @@
+import React, { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { logoutUser } from "../../services/authService";
-import { User, LogOut, Mail, Shield, ChevronRight, BarChart3, Settings } from "lucide-react";
-import { Link } from "react-router-dom";
+import { LogOut, User as UserIcon, Building, Edit2, Save, Shield, MapPin } from "lucide-react";
 
 export default function Profile() {
   const { user, role } = useAuth();
+  
+  const [isEditing, setIsEditing] = useState(false);
+  const [contactNumber, setContactNumber] = useState(user?.contactNumber || "+63");
+  const [professionalTitle, setProfessionalTitle] = useState(user?.professionalTitle || "Pediatrician");
 
   const handleLogout = async () => {
     await logoutUser();
   };
 
+  const handleSave = () => {
+    setIsEditing(false);
+    // In Phase 1, we just exit edit mode. Data persistence logic is out of scope.
+  };
+
   return (
-    <div className="space-y-6 pb-6 max-w-3xl mx-auto">
+    <div className="space-y-6 pb-8 max-w-4xl mx-auto animate-in fade-in">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-800">Doctor Profile</h1>
+        <p className="text-gray-500 text-sm mt-0.5">Manage your personal and clinic information.</p>
+      </div>
 
-
-      {/* Profile Information */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-start gap-6">
-          <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shrink-0">
-            <User className="w-10 h-10" />
-          </div>
-          <div className="flex-1 text-center md:text-left">
-            <h2 className="text-xl font-bold text-gray-800">Doctor Account</h2>
-            <div className="inline-block mt-2 px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-100">
-              Active Status
-            </div>
-          </div>
-          <button className="flex items-center justify-center px-4 py-2 bg-white text-gray-600 text-sm font-semibold rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
-            <Settings className="w-4 h-4 mr-2" />
-            Settings
-          </button>
+      {/* Account Information */}
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="p-6 md:p-8 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/30">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center">
+            <UserIcon className="w-5 h-5 mr-2 text-blue-600" />
+            Account Information
+          </h2>
+          {isEditing ? (
+            <button 
+              onClick={handleSave} 
+              className="w-full sm:w-auto flex items-center justify-center text-sm font-bold text-white bg-blue-600 px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-colors shadow-sm active:scale-95"
+            >
+              <Save className="w-4 h-4 mr-2" /> Save Changes
+            </button>
+          ) : (
+            <button 
+              onClick={() => setIsEditing(true)} 
+              className="w-full sm:w-auto flex items-center justify-center text-sm font-bold text-gray-700 bg-white border border-gray-200 px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors shadow-sm active:scale-95"
+            >
+              <Edit2 className="w-4 h-4 mr-2" /> Edit Profile
+            </button>
+          )}
         </div>
-
-        <div className="border-t border-gray-50 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-50">
-          <div className="p-6 flex items-start">
-            <Mail className="w-5 h-5 text-gray-400 mr-4 mt-0.5" />
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Email Address</p>
-              <p className="text-gray-800 font-medium truncate w-48 md:w-auto" title={user?.email}>{user?.email || "Not provided"}</p>
+        
+        <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              Full Name
+            </label>
+            <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
+              {user?.displayName || "Dr. L.A. Magat"}
             </div>
           </div>
-          <div className="p-6 flex items-start">
-            <Shield className="w-5 h-5 text-gray-400 mr-4 mt-0.5" />
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Account Role</p>
-              <p className="text-gray-800 font-medium capitalize">{role}</p>
+          
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              Email Address
+            </label>
+            <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100 truncate">
+              {user?.email || "doctor@clinic.com"}
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              Professional Title
+            </label>
+            {isEditing ? (
+              <input 
+                type="text" 
+                value={professionalTitle} 
+                onChange={(e) => setProfessionalTitle(e.target.value)}
+                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                placeholder="e.g. Pediatrician"
+              />
+            ) : (
+              <div className="font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border border-gray-200">
+                {professionalTitle}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              Contact Number
+            </label>
+            {isEditing ? (
+              <input 
+                type="text" 
+                value={contactNumber} 
+                onChange={(e) => setContactNumber(e.target.value)}
+                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                placeholder="e.g. +63 912 345 6789"
+              />
+            ) : (
+              <div className="font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border border-gray-200">
+                {contactNumber}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Tools & Insights Section (Mobile Only) */}
-      <div className="md:hidden">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 px-1">
-          Tools & Insights
-        </h3>
-        <div className="space-y-3">
+      {/* Clinic Information */}
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="p-6 md:p-8 border-b border-gray-100 bg-gray-50/30">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center">
+            <Building className="w-5 h-5 mr-2 text-blue-600" />
+            Clinic Information
+          </h2>
+        </div>
+        <div className="p-6 md:p-8 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Clinic Name
+              </label>
+              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100">
+                L.A. Magat Pediatric Clinic
+              </div>
+            </div>
+            
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Role
+              </label>
+              <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100 flex items-center">
+                <Shield className="w-4 h-4 mr-2 text-blue-600" />
+                Doctor / Clinic Owner
+              </div>
+            </div>
+          </div>
 
-          <Link 
-            to="/doctor/reports" 
-            className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:border-blue-100 hover:shadow-md transition-all flex items-center group"
-          >
-            <div className="bg-blue-50 p-3 rounded-xl mr-4 group-hover:bg-blue-100 transition-colors">
-              <BarChart3 className="w-6 h-6 text-blue-600" />
+          <div>
+            <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center">
+              <MapPin className="w-4 h-4 mr-2 text-gray-400" />
+              Clinic Locations
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+              <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:border-gray-300 transition-colors">
+                <h4 className="font-bold text-gray-800 mb-1">Angeles Branch</h4>
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  Angeles City, Pampanga
+                </p>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:border-gray-300 transition-colors">
+                <h4 className="font-bold text-gray-800 mb-1">Magalang Branch</h4>
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  Magalang, Pampanga
+                </p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h4 className="text-[15px] font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
-                Reports & Analytics
-              </h4>
-              <p className="text-sm text-gray-500">
-                View clinic statistics, consultation summaries, and queue performance metrics.
-              </p>
-            </div>
-            <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-600 transition-colors" />
-          </Link>
+          </div>
         </div>
       </div>
 
@@ -81,7 +166,7 @@ export default function Profile() {
       <div className="pt-4">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center p-4 bg-white text-red-600 rounded-2xl font-semibold border border-gray-200 shadow-sm hover:bg-red-50 hover:border-red-100 transition-colors"
+          className="w-full flex items-center justify-center p-4 bg-white text-red-600 rounded-2xl font-bold border border-gray-200 shadow-sm hover:bg-red-50 hover:border-red-100 transition-colors active:scale-[0.98]"
         >
           <LogOut className="w-5 h-5 mr-2" />
           Sign Out
