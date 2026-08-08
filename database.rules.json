@@ -19,6 +19,10 @@
     "reservations": {
       ".read": "auth != null",
       ".write": "auth != null"
+    },
+    "auditLogs": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".write": "auth != null"
     }
   }
 }
