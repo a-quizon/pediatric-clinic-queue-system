@@ -6,7 +6,7 @@ import { database } from "../../firebase/database";
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    todaysReservations: 0,
+    publishedReservations: 0,
     completedConsultations: 0,
     activeQueues: 0,
     registeredParents: 0,
@@ -39,11 +39,8 @@ export default function Dashboard() {
     let schedulesLoaded = false;
     let reservationsLoaded = false;
     let branchesLoaded = false;
-
     const computeStats = () => {
       if (!usersLoaded || !schedulesLoaded || !reservationsLoaded || !branchesLoaded) return;
-
-      const todayStr = getTodayStr();
       
       // Calculate Users Stats
       const usersList = Object.values(usersData || {});
@@ -61,23 +58,28 @@ export default function Dashboard() {
         ...schedulesData[key]
       }));
       
-      const todaysSchedules = schedulesList.filter(s => s.clinicDate === todayStr);
-      const todaysScheduleIds = todaysSchedules.map(s => s.id);
-      
-      const activeQueues = todaysSchedules.filter(s => 
-        s.status === "in_progress" || s.queueStatus === "in_progress"
+      const activeQueues = schedulesList.filter(s => 
+        ["active", "paused", "closed"].includes(s.queueStatus)
       ).length;
 
+      const operationalSchedules = schedulesList.filter(s => 
+        s.status === "published" && ["not_started", "active", "paused", "closed"].includes(s.queueStatus || "not_started")
+      );
+      const operationalScheduleIds = operationalSchedules.map(s => s.id);
+
       const reservationsList = Object.values(reservationsData || {});
-      const todaysReservationsList = reservationsList.filter(r => todaysScheduleIds.includes(r.scheduleId));
       
-      const todaysReservations = todaysReservationsList.length;
-      const completedConsultations = todaysReservationsList.filter(r => 
+      const publishedReservationsList = reservationsList.filter(r => 
+        operationalScheduleIds.includes(r.scheduleId)
+      );
+      const publishedReservations = publishedReservationsList.length;
+
+      const completedConsultations = reservationsList.filter(r => 
         ["completed", "consultation_completed"].includes(r.status)
       ).length;
 
       setStats({
-        todaysReservations,
+        publishedReservations,
         completedConsultations,
         activeQueues,
         registeredParents,
@@ -120,7 +122,7 @@ export default function Dashboard() {
   }, []);
 
   const statCards = [
-    { title: "Today's Reservations", value: stats.todaysReservations, icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Published Reservations", value: stats.publishedReservations, icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-50" },
     { title: "Completed Consultations", value: stats.completedConsultations, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
     { title: "Active Queues", value: stats.activeQueues, icon: Activity, color: "text-pink-600", bg: "bg-pink-50" },
     { title: "Registered Parents", value: stats.registeredParents, icon: User, color: "text-indigo-600", bg: "bg-indigo-50" },
