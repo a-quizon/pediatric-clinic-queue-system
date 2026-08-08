@@ -1,13 +1,17 @@
 import { changeUserPassword } from "../services/authService";
 
+export const getPasswordRequirements = (password) => {
+  return [
+    { label: "8+ characters", met: password.length >= 8 },
+    { label: "Uppercase letter", met: /[A-Z]/.test(password) },
+    { label: "Lowercase letter", met: /[a-z]/.test(password) },
+    { label: "Number", met: /[0-9]/.test(password) },
+    { label: "Special character", met: /[!@#$%^&*(),.?":{}|<>]/.test(password) }
+  ];
+};
+
 export const validatePasswordRequirements = (password) => {
-  // Shared password policy
-  const policyMet = password.length >= 8 && 
-                    /[A-Z]/.test(password) && 
-                    /[a-z]/.test(password) && 
-                    /[0-9]/.test(password) && 
-                    /[!@#$%^&*(),.?":{}|<>]/.test(password);
-  return policyMet;
+  return getPasswordRequirements(password).every(req => req.met);
 };
 
 export const handlePasswordChangeRequest = async (currentPassword, newPassword, confirmPassword) => {

@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { auth } from "../../firebase/auth";
 import { verifyPasswordResetCode, confirmPasswordReset } from "firebase/auth";
-import { Activity, Lock, ArrowRight } from "lucide-react";
+import { Activity, Lock, ArrowRight, Eye, EyeOff, CheckCircle2, Circle } from "lucide-react";
 import toast from "react-hot-toast";
-import { validatePasswordRequirements } from "../../utils/passwordUtils";
+import { validatePasswordRequirements, getPasswordRequirements } from "../../utils/passwordUtils";
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -18,6 +18,13 @@ export default function ResetPassword() {
   const [validating, setValidating] = useState(true);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState('');
+  
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const requirements = getPasswordRequirements(newPassword);
+  const isPasswordValid = requirements.every(req => req.met);
+  const isConfirmValid = newPassword && newPassword === confirmPassword;
 
   useEffect(() => {
     if (!oobCode) {
@@ -41,12 +48,12 @@ export default function ResetPassword() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validatePasswordRequirements(newPassword)) {
+    if (!isPasswordValid) {
       toast.error("New password does not meet requirements.");
       return;
     }
     
-    if (newPassword !== confirmPassword) {
+    if (!isConfirmValid) {
       toast.error("Passwords do not match.");
       return;
     }
@@ -115,26 +122,51 @@ export default function ResetPassword() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-1">
-                <label htmlFor="newPassword" className="block text-sm font-semibold text-gray-700 mb-1.5">New Password</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label htmlFor="newPassword" className="block text-sm font-semibold text-gray-700 mb-1.5">New Password</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      id="newPassword"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      disabled={loading}
+                      className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                      placeholder="Enter new password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                      tabIndex="-1"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
                   </div>
-                  <input
-                    type="password"
-                    id="newPassword"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                    disabled={loading}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
-                    placeholder="Enter new password"
-                  />
                 </div>
-                <p className="text-xs text-gray-500 px-1 pt-1">
-                  Password must contain: 8+ characters • Uppercase • Lowercase • Number • Special character
-                </p>
+
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Password Requirements</p>
+                  <ul className="space-y-2">
+                    {requirements.map((req, idx) => (
+                      <li key={idx} className="flex items-center gap-2 text-sm">
+                        {req.met ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        ) : (
+                          <Circle className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                        )}
+                        <span className={req.met ? "text-green-700 font-medium" : "text-gray-500"}>
+                          {req.label}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
 
               <div>
@@ -144,23 +176,31 @@ export default function ResetPassword() {
                     <Lock className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     id="confirmPassword"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
                     disabled={loading}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                    className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
                     placeholder="Confirm new password"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                    tabIndex="-1"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
 
               <button
                 type="submit"
-                disabled={loading || !newPassword || newPassword !== confirmPassword}
+                disabled={loading || !isPasswordValid || !isConfirmValid}
                 className={`w-full flex items-center justify-center py-3.5 px-4 bg-blue-600 text-white font-bold rounded-xl shadow-sm transition-all mt-4 ${
-                  loading || !newPassword || newPassword !== confirmPassword ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700 hover:shadow"
+                  loading || !isPasswordValid || !isConfirmValid ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700 hover:shadow"
                 }`}
               >
                 {loading ? 'Resetting...' : 'Reset Password'}
