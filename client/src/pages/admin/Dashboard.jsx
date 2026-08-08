@@ -36,8 +36,6 @@ export default function Dashboard() {
     registeredParents: 0,
     activeStaff: 0,
     branches: 0,
-    publishedSchedules: 0,
-    activeReservations: 0,
   });
   
   const [currentOperation, setCurrentOperation] = useState(null);
@@ -46,25 +44,21 @@ export default function Dashboard() {
     // Refs
     const usersRef = ref(database, "users");
     const schedulesRef = ref(database, "schedules");
-    const reservationsRef = ref(database, "reservations");
     const branchesRef = ref(database, "branchConfigurations");
 
     let usersData = {};
     let schedulesData = {};
-    let reservationsData = {};
     let branchesData = {};
 
     let usersLoaded = false;
     let schedulesLoaded = false;
-    let reservationsLoaded = false;
     let branchesLoaded = false;
     
     const computeStats = () => {
-      if (!usersLoaded || !schedulesLoaded || !reservationsLoaded || !branchesLoaded) return;
+      if (!usersLoaded || !schedulesLoaded || !branchesLoaded) return;
       
       const usersList = Object.values(usersData || {});
       const schedulesList = Object.values(schedulesData || {});
-      const reservationsList = Object.values(reservationsData || {});
       
       // 1. Registered Parents
       const registeredParents = usersList.filter(u => u.role === "parent").length;
@@ -77,19 +71,10 @@ export default function Dashboard() {
       // 3. Clinic Branches
       const branches = Object.keys(branchesData || {}).length;
 
-      // 4. Published Schedules
-      const publishedSchedules = schedulesList.filter(s => s.status === "published").length;
-
-      // 5. Active Reservations
-      const activeStatuses = ["reserved", "waiting", "checked_in", "in_consultation", "with_doctor"];
-      const activeReservations = reservationsList.filter(r => activeStatuses.includes(r.status)).length;
-
       setStats({
         registeredParents,
         activeStaff,
         branches,
-        publishedSchedules,
-        activeReservations,
       });
 
       // --- Current Clinic Operation Logic ---
@@ -172,12 +157,6 @@ export default function Dashboard() {
       computeStats();
     });
 
-    const unsubReservations = onValue(reservationsRef, (snapshot) => {
-      reservationsData = snapshot.val();
-      reservationsLoaded = true;
-      computeStats();
-    });
-
     const unsubBranches = onValue(branchesRef, (snapshot) => {
       branchesData = snapshot.val();
       branchesLoaded = true;
@@ -187,7 +166,6 @@ export default function Dashboard() {
     return () => {
       unsubUsers();
       unsubSchedules();
-      unsubReservations();
       unsubBranches();
     };
   }, []);
@@ -196,8 +174,6 @@ export default function Dashboard() {
     { title: "Registered Parents", value: stats.registeredParents, icon: User, color: "text-blue-600", bg: "bg-blue-50" },
     { title: "Active Staff", value: stats.activeStaff, icon: Users, color: "text-emerald-600", bg: "bg-emerald-50" },
     { title: "Clinic Branches", value: stats.branches, icon: MapPin, color: "text-indigo-600", bg: "bg-indigo-50" },
-    { title: "Published Schedules", value: stats.publishedSchedules, icon: CalendarDays, color: "text-purple-600", bg: "bg-purple-50" },
-    { title: "Active Reservations", value: stats.activeReservations, icon: Activity, color: "text-rose-600", bg: "bg-rose-50" },
   ];
 
   return (
@@ -205,7 +181,7 @@ export default function Dashboard() {
       {/* System Overview */}
       <div>
         <h2 className="text-xl font-bold text-gray-800 mb-4">System Overview</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {statCards.map((stat, index) => (
             <div key={index} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
               <div className="flex items-center justify-between mb-3">
