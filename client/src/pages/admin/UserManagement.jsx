@@ -99,7 +99,7 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-6 pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
       {/* Sticky Search & Filters Toolbar */}
       <div className="sticky top-[64px] z-20 bg-gray-50/95 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 md:-mx-8 md:px-8 lg:-mx-10 lg:px-10 -mt-2 sm:-mt-4">
         <div className="bg-white p-3 sm:p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3">
@@ -144,9 +144,9 @@ export default function UserManagement() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[300px]">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[300px] md:flex-1 md:flex md:flex-col md:min-h-0">
         {loading ? (
-          <div className="flex justify-center items-center h-48">
+          <div className="flex justify-center items-center h-48 md:flex-1">
              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
         ) : filteredUsers.length > 0 ? (
@@ -199,10 +199,10 @@ export default function UserManagement() {
             </div>
 
             {/* Desktop Table Layout */}
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto md:flex-1 md:overflow-y-auto relative">
               <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-bold">
+                <thead className="sticky top-0 z-10 bg-gray-50">
+                  <tr className="border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-bold">
                     <th className="p-4 pl-6">Name & Email</th>
                     <th className="p-4">Role</th>
                     <th className="p-4">Branch</th>
@@ -255,7 +255,7 @@ export default function UserManagement() {
 
             {/* Pagination Controls */}
             {filteredUsers.length > USERS_PER_PAGE && (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 gap-4 md:flex-none z-10">
                 <div className="text-sm text-gray-500 font-medium text-center sm:text-left">
                   Showing {(currentPage - 1) * USERS_PER_PAGE + 1}–{Math.min(currentPage * USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length} users
                 </div>
@@ -296,7 +296,7 @@ export default function UserManagement() {
             )}
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center p-12 text-center text-gray-500">
+          <div className="flex flex-col items-center justify-center p-12 text-center text-gray-500 md:flex-1">
              <User className="w-12 h-12 text-gray-300 mb-3" />
              <p className="font-semibold text-gray-600">No users found matching your filters.</p>
              <button 
