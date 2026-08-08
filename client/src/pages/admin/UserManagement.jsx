@@ -15,6 +15,9 @@ export default function UserManagement() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const USERS_PER_PAGE = 10;
+
   // Force trigger to re-read from local state if needed, but onValue handles real-time updates natively
   const [refreshTrigger, setRefreshTrigger] = useState(0); 
 
@@ -76,6 +79,20 @@ export default function UserManagement() {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, roleFilter, statusFilter]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
+    if (currentPage > maxPage) {
+      setCurrentPage(maxPage);
+    }
+  }, [filteredUsers.length, currentPage, USERS_PER_PAGE]);
+
+  const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
+  const displayedUsers = filteredUsers.slice((currentPage - 1) * USERS_PER_PAGE, currentPage * USERS_PER_PAGE);
+
   const openUserDetails = (user) => {
     setSelectedUser(user);
     setIsDetailsModalOpen(true);
@@ -136,7 +153,7 @@ export default function UserManagement() {
           <>
             {/* Mobile Card Layout */}
             <div className="block md:hidden divide-y divide-gray-100">
-              {filteredUsers.map((user) => (
+              {displayedUsers.map((user) => (
                 <div 
                   key={user.id}
                   onClick={() => openUserDetails(user)}
@@ -193,7 +210,7 @@ export default function UserManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {filteredUsers.map((user) => (
+                  {displayedUsers.map((user) => (
                     <tr 
                       key={user.id} 
                       onClick={() => openUserDetails(user)}
@@ -235,6 +252,48 @@ export default function UserManagement() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {filteredUsers.length > USERS_PER_PAGE && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 gap-4">
+                <div className="text-sm text-gray-500 font-medium text-center sm:text-left">
+                  Showing {(currentPage - 1) * USERS_PER_PAGE + 1}–{Math.min(currentPage * USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length} users
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  
+                  <div className="hidden sm:flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg border text-sm font-medium transition-colors ${
+                          currentPage === page 
+                            ? 'bg-blue-600 text-white border-blue-600' 
+                            : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="flex flex-col items-center justify-center p-12 text-center text-gray-500">
