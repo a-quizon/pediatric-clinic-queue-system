@@ -4,6 +4,7 @@ import { registerUser } from "../../services/authService";
 import { Activity, Mail, Lock, User, Phone, ArrowRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { mapAuthError } from "../../utils/authErrors";
+import { validatePasswordRequirements } from "../../utils/passwordUtils";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -27,6 +28,11 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validatePasswordRequirements(formData.password)) {
+      toast.error('Password does not meet requirements.');
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
@@ -153,6 +159,9 @@ export default function Register() {
                   placeholder="Create a password"
                 />
               </div>
+              <p className="text-xs text-gray-500 px-1 pt-1">
+                Password must contain: 8+ characters • Uppercase • Lowercase • Number • Special character
+              </p>
             </div>
 
             <div>

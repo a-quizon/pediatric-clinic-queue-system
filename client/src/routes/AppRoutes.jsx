@@ -4,6 +4,8 @@ import ProtectedRoute from "./ProtectedRoute";
 
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
+import ForgotPassword from "../pages/auth/ForgotPassword";
+import ResetPassword from "../pages/auth/ResetPassword";
 
 // Parent Layout and Pages
 import ParentLayout from "../components/parent/ParentLayout";
@@ -45,6 +47,8 @@ export default function AppRoutes() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         
         {/* Parent Routes */}
         <Route path="/parent" element={<ProtectedRoute> <RoleRoute allowedRole="parent"><ParentLayout /></RoleRoute> </ProtectedRoute>}>

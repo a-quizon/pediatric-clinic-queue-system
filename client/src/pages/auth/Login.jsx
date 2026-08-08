@@ -1,20 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginUser } from "../../services/authService";
-import { ref, get } from "firebase/database";
-import { database } from "../../firebase/database";
 import { Activity, Mail, Lock, ArrowRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { mapAuthError } from "../../utils/authErrors";
+import { useAuth } from "../../hooks/useAuth";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { user, role, loading: authLoading } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && user && role) {
+      if (role === 'doctor') navigate('/doctor');
+      else if (role === 'secretary') navigate('/secretary');
+      else if (role === 'admin') navigate('/admin');
+      else navigate('/parent');
+    }
+  }, [user, role, authLoading, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -29,36 +38,11 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const user = await loginUser(formData.email, formData.password);
-
-      // Fetch user role from Realtime Database to determine where to redirect
-      const userSnap = await get(ref(database, `users/${user.uid}`));
-      let role = 'parent'; // default fallback
-
-      if (userSnap.exists()) {
-        const userData = userSnap.val();
-        if (userData.role) {
-          role = userData.role;
-        }
-      }
-
+      await loginUser(formData.email, formData.password);
       toast.success('Login Successfully');
-
-      // Redirect based on the user's role
-      setTimeout(() => {
-        if (role === 'doctor') {
-          navigate('/doctor');
-        } else if (role === 'secretary') {
-          navigate('/secretary');
-        } else {
-          navigate('/parent');
-        }
-      }, 1500);
-
     } catch (err) {
       console.error('Login failed:', err);
       toast.error(mapAuthError(err.code));
-    } finally {
       setLoading(false);
     }
   };
@@ -114,6 +98,11 @@ export default function Login() {
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
                   placeholder="Enter your password"
                 />
+              </div>
+              <div className="flex justify-end mt-2">
+                <Link to="/forgot-password" className="text-sm font-semibold text-blue-600 hover:underline transition-all">
+                  Forgot Password?
+                </Link>
               </div>
             </div>
 
