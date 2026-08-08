@@ -221,7 +221,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
                 <p className="font-medium text-gray-800 capitalize text-base">{user.role}</p>
               </div>
 
-              {user.role === 'secretary' && (
+              {(user.role === 'secretary' || user.role === 'doctor') && (
                 <div>
                   <label className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1.5">Status</label>
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
@@ -316,7 +316,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
                   <span className="hidden sm:inline lg:hidden">Reset</span>
                 </button>
                 
-                {user.role === 'secretary' && (
+                {(user.role === 'secretary' || user.role === 'doctor') && (
                   <button 
                     onClick={handleToggleStatus}
                     disabled={isTogglingStatus || user.id === "admin"}

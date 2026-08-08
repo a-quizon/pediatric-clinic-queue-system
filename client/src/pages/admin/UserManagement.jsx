@@ -150,7 +150,7 @@ export default function UserManagement() {
                           {getRoleIcon(user.role)}
                           {user.role}
                         </span>
-                        {user.role === 'secretary' && (
+                        {(user.role === 'secretary' || user.role === 'doctor') && (
                           <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide border ${
                             user.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
                           }`}>
@@ -220,7 +220,7 @@ export default function UserManagement() {
                         )}
                       </td>
                       <td className="p-4 min-w-[100px]">
-                        {user.role === 'secretary' ? (
+                        {(user.role === 'secretary' || user.role === 'doctor') ? (
                           <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
                             user.status === 'active' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
                           }`}>
