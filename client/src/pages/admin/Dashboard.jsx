@@ -6,9 +6,9 @@ import { database } from "../../firebase/database";
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    publishedReservations: 0,
+    totalReservations: 0,
     completedConsultations: 0,
-    activeQueues: 0,
+    totalSchedules: 0,
     registeredParents: 0,
     activeStaff: 0,
     branches: 0,
@@ -20,15 +20,6 @@ export default function Dashboard() {
     const schedulesRef = ref(database, "schedules");
     const reservationsRef = ref(database, "reservations");
     const branchesRef = ref(database, "branchConfigurations");
-
-    // Helper for today's date
-    const getTodayStr = () => {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const day = String(now.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    };
 
     let usersData = {};
     let schedulesData = {};
@@ -52,36 +43,22 @@ export default function Dashboard() {
       // Calculate Branches Stats
       const branches = Object.values(branchesData || {}).length;
 
-      // Calculate Schedule & Reservation Stats
-      const schedulesList = Object.keys(schedulesData || {}).map(key => ({
-        id: key,
-        ...schedulesData[key]
-      }));
-      
-      const activeQueues = schedulesList.filter(s => 
-        ["active", "paused", "closed"].includes(s.queueStatus)
+      // Calculate Schedule Stats
+      const totalSchedules = Object.values(schedulesData || {}).filter(
+        s => s.status !== "draft"
       ).length;
 
-      const operationalSchedules = schedulesList.filter(s => 
-        s.status === "published" && ["not_started", "active", "paused", "closed"].includes(s.queueStatus || "not_started")
-      );
-      const operationalScheduleIds = operationalSchedules.map(s => s.id);
+      // Calculate Reservation Stats
+      const totalReservations = Object.keys(reservationsData || {}).length;
 
-      const reservationsList = Object.values(reservationsData || {});
-      
-      const publishedReservationsList = reservationsList.filter(r => 
-        operationalScheduleIds.includes(r.scheduleId)
-      );
-      const publishedReservations = publishedReservationsList.length;
-
-      const completedConsultations = reservationsList.filter(r => 
+      const completedConsultations = Object.values(reservationsData || {}).filter(r => 
         ["completed", "consultation_completed"].includes(r.status)
       ).length;
 
       setStats({
-        publishedReservations,
+        totalReservations,
         completedConsultations,
-        activeQueues,
+        totalSchedules,
         registeredParents,
         activeStaff,
         branches,
@@ -122,9 +99,9 @@ export default function Dashboard() {
   }, []);
 
   const statCards = [
-    { title: "Published Reservations", value: stats.publishedReservations, icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-50" },
+    { title: "Total Reservations", value: stats.totalReservations, icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-50" },
     { title: "Completed Consultations", value: stats.completedConsultations, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { title: "Active Queues", value: stats.activeQueues, icon: Activity, color: "text-pink-600", bg: "bg-pink-50" },
+    { title: "Total Schedules", value: stats.totalSchedules, icon: Activity, color: "text-pink-600", bg: "bg-pink-50" },
     { title: "Registered Parents", value: stats.registeredParents, icon: User, color: "text-indigo-600", bg: "bg-indigo-50" },
     { title: "Active Staff", value: stats.activeStaff, icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
     { title: "Clinic Branches", value: stats.branches, icon: MapPin, color: "text-rose-600", bg: "bg-rose-50" },
