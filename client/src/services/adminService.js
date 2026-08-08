@@ -1,8 +1,9 @@
 import { initializeApp, getApps, deleteApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut, sendPasswordResetEmail } from "firebase/auth";
 import { ref, set, get } from "firebase/database";
 import { firebaseConfig } from "../firebase/firebaseConfig";
 import { database } from "../firebase/database";
+import { auth } from "../firebase/auth";
 
 export const getActiveDoctor = async () => {
   const snapshot = await get(ref(database, "users"));
@@ -109,7 +110,5 @@ export const toggleUserStatus = async (uid, currentStatus) => {
 };
 
 export const sendAdminPasswordResetEmail = async (email) => {
-  const auth = getAuth();
-  const { sendPasswordResetEmail } = await import("firebase/auth");
   return sendPasswordResetEmail(auth, email);
 };

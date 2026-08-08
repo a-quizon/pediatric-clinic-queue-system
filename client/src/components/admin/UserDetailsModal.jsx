@@ -117,7 +117,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
           closeConfirm();
         } catch (error) {
           console.error(error);
-          toast.error("Failed to send password reset email.");
+          toast.error("Unable to send the password reset email. Please try again.");
         } finally {
           setIsResettingPassword(false);
         }
