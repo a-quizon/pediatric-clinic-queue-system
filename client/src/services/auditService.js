@@ -69,6 +69,20 @@ export const logAuditEvent = async ({
       return false;
     }
 
+    // Resolve actor role: Safest pattern to avoid passing role from UI hooks down through services.
+    // 1 extra targeted DB read per audit log is a necessary tradeoff to ensure historical accuracy.
+    let finalRole = actorRole;
+    if (!finalRole) {
+      try {
+        const { get } = await import("firebase/database");
+        const roleSnapshot = await get(ref(database, `users/${currentUser.uid}/role`));
+        finalRole = roleSnapshot.val() || "unknown";
+      } catch (err) {
+        console.warn("Audit Service: Could not fetch actor role.", err);
+        finalRole = "unknown";
+      }
+    }
+
     const auditRef = ref(database, 'auditLogs');
     const newLogRef = push(auditRef);
 
@@ -77,7 +91,7 @@ export const logAuditEvent = async ({
       category,
       actorUid: currentUser.uid,
       actorName: currentUser.displayName || "Unknown User",
-      actorRole: actorRole || "unknown", // Optional fallback since service files don't have AuthContext
+      actorRole: finalRole,
       description,
       timestamp: Date.now(),
     };
