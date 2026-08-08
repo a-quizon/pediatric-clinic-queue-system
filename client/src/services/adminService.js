@@ -110,5 +110,9 @@ export const toggleUserStatus = async (uid, currentStatus) => {
 };
 
 export const sendAdminPasswordResetEmail = async (email) => {
-  return sendPasswordResetEmail(auth, email);
+  const actionCodeSettings = {
+    url: `${window.location.origin}/reset-password`,
+    handleCodeInApp: false
+  };
+  return sendPasswordResetEmail(auth, email, actionCodeSettings);
 };

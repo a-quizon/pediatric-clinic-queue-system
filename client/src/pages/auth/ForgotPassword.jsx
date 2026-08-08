@@ -15,7 +15,11 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      const actionCodeSettings = {
+        url: `${window.location.origin}/reset-password`,
+        handleCodeInApp: false
+      };
+      await sendPasswordResetEmail(auth, email, actionCodeSettings);
       setIsSuccess(true);
       toast.success("Password reset email sent.");
     } catch (err) {
