@@ -7,7 +7,8 @@ export const AUDIT_CATEGORIES = {
   BRANCH_MANAGEMENT: "branch_management",
   SCHEDULE_MANAGEMENT: "schedule_management",
   QUEUE_OPERATIONS: "queue_operations",
-  QUEUE_INTERVENTION: "queue_intervention"
+  QUEUE_INTERVENTION: "queue_intervention",
+  SYSTEM_MANAGEMENT: "system_management"
 };
 
 export const AUDIT_ACTIONS = {
@@ -34,7 +35,10 @@ export const AUDIT_ACTIONS = {
   
   // Queue Intervention
   PATIENT_FORFEITED: "PATIENT_FORFEITED",
-  PATIENT_PENALIZED: "PATIENT_PENALIZED"
+  PATIENT_PENALIZED: "PATIENT_PENALIZED",
+  
+  // System Management
+  SYSTEM_CONFIGURATION_CHANGED: "SYSTEM_CONFIGURATION_CHANGED"
 };
 
 /**
