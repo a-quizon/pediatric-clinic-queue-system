@@ -2,6 +2,7 @@ import { database } from "../firebase/database";
 import { ref, push, set, get, onValue, update } from "firebase/database";
 import { recalculateRollingValidation } from "./rollingValidationService";
 import { recalculateEntireQueue, enrichReservationsWithState } from "./queueEngine";
+import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 
 const generateReservationCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -302,6 +303,15 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
       forfeitedAt: Date.now(),
       penalizedAt: Date.now()
     });
+
+    logAuditEvent({
+      action: AUDIT_ACTIONS.PATIENT_FORFEITED,
+      category: AUDIT_CATEGORIES.QUEUE_INTERVENTION,
+      description: `Forfeited Queue #${val.queueNumber} after reaching the penalty limit`,
+      targetType: "reservation",
+      targetId: reservationId,
+      branchId: schedule?.branch
+    });
   } else {
     // Move behind the next two waiting patients
     const activePipeline = allScheduleReservations
@@ -333,6 +343,15 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
       penaltyCount: currentPenaltyCount,
       sortTimestamp: newSortTimestamp,
       lastPenalizedAt: Date.now()
+    });
+
+    logAuditEvent({
+      action: AUDIT_ACTIONS.PATIENT_PENALIZED,
+      category: AUDIT_CATEGORIES.QUEUE_INTERVENTION,
+      description: `Penalized Queue #${val.queueNumber} (penalty ${currentPenaltyCount} of ${lateLimit})`,
+      targetType: "reservation",
+      targetId: reservationId,
+      branchId: schedule?.branch
     });
   }
   await recalculateEntireQueue(val.scheduleId);

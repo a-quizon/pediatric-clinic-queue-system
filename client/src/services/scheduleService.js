@@ -3,6 +3,7 @@ import { ref, push, set, get, update, remove, onValue, serverTimestamp } from "f
 import { getReservationsBySchedule } from "./reservationService";
 import { recalculateRollingValidation } from "./rollingValidationService";
 import { validateScheduleClosingTime } from "./branchConfigurationService";
+import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 
 export { validateScheduleClosingTime };
 
@@ -78,9 +79,10 @@ export const deleteSchedule = async (scheduleId) => {
 };
 
 export const publishSchedule = async ( scheduleId ) => {
+  let currentSchedule = null;
   const snapshot = await get(ref(database, `schedules/${scheduleId}`));
   if (snapshot.exists()) {
-    const currentSchedule = snapshot.val();
+    currentSchedule = snapshot.val();
     const timeValidation = await validateScheduleClosingTime(currentSchedule.branch, currentSchedule.clinicDate);
     if (!timeValidation.valid) {
       throw new Error(timeValidation.message);
@@ -93,6 +95,17 @@ export const publishSchedule = async ( scheduleId ) => {
     isReady: false,
     publishedAt: Date.now(),
   });
+
+  if (currentSchedule) {
+    logAuditEvent({
+      action: AUDIT_ACTIONS.SCHEDULE_PUBLISHED,
+      category: AUDIT_CATEGORIES.SCHEDULE_MANAGEMENT,
+      description: `Published schedule for ${currentSchedule.branch} on ${currentSchedule.clinicDate}`,
+      targetType: "schedule",
+      targetId: scheduleId,
+      branchId: currentSchedule.branch
+    });
+  }
 };
 
 export const moveToReady = async ( scheduleId ) => {
@@ -107,15 +120,51 @@ export const updateQueueStatus = async (scheduleId, queueStatus) => {
     queueStatus,
     [`queueStatusUpdatedAt`]: Date.now()
   };
-  if (queueStatus === "active") {
-    const snap = await get(ref(database, `schedules/${scheduleId}`));
-    if (snap.exists() && !snap.val().queueStartedAt) {
+  
+  const snap = await get(ref(database, `schedules/${scheduleId}`));
+  let isFirstStart = false;
+  let scheduleData = null;
+
+  if (snap.exists()) {
+    scheduleData = snap.val();
+    if (queueStatus === "active" && !scheduleData.queueStartedAt) {
       updates.queueStartedAt = serverTimestamp();
+      isFirstStart = true;
     }
   }
+
   await update(ref(database, `schedules/${scheduleId}`), updates);
+  
   if (queueStatus === "active") {
     await recalculateRollingValidation(scheduleId);
+  }
+
+  // Audit Logs
+  if (scheduleData) {
+    let action = null;
+    let description = "";
+
+    if (queueStatus === "active") {
+      action = isFirstStart ? AUDIT_ACTIONS.QUEUE_STARTED : AUDIT_ACTIONS.QUEUE_RESUMED;
+      description = isFirstStart ? "Started the clinic queue" : "Resumed the clinic queue";
+    } else if (queueStatus === "paused") {
+      action = AUDIT_ACTIONS.QUEUE_PAUSED;
+      description = "Paused the clinic queue";
+    } else if (queueStatus === "closed") {
+      action = AUDIT_ACTIONS.QUEUE_CLOSED;
+      description = "Closed the clinic queue";
+    }
+
+    if (action) {
+      logAuditEvent({
+        action,
+        category: AUDIT_CATEGORIES.QUEUE_OPERATIONS,
+        description,
+        targetType: "schedule",
+        targetId: scheduleId,
+        branchId: scheduleData.branch
+      });
+    }
   }
 };
 
@@ -141,6 +190,19 @@ export const completeSchedule = async ( scheduleId ) => {
   if (Object.keys(updates).length > 0) {
     await update(ref(database), updates);
   }
+
+  // Audit Log
+  const snap = await get(ref(database, `schedules/${scheduleId}`));
+  const branch = snap.exists() ? snap.val().branch : null;
+
+  logAuditEvent({
+    action: AUDIT_ACTIONS.SCHEDULE_COMPLETED,
+    category: AUDIT_CATEGORIES.SCHEDULE_MANAGEMENT,
+    description: `Completed schedule`,
+    targetType: "schedule",
+    targetId: scheduleId,
+    branchId: branch
+  });
 };
 
 export const subscribeToPublishedSchedules = ( callback ) => {
