@@ -258,6 +258,9 @@ export default function Activity() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
 
   useEffect(() => {
     if (activeTab !== "audit") return;
@@ -304,6 +307,14 @@ export default function Activity() {
 
     return matchesSearch && matchesCategory && matchesRole;
   });
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, categoryFilter, roleFilter, logs.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ITEMS_PER_PAGE));
+  const paginatedLogs = filteredLogs.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const getRoleIcon = (role) => {
     switch(role) {
@@ -418,7 +429,7 @@ export default function Activity() {
               <>
                 {/* Mobile Card Layout */}
                 <div className="block md:hidden divide-y divide-gray-100 overflow-y-auto">
-                  {filteredLogs.map((log) => (
+                  {paginatedLogs.map((log) => (
                     <div key={log.id} className="p-5 flex flex-col gap-3">
                       <div className="flex justify-between items-start gap-2">
                         <div>
@@ -465,7 +476,7 @@ export default function Activity() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {filteredLogs.map((log) => (
+                      {paginatedLogs.map((log) => (
                         <tr key={log.id} className="hover:bg-gray-50/80 transition-colors group">
                           <td className="p-4 pl-6 text-sm text-gray-500 whitespace-nowrap">
                             {formatDateTime(log.timestamp)}
@@ -493,17 +504,42 @@ export default function Activity() {
                   </table>
                 </div>
 
-                {/* Expand Window Button */}
+                {/* Pagination and Expand Window Controls */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 gap-4 md:flex-none z-10">
                   <div className="text-sm text-gray-500 font-medium text-center sm:text-left">
-                    Showing {filteredLogs.length} matching {filteredLogs.length === 1 ? 'record' : 'records'}
+                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredLogs.length)} of {filteredLogs.length} matching {filteredLogs.length === 1 ? 'record' : 'records'}
                   </div>
-                  <div className="flex items-center justify-center">
+                  
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 text-sm font-semibold border border-gray-200 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-sm font-medium text-gray-600 px-2">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 text-sm font-semibold border border-gray-200 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Next
+                      </button>
+                    </div>
+
+                    {hasMoreLogs && (
+                      <div className="h-6 hidden sm:block border-l border-gray-300"></div>
+                    )}
+                    
                     {hasMoreLogs && (
                       <button 
                         onClick={() => setLogLimit(l => l + 100)}
                         disabled={loading}
-                        className="flex items-center px-4 py-2 rounded-lg border border-blue-200 text-sm font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center px-4 py-1.5 rounded-lg border border-blue-200 text-sm font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {loading ? (
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-700 mr-2"></div>

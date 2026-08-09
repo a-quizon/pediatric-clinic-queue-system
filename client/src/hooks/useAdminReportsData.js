@@ -96,7 +96,7 @@ export const useAdminReportsData = () => {
     const filteredReservations = data.reservations.filter(r => validScheduleIds.has(r.scheduleId));
 
     // 2. Compute KPIs
-    const totalParents = filteredUsers.filter(u => u.role === "parent").length;
+    const totalParents = data.users.filter(u => u.role === "parent").length;
     const totalSessions = filteredSchedules.length;
     const totalReservations = filteredReservations.length;
 
