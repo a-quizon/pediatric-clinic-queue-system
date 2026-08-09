@@ -286,7 +286,7 @@ export const updatePatientInfo = async (reservationId, patientInfo) => {
   });
 };
 
-export const penalizeReservation = async (reservationId, schedule, allScheduleReservations = []) => {
+export const penalizeReservation = async (reservationId, schedule, allScheduleReservations = [], penaltyMoveBack) => {
   const snap = await get(ref(database, `reservations/${reservationId}`));
   if (!snap.exists()) return;
   const val = snap.val();
@@ -326,7 +326,8 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
     let newSortTimestamp = Date.now();
 
     if (index >= 0 && activePipeline.length > 1) {
-      const targetBehindIndex = Math.min(activePipeline.length - 1, index + 2);
+      const moveBack = Number.isInteger(penaltyMoveBack) ? penaltyMoveBack : 2;
+      const targetBehindIndex = Math.min(activePipeline.length - 1, index + moveBack);
       const targetBehind = activePipeline[targetBehindIndex];
       const nextAfterTarget = activePipeline[targetBehindIndex + 1];
 

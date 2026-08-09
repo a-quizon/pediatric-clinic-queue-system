@@ -37,6 +37,7 @@ import AdminDashboard from "../pages/admin/Dashboard";
 import AdminUserManagement from "../pages/admin/UserManagement";
 import AdminBranchManagement from "../pages/admin/BranchManagement";
 import AdminActivity from "../pages/admin/Activity";
+import AdminSystemSettings from "../pages/admin/SystemSettings";
 import AdminProfile from "../pages/admin/Profile";
 
 import RoleRoute from "./RoleRoute";
@@ -87,6 +88,7 @@ export default function AppRoutes() {
           <Route path="users" element={<AdminUserManagement />} />
           <Route path="branches" element={<AdminBranchManagement />} />
           <Route path="activity" element={<AdminActivity />} />
+          <Route path="settings" element={<AdminSystemSettings />} />
           <Route path="profile" element={<AdminProfile />} />
         </Route>
       </Routes>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle, AlertTriangle } from "lucide-react";
 import { subscribeToAllReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
+import { subscribeToQueueConfiguration } from "../../services/systemConfigurationService";
 import { computeReservationState, QUEUE_STATES, sortActiveQueue } from "../../services/queueEngine";
 import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
@@ -13,6 +14,7 @@ export default function ManageQueue() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [requestingCheckIn, setRequestingCheckIn] = useState(false);
+  const [penaltyMoveBack, setPenaltyMoveBack] = useState(2);
   const [nowTs, setNowTs] = useState(Date.now());
 
   useEffect(() => {
@@ -32,9 +34,14 @@ export default function ManageQueue() {
       setLoading(false);
     });
 
+    const unsubConfig = subscribeToQueueConfiguration((config) => {
+      setPenaltyMoveBack(config.penaltyMoveBack);
+    });
+
     return () => {
       unsubSchedules();
       unsubReservations();
+      unsubConfig();
     };
   }, []);
 
@@ -146,7 +153,7 @@ export default function ManageQueue() {
     try {
       setActionLoading(res.id);
       const schedule = schedules[res.scheduleId] || {};
-      await penalizeReservation(res.id, schedule, reservations);
+      await penalizeReservation(res.id, schedule, reservations, penaltyMoveBack);
       const newPenaltyCount = (res.penaltyCount || 0) + 1;
       const lateLimit = Number(schedule.lateLimit) || 3;
       if (newPenaltyCount >= lateLimit) {
