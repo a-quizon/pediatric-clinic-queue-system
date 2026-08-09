@@ -107,9 +107,9 @@ export const useAdminReportsData = () => {
     parents.forEach(p => {
       const d = p.createdAt ? new Date(p.createdAt) : new Date(0);
       // Format by month/year for macro view (e.g., "Aug 2026")
-      // If date range is "This Month", we might format by day (e.g., "Aug 1")
+      // If date range is "This Month" or "Last 3 Months", we format by day (e.g., "Aug 1")
       let key = "";
-      if (dateRange === "This Month") {
+      if (dateRange === "This Month" || dateRange === "Last 3 Months") {
         key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       } else {
         key = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });

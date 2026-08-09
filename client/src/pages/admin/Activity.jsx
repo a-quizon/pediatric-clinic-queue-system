@@ -76,34 +76,40 @@ const AdminReports = () => {
         <>
           {/* KPI Row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-blue-50 rounded-lg">
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2.5 bg-blue-50 rounded-xl">
                   <Users className="w-5 h-5 text-blue-600" />
                 </div>
-                <span className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Registered Parents</span>
               </div>
-              <div className="text-3xl font-bold text-gray-800 mt-auto">{kpis.totalParents}</div>
+              <div>
+                <h3 className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">Registered Parents</h3>
+                <p className="text-2xl font-bold text-gray-800">{kpis.totalParents}</p>
+              </div>
             </div>
             
-            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-indigo-50 rounded-lg">
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2.5 bg-indigo-50 rounded-xl">
                   <MapPin className="w-5 h-5 text-indigo-600" />
                 </div>
-                <span className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Completed Sessions</span>
               </div>
-              <div className="text-3xl font-bold text-gray-800 mt-auto">{kpis.totalSessions}</div>
+              <div>
+                <h3 className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">Completed Sessions</h3>
+                <p className="text-2xl font-bold text-gray-800">{kpis.totalSessions}</p>
+              </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-green-50 rounded-lg">
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2.5 bg-green-50 rounded-xl">
                   <ActivityIcon className="w-5 h-5 text-green-600" />
                 </div>
-                <span className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Total Reservations</span>
               </div>
-              <div className="text-3xl font-bold text-gray-800 mt-auto">{kpis.totalReservations}</div>
+              <div>
+                <h3 className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">Total Reservations</h3>
+                <p className="text-2xl font-bold text-gray-800">{kpis.totalReservations}</p>
+              </div>
             </div>
           </div>
 
