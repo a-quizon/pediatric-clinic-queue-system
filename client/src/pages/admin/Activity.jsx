@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { FileText, Activity as ActivityIcon, Search, Filter, Shield, Stethoscope, UserCog, User, MapPin, Clock, ArrowDownToLine, AlertCircle } from "lucide-react";
+import { FileText, Activity as ActivityIcon, Search, Filter, Shield, Stethoscope, UserCog, User, MapPin, Clock, ArrowDownToLine, AlertCircle, Calendar, Users, Inbox } from "lucide-react";
 import { ref, query, limitToLast, onValue } from "firebase/database";
 import { database } from "../../firebase/database";
 import { AUDIT_CATEGORIES } from "../../services/auditService";
+import { useAdminReportsData } from "../../hooks/useAdminReportsData";
+import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const formatDateTime = (timestamp) => {
   if (!timestamp) return "Unknown";
@@ -11,6 +13,231 @@ const formatDateTime = (timestamp) => {
     month: "short", day: "numeric", year: "numeric",
     hour: "numeric", minute: "2-digit", hour12: true
   }).format(d);
+};
+
+const AdminReports = () => {
+  const { loading, error, metrics, filters } = useAdminReportsData();
+  const { dateRange, setDateRange } = filters;
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center text-gray-500 bg-white rounded-2xl border border-gray-100 shadow-sm md:flex-1">
+        <AlertCircle className="w-12 h-12 text-red-300 mb-3" />
+        <p className="font-semibold text-gray-600">Failed to load reports data.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 min-h-[400px] flex justify-center items-center md:flex-1">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const { kpis, adoptionData, branchData, outcomeData, hasData } = metrics;
+
+  return (
+    <div className="space-y-6 md:flex-1 overflow-y-auto">
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-gray-500" />
+          <h2 className="text-lg font-bold text-gray-800">System Analytics</h2>
+        </div>
+        
+        <div className="relative min-w-[180px]">
+          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <select 
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            className="w-full pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm font-medium text-gray-700 shadow-sm appearance-none cursor-pointer"
+          >
+            <option value="This Month">This Month</option>
+            <option value="Last 3 Months">Last 3 Months</option>
+            <option value="This Year">This Year</option>
+            <option value="All Time">All Time</option>
+          </select>
+        </div>
+      </div>
+
+      {!hasData ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center md:flex-1 flex flex-col items-center justify-center min-h-[300px]">
+          <div className="mx-auto w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mb-4">
+            <Inbox className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-800 mb-1">No Activity Found</h3>
+          <p className="text-gray-500 text-sm max-w-sm mx-auto">
+            There is no system activity for the selected date range. Try expanding your search.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* KPI Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <Users className="w-5 h-5 text-blue-600" />
+                </div>
+                <span className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Registered Parents</span>
+              </div>
+              <div className="text-3xl font-bold text-gray-800 mt-auto">{kpis.totalParents}</div>
+            </div>
+            
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-indigo-50 rounded-lg">
+                  <MapPin className="w-5 h-5 text-indigo-600" />
+                </div>
+                <span className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Completed Sessions</span>
+              </div>
+              <div className="text-3xl font-bold text-gray-800 mt-auto">{kpis.totalSessions}</div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-green-50 rounded-lg">
+                  <ActivityIcon className="w-5 h-5 text-green-600" />
+                </div>
+                <span className="text-sm font-semibold text-gray-600 uppercase tracking-wider">Total Reservations</span>
+              </div>
+              <div className="text-3xl font-bold text-gray-800 mt-auto">{kpis.totalReservations}</div>
+            </div>
+          </div>
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Adoption Trend */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 lg:col-span-2">
+              <h3 className="text-lg font-bold text-gray-800 mb-6">Parent Adoption Trend</h3>
+              <div className="h-72 w-full">
+                {adoptionData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={adoptionData} margin={{ top: 5, right: 0, bottom: 5, left: -20 }}>
+                      <defs>
+                        <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                        dy={10}
+                      />
+                      <YAxis 
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                        allowDecimals={false}
+                      />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        labelStyle={{ fontWeight: 'bold', color: '#374151', marginBottom: '4px' }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="users" 
+                        name="New Users"
+                        stroke="#2563eb" 
+                        strokeWidth={3}
+                        fillOpacity={1} 
+                        fill="url(#colorUsers)" 
+                        activeDot={{ r: 6, strokeWidth: 0 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-400">
+                    No adoption data in this period
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Branch Utilization */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-6">Reservations by Branch</h3>
+              <div className="h-72 w-full">
+                {branchData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={branchData} margin={{ top: 5, right: 0, bottom: 5, left: -20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <XAxis 
+                        dataKey="branch" 
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                        dy={10}
+                      />
+                      <YAxis 
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: '#6b7280', fontSize: 12 }}
+                        allowDecimals={false}
+                      />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        cursor={{ fill: '#f9fafb' }}
+                      />
+                      <Bar dataKey="reservations" name="Reservations" fill="#4f46e5" radius={[4, 4, 0, 0]} maxBarSize={60} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-400">
+                    No branch data in this period
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Global Outcomes */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-6">Global Outcomes</h3>
+              <div className="h-72 w-full">
+                {outcomeData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={outcomeData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={95}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {outcomeData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Legend 
+                        verticalAlign="bottom" 
+                        height={36}
+                        iconType="circle"
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-400">
+                    No outcome data to display
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 };
 
 export default function Activity() {
@@ -97,11 +324,6 @@ export default function Activity() {
 
   return (
     <div className="space-y-6 pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">System Activity</h1>
-        <p className="text-gray-500 mt-1">View audit logs and system reports</p>
-      </div>
-
       {/* Tabs */}
       <div className="flex border-b border-gray-200">
         <button
@@ -305,15 +527,7 @@ export default function Activity() {
           </div>
         </>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 min-h-[400px] flex flex-col items-center justify-center text-center md:flex-1">
-          <div className="w-16 h-16 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center mb-4">
-            <FileText className="w-8 h-8" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">System Reports Coming Soon</h2>
-          <p className="text-gray-500 max-w-md">
-            Detailed analytical reports and export functionality will be available in this section.
-          </p>
-        </div>
+        <AdminReports />
       )}
     </div>
   );
