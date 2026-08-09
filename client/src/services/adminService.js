@@ -4,6 +4,7 @@ import { ref, set, get } from "firebase/database";
 import { firebaseConfig } from "../firebase/firebaseConfig";
 import { database } from "../firebase/database";
 import { auth } from "../firebase/auth";
+import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 
 export const getActiveDoctor = async () => {
   const snapshot = await get(ref(database, "users"));
@@ -77,6 +78,15 @@ export const createStaffAccount = async (staffData) => {
     // Delete the secondary app instance to clean up
     await deleteApp(secondaryApp);
 
+    // Audit Log
+    logAuditEvent({
+      action: AUDIT_ACTIONS.USER_CREATED,
+      category: AUDIT_CATEGORIES.USER_MANAGEMENT,
+      description: `Created a new ${staffData.role} account for ${staffData.name}`,
+      targetType: "user",
+      targetId: user.uid
+    });
+
     return user;
   } catch (error) {
     // Clean up on error as well
@@ -96,7 +106,15 @@ export const updateUser = async (uid, updates) => {
   };
   
   const { update } = await import("firebase/database");
-  return update(userRef, payload);
+  await update(userRef, payload);
+
+  logAuditEvent({
+    action: AUDIT_ACTIONS.USER_EDITED,
+    category: AUDIT_CATEGORIES.USER_MANAGEMENT,
+    description: `Updated user profile details`,
+    targetType: "user",
+    targetId: uid
+  });
 };
 
 export const toggleUserStatus = async (uid, currentStatus) => {
@@ -106,6 +124,14 @@ export const toggleUserStatus = async (uid, currentStatus) => {
   const { update } = await import("firebase/database");
   await update(userRef, { status: newStatus, updatedAt: Date.now() });
   
+  logAuditEvent({
+    action: newStatus === "active" ? AUDIT_ACTIONS.USER_ACTIVATED : AUDIT_ACTIONS.USER_DEACTIVATED,
+    category: AUDIT_CATEGORIES.USER_MANAGEMENT,
+    description: `User account status changed to ${newStatus}`,
+    targetType: "user",
+    targetId: uid
+  });
+
   return newStatus;
 };
 

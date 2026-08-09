@@ -1,5 +1,6 @@
 import { database } from "../firebase/database";
 import { ref, push, set, get, update, remove, onValue } from "firebase/database";
+import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 
 const defaultSchedule = () => ({
   monday: { isOpen: false, openingTime: "", closingTime: "" },
@@ -143,15 +144,43 @@ export const createBranch = async (branchData) => {
     ...branchData,
     createdAt: Date.now()
   });
+  
+  logAuditEvent({
+    action: AUDIT_ACTIONS.BRANCH_CREATED,
+    category: AUDIT_CATEGORIES.BRANCH_MANAGEMENT,
+    description: `Created a new branch: ${branchData.name}`,
+    targetType: "branch",
+    targetId: branchRef.key,
+    branchId: branchRef.key
+  });
+  
   return branchRef.key;
 };
 
 export const updateBranch = async (branchId, branchData) => {
   await update(ref(database, `branchConfigurations/${branchId}`), branchData);
+  
+  logAuditEvent({
+    action: AUDIT_ACTIONS.BRANCH_EDITED,
+    category: AUDIT_CATEGORIES.BRANCH_MANAGEMENT,
+    description: `Updated branch configuration: ${branchData.name || branchId}`,
+    targetType: "branch",
+    targetId: branchId,
+    branchId: branchId
+  });
 };
 
 export const deleteBranch = async (branchId) => {
   await remove(ref(database, `branchConfigurations/${branchId}`));
+  
+  logAuditEvent({
+    action: AUDIT_ACTIONS.BRANCH_DELETED,
+    category: AUDIT_CATEGORIES.BRANCH_MANAGEMENT,
+    description: `Deleted branch`,
+    targetType: "branch",
+    targetId: branchId,
+    branchId: branchId
+  });
 };
 
 export const getClinicHours = async (branchName, clinicDate) => {
