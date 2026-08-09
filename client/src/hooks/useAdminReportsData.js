@@ -149,9 +149,19 @@ export const useAdminReportsData = () => {
     let forfeited = 0;
 
     filteredReservations.forEach(r => {
-      if (["completed", "consultation_completed"].includes(r.status)) checkedUp++;
-      else if (r.status === "cancelled") cancelled++;
-      else if (["forfeited", "penalized", "late_limit_reached"].includes(r.status)) forfeited++;
+      // Checked Up statuses
+      if (["completed", "consultation_completed"].includes(r.status)) {
+        checkedUp++;
+      } 
+      // Cancelled status
+      else if (r.status === "cancelled") {
+        cancelled++;
+      } 
+      // Forfeited statuses (expired, validation_expired, or forfeited by exceeding penalty limit)
+      // Note: 'penalized' is NOT a status, it's just a metadata state
+      else if (["forfeited", "expired", "validation_expired"].includes(r.status)) {
+        forfeited++;
+      }
     });
 
     const outcomeData = [
