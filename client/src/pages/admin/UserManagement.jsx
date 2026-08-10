@@ -31,16 +31,7 @@ export default function UserManagement() {
           ...usersData[key]
         })).filter(user => user.role !== 'admin' && user.id !== 'admin');
         
-        // If details modal is open, sync the selected user with the fresh data
-        setUsers(prevUsers => {
-          if (isDetailsModalOpen && selectedUser) {
-            const updatedSelectedUser = usersList.find(u => u.id === selectedUser.id);
-            if (updatedSelectedUser) {
-              setSelectedUser(updatedSelectedUser);
-            }
-          }
-          return usersList;
-        });
+        setUsers(usersList);
       } else {
         setUsers([]);
       }
@@ -49,6 +40,17 @@ export default function UserManagement() {
 
     return () => unsubscribe();
   }, [isDetailsModalOpen, selectedUser?.id, refreshTrigger]);
+
+  // Safely synchronize selected user when users array changes without causing infinite render loops
+  // and only pass a new reference if the data actually changed to prevent resetting the modal
+  useEffect(() => {
+    if (isDetailsModalOpen && selectedUser) {
+      const updatedSelectedUser = users.find(u => u.id === selectedUser.id);
+      if (updatedSelectedUser && JSON.stringify(updatedSelectedUser) !== JSON.stringify(selectedUser)) {
+        setSelectedUser(updatedSelectedUser);
+      }
+    }
+  }, [users, isDetailsModalOpen, selectedUser]);
 
   const getRoleIcon = (role) => {
     switch(role) {

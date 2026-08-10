@@ -3,7 +3,7 @@
     "users": {
       "$uid": {
         ".read": "auth != null",
-        ".write": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'active' && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('status').val() === 'active' || (!root.child('users').child(auth.uid).child('status').exists() && newData.child('status').val() === 'active')) && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     },
     "notifications": {
