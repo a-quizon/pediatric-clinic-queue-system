@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, Edit2, Shield, Stethoscope, UserCog, User, Mail, Phone, Calendar, Clock, MapPin, CheckCircle, AlertTriangle, Key } from "lucide-react";
-import { updateUser, toggleUserStatus, sendAdminPasswordResetEmail, updateStaffEmail } from "../../services/adminService";
+import { updateUser, toggleUserStatus, sendAdminPasswordResetEmail } from "../../services/adminService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import toast from "react-hot-toast";
 import ConfirmationModal from "../common/ConfirmationModal";
@@ -63,20 +63,8 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
       if (user.role === "secretary") {
         updates.assignedBranch = formData.assignedBranch;
       }
-      
-      let emailUpdated = false;
-      if (formData.email !== user.email) {
-        await updateStaffEmail(user.id, formData.email);
-        emailUpdated = true;
-      } else {
-        updates.email = formData.email;
-      }
-      
-      const hasOtherUpdates = Object.keys(updates).length > 0 && !(Object.keys(updates).length === 2 && updates.name === user.name && updates.phone === user.phone && (!updates.assignedBranch || updates.assignedBranch === user.assignedBranch));
 
-      if (hasOtherUpdates || !emailUpdated) {
-        await updateUser(user.id, updates);
-      }
+      await updateUser(user.id, updates);
       toast.success("User updated successfully.");
       setIsEditing(false);
       onUpdate(); // Trigger refresh in parent
@@ -199,10 +187,9 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
 
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1.5"><Mail className="w-3.5 h-3.5"/> Email Address</label>
-                {isEditing ? (
-                  <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-800 transition-colors" />
-                ) : (
-                  <p className="font-medium text-gray-800 text-base">{user.email}</p>
+                <p className="font-medium text-gray-800 text-base">{user.email}</p>
+                {isEditing && (
+                  <p className="text-xs text-gray-500 mt-1 italic">Login email cannot be changed by administrators.</p>
                 )}
               </div>
 
@@ -215,12 +202,6 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
                 )}
               </div>
             </div>
-            {isEditing && (
-              <div className="mt-4 bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-sm text-blue-700">
-                <Shield className="w-5 h-5 shrink-0" />
-                <p>Changing the email will securely synchronize both their login credential and contact profile.</p>
-              </div>
-            )}
           </section>
 
           {/* Account Information */}
