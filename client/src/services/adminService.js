@@ -142,3 +142,33 @@ export const sendAdminPasswordResetEmail = async (email) => {
   };
   return sendPasswordResetEmail(auth, email, actionCodeSettings);
 };
+
+export const updateStaffEmail = async (targetUid, newEmail) => {
+  if (!auth.currentUser) throw new Error("No authenticated user.");
+  
+  const idToken = await auth.currentUser.getIdToken();
+  const response = await fetch("http://localhost:5000/api/admin/update-staff-email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${idToken}`
+    },
+    body: JSON.stringify({ targetUid, newEmail })
+  });
+
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to update staff email");
+  }
+
+  logAuditEvent({
+    action: AUDIT_ACTIONS.USER_EDITED,
+    category: AUDIT_CATEGORIES.USER_MANAGEMENT,
+    description: `Updated user profile details, including email address`,
+    targetType: "user",
+    targetId: targetUid
+  });
+
+  return data;
+};

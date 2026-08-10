@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, Edit2, Shield, Stethoscope, UserCog, User, Mail, Phone, Calendar, Clock, MapPin, CheckCircle, AlertTriangle, Key } from "lucide-react";
-import { updateUser, toggleUserStatus, sendAdminPasswordResetEmail } from "../../services/adminService";
+import { updateUser, toggleUserStatus, sendAdminPasswordResetEmail, updateStaffEmail } from "../../services/adminService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import toast from "react-hot-toast";
 import ConfirmationModal from "../common/ConfirmationModal";
@@ -57,15 +57,26 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
     try {
       const updates = {
         name: formData.name,
-        email: formData.email,
         phone: formData.phone
       };
 
       if (user.role === "secretary") {
         updates.assignedBranch = formData.assignedBranch;
       }
+      
+      let emailUpdated = false;
+      if (formData.email !== user.email) {
+        await updateStaffEmail(user.id, formData.email);
+        emailUpdated = true;
+      } else {
+        updates.email = formData.email;
+      }
+      
+      const hasOtherUpdates = Object.keys(updates).length > 0 && !(Object.keys(updates).length === 2 && updates.name === user.name && updates.phone === user.phone && (!updates.assignedBranch || updates.assignedBranch === user.assignedBranch));
 
-      await updateUser(user.id, updates);
+      if (hasOtherUpdates || !emailUpdated) {
+        await updateUser(user.id, updates);
+      }
       toast.success("User updated successfully.");
       setIsEditing(false);
       onUpdate(); // Trigger refresh in parent
@@ -207,7 +218,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
             {isEditing && (
               <div className="mt-4 bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-sm text-blue-700">
                 <Shield className="w-5 h-5 shrink-0" />
-                <p>Changing the email updates their contact profile. It does not automatically change their login credential due to security restrictions.</p>
+                <p>Changing the email will securely synchronize both their login credential and contact profile.</p>
               </div>
             )}
           </section>
