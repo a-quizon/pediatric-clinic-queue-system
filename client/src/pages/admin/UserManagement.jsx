@@ -18,8 +18,6 @@ export default function UserManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const USERS_PER_PAGE = 10;
 
-  // Force trigger to re-read from local state if needed, but onValue handles real-time updates natively
-  const [refreshTrigger, setRefreshTrigger] = useState(0); 
 
   useEffect(() => {
     const usersRef = ref(database, 'users');
@@ -39,7 +37,7 @@ export default function UserManagement() {
     });
 
     return () => unsubscribe();
-  }, [isDetailsModalOpen, selectedUser?.id, refreshTrigger]);
+  }, []);
 
   // Safely synchronize selected user when users array changes without causing infinite render loops
   // and only pass a new reference if the data actually changed to prevent resetting the modal
@@ -309,7 +307,7 @@ export default function UserManagement() {
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
         user={selectedUser}
-        onUpdate={() => setRefreshTrigger(prev => prev + 1)}
+        onUpdate={() => {}}
       />
     </div>
   );
