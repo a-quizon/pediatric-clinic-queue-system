@@ -38,7 +38,25 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await loginUser(formData.email, formData.password);
+      const authUser = await loginUser(formData.email, formData.password);
+      
+      // Verify application-level account status before celebrating authentication success
+      const { ref, get } = await import("firebase/database");
+      const { database } = await import("../../firebase/database");
+      const userRef = ref(database, `users/${authUser.uid}`);
+      const snapshot = await get(userRef);
+
+      if (snapshot.exists()) {
+        const userData = snapshot.val();
+        if (userData.status === 'inactive') {
+          // AuthContext will independently intercept this, call signOut(), and show the deactivated toast.
+          // We simply reset the local loading state and abort the local success flow.
+          setLoading(false);
+          return;
+        }
+      }
+
+      // If active, show success message and keep loading=true while waiting for AuthContext to navigate
       toast.success('Login Successfully');
     } catch (err) {
       console.error('Login failed:', err);
