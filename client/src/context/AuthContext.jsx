@@ -1,6 +1,6 @@
 import { createContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { ref, get } from "firebase/database";
+import { ref, onValue } from "firebase/database";
 
 import { auth } from "../firebase/auth";
 import { database } from "../firebase/database";
@@ -14,17 +14,21 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(
+        let unsubscribeDB = null;
+
+        const unsubscribeAuth = onAuthStateChanged(
             auth,
-            async (currentUser) => {
+            (currentUser) => {
+                if (unsubscribeDB) {
+                    unsubscribeDB();
+                    unsubscribeDB = null;
+                }
+
                 if (currentUser) {
                     setUser(currentUser);
 
-                    try {
-                        const snapshot = await get(
-                            ref(database, `users/${currentUser.uid}`)
-                        );
-
+                    const userRef = ref(database, `users/${currentUser.uid}`);
+                    unsubscribeDB = onValue(userRef, (snapshot) => {
                         if (snapshot.exists()) {
                             let userData = snapshot.val();
                             
@@ -91,9 +95,11 @@ export function AuthProvider({ children }) {
 
                             console.log("Role:", userData.role);
                         }
-                    } catch (error) {
-                        console.error(error);
-                    }
+                        setLoading(false);
+                    }, (error) => {
+                        console.error("Database read error in AuthContext:", error);
+                        setLoading(false);
+                    });
                 } else {
                     setUser((prevUser) => {
                         if (prevUser && prevUser.role === "parent") {
@@ -102,13 +108,17 @@ export function AuthProvider({ children }) {
                         return null;
                     });
                     setRole(null);
+                    setLoading(false);
                 }
-
-                setLoading(false);
             }
         );
 
-        return () => unsubscribe();
+        return () => {
+            if (unsubscribeDB) {
+                unsubscribeDB();
+            }
+            unsubscribeAuth();
+        };
     }, []);
 
     const updateContextUser = (updates) => {
