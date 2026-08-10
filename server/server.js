@@ -1,38 +1,48 @@
 const express = require("express");
 const cors = require("cors");
 const admin = require("firebase-admin");
-const fs = require("fs");
-const path = require("path");
+require("dotenv").config();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173", // Restrict CORS to the Vite frontend
+  credentials: true
+}));
 app.use(express.json());
 
 // Initialize Firebase Admin
 let isFirebaseAdminInitialized = false;
-const serviceAccountPath = path.join(__dirname, "serviceAccountKey.json");
 
-if (fs.existsSync(serviceAccountPath)) {
-  try {
-    const serviceAccount = require(serviceAccountPath);
+try {
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  // Replace literal '\n' characters in the environment variable with actual newlines
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+  if (projectId && clientEmail && privateKey) {
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
       databaseURL: "https://pediatric-clinic-queue-system-default-rtdb.asia-southeast1.firebasedatabase.app"
     });
     isFirebaseAdminInitialized = true;
-    console.log("Firebase Admin successfully initialized.");
-  } catch (error) {
-    console.error("Error initializing Firebase Admin SDK:", error);
+    console.log("Firebase Admin successfully initialized via environment variables.");
+  } else {
+    console.warn("\n=======================================================");
+    console.warn("WARNING: Firebase Admin credentials are missing from .env!");
+    console.warn("The /api/admin/update-staff-email endpoint will fail.");
+    console.warn("Please configure:");
+    console.warn("  FIREBASE_PROJECT_ID");
+    console.warn("  FIREBASE_CLIENT_EMAIL");
+    console.warn("  FIREBASE_PRIVATE_KEY");
+    console.warn("=======================================================\n");
   }
-} else {
-  console.warn("\n=======================================================");
-  console.warn("WARNING: serviceAccountKey.json is missing!");
-  console.warn("Firebase Admin SDK could not be initialized.");
-  console.warn("The /api/admin/update-staff-email endpoint will fail.");
-  console.warn("Please generate a service account key from Firebase Console");
-  console.warn("and save it as server/serviceAccountKey.json");
-  console.warn("=======================================================\n");
+} catch (error) {
+  console.error("Error initializing Firebase Admin SDK. Please check your credentials.", error.message);
 }
 
 // Middleware to verify Firebase ID token
