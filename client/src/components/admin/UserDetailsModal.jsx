@@ -213,16 +213,14 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
                 <p className="font-medium text-gray-800 capitalize text-base">{user.role}</p>
               </div>
 
-              {(user.role === 'secretary' || user.role === 'doctor') && (
-                <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1.5">Status</label>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
-                    user.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
-                  }`}>
-                    {user.status || 'unknown'}
-                  </span>
-                </div>
-              )}
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1.5">Status</label>
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
+                  user.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
+                }`}>
+                  {user.status || 'unknown'}
+                </span>
+              </div>
 
               {user.role === 'secretary' && (
                 <div>
@@ -308,21 +306,19 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
                   <span className="hidden sm:inline lg:hidden">Reset</span>
                 </button>
                 
-                {(user.role === 'secretary' || user.role === 'doctor') && (
-                  <button 
-                    onClick={handleToggleStatus}
-                    disabled={isTogglingStatus || user.id === "admin"}
-                    className={`order-3 sm:order-2 w-full sm:w-auto px-5 py-2.5 font-medium rounded-xl border flex items-center justify-center gap-2 shadow-sm text-sm transition-colors ${
-                      user.status === 'active' 
-                      ? 'bg-white text-red-600 border-red-200 hover:bg-red-50' 
-                      : 'bg-white text-green-600 border-green-200 hover:bg-green-50'
-                    }`}
-                  >
-                    {user.status === 'active' ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                    <span className="sm:hidden lg:inline">{user.status === 'active' ? "Deactivate Account" : "Activate Account"}</span>
-                    <span className="hidden sm:inline lg:hidden">{user.status === 'active' ? "Deactivate" : "Activate"}</span>
-                  </button>
-                )}
+                <button 
+                  onClick={handleToggleStatus}
+                  disabled={isTogglingStatus || user.id === "admin"}
+                  className={`order-3 sm:order-2 w-full sm:w-auto px-5 py-2.5 font-medium rounded-xl border flex items-center justify-center gap-2 shadow-sm text-sm transition-colors ${
+                    user.status === 'active' 
+                    ? 'bg-white text-red-600 border-red-200 hover:bg-red-50' 
+                    : 'bg-white text-green-600 border-green-200 hover:bg-green-50'
+                  }`}
+                >
+                  {user.status === 'active' ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                  <span className="sm:hidden lg:inline">{user.status === 'active' ? "Deactivate Account" : "Activate Account"}</span>
+                  <span className="hidden sm:inline lg:hidden">{user.status === 'active' ? "Deactivate" : "Activate"}</span>
+                </button>
               </div>
             </div>
           )}
