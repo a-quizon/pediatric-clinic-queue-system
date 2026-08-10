@@ -152,7 +152,7 @@ export default function UserManagement() {
         ) : filteredUsers.length > 0 ? (
           <>
             {/* Mobile Card Layout */}
-            <div className="block md:hidden divide-y divide-gray-100">
+            <div className="block md:hidden divide-y divide-gray-100 overflow-y-auto">
               {displayedUsers.map((user) => (
                 <div 
                   key={user.id}
