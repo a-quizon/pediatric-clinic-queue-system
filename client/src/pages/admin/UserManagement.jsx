@@ -14,6 +14,7 @@ export default function UserManagement() {
 
   const [selectedUser, setSelectedUser] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const USERS_PER_PAGE = 10;
@@ -34,21 +35,26 @@ export default function UserManagement() {
         setUsers([]);
       }
       setLoading(false);
+      setIsInitialLoadComplete(true);
     });
 
     return () => unsubscribe();
   }, []);
 
   // Safely synchronize selected user when users array changes without causing infinite render loops
-  // and only pass a new reference if the data actually changed to prevent resetting the modal
+  // Uses functional state update to remove selectedUser from dependency array, preventing recursive triggers
   useEffect(() => {
-    if (isDetailsModalOpen && selectedUser) {
-      const updatedSelectedUser = users.find(u => u.id === selectedUser.id);
-      if (updatedSelectedUser && JSON.stringify(updatedSelectedUser) !== JSON.stringify(selectedUser)) {
-        setSelectedUser(updatedSelectedUser);
-      }
+    if (isDetailsModalOpen) {
+      setSelectedUser(prevSelected => {
+        if (!prevSelected) return prevSelected;
+        const updatedSelectedUser = users.find(u => u.id === prevSelected.id);
+        if (updatedSelectedUser && JSON.stringify(updatedSelectedUser) !== JSON.stringify(prevSelected)) {
+          return updatedSelectedUser;
+        }
+        return prevSelected;
+      });
     }
-  }, [users, isDetailsModalOpen, selectedUser]);
+  }, [users, isDetailsModalOpen]);
 
   const getRoleIcon = (role) => {
     switch(role) {
@@ -94,6 +100,8 @@ export default function UserManagement() {
   const displayedUsers = filteredUsers.slice((currentPage - 1) * USERS_PER_PAGE, currentPage * USERS_PER_PAGE);
 
   const openUserDetails = (user) => {
+    if (!isInitialLoadComplete) return;
+    if (!user || !user.id) return;
     setSelectedUser(user);
     setIsDetailsModalOpen(true);
   };

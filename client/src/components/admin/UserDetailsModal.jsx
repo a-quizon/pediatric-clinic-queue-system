@@ -40,7 +40,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
     }
   }, [user, isOpen]);
 
-  if (!isOpen || !user) return null;
+  if (!isOpen || !user || !user.id) return null;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
