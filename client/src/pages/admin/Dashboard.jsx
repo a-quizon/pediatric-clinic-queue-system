@@ -32,6 +32,7 @@ const getTodayStr = () => {
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     registeredParents: 0,
     activeStaff: 0,
@@ -145,23 +146,30 @@ export default function Dashboard() {
       setLoading(false);
     };
 
+    const handleError = (err) => {
+      console.error("Firebase Read Error:", err);
+      setError("Failed to load dashboard data. You may not have permission.");
+      setLoading(false);
+    };
+
     const unsubUsers = onValue(usersRef, (snapshot) => {
       usersData = snapshot.val();
       usersLoaded = true;
+      setError(null);
       computeStats();
-    });
+    }, handleError);
 
     const unsubSchedules = onValue(schedulesRef, (snapshot) => {
       schedulesData = snapshot.val();
       schedulesLoaded = true;
       computeStats();
-    });
+    }, handleError);
 
     const unsubBranches = onValue(branchesRef, (snapshot) => {
       branchesData = snapshot.val();
       branchesLoaded = true;
       computeStats();
-    });
+    }, handleError);
 
     return () => {
       unsubUsers();
@@ -178,6 +186,13 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12">
+      {error && (
+        <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 flex items-center gap-3">
+           <Activity className="w-5 h-5 shrink-0" />
+           <p className="font-medium text-sm">{error}</p>
+        </div>
+      )}
+      
       {/* System Overview */}
       <div>
         <h2 className="text-xl font-bold text-gray-800 mb-4">System Overview</h2>

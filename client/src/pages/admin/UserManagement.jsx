@@ -20,6 +20,8 @@ export default function UserManagement() {
   const USERS_PER_PAGE = 10;
 
 
+  const [error, setError] = useState(null);
+
   useEffect(() => {
     const usersRef = ref(database, 'users');
     const unsubscribe = onValue(usersRef, (snapshot) => {
@@ -34,6 +36,12 @@ export default function UserManagement() {
       } else {
         setUsers([]);
       }
+      setLoading(false);
+      setIsInitialLoadComplete(true);
+      setError(null);
+    }, (err) => {
+      console.error("Firebase Read Error:", err);
+      setError("Failed to load users. You may not have permission, or there is a network issue.");
       setLoading(false);
       setIsInitialLoadComplete(true);
     });
@@ -156,6 +164,14 @@ export default function UserManagement() {
         {loading ? (
           <div className="flex justify-center items-center h-48 md:flex-1">
              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col justify-center items-center h-48 md:flex-1 text-center p-6">
+            <div className="bg-red-50 text-red-600 p-4 rounded-full mb-4">
+              <Shield className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 mb-2">Access Denied</h3>
+            <p className="text-gray-600">{error}</p>
           </div>
         ) : filteredUsers.length > 0 ? (
           <>
