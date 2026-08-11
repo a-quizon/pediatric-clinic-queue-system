@@ -96,6 +96,11 @@ export const registerFcmTokenForParent = async (user) => {
 
     debugLog("✓ FCM Token generated successfully");
 
+    if (token === user.notificationToken) {
+      debugLog("✓ FCM Token matches existing token, skipping database write.");
+      return token;
+    }
+
     // Store token inside User entity
     await update(ref(database, `users/${user.uid}`), {
       notificationToken: token,
