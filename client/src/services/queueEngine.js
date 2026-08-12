@@ -1,5 +1,5 @@
 import { database } from "../firebase/database";
-import { ref, get, update } from "firebase/database";
+import { ref, get, update, query, orderByChild, equalTo } from "firebase/database";
 import { ACTIVE_RESERVATION_STATUSES } from "./reservationService";
 
 /**
@@ -133,15 +133,20 @@ export const enrichReservationsWithState = (allReservations = []) => {
 export const recalculateEntireQueue = async (scheduleId, options = {}) => {
   if (!scheduleId) return;
 
-  const snapshot = await get(ref(database, "reservations"));
+  const q = query(
+    ref(database, "reservations"),
+    orderByChild("scheduleId"),
+    equalTo(scheduleId)
+  );
+
+  const snapshot = await get(q);
   if (!snapshot.exists()) return;
 
-  const allReservations = Object.entries(snapshot.val()).map(([id, val]) => ({
+  const scheduleReservations = Object.entries(snapshot.val()).map(([id, val]) => ({
     id,
     ...val,
   }));
 
-  const scheduleReservations = allReservations.filter((r) => r.scheduleId === scheduleId);
   if (scheduleReservations.length === 0) return;
 
   const activeStatuses = ACTIVE_RESERVATION_STATUSES;
