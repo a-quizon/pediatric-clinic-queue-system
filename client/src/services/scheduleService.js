@@ -1,5 +1,5 @@
 import { database } from "../firebase/database";
-import { ref, push, set, get, update, remove, onValue, serverTimestamp } from "firebase/database";
+import { ref, push, set, get, update, remove, onValue, serverTimestamp, query, orderByChild, equalTo } from "firebase/database";
 import { getReservationsBySchedule } from "./reservationService";
 import { recalculateRollingValidation } from "./rollingValidationService";
 import { validateScheduleClosingTime } from "./branchConfigurationService";
@@ -206,8 +206,12 @@ export const completeSchedule = async ( scheduleId ) => {
 };
 
 export const subscribeToPublishedSchedules = ( callback ) => {
-  const schedulesRef = ref( database, "schedules" );
-  return onValue( schedulesRef, (snapshot) => {
+  const q = query(
+    ref(database, "schedules"),
+    orderByChild("status"),
+    equalTo("published")
+  );
+  return onValue( q, (snapshot) => {
       if (!snapshot.exists()) {
         callback([]);
         return;
@@ -215,7 +219,7 @@ export const subscribeToPublishedSchedules = ( callback ) => {
 
       const data = snapshot.val();
 
-      const schedules = Object.entries(data).map(([id, value]) => ({ id, ...value,})).filter((schedule) => schedule.status === "published");
+      const schedules = Object.entries(data).map(([id, value]) => ({ id, ...value,}));
       callback(schedules);
     }
   );

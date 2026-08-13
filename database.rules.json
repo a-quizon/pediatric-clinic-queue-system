@@ -19,7 +19,8 @@
     },
     "schedules": {
       ".read": "auth != null",
-      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'secretary') && root.child('users').child(auth.uid).child('status').val() === 'active'"
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'secretary') && root.child('users').child(auth.uid).child('status').val() === 'active'",
+      ".indexOn": ["status"]
     },
     "reservations": {
       ".read": "auth != null",
