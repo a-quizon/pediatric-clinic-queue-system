@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { subscribeToAllSchedules } from '../../services/scheduleService';
-import { subscribeToAllReservations, ACTIVE_RESERVATION_STATUSES } from '../../services/reservationService';
+import { subscribeToParentReservations, subscribeToScheduleReservations, ACTIVE_RESERVATION_STATUSES } from '../../services/reservationService';
 import notificationService, { NOTIFICATION_EVENTS } from '../../services/notificationService';
 import { evaluatePositionEvents } from '../../services/positionEventEngine';
 import { cleanupNonParentNotifications } from '../../services/notificationCenterService';
@@ -121,15 +121,17 @@ export default function NotificationObserver() {
     return () => unsubSchedules();
   }, [user, role]);
 
+  const isInitialScheduleLoad = useRef(true);
+
   useEffect(() => {
     if (!user || role !== 'parent') return;
 
-    // Subscribe to all reservations for parent reservation transitions & queue progress
-    const unsubReservations = subscribeToAllReservations((allReservations) => {
-      const data = allReservations || [];
+    let unsubSchedule = () => {};
+    let activeScheduleId = null;
 
-      // Filter parent's own reservations
-      const myReservations = data.filter((r) => r.parentId === user.uid);
+    // Subscribe to parent's reservations
+    const unsubParent = subscribeToParentReservations(user.uid, (parentData) => {
+      const myReservations = parentData || [];
       const myResMap = {};
       myReservations.forEach((r) => {
         myResMap[r.id] = r;
@@ -138,85 +140,108 @@ export default function NotificationObserver() {
       if (isInitialReservationsLoad.current) {
         prevMyReservationsRef.current = { ...myResMap };
         isInitialReservationsLoad.current = false;
-        return;
-      }
+      } else {
+        // Check parent reservation transitions
+        myReservations.forEach((r) => {
+          const prevRes = prevMyReservationsRef.current[r.id];
 
-      // Check parent reservation transitions
-      myReservations.forEach((r) => {
-        const prevRes = prevMyReservationsRef.current[r.id];
+          if (prevRes) {
+            const prevStatus = prevRes.status;
+            const currStatus = r.status;
+            const prevPenalty = prevRes.penaltyCount || 0;
+            const currPenalty = r.penaltyCount || 0;
 
-        if (prevRes) {
-          const prevStatus = prevRes.status;
-          const currStatus = r.status;
-          const prevPenalty = prevRes.penaltyCount || 0;
-          const currPenalty = r.penaltyCount || 0;
-
-          // Check check-in request reminder from Secretary
-          const prevCheckInReq = prevRes.checkInRequestedAt || 0;
-          const currCheckInReq = r.checkInRequestedAt || 0;
-          if (currCheckInReq > prevCheckInReq) {
-            notificationService.notify(NOTIFICATION_EVENTS.CHECK_IN_REQUESTED, {
-              entityId: r.id,
-              parentId: r.parentId,
-              dedupeKey: `check_in_req_${r.id}_${currCheckInReq}`,
-            });
-          }
-
-          // Check penalty increment while reservation is still active (not forfeited)
-          if (currPenalty > prevPenalty && currStatus !== 'forfeited') {
-            notificationService.notify(NOTIFICATION_EVENTS.PENALIZED, {
-              entityId: r.id,
-              parentId: r.parentId,
-              dedupeKey: `penalized_${r.id}_${currPenalty}_${r.lastPenalizedAt || Date.now()}`,
-            });
-          }
-
-          if (prevStatus !== currStatus) {
-            if (currStatus === 'checked_in') {
-              notificationService.notify(NOTIFICATION_EVENTS.QR_VERIFIED, {
+            // Check check-in request reminder from Secretary
+            const prevCheckInReq = prevRes.checkInRequestedAt || 0;
+            const currCheckInReq = r.checkInRequestedAt || 0;
+            if (currCheckInReq > prevCheckInReq) {
+              notificationService.notify(NOTIFICATION_EVENTS.CHECK_IN_REQUESTED, {
                 entityId: r.id,
                 parentId: r.parentId,
-                dedupeKey: `qr_verified_${r.id}`,
-              });
-            } else if (currStatus === 'in_consultation' || currStatus === 'with_doctor') {
-              notificationService.notify(NOTIFICATION_EVENTS.CONSULTATION_STARTED, {
-                entityId: r.id,
-                parentId: r.parentId,
-                dedupeKey: `consult_start_${r.id}`,
-              });
-            } else if (currStatus === 'completed' || currStatus === 'consultation_completed') {
-              notificationService.notify(NOTIFICATION_EVENTS.CONSULTATION_COMPLETED, {
-                entityId: r.id,
-                parentId: r.parentId,
-                dedupeKey: `consult_complete_${r.id}`,
-              });
-            } else if (currStatus === 'penalized') {
-              notificationService.notify(NOTIFICATION_EVENTS.PENALIZED, {
-                entityId: r.id,
-                parentId: r.parentId,
-                dedupeKey: `penalized_${r.id}_${currPenalty}_${r.lastPenalizedAt || Date.now()}`,
-              });
-            } else if (currStatus === 'forfeited') {
-              notificationService.notify(NOTIFICATION_EVENTS.FORFEITED, {
-                entityId: r.id,
-                parentId: r.parentId,
-                dedupeKey: `forfeited_${r.id}`,
+                dedupeKey: `check_in_req_${r.id}_${currCheckInReq}`,
               });
             }
-          }
-        } else {
-          // Initialize tracking for newly found reservation
-          prevMyReservationsRef.current[r.id] = r;
-        }
-      });
 
-      // Position Event Architecture: Re-evaluate position thresholds across active reservations
-      evaluatePositionEvents(data, prevSchedulesRef.current, user);
+            if (prevStatus !== currStatus) {
+              if (currStatus === 'validation_open') {
+                notificationService.notify(NOTIFICATION_EVENTS.VALIDATION_OPEN, {
+                  entityId: r.id,
+                  parentId: r.parentId,
+                  dedupeKey: `val_open_${r.id}`,
+                });
+              } else if (currStatus === 'validation_expired') {
+                notificationService.notify(NOTIFICATION_EVENTS.VALIDATION_EXPIRED, {
+                  entityId: r.id,
+                  parentId: r.parentId,
+                  dedupeKey: `val_exp_${r.id}`,
+                });
+              } else if (currStatus === 'checked_in') {
+                notificationService.notify(NOTIFICATION_EVENTS.CHECKED_IN, {
+                  entityId: r.id,
+                  parentId: r.parentId,
+                  dedupeKey: `checked_in_${r.id}`,
+                });
+              } else if (currStatus === 'in_consultation') {
+                notificationService.notify(NOTIFICATION_EVENTS.TURN_IS_NOW, {
+                  entityId: r.id,
+                  parentId: r.parentId,
+                  dedupeKey: `turn_is_now_${r.id}`,
+                });
+              } else if (currStatus === 'completed' || currStatus === 'consultation_completed') {
+                notificationService.notify(NOTIFICATION_EVENTS.CONSULTATION_COMPLETED, {
+                  entityId: r.id,
+                  parentId: r.parentId,
+                  dedupeKey: `consult_complete_${r.id}`,
+                });
+              } else if (currStatus === 'penalized') {
+                notificationService.notify(NOTIFICATION_EVENTS.PENALIZED, {
+                  entityId: r.id,
+                  parentId: r.parentId,
+                  dedupeKey: `penalized_${r.id}_${currPenalty}_${r.lastPenalizedAt || Date.now()}`,
+                });
+              } else if (currStatus === 'forfeited') {
+                notificationService.notify(NOTIFICATION_EVENTS.FORFEITED, {
+                  entityId: r.id,
+                  parentId: r.parentId,
+                  dedupeKey: `forfeited_${r.id}`,
+                });
+              }
+            }
+          } else {
+            // Initialize tracking for newly found reservation
+            prevMyReservationsRef.current[r.id] = r;
+          }
+        });
+      }
+
+      // Handle dependent schedule listener
+      const activeRes = myReservations.find((r) => ACTIVE_RESERVATION_STATUSES.includes(r.status));
+      const newScheduleId = activeRes ? activeRes.scheduleId : null;
+
+      if (newScheduleId !== activeScheduleId) {
+        unsubSchedule();
+        activeScheduleId = newScheduleId;
+        
+        if (newScheduleId) {
+          isInitialScheduleLoad.current = true;
+          unsubSchedule = subscribeToScheduleReservations(newScheduleId, (scheduleData) => {
+            if (isInitialScheduleLoad.current) {
+              isInitialScheduleLoad.current = false;
+            } else {
+              // Position Event Architecture: Re-evaluate position thresholds across active reservations
+              evaluatePositionEvents(scheduleData || [], prevSchedulesRef.current, user);
+            }
+          });
+        }
+      }
 
       prevMyReservationsRef.current = { ...myResMap };
     });
 
-    return () => unsubReservations();
+    return () => {
+      unsubParent();
+      unsubSchedule();
+    };
   }, [user, role]);
 
   return null;

@@ -205,6 +205,24 @@ export const subscribeToParentReservations = (parentId, callback) => {
   });
 };
 
+export const subscribeToScheduleReservations = (scheduleId, callback) => {
+  const q = query(
+    ref(database, "reservations"),
+    orderByChild("scheduleId"),
+    equalTo(scheduleId)
+  );
+  return onValue(q, (snapshot) => {
+    if (!snapshot.exists()) {
+      callback([]);
+      return;
+    }
+
+    const data = snapshot.val();
+    const reservations = Object.entries(data).map(([id, value]) => ({ id, ...value }));
+    callback(calculateDynamicQueuePositions(reservations));
+  });
+};
+
 export const subscribeToAllReservations = (callback) => {
   const reservationsRef = ref(database, "reservations");
   return onValue(reservationsRef, (snapshot) => {

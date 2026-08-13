@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Activity, Clock, CalendarPlus, Ticket, User, ChevronRight, CheckCircle2, History, MapPin, AlertCircle } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
-import { subscribeToAllReservations, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
+import { subscribeToParentReservations, subscribeToScheduleReservations, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
 import { getSchedules, subscribeToAllSchedules } from "../../services/scheduleService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { isReservationExpired, getRemainingValidationTime, formatRemainingTime } from "../../services/timeService";
@@ -13,7 +13,8 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [schedules, setSchedules] = useState({});
-  const [allReservations, setAllReservations] = useState([]);
+  const [parentReservations, setParentReservations] = useState([]);
+  const [scheduleReservations, setScheduleReservations] = useState([]);
   const [branches, setBranches] = useState([]);
 
   useEffect(() => {
@@ -21,23 +22,45 @@ export default function Dashboard() {
       setSchedules(data || {});
     });
 
-    const unsubReservations = subscribeToAllReservations((data) => {
-      setAllReservations(data);
-      setLoading(false);
-    });
+    let unsubParent = () => {};
+    let unsubSchedule = () => {};
+    let currentScheduleId = null;
+
+    if (user) {
+      unsubParent = subscribeToParentReservations(user.uid, (data) => {
+        const parentData = data || [];
+        setParentReservations(parentData);
+        setLoading(false);
+
+        const active = parentData.find(r => ACTIVE_RESERVATION_STATUSES.includes(r.status));
+        const newScheduleId = active ? active.scheduleId : null;
+
+        if (newScheduleId !== currentScheduleId) {
+          unsubSchedule();
+          setScheduleReservations([]); // Clear stale schedule data
+          currentScheduleId = newScheduleId;
+
+          if (newScheduleId) {
+            unsubSchedule = subscribeToScheduleReservations(newScheduleId, (scheduleData) => {
+              setScheduleReservations(scheduleData || []);
+            });
+          }
+        }
+      });
+    }
 
     getBranchConfigurations().then(setBranches);
 
     return () => {
       unsubSchedules();
-      unsubReservations();
+      unsubParent();
+      unsubSchedule();
     };
-  }, []);
+  }, [user]);
 
   const activeReservation = useMemo(() => {
     if (!user) return null;
-    const myRes = allReservations.filter(r => r.parentId === user.uid);
-    const active = myRes.find(r => ACTIVE_RESERVATION_STATUSES.includes(r.status));
+    const active = parentReservations.find(r => ACTIVE_RESERVATION_STATUSES.includes(r.status));
     if (!active) return null;
 
     const sched = schedules[active.scheduleId];
@@ -46,7 +69,7 @@ export default function Dashboard() {
     }
 
     return active;
-  }, [allReservations, schedules, user]);
+  }, [parentReservations, schedules, user]);
 
   const schedule = activeReservation ? schedules[activeReservation.scheduleId] : null;
 
@@ -82,9 +105,8 @@ export default function Dashboard() {
   }, [activeReservation?.status]);
 
   const getPermanentQueueNumber = (resId, scheduleId) => {
-    const scheduleRes = allReservations
-      .filter(r => r.scheduleId === scheduleId)
-      .sort((a, b) => a.createdAt - b.createdAt);
+    if (scheduleReservations.length === 0) return null;
+    const scheduleRes = [...scheduleReservations].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     const index = scheduleRes.findIndex(r => r.id === resId);
     return index >= 0 ? index + 1 : null;
   };
@@ -92,11 +114,11 @@ export default function Dashboard() {
   const permanentQueueNumber = activeReservation ? getPermanentQueueNumber(activeReservation.id, activeReservation.scheduleId) : null;
 
   const { nowServing, patientsAhead, nowServingText, completedCount, progressPercent, queueState } = useMemo(() => {
-    if (!activeReservation) return { nowServing: null, patientsAhead: 0, nowServingText: "—", completedCount: 0, progressPercent: 0, queueState: null };
+    if (!activeReservation || scheduleReservations.length === 0) {
+      return { nowServing: null, patientsAhead: 0, nowServingText: "—", completedCount: 0, progressPercent: 0, queueState: null };
+    }
     
-    const scheduleRes = allReservations
-      .filter(r => r.scheduleId === activeReservation.scheduleId)
-      .sort((a, b) => a.createdAt - b.createdAt);
+    const scheduleRes = [...scheduleReservations].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     
     // Assign permanent queue numbers
     const resWithPNum = scheduleRes.map((r, idx) => ({ ...r, pNum: idx + 1 }));
@@ -127,7 +149,7 @@ export default function Dashboard() {
       servingText = "Waiting for the first consultation";
     }
 
-    const ahead = computeAheadOfYou(activeReservation, allReservations);
+    const ahead = computeAheadOfYou(activeReservation, scheduleReservations);
 
     const myPNum = permanentQueueNumber || 1;
     let percent = 0;
@@ -145,9 +167,9 @@ export default function Dashboard() {
       nowServingText: servingText,
       completedCount: compCount,
       progressPercent: percent,
-      queueState: computeReservationState(activeReservation, allReservations)
+      queueState: computeReservationState(activeReservation, scheduleReservations)
     };
-  }, [allReservations, activeReservation, permanentQueueNumber, schedule]);
+  }, [scheduleReservations, activeReservation, permanentQueueNumber, schedule]);
 
   const getStatusDisplay = (status) => {
     switch (status) {
