@@ -187,6 +187,24 @@ export const calculateDynamicQueuePositions = (reservations) => {
   return enrichReservationsWithState(processedReservations);
 };
 
+export const subscribeToParentReservations = (parentId, callback) => {
+  const q = query(
+    ref(database, "reservations"),
+    orderByChild("parentId"),
+    equalTo(parentId)
+  );
+  return onValue(q, (snapshot) => {
+    if (!snapshot.exists()) {
+      callback([]);
+      return;
+    }
+
+    const data = snapshot.val();
+    const reservations = Object.entries(data).map(([id, value]) => ({ id, ...value }));
+    callback(calculateDynamicQueuePositions(reservations));
+  });
+};
+
 export const subscribeToAllReservations = (callback) => {
   const reservationsRef = ref(database, "reservations");
   return onValue(reservationsRef, (snapshot) => {

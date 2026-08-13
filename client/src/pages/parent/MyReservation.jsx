@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Ticket as TicketIcon, Clock, MapPin, CheckCircle2, XCircle, User, Maximize2, Download, Activity, AlertCircle, X } from "lucide-react";
 import QRCode from "qrcode";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
-import { subscribeToAllReservations, cancelReservation, updatePatientInfo, expireReservation } from "../../services/reservationService";
+import { subscribeToParentReservations, cancelReservation, updatePatientInfo, expireReservation } from "../../services/reservationService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { isReservationExpired, getRemainingValidationTime, formatRemainingTime } from "../../services/timeService";
 import { useAuth } from "../../hooks/useAuth";
@@ -72,10 +72,13 @@ export default function MyReservation() {
       setSchedules(data || {});
     });
 
-    const unsubReservations = subscribeToAllReservations((data) => {
-      setAllReservations(data || []);
-      setLoading(false);
-    });
+    let unsubReservations = () => {};
+    if (user) {
+      unsubReservations = subscribeToParentReservations(user.uid, (data) => {
+        setAllReservations(data || []);
+        setLoading(false);
+      });
+    }
 
     getBranchConfigurations().then(setBranches);
 
@@ -83,7 +86,7 @@ export default function MyReservation() {
       unsubSchedules();
       unsubReservations();
     };
-  }, []);
+  }, [user]);
 
   const activeReservation = useMemo(() => {
     if (!user) return null;

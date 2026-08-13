@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { subscribeToAllReservations } from "../../services/reservationService";
+import { subscribeToParentReservations } from "../../services/reservationService";
 import { getSchedules } from "../../services/scheduleService";
 import { History, CalendarDays, MapPin, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -34,9 +34,8 @@ export default function ReservationHistory() {
 
     let unsub = () => {};
     if (user) {
-      unsub = subscribeToAllReservations((data) => {
+      unsub = subscribeToParentReservations(user.uid, (data) => {
         const history = data.filter(r => 
-          r.parentId === user.uid && 
           ["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"].includes(r.status)
         );
         setReservations(history);
