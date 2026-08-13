@@ -46,11 +46,16 @@ export const registerFcmTokenForParent = async (user) => {
     debugLog("✓ Notification permission status:", permission);
 
     if (permission !== "granted") {
+      // Idempotency check: if the database already matches the permission status, skip the write
+      if (user.notificationPermission === permission) {
+        debugLog(`✓ Notification permission is already ${permission}, skipping database write.`);
+        return null;
+      }
+
       // Denied or Default -> Continue using Toast Notifications only without blocking
       try {
         await update(ref(database, `users/${user.uid}`), {
           notificationPermission: permission,
-          notificationTokenUpdatedAt: Date.now(),
         });
       } catch (e) {
         // Silently ignore storage error
