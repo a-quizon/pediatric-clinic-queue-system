@@ -1,5 +1,5 @@
 import { database } from "../firebase/database";
-import { ref, push, set, get, onValue, update } from "firebase/database";
+import { ref, push, set, get, onValue, update, query, orderByChild, equalTo } from "firebase/database";
 import { recalculateRollingValidation } from "./rollingValidationService";
 import { recalculateEntireQueue, enrichReservationsWithState } from "./queueEngine";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
@@ -14,11 +14,15 @@ const generateReservationCode = () => {
 };
 
 export const createReservation = async (reservationData) => {
-  const existingSnapshot = await get(ref(database, "reservations"));
+  const q = query(
+    ref(database, "reservations"),
+    orderByChild("scheduleId"),
+    equalTo(reservationData.scheduleId)
+  );
+  const existingSnapshot = await get(q);
   let nextQueueNumber = 1;
   if (existingSnapshot.exists()) {
-    const allRes = Object.values(existingSnapshot.val());
-    const scheduleRes = allRes.filter(r => r.scheduleId === reservationData.scheduleId);
+    const scheduleRes = Object.values(existingSnapshot.val());
     const maxNum = scheduleRes.reduce((max, r) => Math.max(max, Number(r.queueNumber || r.originalQueueNumber || r.queuePosition || 0)), 0);
     nextQueueNumber = maxNum + 1;
   }
@@ -43,13 +47,16 @@ export const createReservation = async (reservationData) => {
 };
 
 export const getReservationsBySchedule = async (scheduleId) => {
-  const snapshot = await get(ref(database, "reservations"));
+  const q = query(
+    ref(database, "reservations"),
+    orderByChild("scheduleId"),
+    equalTo(scheduleId)
+  );
+  const snapshot = await get(q);
   if (!snapshot.exists()) return [];
 
   const data = snapshot.val();
-  const reservations = Object.entries(data)
-    .map(([id, value]) => ({ id, ...value }))
-    .filter((res) => res.scheduleId === scheduleId);
+  const reservations = Object.entries(data).map(([id, value]) => ({ id, ...value }));
   return calculateDynamicQueuePositions(reservations);
 };
 
