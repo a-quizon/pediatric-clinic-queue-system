@@ -3,6 +3,7 @@ import { ref, push, set, get, onValue, update, query, orderByChild, equalTo } fr
 import { recalculateRollingValidation } from "./rollingValidationService";
 import { recalculateEntireQueue, enrichReservationsWithState } from "./queueEngine";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
+import { getScheduleById } from "./scheduleService";
 
 const generateReservationCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -67,27 +68,32 @@ export const checkExistingReservation = async (scheduleId, parentId) => {
 };
 
 export const checkExistingReservationOnDate = async (parentId, clinicDate) => {
-  const [resSnapshot, schedSnapshot] = await Promise.all([
-    get(ref(database, "reservations")),
-    get(ref(database, "schedules"))
-  ]);
-  
-  if (!resSnapshot.exists() || !schedSnapshot.exists()) return false;
-
-  const reservations = resSnapshot.val();
-  const schedules = schedSnapshot.val();
-
-  // Find schedule IDs that match the target clinicDate
-  const targetScheduleIds = Object.entries(schedules)
-    .filter(([_, schedule]) => schedule.clinicDate === clinicDate)
-    .map(([id]) => id);
-
-  // Check if there are any active reservations belonging to those schedules
-  return Object.values(reservations).some((res) => 
-    res.parentId === parentId && 
-    targetScheduleIds.includes(res.scheduleId) &&
-    !["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"].includes(res.status)
+  const q = query(
+    ref(database, "reservations"),
+    orderByChild("parentId"),
+    equalTo(parentId)
   );
+  const resSnapshot = await get(q);
+  
+  if (!resSnapshot.exists()) return false;
+
+  const parentReservations = Object.values(resSnapshot.val());
+
+  // Filter for active reservations first to minimize schedule fetches
+  const inactiveStatuses = ["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"];
+  const activeReservations = parentReservations.filter(res => !inactiveStatuses.includes(res.status));
+  
+  if (activeReservations.length === 0) return false;
+
+  // Extract unique schedule IDs from active reservations
+  const uniqueScheduleIds = [...new Set(activeReservations.map(res => res.scheduleId))];
+
+  // Fetch only the relevant schedules
+  const schedulePromises = uniqueScheduleIds.map(id => getScheduleById(id));
+  const schedules = await Promise.all(schedulePromises);
+
+  // Check if any active reservation belongs to a schedule on the target clinicDate
+  return schedules.some(schedule => schedule && schedule.clinicDate === clinicDate);
 };
 
 export const expireReservation = async (reservationId) => {
@@ -113,31 +119,38 @@ export const expireReservation = async (reservationId) => {
 };
 
 export const checkCompletedConsultationOnDate = async (parentId, clinicDate, doctorId = null) => {
-  const [resSnapshot, schedSnapshot] = await Promise.all([
-    get(ref(database, "reservations")),
-    get(ref(database, "schedules"))
-  ]);
-  
-  if (!resSnapshot.exists() || !schedSnapshot.exists()) return false;
-
-  const reservations = resSnapshot.val();
-  const schedules = schedSnapshot.val();
-
-  // Find schedule IDs that match the target clinicDate (and doctorId if specified)
-  const targetScheduleIds = Object.entries(schedules)
-    .filter(([_, schedule]) => {
-      if (schedule.clinicDate !== clinicDate) return false;
-      if (doctorId && schedule.doctorId && schedule.doctorId !== doctorId) return false;
-      return true;
-    })
-    .map(([id]) => id);
-
-  // Check if there are any completed consultations belonging to those schedules
-  return Object.values(reservations).some((res) => 
-    res.parentId === parentId && 
-    targetScheduleIds.includes(res.scheduleId) &&
-    (res.status === "completed" || res.status === "consultation_completed")
+  const q = query(
+    ref(database, "reservations"),
+    orderByChild("parentId"),
+    equalTo(parentId)
   );
+  const resSnapshot = await get(q);
+  
+  if (!resSnapshot.exists()) return false;
+
+  const parentReservations = Object.values(resSnapshot.val());
+
+  // Filter for completed statuses
+  const completedReservations = parentReservations.filter(res => 
+    res.status === "completed" || res.status === "consultation_completed"
+  );
+  
+  if (completedReservations.length === 0) return false;
+
+  // Extract unique schedule IDs
+  const uniqueScheduleIds = [...new Set(completedReservations.map(res => res.scheduleId))];
+
+  // Fetch only the relevant schedules
+  const schedulePromises = uniqueScheduleIds.map(id => getScheduleById(id));
+  const schedules = await Promise.all(schedulePromises);
+
+  // Check if any completed consultation belongs to a matching schedule
+  return schedules.some(schedule => {
+    if (!schedule) return false;
+    if (schedule.clinicDate !== clinicDate) return false;
+    if (doctorId && schedule.doctorId && schedule.doctorId !== doctorId) return false;
+    return true;
+  });
 };
 
 // list of active reservation statuses na nag-ooccupy pa ng slot at nasa queue
