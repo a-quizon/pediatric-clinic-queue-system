@@ -1,6 +1,7 @@
 import { database } from "../firebase/database";
 import { ref, push, set, get, update, remove, onValue } from "firebase/database";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
+import { getReservationsBySchedule } from "./reservationService";
 
 const defaultSchedule = () => ({
   monday: { isOpen: false, openingTime: "", closingTime: "" },
@@ -268,18 +269,19 @@ export const checkBranchInUse = async (branchName) => {
 
   let hasActiveReservations = false;
   if (scheduleIds.length > 0) {
-    const reservationsSnapshot = await get(ref(database, "reservations"));
-    if (reservationsSnapshot.exists()) {
-      const reservations = reservationsSnapshot.val();
-      for (const res of Object.values(reservations)) {
-        const inactiveStatuses = ["cancelled", "completed", "consultation_completed", "forfeited", "penalized", "late_limit_reached", "expired", "validation_expired"];
-        if (scheduleIds.includes(res.scheduleId) && !inactiveStatuses.includes(res.status)) {
-          hasActiveReservations = true;
-          break;
-        }
-      }
-    }
+    const inactiveStatuses = ["cancelled", "completed", "consultation_completed", "forfeited", "penalized", "late_limit_reached", "expired", "validation_expired"];
+    
+    const reservationsArrays = await Promise.all(
+      scheduleIds.map(id => getReservationsBySchedule(id))
+    );
+    
+    const allRelevantReservations = reservationsArrays.flat();
+    hasActiveReservations = allRelevantReservations.some(res => !inactiveStatuses.includes(res.status));
   }
 
-  return { hasPublishedSchedules, hasActiveReservations };
+  return {
+    inUse: hasPublishedSchedules || hasActiveReservations,
+    hasPublishedSchedules,
+    hasActiveReservations
+  };
 };
