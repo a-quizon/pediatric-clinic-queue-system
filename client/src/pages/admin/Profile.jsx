@@ -1,12 +1,12 @@
 import React from "react";
-import { User, Settings, ChevronRight } from "lucide-react";
+import { User, Settings, ChevronRight, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import LogoutButton from "../../components/common/LogoutButton";
 import SystemSettings from "./SystemSettings";
 
 export default function Profile() {
-  const { user, role } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   if (!user) return null;
@@ -30,8 +30,21 @@ export default function Profile() {
         <SystemSettings isEmbedded={true} />
       </div>
 
-      {/* Mobile System Configuration Link */}
-      <div className="block md:hidden">
+      {/* Mobile Links */}
+      <div className="block md:hidden space-y-4">
+        <button 
+          onClick={() => navigate("/admin/branches")}
+          className="w-full bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center">
+            <div className="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center shrink-0 mr-4">
+              <MapPin className="w-6 h-6" />
+            </div>
+            <span className="font-bold text-gray-800 text-lg">Branch Management</span>
+          </div>
+          <ChevronRight className="w-5 h-5 text-gray-400" />
+        </button>
+
         <button 
           onClick={() => navigate("/admin/settings")}
           className="w-full bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between hover:bg-gray-50 transition-colors"

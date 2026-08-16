@@ -17,7 +17,7 @@ export default function AdminLayout() {
       return { desktop: "Users", mobile: "Users", showAddStaff: true };
     }
     if (path.startsWith("/admin/branches")) {
-      return { desktop: "Branches", mobile: "Branches", showAddBranch: true };
+      return { desktop: "Branches", mobile: "Branches", showAddBranch: true, backTo: "/admin/profile" };
     }
     if (path.startsWith("/admin/activity")) {
       return { desktop: "System Activity", mobile: "System Activity" };
@@ -130,7 +130,7 @@ export default function AdminLayout() {
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-40 pb-safe">
         <div className="flex justify-around items-center h-16 px-1">
-          {navItems.map((item) => (
+          {navItems.filter(item => item.name !== "Branch Management").map((item) => (
             <NavLink
               key={item.name}
               to={item.path}
