@@ -182,8 +182,15 @@ export default function QueueControlCenter() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="space-y-6 pb-6 mt-6 animate-pulse">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 h-24"></div>
+        <div className="flex flex-col lg:flex-row gap-6 items-stretch">
+          <div className="flex-[4] flex flex-col gap-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 h-64"></div>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 h-48"></div>
+          </div>
+          <div className="flex-[3] bg-white rounded-2xl shadow-sm border border-gray-100 h-96"></div>
+        </div>
       </div>
     );
   }

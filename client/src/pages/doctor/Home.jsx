@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { useNavigate, Link } from "react-router-dom";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
-import { subscribeToAllReservations } from "../../services/reservationService";
+import { subscribeToScheduleReservations } from "../../services/reservationService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { 
   CalendarDays, Users, User, ChevronRight, Activity, 
@@ -16,24 +16,20 @@ export default function Home() {
   const navigate = useNavigate();
 
   const [schedules, setSchedules] = useState({});
+  const [schedulesLoaded, setSchedulesLoaded] = useState(false);
   const [reservations, setReservations] = useState([]);
+  const [reservationsLoaded, setReservationsLoaded] = useState(false);
   const [branches, setBranches] = useState([]);
 
   useEffect(() => {
     const unsubSchedules = subscribeToAllSchedules((data) => {
       setSchedules(data || {});
-    });
-
-    const unsubReservations = subscribeToAllReservations((data) => {
-      setReservations(data || []);
+      setSchedulesLoaded(true);
     });
 
     getBranchConfigurations().then(setBranches);
 
-    return () => {
-      unsubSchedules();
-      unsubReservations();
-    };
+    return () => unsubSchedules();
   }, []);
 
   const [hiddenSchedules, setHiddenSchedules] = useState([]);
@@ -118,6 +114,25 @@ export default function Home() {
       setSelectionMode('automatic');
     }
   }, [dashboardSchedules, selectedSchedule, selectionMode]);
+
+  const selectedScheduleId = selectedSchedule?.id;
+
+  useEffect(() => {
+    if (!selectedScheduleId) {
+      setReservations([]);
+      setReservationsLoaded(true);
+      return;
+    }
+
+    setReservationsLoaded(false);
+
+    const unsubReservations = subscribeToScheduleReservations(selectedScheduleId, (data) => {
+      setReservations(data || []);
+      setReservationsLoaded(true);
+    });
+
+    return () => unsubReservations();
+  }, [selectedScheduleId]);
 
   // Identify active or published schedule for Today's Clinic
   const activeOrPublishedSchedule = useMemo(() => {
@@ -242,6 +257,9 @@ export default function Home() {
     return null;
   };
 
+
+  const loading = !schedulesLoaded || (!!selectedSchedule && !reservationsLoaded);
+
   return (
     <div className="space-y-6 pb-6">
 
@@ -249,7 +267,27 @@ export default function Home() {
       <div className="flex flex-col lg:flex-row gap-6">
         
         {/* 2. Today's Statistics */}
-        {dashboardSchedules.length > 0 ? (
+        {loading ? (
+          <div className="flex-[2] bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col justify-between min-h-[400px] animate-pulse">
+            <div className="w-full h-12 bg-gray-100 rounded-xl mb-6"></div>
+            <div className="flex-1 flex flex-col gap-4">
+              <div className="bg-blue-50 py-10 rounded-2xl border border-blue-100 flex-shrink-0 flex flex-col items-center justify-center">
+                <div className="w-32 h-4 bg-blue-200/50 rounded-full mb-3"></div>
+                <div className="w-16 h-12 bg-blue-200/50 rounded-xl"></div>
+              </div>
+              <div className="grid grid-cols-3 gap-3 flex-shrink-0">
+                <div className="bg-amber-50 h-24 rounded-2xl border border-amber-100"></div>
+                <div className="bg-blue-50 h-24 rounded-2xl border border-blue-100"></div>
+                <div className="bg-green-50 h-24 rounded-2xl border border-green-100"></div>
+              </div>
+              <div className="grid grid-cols-3 gap-3 flex-shrink-0 mt-auto">
+                <div className="bg-gray-50 h-20 rounded-xl border border-gray-100"></div>
+                <div className="bg-gray-50 h-20 rounded-xl border border-gray-100"></div>
+                <div className="bg-gray-50 h-20 rounded-xl border border-gray-100"></div>
+              </div>
+            </div>
+          </div>
+        ) : dashboardSchedules.length > 0 ? (
           <div className="flex-[2] bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col justify-between">
             <div className="flex justify-between items-center mb-6 w-full">
               
