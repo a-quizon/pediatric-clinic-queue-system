@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { subscribeToAllReservations } from "../../services/reservationService";
+import { subscribeToParentReservations, subscribeToScheduleReservations } from "../../services/reservationService";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
 import { isReservationExpired } from "../../services/timeService";
 import QRCode from "qrcode";
@@ -19,9 +19,10 @@ export default function ParentQRCode() {
   const [loading, setLoading] = useState(true);
   const [qrImageUrl, setQrImageUrl] = useState("");
   const [permanentQueueNumber, setPermanentQueueNumber] = useState(null);
+  const [targetScheduleId, setTargetScheduleId] = useState(null);
 
   useEffect(() => {
-    let unsubReservations;
+    let unsubParent;
     let unsubSchedules;
     
     if (user) {
@@ -29,7 +30,7 @@ export default function ParentQRCode() {
         setSchedulesMap(schedulesData || {});
       });
       
-      unsubReservations = subscribeToAllReservations((data) => {
+      unsubParent = subscribeToParentReservations(user.uid, (data) => {
         const currentRes = data.find(r => r.id === id);
         
         if (!currentRes) {
@@ -44,22 +45,41 @@ export default function ParentQRCode() {
           return;
         }
 
-        // Calculate permanent queue number
-        const scheduleRes = data.filter(r => r.scheduleId === currentRes.scheduleId)
-          .sort((a, b) => a.createdAt - b.createdAt);
-        const index = scheduleRes.findIndex(r => r.id === currentRes.id);
-        setPermanentQueueNumber(index >= 0 ? index + 1 : null);
-
-        setReservation(currentRes);
-        setLoading(false);
+        setTargetScheduleId(currentRes.scheduleId);
       });
     }
 
     return () => {
-      if (unsubReservations) unsubReservations();
+      if (unsubParent) unsubParent();
       if (unsubSchedules) unsubSchedules();
     };
   }, [id, user, navigate]);
+
+  useEffect(() => {
+    if (!targetScheduleId || !user) return;
+    
+    const unsubSchedule = subscribeToScheduleReservations(targetScheduleId, (data) => {
+      const currentRes = data.find(r => r.id === id);
+      
+      if (!currentRes) {
+        setLoading(false);
+        return;
+      }
+      
+      // Calculate permanent queue number
+      const scheduleRes = data.filter(r => r.scheduleId === currentRes.scheduleId)
+        .sort((a, b) => a.createdAt - b.createdAt);
+      const index = scheduleRes.findIndex(r => r.id === currentRes.id);
+      setPermanentQueueNumber(index >= 0 ? index + 1 : null);
+
+      setReservation(currentRes);
+      setLoading(false);
+    });
+    
+    return () => {
+      if (unsubSchedule) unsubSchedule();
+    };
+  }, [id, user, targetScheduleId]);
 
   useEffect(() => {
     if (reservation && reservation.scheduleId && schedulesMap[reservation.scheduleId]) {
