@@ -7,7 +7,7 @@ import {
   validatePenaltyMoveBack 
 } from "../../services/systemConfigurationService";
 
-export default function SystemSettings() {
+export default function SystemSettings({ isEmbedded = false }) {
   const [penaltyMoveBack, setPenaltyMoveBack] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -73,22 +73,10 @@ export default function SystemSettings() {
     );
   }
 
-  return (
-    <div className="max-w-3xl mx-auto space-y-8 animate-fadeIn">
-      {/* Page Header Area (if not provided by AdminLayout layout wrapper) */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-          <Settings className="w-6 h-6 mr-3 text-blue-600" />
-          System Settings
-        </h2>
-        <p className="text-gray-500 mt-1">
-          Manage platform-wide configurations and operational policies.
-        </p>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 md:p-8 border-b border-gray-100">
-          <h3 className="text-lg font-bold text-gray-800 mb-2">Queue Configuration</h3>
+  const content = (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="p-6 md:p-8 border-b border-gray-100">
+        <h3 className="text-lg font-bold text-gray-800 mb-2">Queue Configuration</h3>
           <p className="text-sm text-gray-500 mb-6 max-w-2xl">
             These settings govern the automated behavior of the queue system across all branches. 
             Modifications will apply immediately to any active or upcoming queues.
@@ -159,6 +147,20 @@ export default function SystemSettings() {
           </button>
         </div>
       </div>
+  );
+
+  if (isEmbedded) {
+    return (
+      <div className="animate-fadeIn mt-8">
+        <h2 className="text-xl font-bold text-gray-800 mb-4 px-1">System Configuration</h2>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto animate-fadeIn pt-4 px-4 sm:px-6 lg:px-8 pb-8">
+      {content}
     </div>
   );
 }

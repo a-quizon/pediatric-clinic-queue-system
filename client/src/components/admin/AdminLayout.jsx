@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { Home, Users, MapPin, Activity as ActivityIcon, User, Shield, Plus, Settings } from "lucide-react";
+import { Home, Users, MapPin, Activity as ActivityIcon, User, Shield, Plus } from "lucide-react";
 import PageHeader from "../common/PageHeader";
 import AddStaffModal from "./AddStaffModal";
 
@@ -23,7 +23,7 @@ export default function AdminLayout() {
       return { desktop: "System Activity", mobile: "System Activity" };
     }
     if (path.startsWith("/admin/settings")) {
-      return { desktop: "System Settings", mobile: "Settings" };
+      return { desktop: "System Configuration", mobile: "System Configuration", backTo: "/admin/profile" };
     }
     if (path.startsWith("/admin/profile")) {
       return { desktop: "Profile", mobile: "Profile" };
@@ -38,7 +38,6 @@ export default function AdminLayout() {
     { name: "User Management", mobileName: "Users", path: "/admin/users", icon: Users },
     { name: "Branch Management", mobileName: "Branches", path: "/admin/branches", icon: MapPin },
     { name: "System Activity", path: "/admin/activity", icon: ActivityIcon },
-    { name: "System Settings", mobileName: "Settings", path: "/admin/settings", icon: Settings },
     { name: "Profile", path: "/admin/profile", icon: User },
   ];
 
@@ -93,6 +92,7 @@ export default function AdminLayout() {
           desktopTitle={headerInfo.desktop} 
           mobileTitle={headerInfo.mobile}
           icon={Shield}
+          backTo={headerInfo.backTo}
           action={
             headerInfo.showAddStaff ? (
               <button 

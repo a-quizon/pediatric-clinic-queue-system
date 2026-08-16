@@ -115,9 +115,9 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="space-y-6 pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
+    <div className="space-y-4 pb-4 md:pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
       {/* Sticky Search & Filters Toolbar */}
-      <div className="sticky top-[64px] z-20 bg-gray-50/95 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 md:-mx-8 md:px-8 lg:-mx-10 lg:px-10 -mt-2 sm:-mt-4">
+      <div className="sticky top-[64px] z-20 bg-gray-50/95 backdrop-blur-md pb-2 pt-2 -mx-4 px-4 md:-mx-8 md:px-8 lg:-mx-10 lg:px-10 -mt-2 sm:-mt-4">
         <div className="bg-white p-3 sm:p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -273,7 +273,7 @@ export default function UserManagement() {
 
             {/* Pagination Controls */}
             {filteredUsers.length > USERS_PER_PAGE && (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 gap-4 md:flex-none z-10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-3 sm:py-4 border-t border-gray-100 bg-gray-50/50 gap-3 sm:gap-4 md:flex-none z-10">
                 <div className="text-sm text-gray-500 font-medium text-center sm:text-left">
                   Showing {(currentPage - 1) * USERS_PER_PAGE + 1}–{Math.min(currentPage * USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length} users
                 </div>
