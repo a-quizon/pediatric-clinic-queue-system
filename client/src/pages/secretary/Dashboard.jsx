@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Users, Activity, MapPin, Clock, Stethoscope, CheckCircle2, UserCheck, AlertCircle } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
-import { subscribeToAllReservations } from "../../services/reservationService";
+import { subscribeToScheduleReservations } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import ManageQueue from "./ManageQueue";
 
@@ -10,8 +10,9 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [clinicAddress, setClinicAddress] = useState("");
   const [schedules, setSchedules] = useState({});
+  const [schedulesLoaded, setSchedulesLoaded] = useState(false);
   const [reservations, setReservations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [reservationsLoaded, setReservationsLoaded] = useState(false);
 
   useEffect(() => {
     const fetchAddress = async () => {
@@ -31,16 +32,11 @@ export default function Dashboard() {
       const schedulesMap = {};
       data.forEach(s => schedulesMap[s.id] = s);
       setSchedules(schedulesMap);
-    });
-
-    const unsubReservations = subscribeToAllReservations((data) => {
-      setReservations(data);
-      setLoading(false);
+      setSchedulesLoaded(true);
     });
 
     return () => {
       unsubSchedules();
-      unsubReservations();
     };
   }, []);
 
@@ -48,6 +44,23 @@ export default function Dashboard() {
   // The service subscribeToPublishedSchedules already filters for status === "published".
   // We just need to find the one for the assigned branch.
   const publishedSchedule = Object.values(schedules).find(s => s.branch === user?.assignedBranch);
+
+  useEffect(() => {
+    if (!publishedSchedule) {
+      setReservations([]);
+      return;
+    }
+
+    setReservationsLoaded(false);
+    const unsubReservations = subscribeToScheduleReservations(publishedSchedule.id, (data) => {
+      setReservations(data);
+      setReservationsLoaded(true);
+    });
+
+    return () => unsubReservations();
+  }, [publishedSchedule?.id]);
+
+  const loading = !schedulesLoaded || (!!publishedSchedule && !reservationsLoaded);
 
   const activeReservations = publishedSchedule ? reservations.filter(r => r.scheduleId === publishedSchedule.id) : [];
 

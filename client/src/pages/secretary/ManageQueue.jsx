@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle, AlertTriangle } from "lucide-react";
-import { subscribeToAllReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder } from "../../services/reservationService";
+import { subscribeToScheduleReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { subscribeToQueueConfiguration } from "../../services/systemConfigurationService";
 import { computeReservationState, QUEUE_STATES, sortActiveQueue } from "../../services/queueEngine";
@@ -11,7 +11,8 @@ export default function ManageQueue() {
   const { user } = useAuth();
   const [reservations, setReservations] = useState([]);
   const [schedules, setSchedules] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [schedulesLoaded, setSchedulesLoaded] = useState(false);
+  const [reservationsLoaded, setReservationsLoaded] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
   const [requestingCheckIn, setRequestingCheckIn] = useState(false);
   const [penaltyMoveBack, setPenaltyMoveBack] = useState(2);
@@ -27,11 +28,7 @@ export default function ManageQueue() {
       const schedulesMap = {};
       data.forEach(s => schedulesMap[s.id] = s);
       setSchedules(schedulesMap);
-    });
-
-    const unsubReservations = subscribeToAllReservations((data) => {
-      setReservations(data);
-      setLoading(false);
+      setSchedulesLoaded(true);
     });
 
     const unsubConfig = subscribeToQueueConfiguration((config) => {
@@ -40,10 +37,33 @@ export default function ManageQueue() {
 
     return () => {
       unsubSchedules();
-      unsubReservations();
       unsubConfig();
     };
   }, []);
+
+  // Find active schedule started by the Doctor for the secretary's assigned branch
+  const activeStartedSchedule = Object.values(schedules).find(s =>
+    s.status === "published" && 
+    ["active", "paused", "closed"].includes(s.queueStatus) &&
+    s.branch === user?.assignedBranch
+  );
+
+  useEffect(() => {
+    if (!activeStartedSchedule) {
+      setReservations([]);
+      return;
+    }
+
+    setReservationsLoaded(false);
+    const unsubReservations = subscribeToScheduleReservations(activeStartedSchedule.id, (data) => {
+      setReservations(data);
+      setReservationsLoaded(true);
+    });
+
+    return () => unsubReservations();
+  }, [activeStartedSchedule?.id]);
+
+  const loading = !schedulesLoaded || (!!activeStartedSchedule && !reservationsLoaded);
 
   if (loading) {
     return (
@@ -52,13 +72,6 @@ export default function ManageQueue() {
       </div>
     );
   }
-
-  // Find active schedule started by the Doctor for the secretary's assigned branch
-  const activeStartedSchedule = Object.values(schedules).find(s =>
-    s.status === "published" && 
-    ["active", "paused", "closed"].includes(s.queueStatus) &&
-    s.branch === user.assignedBranch
-  );
 
   if (!activeStartedSchedule) {
     return (
