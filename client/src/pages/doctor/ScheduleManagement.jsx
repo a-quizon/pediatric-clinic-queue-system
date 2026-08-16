@@ -23,6 +23,7 @@ export default function ScheduleManagement() {
   
   const [currentFilter, setCurrentFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   
   const [reservations, setReservations] = useState([]);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, scheduleId: null, title: "", message: "", confirmText: "Confirm" });
@@ -233,6 +234,14 @@ export default function ScheduleManagement() {
     return sortSchedules(validSchedules);
   }, [schedules, currentFilter, searchQuery]);
 
+  // Pagination
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredSchedules.length / PAGE_SIZE));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+
+  const startIndex = (validCurrentPage - 1) * PAGE_SIZE;
+  const paginatedSchedules = filteredSchedules.slice(startIndex, startIndex + PAGE_SIZE);
+
   return (
     <div className="w-full pb-20 pt-4">
       
@@ -244,7 +253,10 @@ export default function ScheduleManagement() {
             type="text" 
             placeholder="Search branch, date, or status..." 
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all shadow-sm"
           />
         </div>
@@ -252,7 +264,10 @@ export default function ScheduleManagement() {
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
           <select 
             value={currentFilter}
-            onChange={(e) => setCurrentFilter(e.target.value)}
+            onChange={(e) => {
+              setCurrentFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all shadow-sm appearance-none font-medium text-gray-700 cursor-pointer"
           >
             <option value="All">All Statuses</option>
@@ -278,28 +293,72 @@ export default function ScheduleManagement() {
           <p className="text-gray-500">Try adjusting your filters or search query.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {filteredSchedules.map((schedule) => (
-            <ScheduleCard
-              key={schedule.id}
-              schedule={schedule}
-              availableSlots={getAvailableSlots(schedule)}
-              reservedCount={getReservedCount(schedule)}
-              checkedInCount={getCheckedInCount(schedule)}
-              totalReservations={getTotalReservations(schedule)}
-              checkedUpCount={getCheckedUpCount(schedule)}
-              cancelledCount={getCancelledCount(schedule)}
-              forfeitedCount={getForfeitedCount(schedule)}
-              onViewDetails={handleViewDetails}
-              onEdit={handleOpenEditModal}
-              onDelete={handleDelete}
-              onPublish={handlePublish}
-              onStartQueue={handleStartQueue}
-              onOpenQueueControl={handleOpenQueueControl}
-              isStartQueueDisabled={isAnyQueueActive}
-              clinicAddress={branches.find(b => b.name === schedule.branch)?.clinicAddress}
-            />
-          ))}
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {paginatedSchedules.map((schedule) => (
+              <ScheduleCard
+                key={schedule.id}
+                schedule={schedule}
+                availableSlots={getAvailableSlots(schedule)}
+                reservedCount={getReservedCount(schedule)}
+                checkedInCount={getCheckedInCount(schedule)}
+                totalReservations={getTotalReservations(schedule)}
+                checkedUpCount={getCheckedUpCount(schedule)}
+                cancelledCount={getCancelledCount(schedule)}
+                forfeitedCount={getForfeitedCount(schedule)}
+                onViewDetails={handleViewDetails}
+                onEdit={handleOpenEditModal}
+                onDelete={handleDelete}
+                onPublish={handlePublish}
+                onStartQueue={handleStartQueue}
+                onOpenQueueControl={handleOpenQueueControl}
+                isStartQueueDisabled={isAnyQueueActive}
+                clinicAddress={branches.find(b => b.name === schedule.branch)?.clinicAddress}
+              />
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 gap-4 md:flex-none z-10 rounded-b-xl">
+              <div className="text-sm text-gray-500 font-medium text-center sm:text-left">
+                Showing {startIndex + 1}–{Math.min(validCurrentPage * PAGE_SIZE, filteredSchedules.length)} of {filteredSchedules.length} schedules
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={validCurrentPage === 1}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Previous
+                </button>
+                
+                <div className="hidden sm:flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg border text-sm font-medium transition-colors ${
+                        validCurrentPage === page 
+                          ? 'bg-blue-600 text-white border-blue-600' 
+                          : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={validCurrentPage === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

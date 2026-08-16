@@ -1,7 +1,4 @@
 export const sortSchedules = (schedules) => {
-  const todayStr = new Date().toLocaleDateString('en-CA');
-  const todayFallback = new Date().toDateString();
-
   const getStatusPriority = (s) => {
     if (s.queueStatus === 'active') return 1;
     if (s.queueStatus === 'paused') return 2;
@@ -11,28 +8,17 @@ export const sortSchedules = (schedules) => {
   };
 
   const isCompleted = (s) => s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended';
-  const isToday = (s) => s.clinicDate === todayStr || new Date(s.clinicDate).toDateString() === todayFallback;
 
   const current = schedules.filter(s => s.status !== 'draft' && !isCompleted(s));
   current.sort((a, b) => {
+    const priorityA = getStatusPriority(a);
+    const priorityB = getStatusPriority(b);
+    if (priorityA !== priorityB) return priorityA - priorityB;
+
     const dateA = new Date(a.clinicDate).getTime();
     const dateB = new Date(b.clinicDate).getTime();
     if (dateA !== dateB) return dateA - dateB;
     
-    const timeCompare = (a.openingTime || '').localeCompare(b.openingTime || '');
-    if (timeCompare !== 0) return timeCompare;
-
-    return getStatusPriority(a) - getStatusPriority(b);
-  });
-
-  const completedToday = schedules.filter(s => s.status !== 'draft' && isCompleted(s) && isToday(s));
-  completedToday.sort((a, b) => (a.openingTime || '').localeCompare(b.openingTime || ''));
-
-  const olderCompleted = schedules.filter(s => s.status !== 'draft' && isCompleted(s) && !isToday(s));
-  olderCompleted.sort((a, b) => {
-    const dateA = new Date(a.clinicDate).getTime();
-    const dateB = new Date(b.clinicDate).getTime();
-    if (dateA !== dateB) return dateB - dateA;
     return (a.openingTime || '').localeCompare(b.openingTime || '');
   });
 
@@ -44,5 +30,13 @@ export const sortSchedules = (schedules) => {
     return (a.openingTime || '').localeCompare(b.openingTime || '');
   });
 
-  return [...current, ...completedToday, ...olderCompleted, ...drafts];
+  const completed = schedules.filter(s => s.status !== 'draft' && isCompleted(s));
+  completed.sort((a, b) => {
+    const dateA = new Date(a.clinicDate).getTime();
+    const dateB = new Date(b.clinicDate).getTime();
+    if (dateA !== dateB) return dateB - dateA; // descending
+    return (a.openingTime || '').localeCompare(b.openingTime || ''); // ascending
+  });
+
+  return [...current, ...drafts, ...completed];
 };
