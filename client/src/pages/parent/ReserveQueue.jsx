@@ -1,9 +1,10 @@
 import { CalendarPlus, CalendarDays, Clock, MapPin, Users, CheckCircle2, AlertCircle, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { 
-  subscribeToAllReservations, 
+  subscribeToParentReservations,
+  subscribeToScheduleReservations, 
   createReservation, 
   checkExistingReservationOnDate, 
   checkCompletedConsultationOnDate,
@@ -20,10 +21,11 @@ export default function ReserveQueue() {
   const navigate = useNavigate();
   
   const [schedules, setSchedules] = useState([]);
-  const [reservations, setReservations] = useState([]);
+  const [parentReservationsList, setParentReservationsList] = useState([]);
+  const [scheduleCapacities, setScheduleCapacities] = useState({});
+  const activeScheduleListenersRef = useRef({});
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [parentReservation, setParentReservation] = useState(null);
 
   // Modal States
   const [selectedSchedule, setSelectedSchedule] = useState(null);
@@ -94,36 +96,69 @@ export default function ReserveQueue() {
   };
 
   useEffect(() => {
+    let unsubParent = () => {};
+    if (user) {
+      unsubParent = subscribeToParentReservations(user.uid, (data) => {
+        setParentReservationsList(data);
+      });
+    }
+
     const unsubSchedules = subscribeToPublishedSchedules((data) => {
       const sorted = data.sort((a, b) => new Date(a.clinicDate) - new Date(b.clinicDate));
       setSchedules(sorted);
       setLoading(false);
     });
 
-    const unsubReservations = subscribeToAllReservations((data) => {
-      setReservations(data);
-      // Status Detection
-      if (user) {
-        const activeRes = data.find(res => 
-          res.parentId === user.uid && 
-          res.status !== "cancelled" && 
-          res.status !== "completed"
-        );
-        setParentReservation(activeRes || null);
-      }
-    });
-
     getBranchConfigurations().then(setBranches);
 
     return () => {
       unsubSchedules();
-      unsubReservations();
+      unsubParent();
     };
   }, [user]);
 
-  // count active reservations that occupy slots (including in_consultation and with_doctor)
+  // Dynamic schedule listener lifecycle
+  useEffect(() => {
+    const currentScheduleIds = schedules.map(s => s.id);
+    const existingIds = Object.keys(activeScheduleListenersRef.current);
+
+    // 1. Add new listeners
+    currentScheduleIds.forEach(scheduleId => {
+      if (!activeScheduleListenersRef.current[scheduleId]) {
+        activeScheduleListenersRef.current[scheduleId] = subscribeToScheduleReservations(scheduleId, (data) => {
+          const count = data.filter(r => ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
+          setScheduleCapacities(prev => ({
+            ...prev,
+            [scheduleId]: count
+          }));
+        });
+      }
+    });
+
+    // 2. Remove obsolete listeners
+    existingIds.forEach(id => {
+      if (!currentScheduleIds.includes(id)) {
+        activeScheduleListenersRef.current[id]();
+        delete activeScheduleListenersRef.current[id];
+        setScheduleCapacities(prev => {
+          const newState = { ...prev };
+          delete newState[id];
+          return newState;
+        });
+      }
+    });
+  }, [schedules]);
+
+  // Cleanup all schedule listeners on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(activeScheduleListenersRef.current).forEach(unsub => unsub());
+      activeScheduleListenersRef.current = {};
+    };
+  }, []);
+
   const getReservationCount = (scheduleId) => {
-    return reservations.filter(r => r.scheduleId === scheduleId && ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
+    return scheduleCapacities[scheduleId];
   };
 
   const handleReserveClick = async (schedule) => {
@@ -282,20 +317,33 @@ export default function ReserveQueue() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {schedules.map((schedule) => {
             const currentReservations = getReservationCount(schedule.id);
+            
+            if (currentReservations === undefined) {
+              return (
+                <div key={schedule.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex flex-col min-h-[250px] animate-pulse">
+                  <div className="w-1/2 h-6 bg-gray-200 rounded mb-4"></div>
+                  <div className="space-y-3 mb-6 flex-1">
+                    <div className="w-3/4 h-4 bg-gray-200 rounded"></div>
+                    <div className="w-2/3 h-4 bg-gray-200 rounded"></div>
+                    <div className="w-1/2 h-4 bg-gray-200 rounded"></div>
+                  </div>
+                  <div className="w-full h-10 bg-gray-200 rounded-xl"></div>
+                </div>
+              );
+            }
+
             const availableSlots = schedule.slotCapacity - currentReservations;
             const isFull = availableSlots <= 0;
             const isEnded = schedule.queueStatus === 'closed' || schedule.queueStatus === 'ended' || schedule.queueStatus === 'completed';
             
             // Check if parent has an active reservation on this schedule's clinicDate
-            const hasReservedOnDate = reservations.some(r => 
-              r.parentId === user?.uid && 
+            const hasReservedOnDate = parentReservationsList.some(r => 
               ACTIVE_RESERVATION_STATUSES.includes(r.status) && 
               schedules.find(s => s.id === r.scheduleId)?.clinicDate === schedule.clinicDate
             );
 
             // Check if parent already completed a consultation with this doctor on this calendar day
-            const hasCompletedOnDate = reservations.some(r => {
-              if (r.parentId !== user?.uid) return false;
+            const hasCompletedOnDate = parentReservationsList.some(r => {
               if (r.status !== "completed" && r.status !== "consultation_completed") return false;
               const resSchedule = schedules.find(s => s.id === r.scheduleId);
               if (!resSchedule) return false;
