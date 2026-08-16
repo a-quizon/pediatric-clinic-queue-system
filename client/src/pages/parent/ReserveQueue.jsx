@@ -53,8 +53,8 @@ export default function ReserveQueue() {
       setFormData(prev => ({ ...prev, age: cleanVal }));
     } else {
       const numVal = parseInt(rawVal, 10);
-      if (rawVal && (numVal < 0 || numVal > 25)) {
-        setAgeError("Please enter a valid pediatric age (0 - 25).");
+      if (rawVal && (numVal <= 0 || numVal > 25)) {
+        setAgeError("Please enter a valid pediatric age (1 - 25).");
       } else {
         setAgeError("");
       }
