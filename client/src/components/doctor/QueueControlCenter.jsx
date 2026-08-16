@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { subscribeToPublishedSchedules, updateQueueStatus, completeSchedule } from "../../services/scheduleService";
-import { subscribeToAllReservations, startConsultation, completeConsultation, expireReservation, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
+import { subscribeToScheduleReservations, startConsultation, completeConsultation, expireReservation, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
 import { getNextEligiblePatient } from "../../services/queueEligibilityService";
 import { isReservationExpired } from "../../services/timeService";
 import { sortActiveQueue } from "../../services/queueEngine";
@@ -11,8 +11,9 @@ import toast from "react-hot-toast";
 
 export default function QueueControlCenter() {
   const [schedules, setSchedules] = useState([]);
+  const [schedulesLoaded, setSchedulesLoaded] = useState(false);
   const [reservations, setReservations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [reservationsLoaded, setReservationsLoaded] = useState(false);
 
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -28,22 +29,40 @@ export default function QueueControlCenter() {
   useEffect(() => {
     const unsubSchedules = subscribeToPublishedSchedules((data) => {
       setSchedules(data);
+      setSchedulesLoaded(true);
     });
 
-    const unsubReservations = subscribeToAllReservations((data) => {
-      setReservations(data);
-      setLoading(false);
-    });
-
-    return () => {
-      unsubSchedules();
-      unsubReservations();
-    };
+    return () => unsubSchedules();
   }, []);
 
   const activeSchedule = useMemo(() => {
     return schedules.find(s => s.status === 'published' && (s.queueStatus === 'active' || s.queueStatus === 'paused' || s.queueStatus === 'closed'));
   }, [schedules]);
+
+  const activeScheduleId = activeSchedule?.id;
+
+  useEffect(() => {
+    if (!activeScheduleId) {
+      const timeoutId = setTimeout(() => {
+        setReservations([]);
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+
+    const timeoutId = setTimeout(() => {
+      setReservationsLoaded(false);
+    }, 0);
+
+    const unsubReservations = subscribeToScheduleReservations(activeScheduleId, (data) => {
+      setReservations(data);
+      setReservationsLoaded(true);
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+      unsubReservations();
+    };
+  }, [activeScheduleId]);
   
   const scheduleReservations = useMemo(() => {
     if (!activeSchedule) return [];
@@ -158,6 +177,8 @@ export default function QueueControlCenter() {
       default: return null;
     }
   };
+
+  const loading = !schedulesLoaded || (!!activeSchedule && !reservationsLoaded);
 
   if (loading) {
     return (
