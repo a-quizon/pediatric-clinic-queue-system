@@ -3,16 +3,14 @@ import { QrCode, Type, Search, CheckCircle, User, MapPin, Calendar, Clock, Hash,
 import toast from "react-hot-toast";
 import { Html5Qrcode } from "html5-qrcode";
 import { useAuth } from "../../hooks/useAuth";
-import { validateReservationByCode, checkInReservation, subscribeToAllReservations } from "../../services/reservationService";
-import { getScheduleById, subscribeToPublishedSchedules } from "../../services/scheduleService";
+import { validateReservationByCode, checkInReservation } from "../../services/reservationService";
+import { getScheduleById } from "../../services/scheduleService";
 import { isReservationExpired } from "../../services/timeService";
 
 export default function ValidateReservation() {
   const { user } = useAuth();
   const [reservationCode, setReservationCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [allReservations, setAllReservations] = useState([]);
-  const [schedulesMap, setSchedulesMap] = useState({});
   
   // Modal states
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -47,23 +45,6 @@ export default function ValidateReservation() {
 
     return () => {
       stopScanner();
-    };
-  }, []);
-
-  useEffect(() => {
-    const unsubSchedules = subscribeToPublishedSchedules((data) => {
-      const map = {};
-      data.forEach(s => map[s.id] = s);
-      setSchedulesMap(map);
-    });
-
-    const unsubReservations = subscribeToAllReservations((data) => {
-      setAllReservations(data);
-    });
-
-    return () => {
-      unsubSchedules();
-      unsubReservations();
     };
   }, []);
 

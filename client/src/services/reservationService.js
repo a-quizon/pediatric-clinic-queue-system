@@ -251,19 +251,22 @@ export const cancelReservation = async (reservationId) => {
 };
 
 export const validateReservationByCode = async (code) => {
-  const snapshot = await get(ref(database, "reservations"));
+  const q = query(
+    ref(database, "reservations"),
+    orderByChild("reservationCode"),
+    equalTo(code)
+  );
+  const snapshot = await get(q);
   if (!snapshot.exists()) return null;
 
   const data = snapshot.val();
-  const reservations = Object.entries(data).map(([id, value]) => ({ id, ...value }));
+  // If multiple records match (collision), we pick the first one, matching legacy Array.find behavior
+  const rawReservation = Object.entries(data).map(([id, value]) => ({ id, ...value }))[0];
   
-  const reservation = reservations.find(res => res.reservationCode === code);
-  if (!reservation) return null;
+  if (!rawReservation || !rawReservation.scheduleId) return null;
   
-  const scheduleReservations = reservations.filter(res => res.scheduleId === reservation.scheduleId);
-  const rankedReservations = calculateDynamicQueuePositions(scheduleReservations);
-  
-  return rankedReservations.find(res => res.id === reservation.id);
+  const scheduleReservations = await getReservationsBySchedule(rawReservation.scheduleId);
+  return scheduleReservations.find(res => res.id === rawReservation.id) || null;
 };
 
 export const checkInReservation = async (reservationId, secretaryUid) => {
