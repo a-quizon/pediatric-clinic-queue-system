@@ -237,7 +237,12 @@ export default function Dashboard() {
         <div className="space-y-4 max-w-lg mx-auto animate-in fade-in slide-in-from-bottom-4">
           
           {/* 1. Top Clinic Information */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex justify-between items-center">
+          <div className={`rounded-2xl shadow-sm border p-4 flex justify-between items-center transition-colors ${
+            schedule.queueStatus === 'active' ? 'bg-green-50/30 border-green-200' :
+            schedule.queueStatus === 'paused' ? 'bg-orange-50/30 border-orange-200' :
+            schedule.queueStatus === 'closed' ? 'bg-red-50/30 border-red-200' :
+            'bg-white border-gray-100'
+          }`}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0 border border-blue-100">
                 <Building2 className="w-5 h-5" />
@@ -271,39 +276,39 @@ export default function Dashboard() {
           </div>
 
           {/* 2. Top Queue Summary Cards */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-row gap-2 sm:gap-3">
             {/* Card 1 - My Queue Number */}
-            <div className="flex-1 bg-gradient-to-b from-blue-700 to-blue-900 rounded-2xl p-5 text-white shadow-md relative overflow-hidden flex flex-col items-center text-center">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-blue-200 mb-1 z-10">My Queue Number</span>
-              <div className="text-6xl font-black tracking-tighter mb-1 z-10">
+            <Link to="/parent/reservations" className="flex-1 bg-gradient-to-b from-blue-700 to-blue-900 rounded-2xl p-3 sm:p-5 text-white shadow-md relative overflow-hidden flex flex-col items-center text-center hover:scale-[1.02] active:scale-[0.98] transition-transform cursor-pointer block">
+              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-blue-200 mb-0.5 sm:mb-1 z-10">My Queue Number</span>
+              <div className="text-5xl sm:text-6xl font-black tracking-tighter mb-1 z-10">
                 {permanentQueueNumber || "-"}
               </div>
-              <span className="text-xs text-blue-100 font-medium mb-4 z-10">
+              <span className="text-[10px] sm:text-xs text-blue-100 font-medium mb-3 sm:mb-4 z-10">
                 Your turn is approaching
               </span>
               
-              <div className="z-10">
-                <ReservationStatusBadge status={queueState || effectiveStatus} className="shadow-xs px-3 py-1 bg-blue-900/50 border-blue-500/30 text-white backdrop-blur-sm" />
+              <div className="z-10 mt-auto">
+                <ReservationStatusBadge status={queueState || effectiveStatus} className="shadow-xs px-2 py-1 text-[10px] sm:text-xs bg-blue-900/50 border-blue-500/30 text-white backdrop-blur-sm" />
               </div>
               
               {/* Subtle background decoration */}
-              <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-              <div className="absolute -top-6 -left-6 w-24 h-24 bg-blue-400/20 rounded-full blur-xl"></div>
-            </div>
+              <div className="absolute -bottom-6 -right-6 w-24 h-24 sm:w-32 sm:h-32 bg-white/5 rounded-full blur-2xl"></div>
+              <div className="absolute -top-6 -left-6 w-16 h-16 sm:w-24 sm:h-24 bg-blue-400/20 rounded-full blur-xl"></div>
+            </Link>
 
             {/* Card 2 - Patients Ahead */}
-            <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col items-center justify-center text-center">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Patients Ahead</span>
-              <div className="text-6xl font-black text-gray-800 tracking-tighter mb-1">
+            <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-5 flex flex-col items-center text-center">
+              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Patients Ahead</span>
+              <div className="text-5xl sm:text-6xl font-black text-gray-800 tracking-tighter mb-1 mt-auto">
                 {["in_consultation", "with_doctor"].includes(activeReservation.status) || queueState === QUEUE_STATES.WITH_DOCTOR || activeReservation.status === "consultation_completed"
                     ? "0"
                     : patientsAhead}
               </div>
-              <span className="text-xs text-gray-500 font-medium mb-3">
-                patients ahead of you
-              </span>
-              <div className="w-10 h-10 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mt-1">
-                <Users className="w-5 h-5" />
+              <div className="flex items-center justify-center gap-1.5 mt-auto">
+                <Users className="w-3.5 h-3.5 text-orange-500" />
+                <span className="text-[10px] sm:text-xs text-gray-500 font-medium">
+                  ahead of you
+                </span>
               </div>
             </div>
           </div>
@@ -325,7 +330,7 @@ export default function Dashboard() {
               </div>
               {nowServing && (
                 <div className="bg-green-100/80 text-green-700 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1.5 border border-green-200">
-                  IN PROGRESS
+                  {['with_doctor', 'in_consultation'].includes(nowServing.status) ? 'WITH DOCTOR' : 'IN PROGRESS'}
                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                 </div>
               )}
@@ -397,53 +402,107 @@ export default function Dashboard() {
 
           {/* 5. Reminders / Warnings */}
           <div className="pt-2">
-            {schedule.queueStatus === 'not_started' && (
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs">
-                <div className="w-8 h-8 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center shrink-0">
-                  <Bell className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-gray-800 mb-0.5">Clinic hasn't started yet.</h4>
-                  <p className="text-[11px] text-gray-600">Please check in at the clinic upon arrival.</p>
-                </div>
-              </div>
-            )}
-            
-            {schedule.queueStatus === 'paused' && (
-              <div className="bg-orange-50 border border-orange-100 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs">
-                <div className="w-8 h-8 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center shrink-0">
-                  <AlertCircle className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-gray-800 mb-0.5">Queue Paused</h4>
-                  <p className="text-[11px] text-gray-600">The clinic queue is temporarily paused.</p>
-                </div>
-              </div>
-            )}
-            
-            {schedule.queueStatus === 'closed' && (
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs">
-                <div className="w-8 h-8 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center shrink-0">
-                  <AlertCircle className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-gray-800 mb-0.5">Queue Closed</h4>
-                  <p className="text-[11px] text-gray-600">Existing reservations will be served.</p>
-                </div>
-              </div>
-            )}
-            
-            {schedule.queueStatus !== 'not_started' && (activeReservation.status === "reserved" || activeReservation.status === "waiting" || activeReservation.status === "checked_in") && (
-              <div className="bg-amber-50/50 border border-amber-100 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs mt-2">
-                <div className="w-8 h-8 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0">
-                  <Bell className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-gray-800 mb-0.5">We'll notify you when your turn is near.</h4>
-                  <p className="text-[11px] text-gray-600">Please keep your phone with you.</p>
-                </div>
-              </div>
-            )}
+            {(() => {
+              if (schedule.queueStatus === 'not_started') {
+                return (
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs">
+                    <div className="w-8 h-8 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center shrink-0">
+                      <Bell className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">Clinic hasn't started yet.</h4>
+                      <p className="text-[11px] text-gray-600">Please check in at the clinic upon arrival.</p>
+                    </div>
+                  </div>
+                );
+              }
+              if (schedule.queueStatus === 'paused') {
+                return (
+                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs">
+                    <div className="w-8 h-8 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center shrink-0">
+                      <AlertCircle className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">Queue Paused</h4>
+                      <p className="text-[11px] text-gray-600">The clinic queue is temporarily paused.</p>
+                    </div>
+                  </div>
+                );
+              }
+              if (schedule.queueStatus === 'closed') {
+                return (
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs">
+                    <div className="w-8 h-8 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center shrink-0">
+                      <AlertCircle className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">Queue Closed</h4>
+                      <p className="text-[11px] text-gray-600">Existing reservations will be served.</p>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Dynamic messages based on queueState
+              if (queueState === QUEUE_STATES.WITH_DOCTOR || activeReservation.status === 'in_consultation' || activeReservation.status === 'with_doctor') {
+                return (
+                  <div className="bg-green-50/80 border border-green-200 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs mt-2">
+                    <div className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center shrink-0">
+                      <Stethoscope className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">You are in consultation</h4>
+                      <p className="text-[11px] text-gray-600">You are currently with the doctor.</p>
+                    </div>
+                  </div>
+                );
+              }
+              
+              if (queueState === QUEUE_STATES.YOU_ARE_NEXT) {
+                return (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs mt-2">
+                    <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shrink-0">
+                      <Activity className="w-4 h-4 animate-pulse" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">You're Next!</h4>
+                      <p className="text-[11px] text-gray-600">Please prepare to proceed to the clinic room.</p>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (queueState === QUEUE_STATES.ALMOST_NEXT) {
+                return (
+                  <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs mt-2">
+                    <div className="w-8 h-8 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center shrink-0">
+                      <Bell className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">Your turn is approaching!</h4>
+                      <p className="text-[11px] text-gray-600">Please be ready.</p>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Default Waiting Message
+              if (['reserved', 'waiting', 'checked_in'].includes(activeReservation.status)) {
+                return (
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs mt-2">
+                    <div className="w-8 h-8 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center shrink-0">
+                      <Bell className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">We'll notify you when your turn is near.</h4>
+                      <p className="text-[11px] text-gray-600">Please keep your phone with you.</p>
+                    </div>
+                  </div>
+                );
+              }
+              
+              return null;
+            })()}
           </div>
           
           <div className="text-center mt-3 mb-1">
