@@ -232,11 +232,20 @@ export default function Dashboard() {
         {/* Hidden on mobile, visible on desktop */}
         <div className="hidden lg:block lg:flex-[2.5] min-w-0">
           <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden relative">
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
               <h2 className="text-sm font-black uppercase text-gray-700 tracking-wide flex items-center gap-2">
                 <Users className="w-4 h-4 text-blue-600" />
                 Queue Management
               </h2>
+              <a 
+                href="/secretary/monitor" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-all shadow-sm active:scale-95"
+              >
+                <Activity className="w-4 h-4" />
+                Live Queue Monitor
+              </a>
             </div>
             <div className="p-4 sm:p-6 pb-0">
                {/* Embed ManageQueue Component natively */}
