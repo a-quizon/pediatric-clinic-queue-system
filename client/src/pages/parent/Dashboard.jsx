@@ -284,11 +284,17 @@ export default function Dashboard() {
                 {permanentQueueNumber || "-"}
               </div>
               <span className="text-[10px] sm:text-xs text-blue-100 font-medium mb-3 sm:mb-4 z-10">
-                Your turn is approaching
+                {(() => {
+                  if (queueState === QUEUE_STATES.WITH_DOCTOR || activeReservation.status === 'in_consultation' || activeReservation.status === 'with_doctor') return "You're currently with the doctor.";
+                  if (queueState === QUEUE_STATES.YOU_ARE_NEXT) return "You're Next — Please be ready.";
+                  if (queueState === QUEUE_STATES.ALMOST_NEXT) return "Your turn is approaching.";
+                  if (activeReservation.status === 'completed' || activeReservation.status === 'consultation_completed') return "Consultation completed.";
+                  return "Please wait for your turn.";
+                })()}
               </span>
               
               <div className="z-10 mt-auto">
-                <ReservationStatusBadge status={queueState || effectiveStatus} className="shadow-xs px-2 py-1 text-[10px] sm:text-xs bg-blue-900/50 border-blue-500/30 text-white backdrop-blur-sm" />
+                <ReservationStatusBadge status={queueState || effectiveStatus} className="shadow-xs px-3 py-1 text-[10px] sm:text-xs font-bold" />
               </div>
               
               {/* Subtle background decoration */}
@@ -316,22 +322,29 @@ export default function Dashboard() {
           {/* 3. Current Consultation / Now Serving */}
           <div className="mt-2">
             <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-2 ml-2">Current Consultation</span>
-            <div className="bg-green-50 border border-green-100 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center shrink-0">
-                  <Stethoscope className="w-6 h-6" />
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-green-600 block mb-0.5">Now Serving</span>
-                  <div className="text-2xl font-black text-gray-800 leading-none">
-                    {nowServing ? `Queue #${nowServing.pNum}` : "—"}
+            <div className="bg-green-50 border border-green-100 rounded-2xl p-4 flex flex-col justify-center shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center shrink-0">
+                    <Stethoscope className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-green-600 block mb-0.5">Now Serving</span>
+                    <div className="text-2xl font-black text-gray-800 leading-none">
+                      {nowServing ? `Queue #${nowServing.pNum}` : "—"}
+                    </div>
                   </div>
                 </div>
+                {nowServing && (
+                  <div className="bg-green-100/80 text-green-700 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1.5 border border-green-200">
+                    {['with_doctor', 'in_consultation'].includes(nowServing.status) ? 'WITH DOCTOR' : 'IN PROGRESS'}
+                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                  </div>
+                )}
               </div>
-              {nowServing && (
-                <div className="bg-green-100/80 text-green-700 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full flex items-center gap-1.5 border border-green-200">
-                  {['with_doctor', 'in_consultation'].includes(nowServing.status) ? 'WITH DOCTOR' : 'IN PROGRESS'}
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+              {nowServing && activeReservation && nowServing.id === activeReservation.id && (
+                <div className="mt-3 pt-3 border-t border-green-200/60 text-center">
+                  <span className="text-xs font-bold text-green-700">You're in consultation</span>
                 </div>
               )}
             </div>
@@ -340,170 +353,60 @@ export default function Dashboard() {
           {/* 4. Waiting Queue */}
           <div className="mt-4">
             <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-2 ml-2">Waiting Queue</span>
-            
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-              {activeLine.length > 0 ? (
-                activeLine.map((r) => {
-                  const isYou = r.id === activeReservation.id;
-                  const isNowServing = ["in_consultation", "with_doctor"].includes(r.status);
-                  
-                  if (isNowServing) return null;
+            <div className="relative">
+              <div className="space-y-2 max-h-[240px] sm:max-h-[300px] overflow-y-auto pr-1 pb-4">
+                {activeLine.length > 0 ? (
+                  activeLine.map((r) => {
+                    const isYou = r.id === activeReservation.id;
+                    const isNowServing = ["in_consultation", "with_doctor"].includes(r.status);
+                    
+                    if (isNowServing) return null;
 
-                  return (
-                    <div 
-                      key={r.id} 
-                      className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
-                        isYou 
-                          ? "bg-blue-50/80 border-blue-200 shadow-sm relative overflow-hidden" 
-                          : "bg-white border-gray-100 shadow-2xs"
-                      }`}
-                    >
-                      {isYou && (
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
-                      )}
-                      
-                      <div className="flex items-center gap-4 pl-1">
-                        <div className={`w-8 text-center text-xl font-black ${isYou ? "text-blue-700" : "text-gray-800"}`}>
-                          {r.pNum}
-                        </div>
-                        <div className={`text-sm font-semibold ${isYou ? "text-blue-600" : "text-gray-600"}`}>
-                          {isYou ? "You" : "Waiting"}
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        {isYou ? (
-                          <div className="bg-blue-100/80 text-blue-800 text-[10px] font-black uppercase px-2.5 py-1 rounded-full border border-blue-200 flex items-center gap-1.5">
-                            {r.status === 'checked_in' ? 'CHECKED IN' : 'WAITING'}
-                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                          </div>
-                        ) : (
-                          <span className="bg-gray-100 text-gray-500 text-[10px] font-black uppercase px-3 py-1 rounded-full border border-gray-200">
-                            WAITING
-                          </span>
+                    return (
+                      <div 
+                        key={r.id} 
+                        className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
+                          isYou 
+                            ? "bg-blue-50/80 border-blue-200 shadow-sm relative overflow-hidden" 
+                            : "bg-white border-gray-100 shadow-2xs"
+                        }`}
+                      >
+                        {isYou && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
                         )}
+                        
+                        <div className="flex items-center gap-4 pl-1">
+                          <div className={`w-8 text-center text-xl font-black ${isYou ? "text-blue-700" : "text-gray-800"}`}>
+                            {r.pNum}
+                          </div>
+                          <div className={`text-sm font-semibold ${isYou ? "text-blue-600" : "text-gray-600"}`}>
+                            {isYou ? "You" : "In Queue"}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <ReservationStatusBadge 
+                            status={isYou && queueState && ['YOU_ARE_NEXT', 'ALMOST_NEXT'].includes(queueState) ? queueState : r.status} 
+                            className="uppercase text-[9px] font-black tracking-wider shadow-xs" 
+                          />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-center p-4 text-sm text-gray-500 bg-white rounded-xl border border-gray-100 shadow-2xs">
-                  No one is currently waiting.
-                </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center p-4 text-sm text-gray-500 bg-white rounded-xl border border-gray-100 shadow-2xs">
+                    No one is currently waiting.
+                  </div>
+                )}
+              </div>
+              
+              {activeLine.length > 4 && (
+                <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none rounded-b-xl"></div>
               )}
             </div>
-            
-            {activeLine.length > 5 && (
-              <div className="text-center mt-2">
-                <span className="text-[10px] text-gray-400 font-semibold">Scroll for more patients</span>
-              </div>
-            )}
           </div>
 
-          {/* 5. Reminders / Warnings */}
-          <div className="pt-2">
-            {(() => {
-              if (schedule.queueStatus === 'not_started') {
-                return (
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs">
-                    <div className="w-8 h-8 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center shrink-0">
-                      <Bell className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">Clinic hasn't started yet.</h4>
-                      <p className="text-[11px] text-gray-600">Please check in at the clinic upon arrival.</p>
-                    </div>
-                  </div>
-                );
-              }
-              if (schedule.queueStatus === 'paused') {
-                return (
-                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs">
-                    <div className="w-8 h-8 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center shrink-0">
-                      <AlertCircle className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">Queue Paused</h4>
-                      <p className="text-[11px] text-gray-600">The clinic queue is temporarily paused.</p>
-                    </div>
-                  </div>
-                );
-              }
-              if (schedule.queueStatus === 'closed') {
-                return (
-                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs">
-                    <div className="w-8 h-8 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center shrink-0">
-                      <AlertCircle className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">Queue Closed</h4>
-                      <p className="text-[11px] text-gray-600">Existing reservations will be served.</p>
-                    </div>
-                  </div>
-                );
-              }
 
-              // Dynamic messages based on queueState
-              if (queueState === QUEUE_STATES.WITH_DOCTOR || activeReservation.status === 'in_consultation' || activeReservation.status === 'with_doctor') {
-                return (
-                  <div className="bg-green-50/80 border border-green-200 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs mt-2">
-                    <div className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center shrink-0">
-                      <Stethoscope className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">You are in consultation</h4>
-                      <p className="text-[11px] text-gray-600">You are currently with the doctor.</p>
-                    </div>
-                  </div>
-                );
-              }
-              
-              if (queueState === QUEUE_STATES.YOU_ARE_NEXT) {
-                return (
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs mt-2">
-                    <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shrink-0">
-                      <Activity className="w-4 h-4 animate-pulse" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">You're Next!</h4>
-                      <p className="text-[11px] text-gray-600">Please prepare to proceed to the clinic room.</p>
-                    </div>
-                  </div>
-                );
-              }
-
-              if (queueState === QUEUE_STATES.ALMOST_NEXT) {
-                return (
-                  <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs mt-2">
-                    <div className="w-8 h-8 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center shrink-0">
-                      <Bell className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">Your turn is approaching!</h4>
-                      <p className="text-[11px] text-gray-600">Please be ready.</p>
-                    </div>
-                  </div>
-                );
-              }
-
-              // Default Waiting Message
-              if (['reserved', 'waiting', 'checked_in'].includes(activeReservation.status)) {
-                return (
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 flex items-start gap-3 shadow-2xs mt-2">
-                    <div className="w-8 h-8 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center shrink-0">
-                      <Bell className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-gray-800 mb-0.5">We'll notify you when your turn is near.</h4>
-                      <p className="text-[11px] text-gray-600">Please keep your phone with you.</p>
-                    </div>
-                  </div>
-                );
-              }
-              
-              return null;
-            })()}
-          </div>
           
           <div className="text-center mt-3 mb-1">
             <span className="text-[10px] text-gray-400 font-medium">
