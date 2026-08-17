@@ -68,11 +68,25 @@ export default function Register() {
         confirmPassword: '',
       });
       setTimeout(() => {
-        navigate('/');
+        navigate('/verify-email');
       }, 2000);
     } catch (err) {
       console.error('Registration failed:', err);
-      toast.error(mapAuthError(err.code));
+      if (err.code === 'auth/verification-email-failed') {
+        toast.error('Account created, but verification email failed to send. You can resend it later.');
+        setFormData({
+          name: '',
+          email: '',
+          number: '',
+          password: '',
+          confirmPassword: '',
+        });
+        setTimeout(() => {
+          navigate('/verify-email');
+        }, 2000);
+      } else {
+        toast.error(mapAuthError(err.code));
+      }
     } finally {
       setLoading(false);
     }
@@ -219,7 +233,12 @@ export default function Register() {
                 loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700 hover:shadow"
               }`}
             >
-              {loading ? 'Creating Account...' : 'Register'}
+              {loading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Creating Account...
+                </div>
+              ) : 'Register'}
               {!loading && <ArrowRight className="w-5 h-5 ml-2" />}
             </button>
           </form>

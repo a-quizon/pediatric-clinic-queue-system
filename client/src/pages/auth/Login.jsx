@@ -5,6 +5,8 @@ import { Activity, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { mapAuthError } from "../../utils/authErrors";
 import { useAuth } from "../../hooks/useAuth";
+import { auth } from "../../firebase/auth";
+import { signOut } from "firebase/auth";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -18,11 +20,24 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && user && role) {
-      if (role === 'doctor') navigate('/doctor');
-      else if (role === 'secretary') navigate('/secretary');
-      else if (role === 'admin') navigate('/admin');
-      else navigate('/parent');
+    if (!authLoading && user) {
+      if (role) {
+        if (role === 'doctor') navigate('/doctor');
+        else if (role === 'secretary') navigate('/secretary');
+        else if (role === 'admin') navigate('/admin');
+        else navigate('/parent');
+      } else {
+        // User exists but has no RTDB profile (role is null)
+        const firebaseUser = auth.currentUser;
+        if (firebaseUser && !firebaseUser.emailVerified) {
+          navigate('/verify-email');
+        } else if (firebaseUser && firebaseUser.emailVerified) {
+          // Verified Firebase user but no application profile (State F)
+          signOut(auth).then(() => {
+            toast.error('Account profile not found. Please contact the administrator.');
+          });
+        }
+      }
     }
   }, [user, role, authLoading, navigate]);
 
@@ -52,6 +67,20 @@ export default function Login() {
         if (userData.status === 'inactive') {
           // AuthContext will independently intercept this, call signOut(), and show the deactivated toast.
           // We simply reset the local loading state and abort the local success flow.
+          setLoading(false);
+          return;
+        }
+      } else {
+        // No RTDB profile exists
+        if (!authUser.emailVerified) {
+          // State D: Unverified Pending Parent
+          toast.success('Please complete your email verification.');
+          navigate('/verify-email');
+          return;
+        } else {
+          // State F: Verified Firebase User Without Profile
+          await signOut(auth);
+          toast.error('Account profile not found. Please contact the administrator.');
           setLoading(false);
           return;
         }

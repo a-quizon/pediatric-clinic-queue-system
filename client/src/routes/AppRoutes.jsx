@@ -1,11 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import ProtectedRoute from "./ProtectedRoute";
+import VerifiedRoute from "./VerifiedRoute";
 
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
+import VerifyEmail from "../pages/auth/VerifyEmail";
 
 // Parent Layout and Pages
 import ParentLayout from "../components/parent/ParentLayout";
@@ -51,9 +53,10 @@ export default function AppRoutes() {
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<ProtectedRoute><VerifyEmail /></ProtectedRoute>} />
         
         {/* Parent Routes */}
-        <Route path="/parent" element={<ProtectedRoute> <RoleRoute allowedRole="parent"><ParentLayout /></RoleRoute> </ProtectedRoute>}>
+        <Route path="/parent" element={<ProtectedRoute> <VerifiedRoute> <RoleRoute allowedRole="parent"><ParentLayout /></RoleRoute> </VerifiedRoute> </ProtectedRoute>}>
           <Route index element={<ParentDashboard />} />
           <Route path="reserve" element={<ParentReserveQueue />} />
           <Route path="reservations" element={<ParentMyReservation />} />

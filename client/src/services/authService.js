@@ -1,5 +1,5 @@
-import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
-import { ref, set, update } from "firebase/database";
+import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendEmailVerification } from "firebase/auth";
+import { ref, set, update, get } from "firebase/database";
 
 import { auth } from "../firebase/auth";
 import { database } from "../firebase/database";
@@ -25,24 +25,43 @@ export const registerUser = async (
 
     console.log("User created:", user.uid);
 
-    const now = Date.now();
-    await set(
-    ref(database, `users/${user.uid}`),
-        {
-            uid: user.uid,
-            name,
-            email,
-            phone,
-            role: "parent",
-            status: "active",
-            createdAt: now,
-            updatedAt: now
-        }
-    );
+    // Temporarily store phone number for when they verify their email
+    if (phone) {
+      localStorage.setItem(`pending_registration_${user.uid}`, JSON.stringify({ phone }));
+    }
 
-    console.log("Saved successfully!");
+    try {
+      await sendEmailVerification(user);
+    } catch (err) {
+      console.error("Could not send verification email:", err);
+      throw { code: 'auth/verification-email-failed', originalError: err };
+    }
 
   return user;
+};
+
+export const completeParentRegistration = async (user) => {
+  const userRef = ref(database, `users/${user.uid}`);
+  const snapshot = await get(userRef);
+  if (snapshot.exists()) {
+    return; // Profile already created
+  }
+
+  const pendingData = JSON.parse(localStorage.getItem(`pending_registration_${user.uid}`) || "{}");
+  const now = Date.now();
+  
+  await set(userRef, {
+    uid: user.uid,
+    name: user.displayName || "Parent",
+    email: user.email,
+    phone: pendingData.phone || "",
+    role: "parent",
+    status: "active",
+    createdAt: now,
+    updatedAt: now
+  });
+  
+  localStorage.removeItem(`pending_registration_${user.uid}`);
 };
 
 export const loginUser = async (
