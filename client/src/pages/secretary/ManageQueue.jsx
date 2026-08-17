@@ -5,6 +5,8 @@ import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { subscribeToQueueConfiguration } from "../../services/systemConfigurationService";
 import { computeReservationState, QUEUE_STATES, sortActiveQueue } from "../../services/queueEngine";
 import { useAuth } from "../../hooks/useAuth";
+import { get, ref } from "firebase/database";
+import { database } from "../../firebase/database";
 import toast from "react-hot-toast";
 
 export default function ManageQueue({ hideHeader = false }) {
@@ -17,6 +19,19 @@ export default function ManageQueue({ hideHeader = false }) {
   const [requestingCheckIn, setRequestingCheckIn] = useState(false);
   const [penaltyMoveBack, setPenaltyMoveBack] = useState(2);
   const [nowTs, setNowTs] = useState(Date.now());
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [parentContactInfo, setParentContactInfo] = useState(null);
+  const [loadingContactInfo, setLoadingContactInfo] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isContactModalOpen) {
+        setIsContactModalOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isContactModalOpen]);
 
   useEffect(() => {
     const timer = setInterval(() => setNowTs(Date.now()), 1000);
@@ -240,6 +255,27 @@ export default function ManageQueue({ hideHeader = false }) {
     }
   };
 
+  const handleCardClick = async (res, e) => {
+    // Prevent triggering if clicking a button inside the card
+    if (e.target.closest('button')) return;
+    
+    setIsContactModalOpen(true);
+    setLoadingContactInfo(true);
+    setParentContactInfo(null);
+    
+    try {
+      const parentRef = ref(database, `users/${res.parentId}`);
+      const snapshot = await get(parentRef);
+      if (snapshot.exists()) {
+        setParentContactInfo(snapshot.val());
+      }
+    } catch (err) {
+      console.error("Failed to fetch parent info", err);
+    } finally {
+      setLoadingContactInfo(false);
+    }
+  };
+
 
   return (
     <div className="space-y-6 pb-8 max-w-4xl mx-auto">
@@ -299,7 +335,8 @@ export default function ManageQueue({ hideHeader = false }) {
           inConsultationPatients.map((res) => (
             <div
               key={res.id}
-              className="p-4 sm:p-5 rounded-2xl bg-blue-50/70 border-2 border-blue-400 shadow-sm transition-all"
+              onClick={(e) => handleCardClick(res, e)}
+              className="p-4 sm:p-5 rounded-2xl bg-blue-50/70 border-2 border-blue-400 shadow-sm transition-all cursor-pointer hover:shadow-md hover:bg-blue-50"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5 min-w-0">
@@ -359,9 +396,10 @@ export default function ManageQueue({ hideHeader = false }) {
               return (
                 <div
                   key={res.id}
-                  className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                  onClick={(e) => handleCardClick(res, e)}
+                  className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer hover:shadow-md ${
                     isFirstWaiting
-                      ? "bg-white border-blue-300 ring-2 ring-blue-500/10 shadow-sm"
+                      ? "bg-white border-blue-300 ring-2 ring-blue-500/10 shadow-sm hover:border-blue-400"
                       : "bg-white border-gray-200 shadow-2xs hover:border-gray-300"
                   }`}
                 >
@@ -436,6 +474,62 @@ export default function ManageQueue({ hideHeader = false }) {
           </div>
         )}
       </div>
+
+      {/* Contact Information Modal */}
+      {isContactModalOpen && (
+        <div 
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 sm:p-6"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsContactModalOpen(false);
+          }}
+        >
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-1">Parent / Guardian</h2>
+              {loadingContactInfo ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : parentContactInfo ? (
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Name</p>
+                    <p className="text-base font-medium text-gray-900 mt-0.5">{parentContactInfo.name || "Not available"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Email</p>
+                    {parentContactInfo.email ? (
+                      <a href={`mailto:${parentContactInfo.email}`} className="text-blue-600 hover:underline mt-0.5 block break-all">{parentContactInfo.email}</a>
+                    ) : (
+                      <p className="text-gray-900 mt-0.5">Not available</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Phone</p>
+                    {parentContactInfo.phone ? (
+                      <a href={`tel:${parentContactInfo.phone}`} className="text-blue-600 hover:underline mt-0.5 block">{parentContactInfo.phone}</a>
+                    ) : (
+                      <p className="text-gray-900 mt-0.5">Not available</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="py-6 text-center text-gray-500">
+                  <p>Could not retrieve contact information.</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <button 
+                onClick={() => setIsContactModalOpen(false)}
+                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
