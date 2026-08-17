@@ -162,6 +162,14 @@ export default function NotificationObserver() {
               });
             }
 
+            if (currPenalty > prevPenalty && currStatus !== 'forfeited') {
+              notificationService.notify(NOTIFICATION_EVENTS.PENALIZED, {
+                entityId: r.id,
+                parentId: r.parentId,
+                dedupeKey: `penalized_${r.id}_${currPenalty}`,
+              });
+            }
+
             if (prevStatus !== currStatus) {
               if (currStatus === 'validation_open') {
                 notificationService.notify(NOTIFICATION_EVENTS.VALIDATION_OPEN, {
@@ -192,12 +200,6 @@ export default function NotificationObserver() {
                   entityId: r.id,
                   parentId: r.parentId,
                   dedupeKey: `consult_complete_${r.id}`,
-                });
-              } else if (currStatus === 'penalized') {
-                notificationService.notify(NOTIFICATION_EVENTS.PENALIZED, {
-                  entityId: r.id,
-                  parentId: r.parentId,
-                  dedupeKey: `penalized_${r.id}_${currPenalty}_${r.lastPenalizedAt || Date.now()}`,
                 });
               } else if (currStatus === 'forfeited') {
                 notificationService.notify(NOTIFICATION_EVENTS.FORFEITED, {
