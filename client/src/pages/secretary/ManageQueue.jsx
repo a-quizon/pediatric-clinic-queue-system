@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle, AlertTriangle } from "lucide-react";
+import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle, AlertTriangle, Monitor } from "lucide-react";
 import { subscribeToScheduleReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { subscribeToQueueConfiguration } from "../../services/systemConfigurationService";
@@ -7,7 +7,7 @@ import { computeReservationState, QUEUE_STATES, sortActiveQueue } from "../../se
 import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 
-export default function ManageQueue() {
+export default function ManageQueue({ hideHeader = false }) {
   const { user } = useAuth();
   const [reservations, setReservations] = useState([]);
   const [schedules, setSchedules] = useState({});
@@ -76,10 +76,23 @@ export default function ManageQueue() {
   if (!activeStartedSchedule) {
     return (
       <div className="space-y-6 pb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Manage Queue</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Control patient flow and consultations for your assigned branch: <span className="font-bold text-gray-700">{user.assignedBranch}</span>.</p>
-        </div>
+        {!hideHeader && (
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">Manage Queue</h1>
+              <p className="text-gray-500 text-sm mt-0.5">Control patient flow and consultations for your assigned branch: <span className="font-bold text-gray-700">{user.assignedBranch}</span>.</p>
+            </div>
+            <a
+              href="/secretary/monitor"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-sm transition-all"
+            >
+              <Monitor className="w-4 h-4" />
+              <span>Live Queue Monitor</span>
+            </a>
+          </div>
+        )}
 
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-12 text-center max-w-xl mx-auto my-12 animate-in fade-in">
           <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -231,6 +244,24 @@ export default function ManageQueue() {
   return (
     <div className="space-y-6 pb-8 max-w-4xl mx-auto">
       {/* Header Actions */}
+      {!hideHeader && (
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Manage Queue</h1>
+            <p className="text-gray-500 text-sm mt-0.5">Control patient flow and consultations for your assigned branch: <span className="font-bold text-gray-700">{user.assignedBranch}</span>.</p>
+          </div>
+          <a
+            href="/secretary/monitor"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-sm transition-all"
+          >
+            <Monitor className="w-4 h-4" />
+            <span>Live Queue Monitor</span>
+          </a>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4 border-b border-gray-200 pb-4">
         <div className="flex items-center gap-3 flex-wrap">
           <button

@@ -14,7 +14,7 @@ export default function SecretaryLayout() {
       return { desktop: "Validation", mobile: "Validation" };
     }
     if (path.startsWith("/secretary/queue")) {
-      return { desktop: "Queue", mobile: "Queue" };
+      return { desktop: "Manage Queue", mobile: "Manage Queue" };
     }
     if (path.startsWith("/secretary/reservations")) {
       return { desktop: "Reservations", mobile: "Reservations" };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Users, AlertTriangle, Monitor, Clock } from "lucide-react";
+import { Users, AlertTriangle, Monitor, Clock, Maximize, Minimize, ChevronDown } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { subscribeToScheduleReservations } from "../../services/reservationService";
@@ -12,6 +12,29 @@ export default function QueueMonitor() {
   const [reservations, setReservations] = useState([]);
   const [reservationsLoaded, setReservationsLoaded] = useState(false);
   const [nowTs, setNowTs] = useState(Date.now());
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+      }
+    } catch (err) {
+      console.error("Error attempting to toggle fullscreen:", err);
+    }
+  };
 
   useEffect(() => {
     // Keep time updated if we want to show current time
@@ -125,11 +148,20 @@ export default function QueueMonitor() {
           </h1>
           <p className="text-xl text-gray-500 font-bold tracking-wide mt-1">Live Queue Monitor</p>
         </div>
-        <div className="flex items-center gap-4 bg-gray-100 px-6 py-3 rounded-2xl border border-gray-200 shadow-inner">
-          <Clock className="w-8 h-8 text-blue-600" />
-          <span className="text-3xl font-bold text-gray-800 tracking-wider font-mono">
-            {formatCurrentTime()}
-          </span>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 bg-gray-100 px-6 py-3 rounded-2xl border border-gray-200 shadow-inner">
+            <Clock className="w-8 h-8 text-blue-600" />
+            <span className="text-3xl font-bold text-gray-800 tracking-wider font-mono">
+              {formatCurrentTime()}
+            </span>
+          </div>
+          <button 
+            onClick={toggleFullscreen}
+            className="p-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl border border-gray-200 shadow-sm transition-all active:scale-95 flex-shrink-0"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullscreen ? <Minimize className="w-8 h-8" /> : <Maximize className="w-8 h-8" />}
+          </button>
         </div>
       </header>
 
@@ -190,32 +222,23 @@ export default function QueueMonitor() {
                         : "bg-white border-gray-200 shadow-sm"
                     }`}
                   >
-                    <div className="flex items-center gap-6">
-                      <div className={`w-24 h-24 rounded-2xl flex items-center justify-center border-4 ${
-                        index === 0 ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-800 bg-gray-100 text-gray-800"
-                      }`}>
-                        <span className="text-5xl font-black">
-                          {res.queueNumber || res.queuePosition}
-                        </span>
-                      </div>
+                    <div className="flex items-center gap-6 pl-4">
                       <div className="flex flex-col">
                          {index === 0 && (
                            <span className="text-blue-600 font-black text-xl uppercase tracking-widest animate-pulse mb-1">
                              Up Next
                            </span>
                          )}
-                         <span className="text-3xl font-black text-gray-700 uppercase">
-                           Patient
+                         <span className="text-4xl sm:text-5xl font-black text-gray-800 uppercase">
+                           Queue #{res.queueNumber || res.queuePosition}
                          </span>
                       </div>
                     </div>
                   </div>
                 ))}
                 {waitingQueue.length > 10 && (
-                  <div className="text-center p-6 bg-gray-100 rounded-2xl border-2 border-dashed border-gray-300">
-                    <p className="text-2xl font-bold text-gray-500">
-                      + {waitingQueue.length - 10} more waiting
-                    </p>
+                  <div className="flex justify-center p-4 mt-2">
+                    <ChevronDown className="w-14 h-14 text-gray-400 animate-bounce" />
                   </div>
                 )}
               </div>
