@@ -59,35 +59,16 @@ export default function Register() {
         formData.number,
         formData.password
       );
-      toast.success('Account created successfully.');
-      setFormData({
-        name: '',
-        email: '',
-        number: '',
-        password: '',
-        confirmPassword: '',
-      });
-      setTimeout(() => {
-        navigate('/verify-email');
-      }, 2000);
+      // Keep loading=true so the spinner stays visible during navigation
+      navigate('/verify-email');
     } catch (err) {
       console.error('Registration failed:', err);
       if (err.code === 'auth/verification-email-failed') {
         toast.error('Account created, but verification email failed to send. You can resend it later.');
-        setFormData({
-          name: '',
-          email: '',
-          number: '',
-          password: '',
-          confirmPassword: '',
-        });
-        setTimeout(() => {
-          navigate('/verify-email');
-        }, 2000);
+        navigate('/verify-email');
       } else {
         toast.error(mapAuthError(err.code));
       }
-    } finally {
       setLoading(false);
     }
   };

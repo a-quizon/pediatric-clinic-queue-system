@@ -25,7 +25,14 @@ export default function Login() {
         if (role === 'doctor') navigate('/doctor');
         else if (role === 'secretary') navigate('/secretary');
         else if (role === 'admin') navigate('/admin');
-        else navigate('/parent');
+        else {
+          const firebaseUser = auth.currentUser;
+          if (firebaseUser && !firebaseUser.emailVerified) {
+            navigate('/verify-email');
+          } else {
+            navigate('/parent');
+          }
+        }
       } else {
         // User exists but has no RTDB profile (role is null)
         const firebaseUser = auth.currentUser;
@@ -70,11 +77,21 @@ export default function Login() {
           setLoading(false);
           return;
         }
+        
+        if (userData.role === 'parent' && !authUser.emailVerified) {
+          toast('Please verify your email before continuing.', { icon: 'ℹ️' });
+          navigate('/verify-email');
+          setLoading(false);
+          return;
+        }
+
+        // If active and profile exists, show success message and keep loading=true while waiting for AuthContext to navigate
+        toast.success('Login Successfully');
       } else {
         // No RTDB profile exists
         if (!authUser.emailVerified) {
           // State D: Unverified Pending Parent
-          toast.success('Please complete your email verification.');
+          toast('Please verify your email before continuing.', { icon: 'ℹ️' });
           navigate('/verify-email');
           return;
         } else {
@@ -85,9 +102,6 @@ export default function Login() {
           return;
         }
       }
-
-      // If active, show success message and keep loading=true while waiting for AuthContext to navigate
-      toast.success('Login Successfully');
     } catch (err) {
       console.error('Login failed:', err);
       toast.error(mapAuthError(err.code));
