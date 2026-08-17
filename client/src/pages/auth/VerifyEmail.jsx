@@ -117,8 +117,9 @@ export default function VerifyEmail() {
         <p className="text-gray-500 text-sm mb-6">
           We've sent a verification link to:<br />
           <span className="font-semibold text-gray-700 bg-gray-100 px-3 py-1 rounded-lg inline-block mt-2 mb-3">{user?.email || auth.currentUser?.email}</span><br />
-          Please check your inbox. If you don't see the email, check your Spam or Junk folder.<br /><br />
-          You'll need to verify your email before you can access your account.
+          You'll need to verify your email before you can access your account.<br /><br />
+          <span className="font-medium text-gray-600">Can't find the verification email?</span><br />
+          Please check your <span className="font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">Spam or Junk folder</span>. If it's still not there, you can resend the verification email below.
         </p>
         
         <div className="space-y-3">
