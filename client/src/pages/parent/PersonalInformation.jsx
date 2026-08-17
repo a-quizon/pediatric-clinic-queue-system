@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { updateUserProfile } from "../../services/authService";
-import { User, Mail, Phone, Save, Lock, Shield, Key } from "lucide-react";
+import { User, Mail, Phone, Save, Lock, Shield, Key, Eye, EyeOff } from "lucide-react";
 import { handlePasswordChangeRequest } from "../../utils/passwordUtils";
 import { useNavigate } from "react-router-dom";
 import InformationModal from "../../components/common/InformationModal";
@@ -25,6 +25,10 @@ export default function PersonalInformation() {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccessModalOpen, setPasswordSuccessModalOpen] = useState(false);
 
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   useEffect(() => {
     if (user) {
       setName(user.fullName || user.displayName || user.name || "");
@@ -38,9 +42,8 @@ export default function PersonalInformation() {
       return false;
     }
     
-    const phoneRegex = /^[0-9+\s-]{10,15}$/;
-    if (!phone.trim() || !phoneRegex.test(phone)) {
-      setError("Please enter a valid phone number.");
+    if (!phone.trim() || phone.length !== 11) {
+      setError("Phone number must be exactly 11 digits.");
       return false;
     }
 
@@ -149,8 +152,12 @@ export default function PersonalInformation() {
               </div>
               <input
                 type="tel"
+                maxLength={11}
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  const sanitized = e.target.value.replace(/\D/g, "");
+                  setPhone(sanitized);
+                }}
                 className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-gray-800 font-medium"
                 placeholder="09XXXXXXXXX"
               />
@@ -245,12 +252,19 @@ export default function PersonalInformation() {
                       <Key className="h-4 w-4 text-gray-400" />
                     </div>
                     <input
-                      type="password"
+                      type={showCurrentPassword ? "text" : "password"}
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none text-gray-800 text-sm"
+                      className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none text-gray-800 text-sm"
                       placeholder="Current Password"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                    >
+                      {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
 
@@ -260,12 +274,19 @@ export default function PersonalInformation() {
                       <Lock className="h-4 w-4 text-gray-400" />
                     </div>
                     <input
-                      type="password"
+                      type={showNewPassword ? "text" : "password"}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none text-gray-800 text-sm"
+                      className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none text-gray-800 text-sm"
                       placeholder="New Password"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                    >
+                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                   <p className="text-xs text-gray-500 px-1 pt-1">
                     Password must contain: 8+ characters • Uppercase • Lowercase • Number • Special character
@@ -278,12 +299,19 @@ export default function PersonalInformation() {
                       <Lock className="h-4 w-4 text-gray-400" />
                     </div>
                     <input
-                      type="password"
+                      type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none text-gray-800 text-sm"
+                      className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none text-gray-800 text-sm"
                       placeholder="Confirm New Password"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
               </div>

@@ -3,7 +3,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { updateUserProfile } from "../../services/authService";
 import { subscribeToBranchConfigurations } from "../../services/branchConfigurationService";
 import { handlePasswordChangeRequest } from "../../utils/passwordUtils";
-import { LogOut, User as UserIcon, Edit2, Save, MapPin, X, Lock, ChevronRight, Info, ArrowLeft, BarChart3 } from "lucide-react";
+import { LogOut, User as UserIcon, Edit2, Save, MapPin, X, Lock, ChevronRight, Info, ArrowLeft, BarChart3, Eye, EyeOff } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import LogoutButton from "../../components/common/LogoutButton";
 import toast from "react-hot-toast";
@@ -25,6 +25,10 @@ export default function Profile() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Mobile navigation state via URL params
   const [searchParams, setSearchParams] = useSearchParams();
@@ -257,39 +261,66 @@ export default function Profile() {
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Current Password <span className="text-red-500">*</span>
             </label>
-            <input 
-              type="password" 
-              value={currentPassword} 
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
-              placeholder="Enter current password"
-            />
+            <div className="relative">
+              <input 
+                type={showCurrentPassword ? "text" : "password"} 
+                value={currentPassword} 
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 pr-10 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                placeholder="Enter current password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
           
           <div className="space-y-1.5">
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               New Password <span className="text-red-500">*</span>
             </label>
-            <input 
-              type="password" 
-              value={newPassword} 
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
-              placeholder="Enter new password"
-            />
+            <div className="relative">
+              <input 
+                type={showNewPassword ? "text" : "password"} 
+                value={newPassword} 
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 pr-10 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                placeholder="Enter new password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-1.5">
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Confirm New Password <span className="text-red-500">*</span>
             </label>
-            <input 
-              type="password" 
-              value={confirmPassword} 
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
-              placeholder="Confirm new password"
-            />
+            <div className="relative">
+              <input 
+                type={showConfirmPassword ? "text" : "password"} 
+                value={confirmPassword} 
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 pr-10 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                placeholder="Confirm new password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
 
           <div className="pt-2">

@@ -52,6 +52,11 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === "phone") {
+      const sanitized = value.replace(/\D/g, "");
+      setFormData(prev => ({ ...prev, [name]: sanitized }));
+      return;
+    }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -67,7 +72,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
     const { name, email, phone, password, confirmPassword, assignedBranch } = formData;
     if (!name.trim()) return "Name is required.";
     if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email)) return "A valid email is required.";
-    if (!phone.trim()) return "Phone number is required.";
+    if (!phone.trim() || phone.length !== 11) return "Phone number must be exactly 11 digits.";
     
     if (!password) return "Password is required.";
     if (password.length < 6) return "Password must be at least 6 characters long.";
@@ -235,6 +240,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                   <input
                     type="tel"
                     name="phone"
+                    maxLength={11}
                     value={formData.phone}
                     onChange={handleChange}
                     required

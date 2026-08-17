@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { registerUser } from "../../services/authService";
-import { Activity, Mail, Lock, User, Phone, ArrowRight } from "lucide-react";
+import { Activity, Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { mapAuthError } from "../../utils/authErrors";
 import { validatePasswordRequirements } from "../../utils/passwordUtils";
@@ -17,9 +17,16 @@ export default function Register() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === "number") {
+      const sanitized = value.replace(/\D/g, "");
+      setFormData((prev) => ({ ...prev, [name]: sanitized }));
+      return;
+    }
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -28,6 +35,11 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (formData.number.length !== 11) {
+      toast.error('Phone number must be exactly 11 digits.');
+      return;
+    }
 
     if (!validatePasswordRequirements(formData.password)) {
       toast.error('Password does not meet requirements.');
@@ -131,6 +143,7 @@ export default function Register() {
                   type="tel"
                   id="number"
                   name="number"
+                  maxLength={11}
                   value={formData.number}
                   onChange={handleChange}
                   required
@@ -148,16 +161,23 @@ export default function Register() {
                   <Lock className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   id="password"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   required
                   disabled={loading}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                  className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
                   placeholder="Create a password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
               <p className="text-xs text-gray-500 px-1 pt-1">
                 Password must contain: 8+ characters • Uppercase • Lowercase • Number • Special character
@@ -171,16 +191,23 @@ export default function Register() {
                   <Lock className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   id="confirmPassword"
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
                   disabled={loading}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                  className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
                   placeholder="Confirm your password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
             </div>
 
