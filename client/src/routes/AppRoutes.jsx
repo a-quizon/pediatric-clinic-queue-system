@@ -96,6 +96,9 @@ export default function AppRoutes() {
           <Route path="settings" element={<AdminSystemSettings />} />
           <Route path="profile" element={<AdminProfile />} />
         </Route>
+
+        {/* Fallback Catch-All Route */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
