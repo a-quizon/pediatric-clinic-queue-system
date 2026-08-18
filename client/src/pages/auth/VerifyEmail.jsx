@@ -9,7 +9,7 @@ import { logoutUser, completeParentRegistration } from "../../services/authServi
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
   const [isChecking, setIsChecking] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -25,10 +25,18 @@ export default function VerifyEmail() {
   }, [cooldown]);
 
   useEffect(() => {
-    if (!loading && user && user.emailVerified) {
-      navigate('/parent');
+    if (!loading && user) {
+      if (role === 'doctor') {
+        navigate('/doctor', { replace: true });
+      } else if (role === 'secretary') {
+        navigate('/secretary', { replace: true });
+      } else if (role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else if (user.emailVerified) {
+        navigate('/parent', { replace: true });
+      }
     }
-  }, [user, loading, navigate]);
+  }, [user, role, loading, navigate]);
 
   const handleCheckVerification = async () => {
     const firebaseUser = auth.currentUser;

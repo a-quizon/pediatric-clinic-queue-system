@@ -25,6 +25,7 @@ export function AuthProvider({ children }) {
                 }
 
                 if (currentUser) {
+                    setLoading(true);
                     setUser(currentUser);
 
                     const userRef = ref(database, `users/${currentUser.uid}`);
