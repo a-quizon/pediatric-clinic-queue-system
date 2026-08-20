@@ -10,6 +10,7 @@ import {
   checkCompletedConsultationOnDate,
   getReservationsBySchedule,
   updatePatientInfo,
+  cancelReservation,
   ACTIVE_RESERVATION_STATUSES
 } from "../../services/reservationService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
@@ -29,7 +30,6 @@ export default function ReserveQueue() {
 
   // Modal States
   const [selectedSchedule, setSelectedSchedule] = useState(null);
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isPatientInfoModalOpen, setIsPatientInfoModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [generatedQueuePosition, setGeneratedQueuePosition] = useState(null);
@@ -211,54 +211,23 @@ export default function ReserveQueue() {
 
     setSelectedSchedule(schedule);
     setFormData({ childName: "", age: "", sex: "", concern: "" });
-    setIsConfirmModalOpen(true);
-  };
-
-  const handleConfirmReservation = async () => {
-    if (!selectedSchedule || !user) return;
     
     setIsSubmitting(true);
     try {
-      // Double check duplicate just in case
-      const hasExistingOnDate = await checkExistingReservationOnDate(user.uid, selectedSchedule.clinicDate);
-      if (hasExistingOnDate) {
-        setIsConfirmModalOpen(false);
-        setMessageModalState({
-          isOpen: true,
-          type: 'warning',
-          title: 'Active Reservation Exists',
-          message: 'You already have an active reservation for this date. You may only reserve one clinic schedule per day.'
-        });
-        return;
-      }
-
-      const hasCompletedToday = await checkCompletedConsultationOnDate(user.uid, selectedSchedule.clinicDate, selectedSchedule.doctorId);
-      if (hasCompletedToday) {
-        setIsConfirmModalOpen(false);
-        setMessageModalState({
-          isOpen: true,
-          type: 'warning',
-          title: 'Consultation Completed Today',
-          message: "You've already completed your consultation for today's clinic.\n\nYou can reserve another slot on the doctor's next available clinic schedule."
-        });
-        return;
-      }
-
       // Create reservation without static queue position
       const reservationId = await createReservation({
         parentId: user.uid,
         parentEmail: user.email,
-        scheduleId: selectedSchedule.id,
+        scheduleId: schedule.id,
         status: "reserved",
       });
 
       // Fetch newly calculated dynamic position
-      const updatedReservations = await getReservationsBySchedule(selectedSchedule.id);
+      const updatedReservations = await getReservationsBySchedule(schedule.id);
       const newRes = updatedReservations.find(r => r.id === reservationId);
 
       setGeneratedQueuePosition(newRes?.queuePosition || "Assigned");
       setActiveReservationId(reservationId);
-      setIsConfirmModalOpen(false);
       setIsPatientInfoModalOpen(true);
     } catch (error) {
       console.error("Failed to create reservation", error);
@@ -267,6 +236,29 @@ export default function ReserveQueue() {
         type: 'error',
         title: 'Reservation Failed',
         message: 'There was an error processing your reservation. Please try again.'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancelReservation = async () => {
+    if (!activeReservationId) return;
+    setIsSubmitting(true);
+    try {
+      await cancelReservation(activeReservationId);
+      setActiveReservationId(null);
+      setGeneratedQueuePosition(null);
+      setSelectedSchedule(null);
+      setFormData({ childName: "", age: "", sex: "", concern: "" });
+      setIsPatientInfoModalOpen(false);
+    } catch (error) {
+      console.error("Failed to cancel reservation", error);
+      setMessageModalState({
+        isOpen: true,
+        type: 'error',
+        title: 'Cancellation Failed',
+        message: 'There was an error cancelling your reservation. Please try again.'
       });
     } finally {
       setIsSubmitting(false);
@@ -465,64 +457,7 @@ export default function ReserveQueue() {
         </div>
       )}
 
-      {/* Confirm Reservation Modal */}
-      {isConfirmModalOpen && selectedSchedule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-800">Confirm Reservation</h2>
-              <button onClick={() => setIsConfirmModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-50">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto">
-              <div className="bg-blue-50/50 rounded-xl p-4 mb-6 border border-blue-100/50">
-                <div className="flex items-start mb-3">
-                  <MapPin className="w-4 h-4 text-blue-600 mr-2 mt-0.5 shrink-0" />
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-gray-800">Branch: {selectedSchedule.branch}</span>
-                    <span className="text-xs text-gray-500 whitespace-pre-line mt-0.5">
-                      {branches.find(b => b.name === selectedSchedule.branch)?.clinicAddress || "No clinic address provided."}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <CalendarDays className="w-4 h-4 text-blue-600 mr-2" />
-                  <span className="font-semibold text-gray-800">Date: {new Date(selectedSchedule.clinicDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
-                </div>
-              </div>
-              
-              <div className="flex items-start text-amber-700 bg-amber-50 p-4 rounded-xl border border-amber-100 mb-6">
-                <AlertCircle className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
-                <p className="text-sm font-medium">Queue reservations cannot be duplicated. Do you want to reserve this slot?</p>
-              </div>
-            </div>
 
-            <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
-              <button 
-                onClick={() => setIsConfirmModalOpen(false)}
-                disabled={isSubmitting}
-                className="px-5 py-2.5 text-gray-600 font-semibold bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleConfirmReservation}
-                disabled={isSubmitting}
-                className="px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors flex items-center disabled:opacity-70"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Processing...
-                  </>
-                ) : "Confirm Reservation"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Complete Patient Info Modal */}
       {isPatientInfoModalOpen && selectedSchedule && (
@@ -599,9 +534,16 @@ export default function ReserveQueue() {
 
             <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
               <button 
+                onClick={handleCancelReservation}
+                disabled={isSubmitting}
+                className="w-full sm:w-auto px-5 py-2.5 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm focus:outline-none"
+              >
+                Cancel Reservation
+              </button>
+              <button 
                 onClick={handleSubmitPatientInfo}
                 disabled={isSubmitting || !formData.childName.trim() || !formData.age.trim() || !!ageError || !/^\d+$/.test(formData.age) || !formData.sex}
-                className="px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors flex items-center disabled:opacity-70 disabled:cursor-not-allowed w-full justify-center"
+                className="w-full px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed shadow-sm focus:outline-none"
               >
                 {isSubmitting ? (
                   <>

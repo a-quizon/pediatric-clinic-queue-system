@@ -22,7 +22,7 @@ export default function ParentLayout() {
   const navItems = [
     { name: "Home", path: "/parent", icon: Home },
     { name: "Reserve Queue", mobileName: "Reserve", path: "/parent/reserve", icon: CalendarPlus },
-    { name: "My Reservation", mobileName: "My Reservation", path: "/parent/reservations", icon: Ticket },
+    { name: "My Reservations", mobileName: "My Reservations", path: "/parent/reservations", icon: Ticket },
     { name: "My Profile", mobileName: "Profile", path: "/parent/profile", icon: User },
   ];
 
@@ -45,10 +45,10 @@ export default function ParentLayout() {
       return { title: "Reserve Queue", showBack: false };
     }
     if (path === "/parent/reservations" || path === "/parent/reservations/") {
-      return { title: "My Reservation", showBack: false };
+      return { title: "My Reservations", showBack: false };
     }
     if (path.startsWith("/parent/reservations/")) {
-      return { title: "My Reservation", showBack: true, backPath: "/parent/reservations" };
+      return { title: "QR Ticket", showBack: true, backPath: "/parent/reservations" };
     }
     if (path === "/parent/profile" || path === "/parent/profile/") {
       return { title: "My Profile", showBack: false };

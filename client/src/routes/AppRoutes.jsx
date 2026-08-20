@@ -14,6 +14,7 @@ import ParentLayout from "../components/parent/ParentLayout";
 import ParentDashboard from "../pages/parent/Dashboard";
 import ParentReserveQueue from "../pages/parent/ReserveQueue";
 import ParentMyReservation from "../pages/parent/MyReservation";
+import ParentQRTicket from "../pages/parent/QRTicket";
 import ParentProfile from "../pages/parent/Profile";
 import ParentReservationHistory from "../pages/parent/ReservationHistory";
 import ParentPersonalInformation from "../pages/parent/PersonalInformation";
@@ -60,7 +61,7 @@ export default function AppRoutes() {
           <Route index element={<ParentDashboard />} />
           <Route path="reserve" element={<ParentReserveQueue />} />
           <Route path="reservations" element={<ParentMyReservation />} />
-          <Route path="reservations/:id/qr" element={<Navigate to="/parent/reservations" replace />} />
+          <Route path="reservations/:id/qr" element={<ParentQRTicket />} />
           <Route path="profile" element={<ParentProfile />} />
           <Route path="profile/personal-info" element={<ParentPersonalInformation />} />
           <Route path="profile/history" element={<ParentReservationHistory />} />

@@ -278,7 +278,7 @@ export default function Dashboard() {
           {/* 2. Top Queue Summary Cards */}
           <div className="flex flex-row gap-2 sm:gap-3">
             {/* Card 1 - My Queue Number */}
-            <Link to="/parent/reservations" className="flex-1 bg-gradient-to-b from-blue-700 to-blue-900 rounded-2xl p-3 sm:p-5 text-white shadow-md relative overflow-hidden flex flex-col items-center text-center hover:scale-[1.02] active:scale-[0.98] transition-transform cursor-pointer block">
+            <Link to={`/parent/reservations/${activeReservation.id}/qr`} className="flex-1 bg-gradient-to-b from-blue-700 to-blue-900 rounded-2xl p-3 sm:p-5 text-white shadow-md relative overflow-hidden flex flex-col items-center text-center hover:scale-[1.02] active:scale-[0.98] transition-transform cursor-pointer block">
               <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-blue-200 mb-0.5 sm:mb-1 z-10">My Queue Number</span>
               <div className="text-5xl sm:text-6xl font-black tracking-tighter mb-1 z-10">
                 {permanentQueueNumber || "-"}
