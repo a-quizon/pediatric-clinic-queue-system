@@ -4,6 +4,8 @@ import toast from "react-hot-toast";
 import { createStaffAccount } from "../../services/adminService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { formatName } from "../../utils/stringUtils";
+import { usePasswordValidation } from "../../utils/passwordUtils";
+import { formatToE164 } from "../../utils/phoneUtils";
 
 export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   const [step, setStep] = useState(1);
@@ -22,6 +24,12 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState([]);
+
+  const { isValid: isPasswordValid, errors: passwordErrors, isChecking } = usePasswordValidation(formData.password);
+
+  const passwordInvalid = formData.password.length > 0 && !isPasswordValid;
+  const confirmInvalid = formData.confirmPassword.length > 0 && formData.password !== formData.confirmPassword;
+  const isPasswordFormValid = isPasswordValid && formData.password === formData.confirmPassword && !isChecking;
 
   useEffect(() => {
     getBranchConfigurations().then(setBranches).catch(console.error);
@@ -73,10 +81,10 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
     const { name, email, phone, password, confirmPassword, assignedBranch } = formData;
     if (!name.trim()) return "Name is required.";
     if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email)) return "A valid email is required.";
-    if (!phone.trim() || phone.length !== 11) return "Phone number must be exactly 11 digits.";
+    if (!phone.trim() || phone.length !== 10) return "Phone number must be exactly 10 digits.";
     
     if (!password) return "Password is required.";
-    if (password.length < 6) return "Password must be at least 6 characters long.";
+    if (!isPasswordValid) return "Password does not meet requirements.";
     if (password !== confirmPassword) return "Passwords do not match.";
 
     if (role === "secretary" && !assignedBranch) {
@@ -88,6 +96,8 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isChecking) return;
+
     const errorMsg = validateForm();
     if (errorMsg) {
       toast.error(errorMsg);
@@ -100,9 +110,9 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
         role,
         name: formatName(formData.name),
         email: formData.email.trim(),
-        phone: formData.phone.trim(),
+        phone: formatToE164(formData.phone),
         password: formData.password,
-        assignedBranch: role === "secretary" ? formData.assignedBranch : undefined
+        assignedBranch: role === "secretary" ? formData.assignedBranch : null
       });
       
       toast.success(`${role.charAt(0).toUpperCase() + role.slice(1)} account created successfully!`);
@@ -237,17 +247,18 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                     <Phone className="h-5 w-5 text-gray-400" />
+                    <span className="ml-2 text-gray-500 font-medium text-sm">+63</span>
                   </div>
                   <input
                     type="tel"
                     name="phone"
-                    maxLength={11}
+                    maxLength={10}
                     value={formData.phone}
                     onChange={handleChange}
                     required
                     disabled={loading}
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
-                    placeholder="Enter phone number"
+                    className="w-full pl-[4.5rem] pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                    placeholder="9123456789"
                   />
                 </div>
               </div>
@@ -289,10 +300,13 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                       value={formData.password}
                       onChange={handleChange}
                       required
-                      minLength={6}
                       disabled={loading}
-                      className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none text-sm"
-                      placeholder="Min 6 chars"
+                      className={`w-full pl-9 pr-10 py-2.5 bg-gray-50 border rounded-xl focus:outline-none transition-colors text-sm ${
+                        passwordInvalid 
+                          ? 'border-red-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:bg-white' 
+                          : 'border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white'
+                      }`}
+                      placeholder="Min 12 chars"
                     />
                     <button
                       type="button"
@@ -302,6 +316,11 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  {passwordInvalid && passwordErrors.length > 0 && (
+                    <p className="text-[10px] text-red-500 font-semibold pt-1">
+                      {passwordErrors[0]}
+                    </p>
+                  )}
                 </div>
                 
                 <div>
@@ -316,12 +335,11 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       required
-                      minLength={6}
                       disabled={loading}
-                      className={`w-full pl-9 pr-10 py-2.5 bg-gray-50 border rounded-xl outline-none text-sm transition-colors ${
-                        formData.confirmPassword && formData.password !== formData.confirmPassword 
-                          ? 'border-red-300 focus:ring-red-500/20 focus:border-red-500' 
-                          : 'border-gray-200 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white'
+                      className={`w-full pl-9 pr-10 py-2.5 bg-gray-50 border rounded-xl focus:outline-none transition-colors text-sm ${
+                        confirmInvalid 
+                          ? 'border-red-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:bg-white' 
+                          : 'border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white'
                       }`}
                       placeholder="Confirm"
                     />
@@ -333,6 +351,11 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  {confirmInvalid && (
+                    <p className="text-[10px] text-red-500 font-semibold pt-1">
+                      Passwords do not match.
+                    </p>
+                  )}
                 </div>
               </div>
             </form>
@@ -365,8 +388,10 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
             <button 
               type="submit"
               form="staff-form"
-              disabled={loading}
-              className="px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors flex items-center disabled:opacity-70"
+              disabled={loading || !isPasswordFormValid || isChecking}
+              className={`px-5 py-2.5 text-white font-bold rounded-xl transition-colors flex items-center ${
+                loading || !isPasswordFormValid || isChecking ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+              }`}
             >
               {loading ? (
                 <>

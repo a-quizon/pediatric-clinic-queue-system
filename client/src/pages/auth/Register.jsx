@@ -4,8 +4,9 @@ import { registerUser } from "../../services/authService";
 import { Activity, Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { mapAuthError } from "../../utils/authErrors";
-import { validatePasswordRequirements } from "../../utils/passwordUtils";
+import { usePasswordValidation } from "../../utils/passwordUtils";
 import { formatName } from "../../utils/stringUtils";
+import { formatToE164 } from "../../utils/phoneUtils";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -20,6 +21,12 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const { isValid: isPasswordValid, errors: passwordErrors, isChecking } = usePasswordValidation(formData.password);
+
+  const passwordInvalid = formData.password.length > 0 && !isPasswordValid;
+  const confirmInvalid = formData.confirmPassword.length > 0 && formData.password !== formData.confirmPassword;
+  const isFormValid = formData.name.trim() && formData.email.trim() && formData.number.length === 10 && isPasswordValid && formData.password === formData.confirmPassword && !isChecking;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -37,12 +44,16 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (formData.number.length !== 11) {
-      toast.error('Phone number must be exactly 11 digits.');
+    if (formData.number.length !== 10) {
+      toast.error('Phone number must be exactly 10 digits.');
       return;
     }
 
-    if (!validatePasswordRequirements(formData.password)) {
+    if (isChecking) {
+      return;
+    }
+
+    if (!isPasswordValid) {
       toast.error('Password does not meet requirements.');
       return;
     }
@@ -57,7 +68,7 @@ export default function Register() {
       await registerUser(
         formatName(formData.name),
         formData.email,
-        formData.number,
+        formatToE164(formData.number),
         formData.password
       );
       // Keep loading=true so the spinner stays visible during navigation
@@ -134,18 +145,19 @@ export default function Register() {
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                   <Phone className="h-5 w-5 text-gray-400" />
+                  <span className="ml-2 text-gray-500 font-medium">+63</span>
                 </div>
                 <input
                   type="tel"
                   id="number"
                   name="number"
-                  maxLength={11}
+                  maxLength={10}
                   value={formData.number}
                   onChange={handleChange}
                   required
                   disabled={loading}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
-                  placeholder="09123456789"
+                  className="w-full pl-20 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                  placeholder="9123456789"
                 />
               </div>
             </div>
@@ -164,7 +176,11 @@ export default function Register() {
                   onChange={handleChange}
                   required
                   disabled={loading}
-                  className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                  className={`w-full pl-10 pr-10 py-2.5 bg-gray-50 border text-gray-800 rounded-xl focus:outline-none transition-colors ${
+                    passwordInvalid 
+                      ? 'border-red-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500' 
+                      : 'border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white'
+                  }`}
                   placeholder="Create a password"
                 />
                 <button
@@ -175,9 +191,11 @@ export default function Register() {
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 px-1 pt-1">
-                Password must contain: 8+ characters • Uppercase • Lowercase • Number • Special character
-              </p>
+              {passwordInvalid && passwordErrors.length > 0 && (
+                <p className="text-xs text-red-500 font-semibold px-1 pt-1.5">
+                  {passwordErrors[0]}
+                </p>
+              )}
             </div>
 
             <div>
@@ -194,7 +212,11 @@ export default function Register() {
                   onChange={handleChange}
                   required
                   disabled={loading}
-                  className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                  className={`w-full pl-10 pr-10 py-2.5 bg-gray-50 border text-gray-800 rounded-xl focus:outline-none transition-colors ${
+                    confirmInvalid 
+                      ? 'border-red-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500' 
+                      : 'border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white'
+                  }`}
                   placeholder="Confirm your password"
                 />
                 <button
@@ -205,14 +227,19 @@ export default function Register() {
                   {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
+              {confirmInvalid && (
+                <p className="text-xs text-red-500 font-semibold px-1 pt-1.5">
+                  Passwords do not match.
+                </p>
+              )}
             </div>
 
             <button
               type="submit"
               id="register-submit-btn"
-              disabled={loading}
-              className={`w-full flex items-center justify-center py-3.5 px-4 bg-blue-600 text-white font-bold rounded-xl shadow-sm transition-all mt-4 ${
-                loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700 hover:shadow"
+              disabled={loading || !isFormValid || isChecking}
+              className={`w-full flex items-center justify-center py-3.5 px-4 font-bold rounded-xl shadow-sm transition-all mt-4 ${
+                loading || !isFormValid || isChecking ? "bg-blue-400 text-white cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow"
               }`}
             >
               {loading ? (

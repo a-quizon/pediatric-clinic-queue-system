@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { updateUserProfile } from "../../services/authService";
 import { subscribeToBranchConfigurations } from "../../services/branchConfigurationService";
-import { handlePasswordChangeRequest } from "../../utils/passwordUtils";
+import { handlePasswordChangeRequest, usePasswordValidation } from "../../utils/passwordUtils";
 import { formatName } from "../../utils/stringUtils";
+import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
 import { LogOut, User as UserIcon, Edit2, Save, MapPin, X, Lock, ChevronRight, Info, ArrowLeft, BarChart3, Eye, EyeOff } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import LogoutButton from "../../components/common/LogoutButton";
@@ -15,7 +16,7 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   
   const [fullName, setFullName] = useState(user?.displayName || user?.name || "");
-  const [contactNumber, setContactNumber] = useState(user?.contactNumber || user?.phone || "");
+  const [contactNumber, setContactNumber] = useState(parseToLocal(user?.contactNumber || user?.phone || ""));
   const [professionalTitle, setProfessionalTitle] = useState(user?.professionalTitle || "");
   const [clinicName, setClinicName] = useState(user?.clinicName || "L.A. Magat Pediatric Clinic");
   
@@ -30,6 +31,12 @@ export default function Profile() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const { isValid: isPasswordValid, errors: passwordErrors, isChecking } = usePasswordValidation(newPassword);
+
+  const passwordInvalid = newPassword.length > 0 && !isPasswordValid;
+  const confirmInvalid = confirmPassword.length > 0 && newPassword !== confirmPassword;
+  const isPasswordFormValid = currentPassword.length > 0 && isPasswordValid && newPassword === confirmPassword && !isChecking;
 
   // Mobile navigation state via URL params
   const [searchParams, setSearchParams] = useSearchParams();
@@ -56,8 +63,8 @@ export default function Profile() {
       toast.error("Full Name is required.");
       return;
     }
-    if (!contactNumber.trim()) {
-      toast.error("Contact Number is required.");
+    if (!contactNumber.trim() || contactNumber.length !== 10) {
+      toast.error("Contact Number must be exactly 10 digits.");
       return;
     }
     if (!clinicName.trim()) {
@@ -69,7 +76,7 @@ export default function Profile() {
     try {
       await updateUserProfile(user.uid, {
         name: formatName(fullName.trim()),
-        contactNumber: contactNumber.trim(),
+        contactNumber: formatToE164(contactNumber.trim()),
         professionalTitle: professionalTitle.trim(),
         clinicName: clinicName.trim()
       });
@@ -105,7 +112,7 @@ export default function Profile() {
 
   const hasChanges = 
     fullName.trim() !== (user?.displayName || user?.name || "") ||
-    contactNumber.trim() !== (user?.contactNumber || user?.phone || "") ||
+    contactNumber.trim() !== parseToLocal(user?.contactNumber || user?.phone || "") ||
     professionalTitle.trim() !== (user?.professionalTitle || "") ||
     clinicName.trim() !== (user?.clinicName || "L.A. Magat Pediatric Clinic");
 
@@ -184,13 +191,22 @@ export default function Profile() {
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Contact Number <span className="text-red-500">*</span>
             </label>
-            <input 
-              type="text" 
-              value={contactNumber} 
-              onChange={(e) => setContactNumber(e.target.value)}
-              className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
-              placeholder="e.g. +63 912 345 6789"
-            />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <span className="text-gray-500 font-medium">+63</span>
+              </div>
+              <input 
+                type="tel"
+                maxLength={10} 
+                value={contactNumber} 
+                onChange={(e) => {
+                  const sanitized = e.target.value.replace(/\D/g, "");
+                  setContactNumber(sanitized);
+                }}
+                className="w-full font-semibold text-gray-800 bg-white pl-12 pr-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                placeholder="912 345 6789"
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5 md:col-span-2">
@@ -289,7 +305,11 @@ export default function Profile() {
                 type={showNewPassword ? "text" : "password"} 
                 value={newPassword} 
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 pr-10 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                className={`w-full font-semibold text-gray-800 bg-white px-4 py-3 pr-10 rounded-xl border-2 focus:outline-none transition-all ${
+                  passwordInvalid
+                    ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/10'
+                    : 'border-blue-100 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10'
+                }`}
                 placeholder="Enter new password"
               />
               <button
@@ -300,6 +320,11 @@ export default function Profile() {
                 {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
+            {passwordInvalid && passwordErrors.length > 0 && (
+              <p className="text-xs text-red-500 font-semibold px-1 pt-1.5">
+                {passwordErrors[0]}
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -311,7 +336,11 @@ export default function Profile() {
                 type={showConfirmPassword ? "text" : "password"} 
                 value={confirmPassword} 
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 pr-10 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                className={`w-full font-semibold text-gray-800 bg-white px-4 py-3 pr-10 rounded-xl border-2 focus:outline-none transition-all ${
+                  confirmInvalid
+                    ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/10'
+                    : 'border-blue-100 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10'
+                }`}
                 placeholder="Confirm new password"
               />
               <button
@@ -322,13 +351,20 @@ export default function Profile() {
                 {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
+            {confirmInvalid && (
+              <p className="text-xs text-red-500 font-semibold px-1 pt-1">
+                Passwords do not match.
+              </p>
+            )}
           </div>
 
           <div className="pt-2">
             <button 
-              onClick={handleUpdatePassword} 
-              disabled={isUpdatingPassword || !currentPassword || !newPassword || !confirmPassword}
-              className="w-full sm:w-auto flex items-center justify-center text-sm font-bold text-white bg-blue-600 px-6 py-3 rounded-xl hover:bg-blue-700 transition-colors shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleUpdatePassword}
+              disabled={isUpdatingPassword || !isPasswordFormValid || isChecking}
+              className={`w-full sm:w-auto flex items-center justify-center text-sm font-bold text-white px-6 py-3 rounded-xl transition-colors shadow-sm active:scale-95 ${
+                isUpdatingPassword || !isPasswordFormValid || isChecking ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+              }`}
             >
               {isUpdatingPassword ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />

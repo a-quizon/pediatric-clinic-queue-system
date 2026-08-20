@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { auth } from "../../firebase/auth";
 import { verifyPasswordResetCode, confirmPasswordReset } from "firebase/auth";
-import { Activity, Lock, ArrowRight, Eye, EyeOff, CheckCircle2, Circle } from "lucide-react";
+import { Activity, Lock, ArrowRight, Eye, EyeOff, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
-import { validatePasswordRequirements, getPasswordRequirements } from "../../utils/passwordUtils";
+import { mapAuthError } from "../../utils/authErrors";
+import { usePasswordValidation } from "../../utils/passwordUtils";
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -22,9 +23,12 @@ export default function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const requirements = getPasswordRequirements(newPassword);
-  const isPasswordValid = requirements.every(req => req.met);
+  const { isValid: isPasswordValid, errors: passwordErrors, isChecking } = usePasswordValidation(newPassword);
+
+  const passwordInvalid = newPassword.length > 0 && !isPasswordValid;
   const isConfirmValid = newPassword && newPassword === confirmPassword;
+  const confirmInvalid = confirmPassword.length > 0 && !isConfirmValid;
+  const isFormValid = isPasswordValid && isConfirmValid && !isChecking;
 
   useEffect(() => {
     if (!oobCode) {
@@ -48,8 +52,10 @@ export default function ResetPassword() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (isChecking) return;
+
     if (!isPasswordValid) {
-      toast.error("New password does not meet requirements.");
+      toast.error('Password does not meet requirements.');
       return;
     }
     
@@ -66,7 +72,7 @@ export default function ResetPassword() {
       toast.success("Password reset successfully.");
     } catch (err) {
       console.error('Password reset failed:', err);
-      toast.error("Failed to reset password. The link might have expired.");
+      toast.error(mapAuthError(err.code));
     } finally {
       setLoading(false);
     }
@@ -135,8 +141,11 @@ export default function ResetPassword() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
-                      disabled={loading}
-                      className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                      className={`w-full pl-10 pr-10 py-3 bg-gray-50 border text-gray-800 rounded-xl focus:outline-none transition-colors ${
+                        passwordInvalid
+                          ? 'border-red-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
+                          : 'border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white'
+                      }`}
                       placeholder="Enter new password"
                     />
                     <button
@@ -150,23 +159,11 @@ export default function ResetPassword() {
                   </div>
                 </div>
 
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Password Requirements</p>
-                  <ul className="space-y-2">
-                    {requirements.map((req, idx) => (
-                      <li key={idx} className="flex items-center gap-2 text-sm">
-                        {req.met ? (
-                          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-                        ) : (
-                          <Circle className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                        )}
-                        <span className={req.met ? "text-green-700 font-medium" : "text-gray-500"}>
-                          {req.label}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {passwordInvalid && passwordErrors.length > 0 && (
+                  <p className="text-xs text-red-500 font-semibold px-1 pt-1.5">
+                    {passwordErrors[0]}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -181,8 +178,11 @@ export default function ResetPassword() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    disabled={loading}
-                    className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                    className={`w-full pl-10 pr-10 py-3 bg-gray-50 border text-gray-800 rounded-xl focus:outline-none transition-colors ${
+                      confirmInvalid
+                        ? 'border-red-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
+                        : 'border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white'
+                    }`}
                     placeholder="Confirm new password"
                   />
                   <button
@@ -194,13 +194,18 @@ export default function ResetPassword() {
                     {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
+                {confirmInvalid && (
+                  <p className="text-xs text-red-500 font-semibold px-1 pt-1.5">
+                    Passwords do not match.
+                  </p>
+                )}
               </div>
 
               <button
                 type="submit"
-                disabled={loading || !isPasswordValid || !isConfirmValid}
-                className={`w-full flex items-center justify-center py-3.5 px-4 bg-blue-600 text-white font-bold rounded-xl shadow-sm transition-all mt-4 ${
-                  loading || !isPasswordValid || !isConfirmValid ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700 hover:shadow"
+                disabled={loading || !isFormValid || isChecking}
+                className={`w-full flex items-center justify-center py-3.5 px-4 font-bold rounded-xl shadow-sm transition-all mt-4 ${
+                  loading || !isFormValid || isChecking ? "bg-blue-400 text-white cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow"
                 }`}
               >
                 {loading ? 'Resetting...' : 'Reset Password'}

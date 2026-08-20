@@ -3,6 +3,7 @@ import { X, Edit2, Shield, Stethoscope, UserCog, User, Mail, Phone, Calendar, Cl
 import { updateUser, toggleUserStatus, sendAdminPasswordResetEmail } from "../../services/adminService";
 import { formatName } from "../../utils/stringUtils";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
+import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
 import toast from "react-hot-toast";
 import ConfirmationModal from "../common/ConfirmationModal";
 
@@ -34,7 +35,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
       setFormData({
         name: user.name || "",
         email: user.email || "",
-        phone: user.phone || "",
+        phone: parseToLocal(user.phone || ""),
         assignedBranch: user.assignedBranch || "Angeles"
       });
       setIsEditing(false);
@@ -59,8 +60,8 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
       return;
     }
     
-    if (formData.phone && formData.phone.length !== 11) {
-      toast.error("Phone number must be exactly 11 digits if provided.");
+    if (formData.phone && formData.phone.length !== 10) {
+      toast.error("Phone number must be exactly 10 digits if provided.");
       return;
     }
 
@@ -68,7 +69,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
     try {
       const updates = {
         name: formatName(formData.name),
-        phone: formData.phone
+        phone: formatToE164(formData.phone)
       };
 
       if (user.role === "secretary") {
@@ -207,9 +208,14 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5"/> Phone Number</label>
                 {isEditing ? (
-                  <input type="tel" name="phone" maxLength={11} value={formData.phone} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-800 transition-colors" />
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 font-medium text-sm">+63</span>
+                    </div>
+                    <input type="tel" name="phone" maxLength={10} value={formData.phone} onChange={handleInputChange} className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-800 transition-colors" />
+                  </div>
                 ) : (
-                  <p className="font-medium text-gray-800 text-base">{user.phone || 'Not provided'}</p>
+                  <p className="font-medium text-gray-800 text-base">{user.phone ? `+63 ${parseToLocal(user.phone)}` : 'Not provided'}</p>
                 )}
               </div>
             </div>

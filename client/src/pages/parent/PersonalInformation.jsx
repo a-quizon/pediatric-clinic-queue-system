@@ -3,7 +3,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { formatName } from "../../utils/stringUtils";
 import { updateUserProfile } from "../../services/authService";
 import { User, Mail, Phone, Save, Lock, Shield, Key, Eye, EyeOff } from "lucide-react";
-import { handlePasswordChangeRequest } from "../../utils/passwordUtils";
+import { handlePasswordChangeRequest, usePasswordValidation } from "../../utils/passwordUtils";
+import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
 import { useNavigate } from "react-router-dom";
 import InformationModal from "../../components/common/InformationModal";
 
@@ -30,10 +31,16 @@ export default function PersonalInformation() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const { isValid: isPasswordValid, errors: passwordErrors, isChecking } = usePasswordValidation(newPassword);
+
+  const passwordInvalid = newPassword.length > 0 && !isPasswordValid;
+  const confirmInvalid = confirmPassword.length > 0 && newPassword !== confirmPassword;
+  const isPasswordFormValid = currentPassword.length > 0 && isPasswordValid && newPassword === confirmPassword && !isChecking;
+
   useEffect(() => {
     if (user) {
       setName(user.fullName || user.displayName || user.name || "");
-      setPhone(user.phoneNumber || user.phone || "");
+      setPhone(parseToLocal(user.phoneNumber || user.phone || ""));
     }
   }, [user]);
 
@@ -43,8 +50,8 @@ export default function PersonalInformation() {
       return false;
     }
     
-    if (!phone.trim() || phone.length !== 11) {
-      setError("Phone number must be exactly 11 digits.");
+    if (!phone.trim() || phone.length !== 10) {
+      setError("Phone number must be exactly 10 digits.");
       return false;
     }
 
@@ -57,13 +64,14 @@ export default function PersonalInformation() {
 
     setIsSaving(true);
     try {
-      await updateUserProfile(user.uid, { name: formatName(name), phone: phone.trim() });
+      const formattedPhone = formatToE164(phone.trim());
+      await updateUserProfile(user.uid, { name: formatName(name), phone: formattedPhone });
       updateContextUser({
         name: formatName(name),
         fullName: formatName(name),
         displayName: formatName(name),
-        phone: phone.trim(),
-        phoneNumber: phone.trim()
+        phone: formattedPhone,
+        phoneNumber: formattedPhone
       });
       setSuccessModalOpen(true);
     } catch (err) {
@@ -150,17 +158,18 @@ export default function PersonalInformation() {
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Phone className="h-5 w-5 text-gray-400" />
+                <span className="ml-2 text-gray-500 font-medium">+63</span>
               </div>
               <input
                 type="tel"
-                maxLength={11}
+                maxLength={10}
                 value={phone}
                 onChange={(e) => {
                   const sanitized = e.target.value.replace(/\D/g, "");
                   setPhone(sanitized);
                 }}
-                className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-gray-800 font-medium"
-                placeholder="09XXXXXXXXX"
+                className="w-full pl-20 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-gray-800 font-medium"
+                placeholder="9XXXXXXXXX"
               />
             </div>
           </div>
@@ -278,7 +287,11 @@ export default function PersonalInformation() {
                       type={showNewPassword ? "text" : "password"}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none text-gray-800 text-sm"
+                      className={`w-full pl-9 pr-10 py-2.5 bg-gray-50 border rounded-xl focus:outline-none transition-all text-gray-800 text-sm ${
+                        passwordInvalid
+                          ? 'border-red-300 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
+                          : 'border-gray-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'
+                      }`}
                       placeholder="New Password"
                     />
                     <button
@@ -289,9 +302,11 @@ export default function PersonalInformation() {
                       {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 px-1 pt-1">
-                    Password must contain: 8+ characters • Uppercase • Lowercase • Number • Special character
-                  </p>
+                  {passwordInvalid && passwordErrors.length > 0 && (
+                    <p className="text-xs text-red-500 font-semibold px-1 pt-1.5">
+                      {passwordErrors[0]}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -303,7 +318,11 @@ export default function PersonalInformation() {
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none text-gray-800 text-sm"
+                      className={`w-full pl-9 pr-10 py-2.5 bg-gray-50 border rounded-xl focus:outline-none transition-all text-gray-800 text-sm ${
+                        confirmInvalid
+                          ? 'border-red-300 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
+                          : 'border-gray-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'
+                      }`}
                       placeholder="Confirm New Password"
                     />
                     <button
@@ -314,6 +333,11 @@ export default function PersonalInformation() {
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  {confirmInvalid && (
+                    <p className="text-xs text-red-500 font-semibold px-1 pt-1.5">
+                      Passwords do not match.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -328,8 +352,10 @@ export default function PersonalInformation() {
               </button>
               <button 
                 onClick={handlePasswordSave}
-                disabled={isChangingPassword || !currentPassword || !newPassword || newPassword !== confirmPassword}
-                className="px-5 py-2 font-bold rounded-xl shadow-sm transition-colors disabled:opacity-50 flex justify-center items-center bg-purple-600 hover:bg-purple-700 text-white text-sm min-w-[120px]"
+                disabled={isChangingPassword || !isPasswordFormValid || isChecking}
+                className={`px-5 py-2 font-bold rounded-xl shadow-sm transition-colors flex justify-center items-center text-white text-sm min-w-[120px] ${
+                  isChangingPassword || !isPasswordFormValid || isChecking ? 'bg-purple-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'
+                }`}
               >
                 {isChangingPassword ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
