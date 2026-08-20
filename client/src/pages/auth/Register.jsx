@@ -5,6 +5,7 @@ import { Activity, Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff } from "luci
 import toast from "react-hot-toast";
 import { mapAuthError } from "../../utils/authErrors";
 import { validatePasswordRequirements } from "../../utils/passwordUtils";
+import { formatName } from "../../utils/stringUtils";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -54,7 +55,7 @@ export default function Register() {
     setLoading(true);
     try {
       await registerUser(
-        formData.name,
+        formatName(formData.name),
         formData.email,
         formData.number,
         formData.password

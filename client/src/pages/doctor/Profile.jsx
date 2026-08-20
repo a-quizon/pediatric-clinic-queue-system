@@ -3,6 +3,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { updateUserProfile } from "../../services/authService";
 import { subscribeToBranchConfigurations } from "../../services/branchConfigurationService";
 import { handlePasswordChangeRequest } from "../../utils/passwordUtils";
+import { formatName } from "../../utils/stringUtils";
 import { LogOut, User as UserIcon, Edit2, Save, MapPin, X, Lock, ChevronRight, Info, ArrowLeft, BarChart3, Eye, EyeOff } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import LogoutButton from "../../components/common/LogoutButton";
@@ -67,7 +68,7 @@ export default function Profile() {
     setIsSaving(true);
     try {
       await updateUserProfile(user.uid, {
-        name: fullName.trim(),
+        name: formatName(fullName.trim()),
         contactNumber: contactNumber.trim(),
         professionalTitle: professionalTitle.trim(),
         clinicName: clinicName.trim()

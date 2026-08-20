@@ -13,6 +13,7 @@ import {
   cancelReservation,
   ACTIVE_RESERVATION_STATUSES
 } from "../../services/reservationService";
+import { formatName } from "../../utils/stringUtils";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { useAuth } from "../../hooks/useAuth";
 import MessageModal from "../../components/common/MessageModal";
@@ -270,7 +271,7 @@ export default function ReserveQueue() {
     setIsSubmitting(true);
     try {
       await updatePatientInfo(activeReservationId, {
-        childName: formData.childName.trim(),
+        childName: formatName(formData.childName),
         age: formData.age.trim(),
         sex: formData.sex,
         concern: formData.concern.trim(),

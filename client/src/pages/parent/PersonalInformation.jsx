@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
+import { formatName } from "../../utils/stringUtils";
 import { updateUserProfile } from "../../services/authService";
 import { User, Mail, Phone, Save, Lock, Shield, Key, Eye, EyeOff } from "lucide-react";
 import { handlePasswordChangeRequest } from "../../utils/passwordUtils";
@@ -56,11 +57,11 @@ export default function PersonalInformation() {
 
     setIsSaving(true);
     try {
-      await updateUserProfile(user.uid, { name: name.trim(), phone: phone.trim() });
+      await updateUserProfile(user.uid, { name: formatName(name), phone: phone.trim() });
       updateContextUser({
-        name: name.trim(),
-        fullName: name.trim(),
-        displayName: name.trim(),
+        name: formatName(name),
+        fullName: formatName(name),
+        displayName: formatName(name),
         phone: phone.trim(),
         phoneNumber: phone.trim()
       });

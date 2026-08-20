@@ -6,7 +6,7 @@ export const getPasswordRequirements = (password) => {
     { label: "Uppercase letter", met: /[A-Z]/.test(password) },
     { label: "Lowercase letter", met: /[a-z]/.test(password) },
     { label: "Number", met: /[0-9]/.test(password) },
-    { label: "Special character", met: /[!@#$%^&*(),.?":{}|<>]/.test(password) }
+    { label: "Special character", met: /[^A-Za-z0-9\s]/.test(password) }
   ];
 };
 

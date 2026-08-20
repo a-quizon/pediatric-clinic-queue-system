@@ -4,6 +4,7 @@ import { Ticket as TicketIcon, Clock, MapPin, CheckCircle2, XCircle, User, Maxim
 import QRCode from "qrcode";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
 import { subscribeToParentReservations, cancelReservation, updatePatientInfo, expireReservation } from "../../services/reservationService";
+import { formatName } from "../../utils/stringUtils";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { isReservationExpired } from "../../services/timeService";
 import { useAuth } from "../../hooks/useAuth";
@@ -186,7 +187,7 @@ export default function QRTicket() {
     setIsSubmitting(true);
     try {
       await updatePatientInfo(activeReservation.id, {
-        childName: formData.childName.trim(),
+        childName: formatName(formData.childName),
         age: formData.age.trim(),
         sex: formData.sex,
         concern: formData.concern.trim()

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Edit2, Shield, Stethoscope, UserCog, User, Mail, Phone, Calendar, Clock, MapPin, CheckCircle, AlertTriangle, Key } from "lucide-react";
 import { updateUser, toggleUserStatus, sendAdminPasswordResetEmail } from "../../services/adminService";
+import { formatName } from "../../utils/stringUtils";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import toast from "react-hot-toast";
 import ConfirmationModal from "../common/ConfirmationModal";
@@ -66,7 +67,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
     setIsSaving(true);
     try {
       const updates = {
-        name: formData.name,
+        name: formatName(formData.name),
         phone: formData.phone
       };
 

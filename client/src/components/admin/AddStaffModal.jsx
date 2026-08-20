@@ -3,6 +3,7 @@ import { X, UserPlus, Stethoscope, UserCog, Mail, Phone, Lock, MapPin, Eye, EyeO
 import toast from "react-hot-toast";
 import { createStaffAccount } from "../../services/adminService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
+import { formatName } from "../../utils/stringUtils";
 
 export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   const [step, setStep] = useState(1);
@@ -97,7 +98,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
     try {
       await createStaffAccount({
         role,
-        name: formData.name.trim(),
+        name: formatName(formData.name),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
         password: formData.password,
