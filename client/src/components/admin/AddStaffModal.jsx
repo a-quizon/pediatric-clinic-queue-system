@@ -32,8 +32,10 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   const isPasswordFormValid = isPasswordValid && formData.password === formData.confirmPassword && !isChecking;
 
   useEffect(() => {
-    getBranchConfigurations().then(setBranches).catch(console.error);
-  }, []);
+    if (isOpen) {
+      getBranchConfigurations().then(setBranches).catch(console.error);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
