@@ -67,7 +67,7 @@ export default function Register() {
     try {
       await registerUser(
         formatName(formData.name),
-        formData.email,
+        formData.email.trim(),
         formatToE164(formData.number),
         formData.password
       );

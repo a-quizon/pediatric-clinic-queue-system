@@ -61,7 +61,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const authUser = await loginUser(formData.email, formData.password);
+      const authUser = await loginUser(formData.email.trim(), formData.password);
       
       // Verify application-level account status before celebrating authentication success
       const { ref, get } = await import("firebase/database");
