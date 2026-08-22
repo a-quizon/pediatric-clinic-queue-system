@@ -104,14 +104,7 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [activeReservation?.status]);
 
-  const getPermanentQueueNumber = (resId, scheduleId) => {
-    if (scheduleReservations.length === 0) return null;
-    const scheduleRes = [...scheduleReservations].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-    const index = scheduleRes.findIndex(r => r.id === resId);
-    return index >= 0 ? index + 1 : null;
-  };
-
-  const permanentQueueNumber = activeReservation ? getPermanentQueueNumber(activeReservation.id, activeReservation.scheduleId) : null;
+  const permanentQueueNumber = activeReservation ? (activeReservation.queueNumber || activeReservation.originalQueueNumber || 1) : null;
 
   const { nowServing, patientsAhead, nowServingText, completedCount, progressPercent, queueState, activeLine } = useMemo(() => {
     if (!activeReservation || scheduleReservations.length === 0) {
@@ -120,8 +113,8 @@ export default function Dashboard() {
     
     const scheduleRes = [...scheduleReservations].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     
-    // Assign permanent queue numbers
-    const resWithPNum = scheduleRes.map((r, idx) => ({ ...r, pNum: idx + 1 }));
+    // Assign permanent queue numbers based on actual queueNumber
+    const resWithPNum = scheduleRes.map((r, idx) => ({ ...r, pNum: r.queueNumber || r.originalQueueNumber || (idx + 1) }));
     
     const inConsultation = resWithPNum.find(r => r.status === "in_consultation" || r.status === "with_doctor");
     const completedList = resWithPNum.filter(r => r.status === "consultation_completed");
@@ -133,7 +126,9 @@ export default function Dashboard() {
         if (a.queueOrder !== undefined && b.queueOrder !== undefined) {
           return a.queueOrder - b.queueOrder;
         }
-        return (a.sortTimestamp || a.createdAt || 0) - (b.sortTimestamp || b.createdAt || 0);
+        const timeA = a.sortTimestamp || (a.queueNumber ? a.queueNumber * 1000 : 0) || a.createdAt || 0;
+        const timeB = b.sortTimestamp || (b.queueNumber ? b.queueNumber * 1000 : 0) || b.createdAt || 0;
+        return timeA - timeB;
       });
     
     let servingText = "—";

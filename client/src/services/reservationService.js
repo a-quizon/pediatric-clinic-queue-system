@@ -168,14 +168,17 @@ export const calculateDynamicQueuePositions = (reservations) => {
   
   Object.values(groupedBySchedule).forEach(scheduleReservations => {
     // 1. Assign/preserve permanent Queue Number based on creation order
-    const sortedByCreation = [...scheduleReservations].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    const sortedByCreation = [...scheduleReservations].sort((a, b) => {
+      const timeA = a.sortTimestamp || (a.queueNumber ? a.queueNumber * 1000 : 0) || a.createdAt || 0;
+      const timeB = b.sortTimestamp || (b.queueNumber ? b.queueNumber * 1000 : 0) || b.createdAt || 0;
+      return timeA - timeB;
+    });
     const withPermanentNumber = sortedByCreation.map((r, i) => {
       const permanentNum = r.queueNumber || r.originalQueueNumber || (i + 1);
       return {
         ...r,
         queueNumber: permanentNum,
-        originalQueueNumber: permanentNum,
-        queuePosition: permanentNum // permanent Queue Number displayed across all modules
+        originalQueueNumber: permanentNum
       };
     });
 
@@ -183,8 +186,8 @@ export const calculateDynamicQueuePositions = (reservations) => {
     const active = withPermanentNumber
       .filter(r => activeStatuses.includes(r.status))
       .sort((a, b) => {
-        const timeA = a.sortTimestamp || a.createdAt || 0;
-        const timeB = b.sortTimestamp || b.createdAt || 0;
+        const timeA = a.sortTimestamp || (a.queueNumber ? a.queueNumber * 1000 : 0) || a.createdAt || 0;
+        const timeB = b.sortTimestamp || (b.queueNumber ? b.queueNumber * 1000 : 0) || b.createdAt || 0;
         return timeA - timeB;
       });
     const inactive = withPermanentNumber.filter(r => !activeStatuses.includes(r.status));
@@ -376,8 +379,8 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
     const activePipeline = allScheduleReservations
       .filter(r => r.scheduleId === val.scheduleId && ["reserved", "checked_in", "waiting", "validation_open", "waiting_for_window"].includes(r.status))
       .sort((a, b) => {
-        const timeA = a.sortTimestamp || a.createdAt || 0;
-        const timeB = b.sortTimestamp || b.createdAt || 0;
+        const timeA = a.sortTimestamp || (a.queueNumber ? a.queueNumber * 1000 : 0) || a.createdAt || 0;
+        const timeB = b.sortTimestamp || (b.queueNumber ? b.queueNumber * 1000 : 0) || b.createdAt || 0;
         return timeA - timeB;
       });
 
@@ -390,9 +393,9 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
       const targetBehind = activePipeline[targetBehindIndex];
       const nextAfterTarget = activePipeline[targetBehindIndex + 1];
 
-      const targetTime = targetBehind.sortTimestamp || targetBehind.createdAt || 0;
+      const targetTime = targetBehind.sortTimestamp || (targetBehind.queueNumber ? targetBehind.queueNumber * 1000 : 0) || targetBehind.createdAt || 0;
       if (nextAfterTarget) {
-        const nextTime = nextAfterTarget.sortTimestamp || nextAfterTarget.createdAt || 0;
+        const nextTime = nextAfterTarget.sortTimestamp || (nextAfterTarget.queueNumber ? nextAfterTarget.queueNumber * 1000 : 0) || nextAfterTarget.createdAt || 0;
         newSortTimestamp = (targetTime + nextTime) / 2;
       } else {
         newSortTimestamp = targetTime + 60000;
