@@ -126,8 +126,8 @@ export default function Dashboard() {
         if (a.queueOrder !== undefined && b.queueOrder !== undefined) {
           return a.queueOrder - b.queueOrder;
         }
-        const timeA = a.sortTimestamp || (a.queueNumber ? a.queueNumber * 1000 : 0) || a.createdAt || 0;
-        const timeB = b.sortTimestamp || (b.queueNumber ? b.queueNumber * 1000 : 0) || b.createdAt || 0;
+        const timeA = a.sortTimestamp || a.createdAt || 0;
+        const timeB = b.sortTimestamp || b.createdAt || 0;
         return timeA - timeB;
       });
     

@@ -30,8 +30,8 @@ export const sortActiveQueue = (reservations) => {
       return a.queueOrder - b.queueOrder;
     }
     // fallback if queueOrder is missing
-    const timeA = a.sortTimestamp || (a.queueNumber ? a.queueNumber * 1000 : 0) || a.createdAt || 0;
-    const timeB = b.sortTimestamp || (b.queueNumber ? b.queueNumber * 1000 : 0) || b.createdAt || 0;
+    const timeA = a.sortTimestamp || a.createdAt || 0;
+    const timeB = b.sortTimestamp || b.createdAt || 0;
     return timeA - timeB;
   });
 };
@@ -80,8 +80,8 @@ export const computeReservationState = (reservation, allReservations = [], optio
         ['reserved', 'waiting', 'validation_open', 'waiting_for_window', 'checked_in'].includes(item.status)
     )
     .sort((a, b) => {
-      const timeA = a.sortTimestamp || (a.queueNumber ? a.queueNumber * 1000 : 0) || a.createdAt || 0;
-      const timeB = b.sortTimestamp || (b.queueNumber ? b.queueNumber * 1000 : 0) || b.createdAt || 0;
+      const timeA = a.sortTimestamp || a.createdAt || 0;
+      const timeB = b.sortTimestamp || b.createdAt || 0;
       return timeA - timeB;
     });
 
@@ -108,8 +108,8 @@ export const computeAheadOfYou = (reservation, allReservations = [], options = {
         ['reserved', 'waiting', 'validation_open', 'waiting_for_window', 'checked_in', 'with_doctor', 'in_consultation'].includes(item.status)
     )
     .sort((a, b) => {
-      const timeA = a.sortTimestamp || (a.queueNumber ? a.queueNumber * 1000 : 0) || a.createdAt || 0;
-      const timeB = b.sortTimestamp || (b.queueNumber ? b.queueNumber * 1000 : 0) || b.createdAt || 0;
+      const timeA = a.sortTimestamp || a.createdAt || 0;
+      const timeB = b.sortTimestamp || b.createdAt || 0;
       return timeA - timeB;
     });
 
@@ -158,8 +158,8 @@ export const recalculateEntireQueue = async (scheduleId, options = {}) => {
   const activeQueue = scheduleReservations
     .filter((r) => activeStatuses.includes(r.status))
     .sort((a, b) => {
-      const timeA = a.sortTimestamp || (a.queueNumber ? a.queueNumber * 1000 : 0) || a.createdAt || 0;
-      const timeB = b.sortTimestamp || (b.queueNumber ? b.queueNumber * 1000 : 0) || b.createdAt || 0;
+      const timeA = a.sortTimestamp || a.createdAt || 0;
+      const timeB = b.sortTimestamp || b.createdAt || 0;
       return timeA - timeB;
     });
 
