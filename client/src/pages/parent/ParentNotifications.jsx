@@ -93,19 +93,6 @@ export default function ParentNotifications() {
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl p-6 text-white shadow-sm">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-black tracking-tight">Notification Center</h2>
-          <p className="text-blue-100 text-sm mt-1">
-            Permanent history of your queue alerts, clinic updates, and reservation changes.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-2xl border border-white/15 text-xs font-semibold self-start sm:self-center">
-          <CheckCheck className="w-4 h-4 text-blue-200" />
-          <span>Auto-marked as Read</span>
-        </div>
-      </div>
 
       {/* Notifications List */}
       {notifications.length === 0 ? (

@@ -105,7 +105,13 @@ export default function ReserveQueue() {
     }
 
     const unsubSchedules = subscribeToPublishedSchedules((data) => {
-      const sorted = data.sort((a, b) => new Date(a.clinicDate) - new Date(b.clinicDate));
+      const sorted = data.sort((a, b) => {
+        const dateDiff = new Date(a.clinicDate) - new Date(b.clinicDate);
+        if (dateDiff !== 0) return dateDiff;
+        const timeA = a.openingTime || "";
+        const timeB = b.openingTime || "";
+        return timeA.localeCompare(timeB);
+      });
       setSchedules(sorted);
       setLoading(false);
     });

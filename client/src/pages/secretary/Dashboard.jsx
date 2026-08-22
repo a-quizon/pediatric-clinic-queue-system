@@ -40,10 +40,22 @@ export default function Dashboard() {
     };
   }, []);
 
-  // Primary active or published schedule for this branch
-  // The service subscribeToPublishedSchedules already filters for status === "published".
-  // We just need to find the one for the assigned branch.
-  const publishedSchedule = Object.values(schedules).find(s => s.branch === user?.assignedBranch);
+  // Identify the most relevant active or published schedule for this branch
+  const branchSchedules = Object.values(schedules).filter(s => s.branch === user?.assignedBranch);
+  
+  // Priority 1: Currently active or paused
+  let publishedSchedule = branchSchedules.find(s => s.queueStatus === 'active' || s.queueStatus === 'paused');
+  
+  if (!publishedSchedule) {
+    // Priority 2: Published for today
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    publishedSchedule = branchSchedules.find(s => s.status === 'published' && s.clinicDate === todayStr && s.queueStatus !== 'completed' && s.queueStatus !== 'ended' && s.queueStatus !== 'closed');
+  }
+
+  if (!publishedSchedule) {
+    // Priority 3: Any published schedule
+    publishedSchedule = branchSchedules.find(s => s.status === 'published' && s.queueStatus !== 'completed' && s.queueStatus !== 'ended' && s.queueStatus !== 'closed');
+  }
 
   useEffect(() => {
     if (!publishedSchedule) {
@@ -64,14 +76,15 @@ export default function Dashboard() {
 
   const activeReservations = publishedSchedule ? reservations.filter(r => r.scheduleId === publishedSchedule.id) : [];
 
-  const totalReservations = activeReservations.length;
   const waitingPatients = activeReservations.filter(r => ["reserved", "waiting", "validation_open", "waiting_for_window"].includes(r.status));
   const checkedInPatients = activeReservations.filter(r => r.status === "checked_in");
   const withDoctorPatients = activeReservations.filter(r => ["with_doctor", "in_consultation"].includes(r.status));
   const completedPatients = activeReservations.filter(r => ["completed", "consultation_completed"].includes(r.status));
 
+  const remainingQueueCount = waitingPatients.length + checkedInPatients.length;
+
   const stats = [
-    { name: "Total Reservations", value: totalReservations, icon: Calendar, color: "text-blue-600", bgColor: "bg-blue-100" },
+    { name: "Remaining Queue", value: remainingQueueCount, icon: Users, color: "text-blue-600", bgColor: "bg-blue-100" },
     { name: "Waiting", value: waitingPatients.length, icon: Clock, color: "text-amber-600", bgColor: "bg-amber-100" },
     { name: "Checked In", value: checkedInPatients.length, icon: UserCheck, color: "text-green-600", bgColor: "bg-green-100" },
     { name: "Completed", value: completedPatients.length, icon: CheckCircle2, color: "text-teal-600", bgColor: "bg-teal-100" }
@@ -120,6 +133,11 @@ export default function Dashboard() {
     return `${hours}:${m} ${ampm}`;
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    return new Date(dateString).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-20">
@@ -155,15 +173,19 @@ export default function Dashboard() {
                   {publishedSchedule.queueStatus === 'active' ? 'Active' : 'Published'}
                 </span>
               </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase font-bold mb-1">Clinic Date</p>
+                <p className="text-sm font-semibold text-gray-900">{formatDate(publishedSchedule.clinicDate)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase font-bold mb-1">Clinic Hours</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  {formatTime12h(publishedSchedule.openingTime)} - {formatTime12h(publishedSchedule.closingTime)}
+                </p>
+              </div>
               <div className="sm:col-span-2">
                 <p className="text-xs text-gray-500 uppercase font-bold mb-1">Clinic Address</p>
                 <p className="text-sm font-medium text-gray-700 whitespace-pre-line leading-relaxed">{clinicAddress || "No address configured"}</p>
-              </div>
-              <div className="sm:col-span-2">
-                <p className="text-xs text-gray-500 uppercase font-bold mb-1">Clinic Hours</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {formatTime12h(publishedSchedule.startTime)} - {formatTime12h(publishedSchedule.endTime)}
-                </p>
               </div>
             </div>
           ) : (

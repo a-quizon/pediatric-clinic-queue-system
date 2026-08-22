@@ -491,66 +491,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Quick Actions */}
-      <div className="pt-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          
-          {activeReservation ? (
-            <Link to="/parent/reservations" className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group flex flex-col justify-between h-full">
-              <div>
-                <div className="bg-blue-50 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <Ticket className="w-6 h-6 text-blue-600" />
-                </div>
-                <h3 className="font-bold text-gray-800 mb-1">My Reservation</h3>
-                <p className="text-gray-500 text-sm mb-4">View your active reservation and queue status.</p>
-              </div>
-              <div className="flex items-center text-blue-600 text-sm font-semibold mt-auto">
-                Open <ChevronRight className="w-4 h-4 ml-1" />
-              </div>
-            </Link>
-          ) : (
-            <Link to="/parent/reserve" className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group flex flex-col justify-between h-full">
-              <div>
-                <div className="bg-blue-50 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <CalendarPlus className="w-6 h-6 text-blue-600" />
-                </div>
-                <h3 className="font-bold text-gray-800 mb-1">Reserve Queue</h3>
-                <p className="text-gray-500 text-sm mb-4">View available clinic schedules and reserve a slot.</p>
-              </div>
-              <div className="flex items-center text-blue-600 text-sm font-semibold mt-auto">
-                Open <ChevronRight className="w-4 h-4 ml-1" />
-              </div>
-            </Link>
-          )}
-
-          <Link to="/parent/reservations?tab=notes" className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group flex flex-col justify-between h-full">
-            <div>
-              <div className="bg-blue-50 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <History className="w-6 h-6 text-blue-600" />
-              </div>
-              <h3 className="font-bold text-gray-800 mb-1">Reservation History</h3>
-              <p className="text-gray-500 text-sm mb-4">View past consultations and doctor's notes.</p>
-            </div>
-            <div className="flex items-center text-blue-600 text-sm font-semibold mt-auto">
-              Open <ChevronRight className="w-4 h-4 ml-1" />
-            </div>
-          </Link>
-
-          <Link to="/parent/profile" className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group flex flex-col justify-between h-full">
-            <div>
-              <div className="bg-gray-50 w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform border border-gray-100">
-                <User className="w-6 h-6 text-gray-600" />
-              </div>
-              <h3 className="font-bold text-gray-800 mb-1">Profile</h3>
-              <p className="text-gray-500 text-sm mb-4">Manage your account information and preferences.</p>
-            </div>
-            <div className="flex items-center text-gray-600 text-sm font-semibold mt-auto group-hover:text-blue-600 transition-colors">
-              Settings <ChevronRight className="w-4 h-4 ml-1" />
-            </div>
-          </Link>
-        </div>
-      </div>
 
     </div>
   );
