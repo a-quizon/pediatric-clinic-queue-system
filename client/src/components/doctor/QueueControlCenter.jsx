@@ -303,8 +303,10 @@ export default function QueueControlCenter() {
                 <div className="text-2xl font-black text-gray-800 mb-1">{inConsultation.childName || "N/A"}</div>
                 <span className="text-xs text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded-lg border border-blue-200">View Details</span>
               </div>
-              <div className="text-sm text-gray-500 flex items-center">
-                <User className="w-4 h-4 mr-1.5" /> Parent: {inConsultation.parentEmail}
+              <div className="text-sm text-gray-500 flex items-center gap-3">
+                <span className="flex items-center"><User className="w-4 h-4 mr-1.5" /> Age: {inConsultation.age || "N/A"}</span>
+                <span className="text-gray-300">|</span>
+                <span className="flex items-center">Sex: {inConsultation.sex || "N/A"}</span>
               </div>
             </div>
             
@@ -406,30 +408,14 @@ export default function QueueControlCenter() {
               </div>
               
               <div className="space-y-4">
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <div className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Parent</div>
-                  <div className="font-semibold text-gray-800">{infoPatient.parentEmail || "N/A"}</div>
-                </div>
-                
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Branch</div>
-                    <div className="font-semibold text-gray-800 text-sm">{activeSchedule?.branch || "N/A"}</div>
+                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Age</div>
+                    <div className="font-semibold text-gray-800 text-sm">{infoPatient.age || "N/A"}</div>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Date</div>
-                    <div className="font-semibold text-gray-800 text-sm">{activeSchedule ? new Date(activeSchedule.clinicDate).toLocaleDateString() : "N/A"}</div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Checked In</div>
-                    <div className="font-semibold text-gray-800 text-sm">{infoPatient.checkedInAt ? new Date(infoPatient.checkedInAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "N/A"}</div>
-                  </div>
-                  <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                    <div className="text-[10px] text-blue-500 font-bold uppercase tracking-wider mb-1">Consult Started</div>
-                    <div className="font-semibold text-blue-700 text-sm">{infoPatient.consultationStartedAt ? new Date(infoPatient.consultationStartedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "N/A"}</div>
+                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Sex</div>
+                    <div className="font-semibold text-gray-800 text-sm">{infoPatient.sex || "N/A"}</div>
                   </div>
                 </div>
 
