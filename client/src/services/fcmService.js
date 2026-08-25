@@ -110,19 +110,27 @@ export const registerFcmTokenForParent = async (user) => {
 
     debugLog("✓ FCM Token generated successfully");
 
-    if (token === user.notificationToken) {
-      debugLog("✓ FCM Token matches existing token, skipping database write.");
-      return token;
-    }
+    // Sanitize token for use as a Firebase Realtime Database key
+    // RTDB keys cannot contain '.', '#', '$', '[', or ']'
+    const safeTokenKey = token.replace(/[.#$\[\]]/g, '_');
 
-    // Store token inside User entity
+    // Store token inside User entity under a multi-device schema
+    // We retain the old `notificationToken` field untouched to avoid breaking legacy dependencies.
+    await update(ref(database, `users/${user.uid}/pushTokens/${safeTokenKey}`), {
+      token: token,
+      userAgent: navigator.userAgent,
+      createdAt: Date.now(),
+    });
+    
+    // Save the active token key to local storage so we know which one to delete on logout for this specific device
+    localStorage.setItem(`fcm_token_key_${user.uid}`, safeTokenKey);
+
+    // Also update permission status
     await update(ref(database, `users/${user.uid}`), {
-      notificationToken: token,
       notificationPermission: "granted",
-      notificationTokenUpdatedAt: Date.now(),
     });
 
-    debugLog("✓ Token saved to Firebase under users/" + user.uid);
+    debugLog("✓ Token saved to Firebase under pushTokens/" + safeTokenKey);
     return token;
   } catch (error) {
     debugLog("Registration failure caught in registerFcmTokenForParent:", error);
@@ -137,11 +145,17 @@ export const registerFcmTokenForParent = async (user) => {
 export const cleanupFcmTokenOnLogout = async (user) => {
   try {
     if (!user || !user.uid || user.role !== "parent") return;
-    debugLog("Cleaning up local FCM registration for user:", user.uid);
-    await update(ref(database, `users/${user.uid}`), {
-      notificationToken: null,
-      notificationTokenUpdatedAt: Date.now(),
-    });
+    
+    const localTokenKey = localStorage.getItem(`fcm_token_key_${user.uid}`);
+    if (localTokenKey) {
+      debugLog("Cleaning up local FCM registration for user device:", localTokenKey);
+      await update(ref(database, `users/${user.uid}/pushTokens`), {
+        [localTokenKey]: null,
+      });
+      localStorage.removeItem(`fcm_token_key_${user.uid}`);
+    } else {
+      debugLog("No local FCM token key found to clean up on this device.");
+    }
   } catch (error) {
     debugLog("Error cleaning up FCM token on logout:", error);
   }

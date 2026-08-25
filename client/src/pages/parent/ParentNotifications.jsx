@@ -5,6 +5,7 @@ import {
   markAllNotificationsAsRead,
 } from '../../services/notificationCenterService';
 import { Bell, CheckCircle2, AlertCircle, Info, Clock, CheckCheck } from 'lucide-react';
+import PushNotificationSettings from '../../components/parent/PushNotificationSettings';
 
 export default function ParentNotifications() {
   const { user } = useAuth();
@@ -93,6 +94,9 @@ export default function ParentNotifications() {
 
   return (
     <div className="space-y-6">
+      
+      {/* Push Notification Settings Banner */}
+      <PushNotificationSettings variant="settings" />
 
       {/* Notifications List */}
       {notifications.length === 0 ? (

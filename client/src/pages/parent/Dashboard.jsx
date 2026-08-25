@@ -8,6 +8,7 @@ import { getBranchConfigurations } from "../../services/branchConfigurationServi
 import { isReservationExpired, getRemainingValidationTime, formatRemainingTime } from "../../services/timeService";
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 import { computeReservationState, computeAheadOfYou, QUEUE_STATES } from "../../services/queueEngine";
+import PushNotificationSettings from "../../components/parent/PushNotificationSettings";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -226,6 +227,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 pb-6 relative">
+      <div className="max-w-lg mx-auto w-full">
+        <PushNotificationSettings variant="dashboard" />
+      </div>
 
       {/* Real-Time Queue Monitoring Redesign */}
       {activeReservation && schedule ? (

@@ -80,11 +80,17 @@ export const saveNotification = async (parentId, notificationData) => {
       return null;
     }
 
-    const notifRef = push(ref(database, `notifications/${parentId}`));
+    // Use dedupeKey for cross-device idempotency, falling back to push() if none exists
+    const safeKey = notificationData.dedupeKey 
+      ? notificationData.dedupeKey.replace(/[.#$\[\]]/g, '_')
+      : push(ref(database, `notifications/${parentId}`)).key;
+      
+    const notifRef = ref(database, `notifications/${parentId}/${safeKey}`);
+
     const type = notificationData.type || notificationData.eventId || "INFO";
     const body = notificationData.body || notificationData.message || "";
     const newNotif = {
-      id: notifRef.key,
+      id: safeKey,
       parentId,
       type,
       title: notificationData.title || "Notification",

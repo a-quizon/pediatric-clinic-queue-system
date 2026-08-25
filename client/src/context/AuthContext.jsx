@@ -91,7 +91,8 @@ export function AuthProvider({ children }) {
                             setUser(enrichedUser);
 
                             if (userData.role === "parent") {
-                                registerFcmTokenForParent(enrichedUser).catch(() => {});
+                                // FCM registration is now explicit via PushNotificationSettings component
+                                // registerFcmTokenForParent(enrichedUser).catch(() => {});
                             }
 
                             console.log("Role:", userData.role);
