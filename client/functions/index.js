@@ -84,6 +84,7 @@ exports.testFCMDelivery = functions.https.onCall(async (data, context) => {
 
     const response = await admin.messaging().sendEachForMulticast(payload);
     let cleanupCount = 0;
+    const errors = [];
     
     // 3. Safely remove explicitly invalid/unregistered tokens
     if (response.failureCount > 0) {
@@ -92,6 +93,14 @@ exports.testFCMDelivery = functions.https.onCall(async (data, context) => {
       response.responses.forEach((resp, idx) => {
         if (!resp.success) {
           const errorCode = resp.error?.code;
+          
+          errors.push({
+            tokenKey: tokenKeys[idx],
+            code: errorCode,
+            message: resp.error?.message,
+            errorInfoCode: resp.error?.errorInfo?.code
+          });
+
           // Only remove tokens if FCM explicitly tells us they are invalid or unregistered
           if (
             errorCode === 'messaging/invalid-registration-token' ||
@@ -117,6 +126,7 @@ exports.testFCMDelivery = functions.https.onCall(async (data, context) => {
       successCount: response.successCount,
       failureCount: response.failureCount,
       cleanedUpCount: cleanupCount,
+      diagnosticErrors: errors,
     };
 
   } catch (error) {
