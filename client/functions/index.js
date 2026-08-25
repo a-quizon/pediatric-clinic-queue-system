@@ -30,7 +30,8 @@ exports.testRTDBAccess = functions.https.onCall(async (data, context) => {
  * This is an explicit callable test function. It is NOT triggered by actual queue events.
  */
 exports.testFCMDelivery = functions.https.onCall(async (data, context) => {
-  const parentId = data.parentId;
+  const payload = data.data ? data.data : data;
+  const parentId = payload.parentId;
   
   if (!parentId) {
     throw new functions.https.HttpsError(
