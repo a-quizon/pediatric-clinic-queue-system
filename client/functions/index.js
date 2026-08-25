@@ -75,7 +75,7 @@ exports.testFCMDelivery = functions.https.onCall(async (data, context) => {
 
     // 2. Send the controlled test notification using Firebase Admin Messaging
     const payload = {
-      notification: {
+      data: {
         title: "Pediatric Clinic Queue — Push Test",
         body: "This is a Web Push infrastructure test notification."
       },
