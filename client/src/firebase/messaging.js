@@ -1,44 +1,20 @@
-// src/firebase/messaging.js
-import app from "./firebaseConfig";
-import { getMessaging, isSupported } from "firebase/messaging";
+import { checkPushSupport } from "../services/pushService";
 
-export const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+export const VAPID_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
-if (import.meta.env.DEV && (!VAPID_KEY || VAPID_KEY === "PASTE_YOUR_PUBLIC_VAPID_KEY_HERE")) {
+if (import.meta.env.DEV && !import.meta.env.VITE_VAPID_PUBLIC_KEY) {
   console.warn(
-    "[Firebase Messaging] Warning: VITE_FIREBASE_VAPID_KEY is missing or is still placeholder in .env. Please configure a valid Firebase Web Push Public Key."
+    "[Push] Warning: VITE_VAPID_PUBLIC_KEY is missing in .env. Generate keys with `npm run generate-vapid` in /server."
   );
 }
 
-let messagingInstance = null;
-
 /**
- * Checks whether Firebase Cloud Messaging is supported in the current browser environment.
+ * Checks whether Web Push (service worker + PushManager + Notifications) is available.
  */
 export const checkMessagingSupported = async () => {
-  if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
-    return false;
-  }
-  try {
-    return await isSupported();
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn("[Firebase Messaging] isSupported check failed:", error);
-    }
-    return false;
-  }
+  return checkPushSupport();
 };
 
-/**
- * Returns the initialized Firebase Messaging instance if supported.
- */
 export const getMessagingInstance = async () => {
-  const supported = await checkMessagingSupported();
-  if (!supported) {
-    return null;
-  }
-  if (!messagingInstance) {
-    messagingInstance = getMessaging(app);
-  }
-  return messagingInstance;
+  return null;
 };

@@ -171,37 +171,25 @@ export default function NotificationObserver() {
             }
 
             if (prevStatus !== currStatus) {
-              if (currStatus === 'validation_open') {
-                notificationService.notify(NOTIFICATION_EVENTS.VALIDATION_OPEN, {
-                  entityId: r.id,
-                  parentId: r.parentId,
-                  dedupeKey: `val_open_${r.id}`,
-                });
-              } else if (currStatus === 'validation_expired') {
-                notificationService.notify(NOTIFICATION_EVENTS.VALIDATION_EXPIRED, {
-                  entityId: r.id,
-                  parentId: r.parentId,
-                  dedupeKey: `val_exp_${r.id}`,
-                });
-              } else if (currStatus === 'checked_in') {
-                notificationService.notify(NOTIFICATION_EVENTS.CHECKED_IN, {
+              if (currStatus === "checked_in") {
+                notificationService.notify(NOTIFICATION_EVENTS.QR_VERIFIED, {
                   entityId: r.id,
                   parentId: r.parentId,
                   dedupeKey: `checked_in_${r.id}`,
                 });
-              } else if (currStatus === 'in_consultation') {
-                notificationService.notify(NOTIFICATION_EVENTS.TURN_IS_NOW, {
+              } else if (currStatus === "in_consultation" || currStatus === "with_doctor") {
+                notificationService.notify(NOTIFICATION_EVENTS.CONSULTATION_STARTED, {
                   entityId: r.id,
                   parentId: r.parentId,
-                  dedupeKey: `turn_is_now_${r.id}`,
+                  dedupeKey: `consult_start_${r.id}`,
                 });
-              } else if (currStatus === 'completed' || currStatus === 'consultation_completed') {
+              } else if (currStatus === "completed" || currStatus === "consultation_completed") {
                 notificationService.notify(NOTIFICATION_EVENTS.CONSULTATION_COMPLETED, {
                   entityId: r.id,
                   parentId: r.parentId,
                   dedupeKey: `consult_complete_${r.id}`,
                 });
-              } else if (currStatus === 'forfeited') {
+              } else if (currStatus === "forfeited") {
                 notificationService.notify(NOTIFICATION_EVENTS.FORFEITED, {
                   entityId: r.id,
                   parentId: r.parentId,

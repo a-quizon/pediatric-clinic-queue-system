@@ -4,7 +4,7 @@ import { ref, onValue } from "firebase/database";
 
 import { auth } from "../firebase/auth";
 import { database } from "../firebase/database";
-import { registerFcmTokenForParent, cleanupFcmTokenOnLogout } from "../services/fcmService";
+import { cleanupPushSubscriptionOnLogout, registerPushSubscription } from "../services/pushService";
 
 export const AuthContext = createContext();
 
@@ -90,11 +90,6 @@ export function AuthProvider({ children }) {
                             setRole(userData.role);
                             setUser(enrichedUser);
 
-                            if (userData.role === "parent") {
-                                // FCM registration is now explicit via PushNotificationSettings component
-                                // registerFcmTokenForParent(enrichedUser).catch(() => {});
-                            }
-
                             console.log("Role:", userData.role);
                         }
                         setLoading(false);
@@ -105,7 +100,7 @@ export function AuthProvider({ children }) {
                 } else {
                     setUser((prevUser) => {
                         if (prevUser && prevUser.role === "parent") {
-                            cleanupFcmTokenOnLogout(prevUser).catch(() => {});
+                            cleanupPushSubscriptionOnLogout(prevUser).catch(() => {});
                         }
                         return null;
                     });
@@ -122,6 +117,19 @@ export function AuthProvider({ children }) {
             unsubscribeAuth();
         };
     }, []);
+
+    useEffect(() => {
+        if (!user || user.role !== "parent" || typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+            return undefined;
+        }
+        const onMessage = (event) => {
+            if (event.data?.type === "PUSH_SUBSCRIPTION_CHANGED") {
+                registerPushSubscription(user).catch(() => {});
+            }
+        };
+        navigator.serviceWorker.addEventListener("message", onMessage);
+        return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+    }, [user]);
 
     const updateContextUser = (updates) => {
         setUser(prev => ({ ...prev, ...updates }));
