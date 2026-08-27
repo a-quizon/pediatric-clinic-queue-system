@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, BellOff, BellRing, Loader2, Info } from 'lucide-react';
 import { checkMessagingSupported } from '../../firebase/messaging';
-import { registerFcmTokenForParent } from '../../services/fcmService';
+import { registerPushSubscription, hasActivePushSubscription } from '../../services/pushService';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function PushNotificationSettings({ variant = 'settings' }) {
@@ -27,21 +27,21 @@ export default function PushNotificationSettings({ variant = 'settings' }) {
         }
 
         if (Notification.permission === 'granted') {
-          // Check if we already have a token registered for this device
-          const localTokenKey = localStorage.getItem(`fcm_token_key_${user?.uid}`);
-          if (localTokenKey) {
+          const hasSub = await hasActivePushSubscription(user?.uid);
+          if (hasSub) {
             if (isMounted) setStatus('granted');
           } else {
-            // Permission is granted but token might be missing or revoked
-            // Silently re-register the token for the current account without prompting
-            if (silentRegAttempted.current) return;
+            if (silentRegAttempted.current) {
+              if (isMounted) setStatus('default');
+              return;
+            }
             silentRegAttempted.current = true;
-            
+
             if (isMounted) setIsRegistering(true);
             try {
-              const token = await registerFcmTokenForParent(user);
+              const subscription = await registerPushSubscription(user);
               if (isMounted) {
-                if (token) setStatus('granted');
+                if (subscription) setStatus('granted');
                 else setStatus('error');
               }
             } catch (err) {
@@ -75,11 +75,11 @@ export default function PushNotificationSettings({ variant = 'settings' }) {
     setIsRegistering(true);
 
     try {
-      const token = await registerFcmTokenForParent(user);
-      
+      const subscription = await registerPushSubscription(user);
+
       if (Notification.permission === 'denied') {
         setStatus('denied');
-      } else if (token) {
+      } else if (subscription) {
         setStatus('granted');
       } else {
         setStatus('error');
@@ -143,7 +143,7 @@ export default function PushNotificationSettings({ variant = 'settings' }) {
           </div>
           <div>
             <h4 className="font-bold text-green-800">Push Notifications Enabled</h4>
-            <p className="text-xs text-green-600 mt-0.5">You will receive alerts on this device when it's your turn.</p>
+            <p className="text-xs text-green-600 mt-0.5">You will receive alerts on this device even if the browser is closed.</p>
           </div>
         </div>
       </div>
@@ -191,7 +191,7 @@ export default function PushNotificationSettings({ variant = 'settings' }) {
           <p className="text-xs text-blue-700 mt-0.5">
             {status === 'error' 
               ? <span className="text-red-600 font-semibold">Unable to enable notifications. Please try again.</span>
-              : 'Receive alerts even when your browser is in the background.'}
+              : 'Receive alerts even when your browser is closed or in the background.'}
           </p>
         </div>
       </div>

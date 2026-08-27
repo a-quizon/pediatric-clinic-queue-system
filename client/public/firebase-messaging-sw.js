@@ -1,26 +1,54 @@
-// public/firebase-messaging-sw.js
-importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
+/* Compatibility shim for browsers that still have firebase-messaging-sw.js registered.
+ * New installs use /sw.js. This file implements the same Push API handlers.
+ */
 
-const urlParams = new URLSearchParams(self.location.search);
-const firebaseConfigStr = urlParams.get('firebaseConfig');
+self.addEventListener("install", (event) => {
+  event.waitUntil(self.skipWaiting());
+});
 
-if (firebaseConfigStr) {
-  const firebaseConfig = JSON.parse(decodeURIComponent(firebaseConfigStr));
-  firebase.initializeApp(firebaseConfig);
-} else {
-  console.error("[firebase-messaging-sw.js] Missing firebaseConfig query parameter.");
-}
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
 
-const messaging = firebase.messaging();
+self.addEventListener("push", (event) => {
+  event.waitUntil((async () => {
+    let payload = {
+      title: "Pediatric Clinic",
+      body: "You have a new clinic update.",
+      url: "/parent/notifications",
+    };
+    try {
+      if (event.data) payload = { ...payload, ...event.data.json() };
+    } catch (_err) {
+      try {
+        if (event.data) payload.body = event.data.text();
+      } catch (_textErr) {
+        // keep fallback
+      }
+    }
 
-messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  const notificationTitle = payload.data?.title || 'Notification';
-  const notificationOptions = {
-    body: payload.data?.body || '',
-    icon: '/favicon.svg'
-  };
+    const windowClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    if (windowClients.some((client) => client.focused)) return;
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+    await self.registration.showNotification(payload.title || payload.data?.title || "Pediatric Clinic", {
+      body: payload.body || payload.data?.body || "",
+      icon: payload.icon || "/favicon.svg",
+      tag: payload.tag || payload.type || "clinic-notification",
+      data: { url: payload.url || "/parent/notifications" },
+    });
+  })());
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification?.data?.url || "/parent/notifications";
+  event.waitUntil((async () => {
+    const windowClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of windowClients) {
+      if (client.url.startsWith(self.location.origin) && "focus" in client) {
+        return client.focus();
+      }
+    }
+    return self.clients.openWindow(targetUrl);
+  })());
 });

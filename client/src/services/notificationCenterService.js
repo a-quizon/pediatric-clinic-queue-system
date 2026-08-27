@@ -1,5 +1,5 @@
 import { database } from "../firebase/database";
-import { ref, push, set, update, get, onValue } from "firebase/database";
+import { ref, push, update, get, onValue } from "firebase/database";
 
 /**
  * Notification Center Service
@@ -103,7 +103,7 @@ export const saveNotification = async (parentId, notificationData) => {
       metadata: notificationData.metadata || null,
       ...notificationData,
     };
-    await set(notifRef, newNotif);
+    await update(notifRef, newNotif);
     return notifRef.key;
   } catch (error) {
     console.error("[NotificationCenterService] Failed to save notification:", error);

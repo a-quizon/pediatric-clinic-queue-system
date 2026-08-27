@@ -3,6 +3,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { User, LogOut, History, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import LogoutButton from "../../components/common/LogoutButton";
+import PushNotificationSettings from "../../components/parent/PushNotificationSettings";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -40,6 +41,8 @@ export default function Profile() {
           <p className="text-gray-500 font-medium mt-1">{user?.email || "Loading email..."}</p>
         </div>
       </div>
+
+      <PushNotificationSettings variant="settings" />
 
       {/* Menu Options */}
       <div className="grid grid-cols-1 gap-4">

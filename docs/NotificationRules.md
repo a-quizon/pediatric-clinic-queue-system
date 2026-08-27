@@ -5,15 +5,15 @@ This document serves as the **official specification** for the pediatric clinic 
 ---
 
 ## 1. Overview
-The Notification System is designed to keep users informed of real-time clinic events and queue progressions. It operates via a unified `notificationService` that acts as a central dispatcher, routing system events into two active channels: transient in-app Toast Notifications, and a persistent database-backed Notification Center. While it registers devices for Firebase Cloud Messaging (FCM), actual push notification dispatching is currently disabled.
+The Notification System keeps users informed of real-time clinic events and queue progressions. It uses a unified dispatcher that routes system events into three channels: transient in-app Toast Notifications, a persistent database-backed Notification Center, and native Web Push (Push API + Notifications API) so parents still receive alerts when the browser is in the background or fully closed.
 
 ---
 
 ## 2. Notification Architecture
 - **Notification Entity**: A normalized JSON object containing `title`, `body`, `type` (Event ID), `severity`, `createdAt`, `read` (boolean), and optional context like `reservationId` or `branchId`.
 - **Notification Storage**: Persisted in the Firebase Realtime Database exclusively under `notifications/${parentId}`.
-- **Tokens**: The system generates FCM Registration Tokens and stores them under the User entity (`users/${uid}`) along with their browser `notificationPermission`.
-- **Push Notification Flow**: The `dispatchPushNotification` pipeline exists as an extension point, but it actively halts and **does not** dispatch actual push messages to FCM in the current implementation.
+- **Push Subscriptions**: Native Web Push subscriptions (endpoint + `p256dh`/`auth` keys) are stored under `users/${uid}/pushSubscriptions/{hash}` together with `notificationPermission`.
+- **Push Notification Flow**: Clinic events are observed server-side (Express RTDB listeners and Cloud Functions `onWrite`). The server writes the Notification Center record and dispatches a Web Push payload with the `web-push` library and VAPID keys. The root service worker (`/sw.js`) receives the `push` event and calls `self.registration.showNotification`. Clicking a notification opens `/parent/notifications` (or a context-specific URL).
 
 ---
 
@@ -40,7 +40,7 @@ The system uses strict `NOTIFICATION_EVENTS` as the single source of truth for t
 ---
 
 ## 4. Parent Notifications
-Parents are the **only** entity in the system that receives persistent notifications. All events listed in Section 3 are strictly routed to the relevant Parent. The Notification Center actively subscribes to `notifications/${parentId}` to render these alerts.
+Parents are the **only** entity in the system that receives persistent notifications and Web Push. All events listed in Section 3 are strictly routed to the relevant Parent. The Notification Center actively subscribes to `notifications/${parentId}` to render these alerts.
 
 ---
 
@@ -63,11 +63,11 @@ The Admin role does not participate in the Notification System.
 ---
 
 ## 8. Delivery Rules
-When `notificationService.notify()` is triggered:
-1. **Deduplication Check**: The system checks local `sessionStorage` to ensure the exact same notification hasn't been fired recently.
-2. **Notification Center (Persistent)**: If a `parentId` is provided, the notification object is written to the Firebase database under `notifications/${parentId}`.
-3. **Toast (In-App)**: A local toast alert is added to a sequential queue and displayed on the screen for a few seconds.
-4. **Push Notifications**: **DO NOT FIRE.** The system prepares the payload, checks if permissions exist, logs to the console in development mode, but explicitly halts without sending.
+When a clinic event occurs:
+1. **Deduplication Check**: Client toasts use `sessionStorage`. Persistent records and push use a stable `dedupeKey` as the RTDB node id.
+2. **Notification Center (Persistent)**: If a `parentId` is provided and the user is a Parent, the notification object is written to `notifications/${parentId}`.
+3. **Toast (In-App)**: If the parent app is open, a local toast is queued and displayed.
+4. **Web Push**: The server sends a Web Push message to every stored subscription for that parent. Duplicate sends are prevented with `pushDispatchedAt`. If the parent has a focused window, the service worker suppresses the OS banner and the in-app toast is used instead. If the browser is backgrounded or closed, the service worker shows the OS notification.
 
 ---
 
@@ -81,10 +81,20 @@ When `notificationService.notify()` is triggered:
 ---
 
 ## 10. Push Notification Rules
-* **Permission Request**: The app uses `Notification.requestPermission()` to ask the browser for permission.
-* **FCM Token Generation**: If granted, it registers a Service Worker and contacts Firebase to retrieve a unique `notificationToken`.
-* **User Entity Storage**: It stores `notificationToken`, `notificationPermission`, and `notificationTokenUpdatedAt` on the User document in the database.
-* **Purpose**: This infrastructure is solely preparatory. It acts as a passive registry of device tokens that could theoretically be used by a future Cloud Function or external server to dispatch FCM messages.
+* **Permission Request**: Must be triggered by a user action (`Notification.requestPermission()` from Enable Notifications).
+* **Service Worker**: The app registers `/sw.js` at the site root. It listens for `push` and `notificationclick`.
+* **Subscription**: `PushManager.subscribe({ userVisibleOnly: true, applicationServerKey })` using the VAPID **public** key. The subscription is saved to `users/${uid}/pushSubscriptions` and POSTed to `POST /api/save-subscription`.
+* **Dispatch**: `POST /api/send-notification` plus realtime RTDB listeners (Express) and Cloud Functions `onReservationWrite` / `onScheduleWrite` send payloads with the `web-push` library and the VAPID **private** key.
+* **Closed browser**: The browser push service wakes `/sw.js` even when no window is open. The worker must call `showNotification()` or the push is dropped.
+* **Logout Cleanup**: `cleanupPushSubscriptionOnLogout` unsubscribes the device and deletes that device's subscription node.
+
+### Generating VAPID keys
+```bash
+cd server
+npm run generate-vapid
+# or: npx web-push generate-vapid-keys
+```
+Put the public key in `client/.env` as `VITE_VAPID_PUBLIC_KEY`. Put both keys in `server/.env` and `client/functions/.env`.
 
 ---
 
@@ -95,15 +105,18 @@ A notification transitions from `read: false` to `read: true` via a direct datab
 
 ## 12. Notification Cleanup Rules
 * **Non-Parent Cleanup**: The system actively enforces role isolation. A function `cleanupNonParentNotifications` scans users; if a Doctor, Secretary, or Admin somehow ends up with notification records, the function forcefully deletes them to maintain a clean database.
-* **Logout Cleanup**: When a Parent logs out, the system triggers `cleanupFcmTokenOnLogout`, which actively wipes the `notificationToken` from their user document to ensure they don't receive alerts on a public or shared device.
+* **Logout Cleanup**: When a Parent logs out, the system triggers `cleanupPushSubscriptionOnLogout`, which removes this device's Web Push subscription so a shared/public browser stops receiving alerts.
 * **Migration**: A `migrateUserNotifications` function safely moves legacy notifications from `users/${parentId}/notifications` to the dedicated `notifications/${parentId}` node.
+* **Expired subscriptions**: HTTP 404/410 responses from the push service delete that subscription node.
 
 ---
 
 ## 13. Edge Cases
-* **Notification Permission Denied**: If a user denies browser notifications, the system silently degrades. It still writes to the database Notification Center and shows local Toasts, but `notificationToken` is not generated.
-* **Missing FCM Token**: Fails gracefully; the app never crashes due to push registration failure.
-* **Duplicate Notifications**: Handled by an in-memory `Set` and `sessionStorage`. If the exact same queue progression event fires multiple times quickly, the system drops the duplicates and only displays/saves the first one.
+* **Notification Permission Denied**: If a user denies browser notifications, the system silently degrades. It still writes to the database Notification Center and shows local Toasts, but no push subscription is created.
+* **Missing / invalid subscription**: Fails gracefully; the app never crashes due to push registration failure.
+* **Duplicate Notifications**: Client toasts use an in-memory `Set` plus `sessionStorage`. Persistent/push delivery uses deterministic `dedupeKey` ids and `pushDispatchedAt`.
+* **Browser fully closed**: Service worker + Web Push still deliver. Requires a previously granted permission, an active subscription, and a running dispatcher (local Express or deployed Cloud Functions).
+* **Unsupported browsers / insecure origins**: Push is unavailable except on HTTPS or localhost. The Enable Notifications UI explains this.
 
 ---
 
@@ -111,13 +124,13 @@ A notification transitions from `read: false` to `read: true` via a direct datab
 1. **Role Restriction Rule (Highest)**
    * *Only Parents may have notification records. All other roles are blocked or actively cleaned up.*
 2. **Deduplication Rule**
-   * *A notification event will be entirely dropped if it matches a recently cached signature in `sessionStorage`.*
+   * *A notification event will be entirely dropped if it matches a recently cached signature or an existing `dedupeKey` record.*
 3. **Database Storage Rule**
-   * *Valid notifications are written to Firebase for historical tracking.*
-4. **Push Notification Rule (Lowest)**
-   * *Currently disabled entirely. It acts as an inert endpoint.*
+   * *Valid notifications are written to Firebase for historical tracking and the Notification Center.*
+4. **Push Notification Rule**
+   * *Web Push is sent to the parent's registered devices after the record is stored. It never replaces in-app storage.*
 
-*Why this order?* Role restriction ensures data privacy and database optimization (preventing doctors/secretaries from bloating the DB with irrelevant alerts). Deduplication prevents spamming the user and the database. 
+*Why this order?* Role restriction ensures data privacy and database optimization (preventing doctors/secretaries from bloating the DB with irrelevant alerts). Deduplication prevents spamming the user and the database.
 
 ---
 
@@ -132,8 +145,8 @@ When modifying the Notification System, developers must verify the following con
 - [ ] ✓ Queue recalculation never changes Ticket Numbers.
 - [ ] ✓ Reservation History remains immutable.
 - [ ] ✓ Notification metadata is strictly stored under `notifications/${parentId}`.
-- [ ] ✓ FCM token generates and attaches to the `user` document correctly upon permission grant.
-- [ ] ✓ FCM token is successfully wiped from the database upon logout.
-- [ ] ✓ Push notifications remain inactive (no actual dispatch occurs).
+- [ ] ✓ Web Push subscription is saved under `users/${uid}/pushSubscriptions` upon permission grant.
+- [ ] ✓ Push subscription for this device is wiped from the database upon logout.
+- [ ] ✓ Closed-browser push still delivers via `/sw.js` + `web-push`.
 - [ ] ✓ Role filtering correctly blocks Doctors, Secretaries, and Admins from receiving persistent notifications.
 - [ ] ✓ Local deduplication prevents multiple identical toasts/DB entries firing at the same time.

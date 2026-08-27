@@ -228,7 +228,9 @@ class NotificationService {
       }
     }
 
-    // Step 4: Extension Point — Forward to Push Notification (Phase 2.2 / Future channels)
+    // Step 4: Push Notification Channel
+    // Closed-browser delivery is owned by the Express RTDB listeners / Cloud Functions.
+    // This client call is a fallback for when the page is open and the API is reachable.
     try {
       this.dispatchPushNotification(eventId, notificationObject, context);
     } catch (pushError) {
@@ -274,22 +276,40 @@ class NotificationService {
   }
 
   /**
-   * Extension Point: Push Notification Channel (Phase 2.2 / Phase 2.3)
-   * Detects whether Push Notifications are available and exposes the Push Provider interface.
-   * Phase 2.2: Do NOT send Push Notifications yet. Prepared but inactive for Phase 2.3.
+   * Fallback push dispatch via the Express API.
+   * Server-side listeners claim the same notification id, so this will no-op if
+   * the realtime dispatcher already sent the push.
    */
   dispatchPushNotification(eventId, notificationObject, context) {
-    const isPushAvailable =
-      typeof window !== "undefined" &&
-      "Notification" in window &&
-      Notification.permission === "granted";
+    if (!context.parentId || typeof window === "undefined") return;
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
 
-    if (import.meta.env.DEV) {
-      console.log(
-        `[NotificationService] Push Provider prepared (available: ${isPushAvailable}, inactive for Phase 2.2):`,
-        eventId
-      );
-    }
+    const apiBase = import.meta.env.VITE_API_URL || "";
+    import("firebase/auth")
+      .then(({ getAuth }) => getAuth().currentUser?.getIdToken())
+      .then((token) => {
+        if (!token) return null;
+        return fetch(`${apiBase}/api/send-notification`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            parentId: context.parentId,
+            eventId,
+            notification: notificationObject,
+            reservationId: context.reservationId || context.entityId || null,
+            branchId: context.branchId || null,
+            dedupeKey: context.dedupeKey || null,
+          }),
+        });
+      })
+      .catch((err) => {
+        if (import.meta.env.DEV) {
+          console.warn("[NotificationService] Push fallback request failed:", err);
+        }
+      });
   }
 
   /**
