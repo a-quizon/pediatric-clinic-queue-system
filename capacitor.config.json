@@ -1,0 +1,5 @@
+{
+  "appId": "com.capstone.queue",
+  "appName": "Pediatric Clinic Queue System",
+  "webDir": "client/dist"
+}
