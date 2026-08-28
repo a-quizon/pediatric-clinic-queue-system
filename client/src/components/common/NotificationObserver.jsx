@@ -15,8 +15,10 @@ export default function NotificationObserver() {
   const { user, role } = useAuth();
 
   useEffect(() => {
-    cleanupNonParentNotifications();
-  }, []);
+    if (role === 'admin') {
+      cleanupNonParentNotifications();
+    }
+  }, [role]);
 
   const isInitialSchedulesLoad = useRef(true);
   const isInitialReservationsLoad = useRef(true);
