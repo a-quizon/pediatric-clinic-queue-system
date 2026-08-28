@@ -198,8 +198,9 @@ class NotificationService {
       metadata: context.metadata || null,
     };
 
-    // Step 2: Save to persistent In-App Notification Center (isolated error handling)
-    if (context.parentId) {
+    // Step 2: Save to persistent In-App Notification Center (dev only — prod uses Cloud Functions)
+    const serverPersists = import.meta.env.PROD;
+    if (context.parentId && !serverPersists) {
       try {
         saveNotification(context.parentId, {
           ...notificationObject,
@@ -285,6 +286,9 @@ class NotificationService {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
 
     const apiBase = import.meta.env.VITE_API_URL || "";
+    // Production push is handled by Cloud Functions / RTDB listeners; skip client fallback.
+    if (import.meta.env.PROD && !apiBase) return;
+
     import("firebase/auth")
       .then(({ getAuth }) => getAuth().currentUser?.getIdToken())
       .then((token) => {
@@ -305,10 +309,8 @@ class NotificationService {
           }),
         });
       })
-      .catch((err) => {
-        if (import.meta.env.DEV) {
-          console.warn("[NotificationService] Push fallback request failed:", err);
-        }
+      .catch(() => {
+        // Optional dev fallback; closed-browser push uses the Express server or Cloud Functions.
       });
   }
 

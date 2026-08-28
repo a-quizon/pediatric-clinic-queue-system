@@ -114,9 +114,10 @@ async function sendPushToParent(parentId, notification, options = {}) {
   }
 
   const notificationId = options.notificationId || notification.id || notification.dedupeKey;
-  if (notificationId && options.claim !== false) {
-    const claimed = await claimPushDispatch(parentId, sanitizeKey(notificationId));
-    if (!claimed) {
+  const safeNotificationId = notificationId ? sanitizeKey(notificationId) : null;
+  if (safeNotificationId && options.claim !== false) {
+    const flagSnap = await getDb().ref(`notifications/${parentId}/${safeNotificationId}/pushDispatchedAt`).once("value");
+    if (flagSnap.exists()) {
       return { success: true, sent: 0, failed: 0, reason: "already_dispatched" };
     }
   }
@@ -133,6 +134,7 @@ async function sendPushToParent(parentId, notification, options = {}) {
 
   const entries = collectSubscriptions(user.pushSubscriptions);
   if (!entries.length) {
+    console.warn(`[webPush] no_subscriptions parentId=${parentId}`);
     return { success: true, sent: 0, failed: 0, reason: "no_subscriptions" };
   }
 
@@ -169,6 +171,10 @@ async function sendPushToParent(parentId, notification, options = {}) {
     await deleteGoneSubscriptions(parentId, goneKeys).catch((err) => {
       console.error("[webPush] failed to prune expired subscriptions:", err.message);
     });
+  }
+
+  if (sent > 0 && safeNotificationId && options.claim !== false) {
+    await getDb().ref(`notifications/${parentId}/${safeNotificationId}/pushDispatchedAt`).set(Date.now());
   }
 
   return { success: sent > 0 || failed === 0, sent, failed, pruned: goneKeys.length };

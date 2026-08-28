@@ -15,8 +15,10 @@ export default function NotificationObserver() {
   const { user, role } = useAuth();
 
   useEffect(() => {
-    cleanupNonParentNotifications();
-  }, []);
+    if (role === 'admin') {
+      cleanupNonParentNotifications();
+    }
+  }, [role]);
 
   const isInitialSchedulesLoad = useRef(true);
   const isInitialReservationsLoad = useRef(true);
@@ -84,13 +86,13 @@ export default function NotificationObserver() {
                 notificationService.notify(NOTIFICATION_EVENTS.QUEUE_PAUSED, {
                   entityId: schedId,
                   parentId: user?.uid,
-                  dedupeKey: `queue_paused_${schedId}`,
+                  dedupeKey: `queue_paused_${schedId}_${sched.clinicDate}_${sched.queueStatusUpdatedAt || sched.updatedAt || 0}`,
                 });
               } else if (prevStatus === 'paused' && currStatus === 'active') {
                 notificationService.notify(NOTIFICATION_EVENTS.QUEUE_RESUMED, {
                   entityId: schedId,
                   parentId: user?.uid,
-                  dedupeKey: `queue_resumed_${schedId}`,
+                  dedupeKey: `queue_resumed_${schedId}_${sched.clinicDate}_${sched.queueStatusUpdatedAt || sched.updatedAt || 0}`,
                 });
               } else if (currStatus === 'closed' && prevStatus !== 'closed') {
                 notificationService.notify(NOTIFICATION_EVENTS.QUEUE_CLOSED, {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, BellOff, BellRing, Loader2, Info } from 'lucide-react';
-import { checkMessagingSupported } from '../../firebase/messaging';
+import { Capacitor } from '@capacitor/core';
+import { Bell, BellOff, BellRing, Loader2, Info } from 'lucide-react';import { checkMessagingSupported } from '../../firebase/messaging';
 import { registerPushSubscription, hasActivePushSubscription } from '../../services/pushService';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -15,7 +15,7 @@ export default function PushNotificationSettings({ variant = 'settings' }) {
 
     const checkSupport = async () => {
       try {
-        if (!('Notification' in window)) {
+        if (!Capacitor.isNativePlatform() && !('Notification' in window)) {
           if (isMounted) setStatus('unsupported');
           return;
         }
@@ -26,6 +26,14 @@ export default function PushNotificationSettings({ variant = 'settings' }) {
           return;
         }
 
+        // On native Android, PushPermissionGate already prompts on app open.
+        if (Capacitor.isNativePlatform()) {
+          const hasSub = await hasActivePushSubscription(user?.uid);
+          if (isMounted) setStatus(hasSub ? 'granted' : 'default');
+          return;
+        }
+
+        // On web, sync Web Push subscription state for the settings UI.
         if (Notification.permission === 'granted') {
           const hasSub = await hasActivePushSubscription(user?.uid);
           if (hasSub) {
@@ -77,7 +85,9 @@ export default function PushNotificationSettings({ variant = 'settings' }) {
     try {
       const subscription = await registerPushSubscription(user);
 
-      if (Notification.permission === 'denied') {
+      if (Capacitor.isNativePlatform()) {
+        setStatus(subscription ? 'granted' : 'error');
+      } else if (Notification.permission === 'denied') {
         setStatus('denied');
       } else if (subscription) {
         setStatus('granted');
@@ -143,7 +153,11 @@ export default function PushNotificationSettings({ variant = 'settings' }) {
           </div>
           <div>
             <h4 className="font-bold text-green-800">Push Notifications Enabled</h4>
-            <p className="text-xs text-green-600 mt-0.5">You will receive alerts on this device even if the browser is closed.</p>
+            <p className="text-xs text-green-600 mt-0.5">
+              {Capacitor.isNativePlatform()
+                ? 'You will receive alerts on this device when clinic updates occur.'
+                : 'You will receive alerts on this device even if the browser is closed.'}
+            </p>
           </div>
         </div>
       </div>

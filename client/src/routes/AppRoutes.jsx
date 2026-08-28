@@ -45,10 +45,12 @@ import AdminSystemSettings from "../pages/admin/SystemSettings";
 import AdminProfile from "../pages/admin/Profile";
 
 import RoleRoute from "./RoleRoute";
+import NativeNotificationBridge from "../components/common/NativeNotificationBridge";
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
+      <NativeNotificationBridge />
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />

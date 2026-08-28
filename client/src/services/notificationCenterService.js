@@ -1,5 +1,6 @@
 import { database } from "../firebase/database";
 import { ref, push, update, get, onValue } from "firebase/database";
+import { getAuth } from "firebase/auth";
 
 /**
  * Notification Center Service
@@ -9,6 +10,12 @@ import { ref, push, update, get, onValue } from "firebase/database";
 
 export const cleanupNonParentNotifications = async () => {
   try {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
+
+    const roleSnapshot = await get(ref(database, `users/${uid}/role`));
+    if (!roleSnapshot.exists() || roleSnapshot.val() !== "admin") return;
+
     const snapshot = await get(ref(database, "users"));
     if (!snapshot.exists()) return;
 

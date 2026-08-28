@@ -140,20 +140,18 @@ function collectSubscriptions(pushSubscriptions) {
     .filter(Boolean);
 }
 
-async function claimPushDispatch(parentId, notificationId) {
-  const flagRef = db().ref(`notifications/${parentId}/${notificationId}/pushDispatchedAt`);
-  const result = await flagRef.transaction((current) => {
-    if (current) return;
-    return Date.now();
-  });
-  return Boolean(result.committed && result.snapshot.exists());
-}
-
 async function sendPushToParent(parentId, notification, notificationId) {
-  if (!configureVapid()) return { sent: 0, failed: 0, reason: "vapid_not_configured" };
-  if (notificationId) {
-    const claimed = await claimPushDispatch(parentId, sanitizeKey(notificationId));
-    if (!claimed) return { sent: 0, failed: 0, reason: "already_dispatched" };
+  if (!configureVapid()) {
+    console.warn("[functions/push] VAPID not configured");
+    return { sent: 0, failed: 0, reason: "vapid_not_configured" };
+  }
+
+  const safeNotificationId = notificationId ? sanitizeKey(notificationId) : null;
+  if (safeNotificationId) {
+    const flagSnap = await db().ref(`notifications/${parentId}/${safeNotificationId}/pushDispatchedAt`).once("value");
+    if (flagSnap.exists()) {
+      return { sent: 0, failed: 0, reason: "already_dispatched" };
+    }
   }
 
   const userSnap = await db().ref(`users/${parentId}`).once("value");
@@ -162,7 +160,10 @@ async function sendPushToParent(parentId, notification, notificationId) {
   }
 
   const entries = collectSubscriptions(userSnap.val().pushSubscriptions);
-  if (!entries.length) return { sent: 0, failed: 0, reason: "no_subscriptions" };
+  if (!entries.length) {
+    console.warn(`[functions/push] no_subscriptions parentId=${parentId}`);
+    return { sent: 0, failed: 0, reason: "no_subscriptions" };
+  }
 
   const payload = {
     title: notification.title,
@@ -191,14 +192,23 @@ async function sendPushToParent(parentId, notification, notificationId) {
         if (err.statusCode === 404 || err.statusCode === 410) {
           gone[key] = null;
         } else {
-          console.error("[functions/push] send failed:", err.message);
+          console.error(`[functions/push] send failed parentId=${parentId}:`, err.message);
         }
       }
     })
   );
+
   if (Object.keys(gone).length) {
     await db().ref(`users/${parentId}/pushSubscriptions`).update(gone);
   }
+
+  if (sent > 0 && safeNotificationId) {
+    await db().ref(`notifications/${parentId}/${safeNotificationId}/pushDispatchedAt`).set(Date.now());
+    console.log(`[functions/push] sent=${sent} parentId=${parentId} type=${payload.type}`);
+  } else if (sent === 0) {
+    console.warn(`[functions/push] zero sends parentId=${parentId} type=${payload.type}`);
+  }
+
   return { sent, pruned: Object.keys(gone).length };
 }
 
@@ -441,12 +451,14 @@ async function handleScheduleChange(before, after) {
           events.push({ ...base, eventId: "QUEUE_STARTED", parentId, dedupeKey: `queue_start_${schedId}_${clinicDate}` })
         );
       } else if (prevStatus === "active" && currStatus === "paused") {
+        const ts = after.queueStatusUpdatedAt || after.updatedAt || 0;
         forSchedule.forEach((parentId) =>
-          events.push({ ...base, eventId: "QUEUE_PAUSED", parentId, dedupeKey: `queue_paused_${schedId}` })
+          events.push({ ...base, eventId: "QUEUE_PAUSED", parentId, dedupeKey: `queue_paused_${schedId}_${clinicDate}_${ts}` })
         );
       } else if (prevStatus === "paused" && currStatus === "active") {
+        const ts = after.queueStatusUpdatedAt || after.updatedAt || 0;
         forSchedule.forEach((parentId) =>
-          events.push({ ...base, eventId: "QUEUE_RESUMED", parentId, dedupeKey: `queue_resumed_${schedId}` })
+          events.push({ ...base, eventId: "QUEUE_RESUMED", parentId, dedupeKey: `queue_resumed_${schedId}_${clinicDate}_${ts}` })
         );
       } else if (currStatus === "closed" && prevStatus !== "closed") {
         forSchedule.forEach((parentId) =>
