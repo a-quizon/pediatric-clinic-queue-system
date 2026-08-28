@@ -69,14 +69,12 @@ async function handlePush(event) {
   });
   const focusedClient = windowClients.find((client) => client.focused);
 
-  // App is in the foreground: let the in-app toast/Notification Center handle UX.
   if (focusedClient) {
     focusedClient.postMessage({ type: "PUSH_RECEIVED", payload });
-    return;
   }
 
-  // Browser in background OR fully closed: the SW is woken by the push service
-  // and must call showNotification() or Chrome drops the push.
+  // Chrome requires showNotification() for userVisibleOnly subscriptions,
+  // including when the site tab is already open.
   await self.registration.showNotification(payload.title, {
     body: payload.body,
     icon: payload.icon,

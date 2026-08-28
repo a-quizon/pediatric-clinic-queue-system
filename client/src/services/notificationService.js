@@ -198,8 +198,9 @@ class NotificationService {
       metadata: context.metadata || null,
     };
 
-    // Step 2: Save to persistent In-App Notification Center (isolated error handling)
-    if (context.parentId) {
+    // Step 2: Save to persistent In-App Notification Center (dev only — prod uses Cloud Functions)
+    const serverPersists = import.meta.env.PROD;
+    if (context.parentId && !serverPersists) {
       try {
         saveNotification(context.parentId, {
           ...notificationObject,

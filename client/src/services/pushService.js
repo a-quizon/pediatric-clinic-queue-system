@@ -1,16 +1,21 @@
+import { Capacitor } from "@capacitor/core";
 import { auth } from "../firebase/auth";
 import { ref, update } from "firebase/database";
 import { database } from "../firebase/database";
-
+import { hasNativeNotificationPermission, requestNativeNotificationPermission } from "./nativeNotificationService";
 const SW_PATH = "/sw.js";
 const LEGACY_SW_PATH = "firebase-messaging-sw.js";
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || "";
 
 const debugLog = (message, ...args) => {
-  if (import.meta.env.DEV) {
+  if (import.meta.env.DEV || Capacitor.isNativePlatform()) {
     console.log(`[Push] ${message}`, ...args);
   }
 };
+
+export function isNativeApp() {
+  return Capacitor.isNativePlatform();
+}
 
 export function getPushApiBase() {
   const explicit = import.meta.env.VITE_API_URL;
@@ -27,11 +32,27 @@ export function isSecurePushContext() {
 
 export function checkPushSupport() {
   if (typeof window === "undefined") return false;
+  if (Capacitor.isNativePlatform()) return true;
   if (!isSecurePushContext()) return false;
   if (!("serviceWorker" in navigator)) return false;
   if (!("PushManager" in window)) return false;
   if (!("Notification" in window)) return false;
   return true;
+}
+
+export async function hasActivePushSubscription(uid) {
+  if (Capacitor.isNativePlatform()) {
+    return hasNativeNotificationPermission();
+  }
+  if (!uid || !checkPushSupport()) return false;
+  if (localStorage.getItem(localSubKeyName(uid))) return true;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    return Boolean(subscription);
+  } catch (_err) {
+    return false;
+  }
 }
 
 function urlBase64ToUint8Array(base64String) {
@@ -125,6 +146,9 @@ async function postSubscriptionToBackend(userId, subscription, action = "save") 
 
 async function persistSubscriptionToDatabase(uid, subscriptionJson, extra = {}) {
   const key = await sha256Hex(subscriptionJson.endpoint);
+  if (localStorage.getItem(localSubKeyName(uid)) === key) {
+    return key;
+  }
   await update(ref(database, `users/${uid}/pushSubscriptions/${key}`), {
     endpoint: subscriptionJson.endpoint,
     expirationTime: subscriptionJson.expirationTime || null,
@@ -163,6 +187,31 @@ export async function registerPushSubscription(user) {
       debugLog("Skipping push registration for non-parent role:", user.role);
       return null;
     }
+
+    if (Capacitor.isNativePlatform()) {
+      const granted = await requestNativeNotificationPermission();
+      if (granted) {
+        try {
+          await update(ref(database, `users/${user.uid}`), {
+            notificationPermission: "granted",
+            notificationTokenUpdatedAt: Date.now(),
+          });
+        } catch (_err) {
+          // Non-fatal.
+        }
+        debugLog("Native notification permission granted");
+        return { native: true };
+      }
+      try {
+        await update(ref(database, `users/${user.uid}`), {
+          notificationPermission: "denied",
+        });
+      } catch (_err) {
+        // Non-fatal.
+      }
+      return null;
+    }
+
     if (!checkPushSupport()) {
       debugLog("Browser does not support Web Push");
       return null;
@@ -230,6 +279,7 @@ export async function registerPushSubscription(user) {
 export async function cleanupPushSubscriptionOnLogout(user) {
   try {
     if (!user?.uid || (user.role && user.role !== "parent")) return;
+    if (Capacitor.isNativePlatform()) return;
     if (!checkPushSupport()) {
       localStorage.removeItem(localSubKeyName(user.uid));
       return;
@@ -253,18 +303,6 @@ export async function cleanupPushSubscriptionOnLogout(user) {
     }
   } catch (error) {
     debugLog("cleanupPushSubscriptionOnLogout failed", error);
-  }
-}
-
-export async function hasActivePushSubscription(uid) {
-  if (!uid || !checkPushSupport()) return false;
-  if (localStorage.getItem(localSubKeyName(uid))) return true;
-  try {
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    return Boolean(subscription);
-  } catch (_err) {
-    return false;
   }
 }
 

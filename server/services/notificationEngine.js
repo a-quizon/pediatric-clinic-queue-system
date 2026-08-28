@@ -283,21 +283,23 @@ function eventsFromScheduleChange(before, after, activeParentIds) {
       })
     );
   } else if (prevStatus === "active" && currStatus === "paused") {
+    const ts = after.queueStatusUpdatedAt || after.updatedAt || 0;
     recipients.forEach((parentId) =>
       events.push({
         ...base,
         eventId: "QUEUE_PAUSED",
         parentId,
-        dedupeKey: `queue_paused_${schedId}`,
+        dedupeKey: `queue_paused_${schedId}_${clinicDate}_${ts}`,
       })
     );
   } else if (prevStatus === "paused" && currStatus === "active") {
+    const ts = after.queueStatusUpdatedAt || after.updatedAt || 0;
     recipients.forEach((parentId) =>
       events.push({
         ...base,
         eventId: "QUEUE_RESUMED",
         parentId,
-        dedupeKey: `queue_resumed_${schedId}`,
+        dedupeKey: `queue_resumed_${schedId}_${clinicDate}_${ts}`,
       })
     );
   } else if (currStatus === "closed" && prevStatus !== "closed") {

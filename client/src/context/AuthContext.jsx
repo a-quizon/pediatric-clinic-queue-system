@@ -119,9 +119,10 @@ export function AuthProvider({ children }) {
     }, []);
 
     useEffect(() => {
-        if (!user || user.role !== "parent" || typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+        if (!user?.uid || user.role !== "parent" || typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
             return undefined;
         }
+
         const onMessage = (event) => {
             if (event.data?.type === "PUSH_SUBSCRIPTION_CHANGED") {
                 registerPushSubscription(user).catch(() => {});
@@ -129,7 +130,7 @@ export function AuthProvider({ children }) {
         };
         navigator.serviceWorker.addEventListener("message", onMessage);
         return () => navigator.serviceWorker.removeEventListener("message", onMessage);
-    }, [user]);
+    }, [user?.uid, user?.role]);
 
     const updateContextUser = (updates) => {
         setUser(prev => ({ ...prev, ...updates }));
