@@ -1,7 +1,8 @@
 import { initializeApp, getApps, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut, sendPasswordResetEmail } from "firebase/auth";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { ref, set, get } from "firebase/database";
-import { firebaseConfig } from "../firebase/firebaseConfig";
+import app, { firebaseConfig } from "../firebase/firebaseConfig";
 import { database } from "../firebase/database";
 import { auth } from "../firebase/auth";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
@@ -141,4 +142,75 @@ export const sendAdminPasswordResetEmail = async (email) => {
     handleCodeInApp: false
   };
   return sendPasswordResetEmail(auth, email, actionCodeSettings);
+};
+
+export const deleteUserAccount = async (uid) => {
+  if (!uid) throw new Error("A user id is required.");
+  if (!auth.currentUser) throw new Error("Authentication required.");
+  if (auth.currentUser.uid === uid) {
+    throw new Error("You cannot delete your own account.");
+  }
+
+  const snapshot = await get(ref(database, `users/${uid}`));
+  const target = snapshot.exists() ? snapshot.val() : null;
+  if (target?.role === "admin") {
+    throw new Error("Admin accounts cannot be deleted.");
+  }
+  if (target?.role === "doctor" && target.status === "active") {
+    const activeDoctor = await getActiveDoctor();
+    if (activeDoctor && (activeDoctor.uid === uid || !activeDoctor.uid)) {
+      const usersSnap = await get(ref(database, "users"));
+      const users = usersSnap.exists() ? usersSnap.val() : {};
+      const otherActiveDoctor = Object.entries(users).some(
+        ([id, user]) => id !== uid && user?.role === "doctor" && user?.status === "active"
+      );
+      if (!otherActiveDoctor) {
+        throw new Error("Cannot delete the only active Doctor account. Deactivate or create another Doctor first.");
+      }
+    }
+  }
+
+  let completed = false;
+  const token = await auth.currentUser.getIdToken();
+  const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+
+  try {
+    const res = await fetch(`${apiBase}/api/admin/delete-user`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ uid }),
+    });
+
+    if (res.ok) {
+      completed = true;
+    } else {
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        throw new Error(body.error || "Failed to delete user.");
+      }
+    }
+  } catch (err) {
+    if (err instanceof TypeError) {
+      completed = false;
+    } else {
+      throw err;
+    }
+  }
+
+  if (!completed) {
+    const functions = getFunctions(app, "asia-southeast1");
+    const callDelete = httpsCallable(functions, "deleteUserAccount");
+    await callDelete({ uid });
+  }
+
+  logAuditEvent({
+    action: AUDIT_ACTIONS.USER_DELETED,
+    category: AUDIT_CATEGORIES.USER_MANAGEMENT,
+    description: `Deleted user account${target?.name ? ` for ${target.name}` : ""}`,
+    targetType: "user",
+    targetId: uid,
+  });
 };

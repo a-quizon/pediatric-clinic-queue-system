@@ -32,6 +32,9 @@ export default function SystemSettings({ isEmbedded = false }) {
 
   const handlePenaltyChange = (e) => {
     const value = e.target.value;
+    if (value !== "" && (value.includes("-") || Number(value) < 0)) {
+      return;
+    }
     setPenaltyMoveBack(value);
     
     // Clear error if the user starts typing a valid value
@@ -93,6 +96,7 @@ export default function SystemSettings({ isEmbedded = false }) {
                 </label>
                 <p className="text-sm text-gray-500 mb-4 max-w-md">
                   Determines how many active queue positions a patient is moved backward when penalized by the Secretary.
+                  Setting this to 0 results in an automatic forfeit for the parent.
                 </p>
               </div>
 
@@ -101,7 +105,7 @@ export default function SystemSettings({ isEmbedded = false }) {
                   <input
                     id="penaltyMoveBack"
                     type="number"
-                    min="1"
+                    min="0"
                     max="10"
                     step="1"
                     value={penaltyMoveBack}
@@ -126,9 +130,9 @@ export default function SystemSettings({ isEmbedded = false }) {
         <div className="px-6 py-4 bg-gray-50 flex items-center justify-end">
           <button
             onClick={handleSave}
-            disabled={saving || !penaltyMoveBack}
+            disabled={saving || penaltyMoveBack === ""}
             className={`flex items-center px-6 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-              saving || !penaltyMoveBack
+              saving || penaltyMoveBack === ""
                 ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                 : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md active:transform active:scale-95"
             }`}

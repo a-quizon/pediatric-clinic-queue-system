@@ -355,12 +355,17 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
   
   const currentPenaltyCount = (val.penaltyCount || 0) + 1;
   const lateLimit = Number(schedule?.lateLimit) || 3;
+  const moveBack = Number.isInteger(penaltyMoveBack) ? penaltyMoveBack : 2;
+  const forfeitOnZeroMoveBack = moveBack === 0;
 
-  if (currentPenaltyCount >= lateLimit) {
-    // Exceeded Late Limit: Remove reservation from today's queue into history permanently as forfeited
+  if (forfeitOnZeroMoveBack || currentPenaltyCount >= lateLimit) {
+    const forfeitureReason = forfeitOnZeroMoveBack
+      ? "Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent."
+      : "Exceeded the clinic's late arrival limit.";
+
     await update(ref(database, `reservations/${reservationId}`), {
       status: "forfeited",
-      forfeitureReason: "Exceeded the clinic's late arrival limit.",
+      forfeitureReason,
       penaltyCount: currentPenaltyCount,
       forfeitedAt: Date.now(),
       penalizedAt: Date.now()
@@ -369,13 +374,15 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
     logAuditEvent({
       action: AUDIT_ACTIONS.PATIENT_FORFEITED,
       category: AUDIT_CATEGORIES.QUEUE_INTERVENTION,
-      description: `Forfeited Queue #${val.queueNumber} after reaching the penalty limit`,
+      description: forfeitOnZeroMoveBack
+        ? `Forfeited Queue #${val.queueNumber} because Penalty Move-Back is 0`
+        : `Forfeited Queue #${val.queueNumber} after reaching the penalty limit`,
       targetType: "reservation",
       targetId: reservationId,
       branchId: schedule?.branch
     });
   } else {
-    // Move behind the next two waiting patients
+    // Move behind waiting patients by the configured move-back count
     const activePipeline = allScheduleReservations
       .filter(r => r.scheduleId === val.scheduleId && ["reserved", "checked_in", "waiting", "validation_open", "waiting_for_window"].includes(r.status))
       .sort((a, b) => {
@@ -388,7 +395,6 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
     let newSortTimestamp = Date.now();
 
     if (index >= 0 && activePipeline.length > 1) {
-      const moveBack = Number.isInteger(penaltyMoveBack) ? penaltyMoveBack : 2;
       const targetBehindIndex = Math.min(activePipeline.length - 1, index + moveBack);
       const targetBehind = activePipeline[targetBehindIndex];
       const nextAfterTarget = activePipeline[targetBehindIndex + 1];

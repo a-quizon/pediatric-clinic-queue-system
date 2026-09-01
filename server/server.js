@@ -6,6 +6,7 @@ const { initFirebaseAdmin } = require("./services/firebaseAdmin");
 const { configureVapid } = require("./services/webPushService");
 const { startRealtimePushListeners } = require("./services/pushListeners");
 const pushRouter = require("./routes/push");
+const adminRouter = require("./routes/admin");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -22,6 +23,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api", pushRouter);
+app.use("/api", adminRouter);
 
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);

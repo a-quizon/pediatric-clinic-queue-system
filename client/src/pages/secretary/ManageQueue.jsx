@@ -199,8 +199,12 @@ export default function ManageQueue({ hideHeader = false }) {
       await penalizeReservation(res.id, schedule, reservations, penaltyMoveBack);
       const newPenaltyCount = (res.penaltyCount || 0) + 1;
       const lateLimit = Number(schedule.lateLimit) || 3;
-      if (newPenaltyCount >= lateLimit) {
-        toast.error(`${getReservationChildDisplayName(res, "Patient")} reached late limit (${lateLimit}) and was removed from the queue.`);
+      if (penaltyMoveBack === 0 || newPenaltyCount >= lateLimit) {
+        toast.error(
+          penaltyMoveBack === 0
+            ? `${getReservationChildDisplayName(res, "Patient")} was forfeited because Penalty Move-Back is 0.`
+            : `${getReservationChildDisplayName(res, "Patient")} reached late limit (${lateLimit}) and was removed from the queue.`
+        );
       } else {
         toast.success(`Penalty applied to ${getReservationChildDisplayName(res, "Patient")} (${newPenaltyCount}/${lateLimit}). Moved back in queue.`);
       }

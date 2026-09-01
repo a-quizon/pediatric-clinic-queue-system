@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Search, Filter, MoreVertical, Shield, Stethoscope, UserCog, User, MapPin, Mail, Phone } from "lucide-react";
+import { Search, Filter, Shield, Stethoscope, UserCog, User, MapPin, Mail, Phone, Trash2 } from "lucide-react";
 import { ref, onValue } from "firebase/database";
 import { database } from "../../firebase/database";
 import UserDetailsModal from "../../components/admin/UserDetailsModal";
+import ConfirmationModal from "../../components/common/ConfirmationModal";
+import { deleteUserAccount } from "../../services/adminService";
+import { useAuth } from "../../hooks/useAuth";
+import toast from "react-hot-toast";
 
 export default function UserManagement() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -21,6 +26,8 @@ export default function UserManagement() {
 
 
   const [error, setError] = useState(null);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const usersRef = ref(database, 'users');
@@ -112,6 +119,39 @@ export default function UserManagement() {
     if (!user || !user.id) return;
     setSelectedUser(user);
     setIsDetailsModalOpen(true);
+  };
+
+  const requestDeleteUser = (e, user) => {
+    e.stopPropagation();
+    if (!user?.id) return;
+    if (user.role === "admin") {
+      toast.error("Admin accounts cannot be deleted.");
+      return;
+    }
+    if (currentUser?.uid && user.id === currentUser.uid) {
+      toast.error("You cannot delete your own account.");
+      return;
+    }
+    setUserToDelete(user);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete?.id) return;
+    setIsDeleting(true);
+    try {
+      await deleteUserAccount(userToDelete.id);
+      toast.success(`Deleted ${userToDelete.name || "user"} and revoked their login.`);
+      setUserToDelete(null);
+      if (selectedUser?.id === userToDelete.id) {
+        setIsDetailsModalOpen(false);
+        setSelectedUser(null);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Failed to delete user.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -216,6 +256,15 @@ export default function UserManagement() {
                       <span>{user.phone || 'No phone'}</span>
                     </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => requestDeleteUser(e, user)}
+                    className="self-end inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs font-bold hover:bg-red-100 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
                 </div>
               ))}
             </div>
@@ -229,6 +278,7 @@ export default function UserManagement() {
                     <th className="p-4">Role</th>
                     <th className="p-4">Branch</th>
                     <th className="p-4">Status</th>
+                    <th className="p-4 pr-6 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -264,6 +314,16 @@ export default function UserManagement() {
                         }`}>
                           {user.status || 'unknown'}
                         </span>
+                      </td>
+                      <td className="p-4 pr-6 text-right">
+                        <button
+                          type="button"
+                          onClick={(e) => requestDeleteUser(e, user)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs font-bold hover:bg-red-100 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -332,6 +392,19 @@ export default function UserManagement() {
         onClose={() => setIsDetailsModalOpen(false)}
         user={selectedUser}
         onUpdate={() => {}}
+      />
+
+      <ConfirmationModal
+        isOpen={Boolean(userToDelete)}
+        onClose={() => {
+          if (!isDeleting) setUserToDelete(null);
+        }}
+        onConfirm={confirmDeleteUser}
+        title="Delete user account"
+        message={`This will permanently remove ${userToDelete?.name || "this user"} (${userToDelete?.email || "no email"}) and revoke their login. Historical reservations will be kept. This cannot be undone.`}
+        confirmText="Delete"
+        isDestructive
+        isLoading={isDeleting}
       />
     </div>
   );

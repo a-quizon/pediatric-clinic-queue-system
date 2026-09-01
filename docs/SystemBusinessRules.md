@@ -60,7 +60,7 @@ Reservations act as the gateway into the Queue Engine.
 The Queue Engine governs the flow of active reservations.
 * **Queue Order**: The queue initially follows a strict First-In, First-Out (FIFO) pipeline based on creation time.
 * **Dynamic Ordering vs Permanent Identity**: Every reservation receives a permanent Ticket Number (`queueNumber`) that never changes. However, official penalty actions dynamically adjust the active `queueOrder` (the relative line position) without altering the original Ticket Number.
-* **Penalties**: If a patient is absent when called, the Secretary applies a penalty. This shifts their internal sorting timestamp backward, dynamically moving them behind other waiting patients.
+* **Penalties**: If a patient is absent when called, the Secretary applies a penalty. This shifts their internal sorting timestamp backward by the Admin-configured Penalty Move-Back count, dynamically moving them behind other waiting patients. Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent.
 * **Consultation Lock**: The Queue Engine forcefully prevents any queue progression into the Doctor's room if an active consultation is already occurring.
 * **Queue Recalculation**: Any business event (check-in, penalty, cancellation, completion) triggers a full queue recalculation, updating UI states (like "You're Next") across the entire system instantly.
 
@@ -92,7 +92,7 @@ Branches represent the physical infrastructure of the business.
 
 ## 10. User Management
 User Management ensures role-based access control.
-* **Admin**: Operates purely in the back-office. They create Doctor and Secretary accounts, assign roles, and bind Secretaries to Branches. They do not interact with patients.
+* **Admin**: Operates purely in the back-office. They create Doctor and Secretary accounts, assign roles, and bind Secretaries to Branches. They may permanently delete staff and parent accounts, which revokes Firebase Authentication and removes the user profile. Historical reservations and audit records are never physically deleted. They do not interact with patients.
 * **Doctor & Secretary**: Staff accounts created by the Admin.
 * **Parent**: Self-registering consumer accounts that authenticate via the public-facing app. 
 

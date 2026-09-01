@@ -3,7 +3,7 @@ import { ref, get, set, update, onValue } from "firebase/database";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 
 const MAX_PENALTY_MOVE_BACK = 10;
-const MIN_PENALTY_MOVE_BACK = 1;
+const MIN_PENALTY_MOVE_BACK = 0;
 const DEFAULT_PENALTY_MOVE_BACK = 2;
 
 /**
@@ -12,7 +12,7 @@ const DEFAULT_PENALTY_MOVE_BACK = 2;
  * @returns {{ valid: boolean, value?: number, error?: string }}
  */
 export const validatePenaltyMoveBack = (value) => {
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || value === "") {
     return { valid: false, error: "Value cannot be empty" };
   }
   

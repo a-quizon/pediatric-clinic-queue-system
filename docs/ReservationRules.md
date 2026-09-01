@@ -21,7 +21,7 @@ A reservation follows a strict linear progression, with early exits for cancella
 
 **Early Exits:**
 * **Cancelled**: Terminated manually by the parent.
-* **Forfeited**: Terminated by the Secretary due to exceeding the clinic's late penalty limit.
+* **Forfeited**: Terminated by the Secretary due to exceeding the clinic's late penalty limit, or immediately when Penalty Move-Back is 0.
 
 ---
 
@@ -35,7 +35,7 @@ A reservation follows a strict linear progression, with early exits for cancella
 | **in_consultation** | Patient is actively being seen. | Interchangeable with `with_doctor`. | `consultation_completed` |
 | **consultation_completed**| The medical visit is finished. | Doctor clicks "Complete Consultation". | *(Terminal State)* |
 | **cancelled** | The reservation was abandoned. | Parent clicks "Cancel". | *(Terminal State)* |
-| **forfeited** | Exceeded late limit. Slot is lost. | Secretary applies final penalty. | *(Terminal State)* |
+| **forfeited** | Exceeded late limit, or Penalty Move-Back is 0. Slot is lost. | Secretary applies a penalty that triggers forfeit. | *(Terminal State)* |
 
 
 ---
@@ -104,7 +104,7 @@ Slots are evaluated dynamically at runtime by counting active reservations.
 ## 11. Secretary Rules
 * **Monitor Floor**: Observes the physical clinic flow.
 * **Check In**: Validates QR codes.
-* **Penalize**: Applies penalties to absent patients. If the penalty count reaches the schedule's `lateLimit` (usually 3), the Secretary's action automatically transitions the reservation to `forfeited`.
+* **Penalize**: Applies penalties to absent patients. Patients are moved backward by the configured Penalty Move-Back count. Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent. If the penalty count reaches the schedule's `lateLimit` (usually 3), the Secretary's action automatically transitions the reservation to `forfeited`.
 * **Send to Doctor**: Manages the final gateway into the consultation room, strictly abiding by the Active Consultation lock.
 
 ---
@@ -139,7 +139,7 @@ When conflicting reservation events occur, the system evaluates them in this ord
 2. **Duplication Rule**: A parent cannot create a reservation if an active one already exists for that day.
 3. **Capacity Rule**: A reservation cannot be created if active + completed reservations >= slot capacity.
 4. **Active Consultation Rule**: A reservation cannot transition to `with_doctor` if another reservation holds that state.
-5. **Penalty Limit Rule**: A reservation cannot simply shift backward if its penalty count >= `lateLimit`; it must transition to `forfeited`.
+5. **Penalty Limit Rule**: A reservation cannot simply shift backward if Penalty Move-Back is `0` or if its penalty count >= `lateLimit`; it must transition to `forfeited`. Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent.
 
 *Why this order?* Data integrity is paramount. Terminal states protect historical records. Duplication and Capacity rules protect the physical clinic from overcrowding. The Consultation rule protects the Doctor's workflow.
 

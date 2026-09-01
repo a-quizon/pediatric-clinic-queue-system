@@ -11,20 +11,20 @@ export default function Profile() {
 
   const menuItems = [
     {
-      title: "Notification Settings",
-      description: "Manage in-app alerts and device push notifications.",
-      icon: Bell,
-      path: "/parent/profile/notification-settings",
-      color: "text-amber-600",
-      bgColor: "bg-amber-50"
-    },
-    {
       title: "Account",
       description: "View and edit your account information.",
       icon: User,
       path: "/parent/profile/personal-info",
       color: "text-blue-600",
       bgColor: "bg-blue-50"
+    },
+    {
+      title: "Notification Settings",
+      description: "Manage in-app alerts and device push notifications.",
+      icon: Bell,
+      path: "/parent/profile/notification-settings",
+      color: "text-amber-600",
+      bgColor: "bg-amber-50"
     },
     {
       title: "Child Profiles",

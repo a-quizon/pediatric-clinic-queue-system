@@ -50,3 +50,32 @@ exports.onScheduleWrite = rtdb
     }
     return null;
   });
+
+/**
+ * Admin-only account deletion (Firebase Auth + RTDB profile).
+ */
+exports.deleteUserAccount = functions.region("asia-southeast1").https.onCall(async (data, context) => {
+  const { deleteUserAccount } = require("./deleteUserAccountRuntime");
+  try {
+    const payload = data && typeof data === "object" && data.data && !data.uid ? data.data : data;
+    const targetUid = payload?.uid;
+    const callerUid = context?.auth?.uid || data?.auth?.uid;
+    return await deleteUserAccount({ admin, callerUid, targetUid });
+  } catch (err) {
+    const code = err.code && typeof err.code === "string" && !String(err.code).startsWith("auth/")
+      ? err.code
+      : "internal";
+    const allowed = new Set([
+      "unauthenticated",
+      "permission-denied",
+      "invalid-argument",
+      "failed-precondition",
+      "not-found",
+      "internal",
+    ]);
+    throw new functions.https.HttpsError(
+      allowed.has(code) ? code : "internal",
+      err.message || "Failed to delete user."
+    );
+  }
+});

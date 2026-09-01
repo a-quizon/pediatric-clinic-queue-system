@@ -81,7 +81,7 @@ Default branches: **Angeles**, **Magalang**.
 
 ### `systemConfiguration/queue`
 ```js
-{ penaltyMoveBack: 2 }   // 1–10, spots penalty moves patient back
+{ penaltyMoveBack: 2 }   // 0–10; Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent.
 ```
 
 ## RTDB Security Rules Summary
@@ -108,6 +108,7 @@ Rules file: `database.rules.json` (repo root).
 | POST | `/api/save-subscription` | Bearer Firebase ID token | Save Web Push subscription |
 | POST | `/api/delete-subscription` | Bearer token | Remove subscription |
 | POST | `/api/send-notification` | Bearer token or `x-push-secret` | Dispatch notification + push |
+| POST | `/api/admin/delete-user` | Bearer admin ID token | Delete Auth user + RTDB profile |
 
 Listeners: `server/services/pushListeners.js` watches `reservations` and `schedules`.
 
@@ -117,6 +118,7 @@ Listeners: `server/services/pushListeners.js` watches `reservations` and `schedu
 |----------|---------|---------|
 | `onReservationWrite` | RTDB `/reservations/{id}` onWrite | Push on reservation changes |
 | `onScheduleWrite` | RTDB `/schedules/{id}` onWrite | Push on schedule/queue changes |
+| `deleteUserAccount` | HTTPS callable | Admin deletes Auth user + profile |
 | `testRTDBAccess` | HTTPS callable | Infrastructure test |
 | `testFCMDelivery` | HTTPS callable | Push infrastructure test |
 

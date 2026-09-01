@@ -20,7 +20,7 @@ The Queue Engine emits the following states (`QUEUE_STATES`) to parent dashboard
 | **ALMOST_NEXT** | Patient is #2 in the active waiting queue. | Queue index === 1 during active consultation pipeline. |
 | **WITH_DOCTOR** | Patient is actively inside the consultation room. | Secretary sends patient to Doctor. |
 | **COMPLETED** | Consultation is finished. | Doctor clicks "Complete Consultation". |
-| **FORFEITED** | Patient was removed from the queue due to absence. | Late limit (penalties) reached. |
+| **FORFEITED** | Patient was removed from the queue due to absence. | Late limit (penalties) reached, or Penalty Move-Back is 0. |
 | **CANCELLED** | Patient manually cancelled their reservation. | Parent clicks "Cancel Reservation". |
 
 ---
@@ -52,9 +52,10 @@ The core tenet of the Queue Engine is clinical isolation:
 
 ## 6. Penalty Rules
 1. **Trigger**: If the next eligible patient is not present when called, the Secretary applies a penalty.
-2. **Queue Shifting**: A penalized patient's `sortTimestamp` is recalculated to move them exactly two spots backward in the active queue (if possible) or to the very end.
-3. **Late Limits**: If a patient reaches the branch's defined `lateLimit` (usually 3 penalties), their status transitions to a terminal `forfeited` state and they are removed from the active queue.
-4. **Constraint**: Applying a penalty triggers a queue recalculation, but it **never bypasses the Active Consultation Rule**.
+2. **Queue Shifting**: A penalized patient's `sortTimestamp` is recalculated to move them backward in the active queue by the Admin-configured **Penalty Move-Back** count (`systemConfiguration/queue/penaltyMoveBack`, range 0–10), or to the very end if fewer patients remain behind them.
+3. **Zero Move-Back Forfeit**: Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent. The Secretary's penalty action immediately transitions the reservation to `forfeited` instead of shifting position.
+4. **Late Limits**: If a patient reaches the branch's defined `lateLimit` (usually 3 penalties), their status transitions to a terminal `forfeited` state and they are removed from the active queue.
+5. **Constraint**: Applying a penalty triggers a queue recalculation, but it **never bypasses the Active Consultation Rule**.
 
 ---
 
@@ -134,6 +135,7 @@ The Queue Engine evaluates state eligibility in strict descending priority:
    * *Only the #1 sorted patient in the waiting queue is eligible for promotion or penalty.*
 5. **Penalty Limit Rule**
    * *Penalty application must check `lateLimit` before simply shifting position.*
+   * *Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent.*
 6. **Queue Recalculation Rule (Lowest)**
    * *Recalculations update UI and numbers, but always respect the blocking rules above.*
 

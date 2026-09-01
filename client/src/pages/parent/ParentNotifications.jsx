@@ -21,12 +21,6 @@ export default function ParentNotifications() {
     const unsub = subscribeToUserNotifications(user.uid, (data) => {
       setNotifications(data);
       setLoading(false);
-
-      // Automatically mark visible unread notifications as read
-      const unread = data.filter((n) => !n.read);
-      if (unread.length > 0) {
-        markAllNotificationsAsRead(user.uid, data);
-      }
     });
 
     return () => unsub();
@@ -63,6 +57,14 @@ export default function ParentNotifications() {
     return `${date.toLocaleDateString()} ${timeString}`;
   };
 
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const handleMarkAllAsRead = async (e) => {
+    e.preventDefault();
+    if (!user?.uid || unreadCount === 0) return;
+    await markAllNotificationsAsRead(user.uid, notifications);
+  };
+
   const getNotificationIcon = (n) => {
     const typeOrSeverity = typeof n === 'object' ? (n.severity || n.type) : n;
     switch (typeOrSeverity) {
@@ -86,7 +88,18 @@ export default function ParentNotifications() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3">
+        {notifications.length > 0 && unreadCount > 0 ? (
+          <a
+            href="#"
+            onClick={handleMarkAllAsRead}
+            className="text-sm font-semibold text-blue-600 hover:underline transition-all"
+          >
+            Mark all as read
+          </a>
+        ) : (
+          <span />
+        )}
         <Link
           to="/parent/profile/notification-settings"
           className="text-sm font-semibold text-blue-600 hover:underline transition-all"
@@ -114,10 +127,10 @@ export default function ParentNotifications() {
           {notifications.map((n) => (
             <div
               key={n.id}
-              className={`bg-white rounded-2xl p-4 sm:p-5 border transition-all duration-200 shadow-xs flex flex-col sm:flex-row sm:items-start justify-between gap-4 ${
+              className={`rounded-2xl p-4 sm:p-5 border transition-all duration-200 shadow-xs flex flex-col sm:flex-row sm:items-start justify-between gap-4 ${
                 !n.read
                   ? 'border-blue-200 bg-blue-50/30'
-                  : 'border-gray-100 hover:border-gray-200'
+                  : 'bg-gray-50 border-gray-100 opacity-70 hover:border-gray-200'
               }`}
             >
               <div className="flex items-start gap-3.5">
