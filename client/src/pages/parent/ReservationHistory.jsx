@@ -5,6 +5,7 @@ import { getSchedules } from "../../services/scheduleService";
 import { History, CalendarDays, MapPin, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ReservationDetailsModal from "../../components/parent/ReservationDetailsModal";
+import { getReservationChildDisplayName } from "../../utils/reservationPatients";
 
 export default function ReservationHistory() {
   const { user } = useAuth();
@@ -135,7 +136,7 @@ export default function ReservationHistory() {
                 <div>
                   <div className="flex justify-between items-start mb-3.5 gap-2">
                     <div>
-                      <div className="font-extrabold text-gray-800 text-lg group-hover:text-blue-600 transition-colors">{res.childName || "N/A"}</div>
+                      <div className="font-extrabold text-gray-800 text-lg group-hover:text-blue-600 transition-colors">{getReservationChildDisplayName(res)}</div>
                       <div className="text-xs text-gray-400 uppercase tracking-widest font-bold mt-0.5">Code: {res.reservationCode || "N/A"}</div>
                     </div>
                     <div className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-2xs flex-shrink-0 ${color}`}>

@@ -12,8 +12,13 @@ Read when modifying Firebase data, server routes, or environment setup.
   status: "active" | "inactive",
   createdAt, updatedAt,           // epoch ms
   assignedBranch: "Angeles",       // secretaries only
+  children/{childId}: {            // parent-saved child profiles
+    childName, age, sex, createdAt
+  },
   pushSubscriptions/{hash}: { endpoint, keys: { p256dh, auth } },
-  notificationPermission: "...",
+  notificationPermission: "default" | "granted" | "denied",
+  inAppNotificationsEnabled: true,  // parents; toasts while app is open (default true)
+  devicePushEnabled: true,          // parents; OS/web push; set after OS grant
   pushTokens/{key}: { token }      // legacy FCM cleanup path
 }
 ```
@@ -54,7 +59,10 @@ Default branches: **Angeles**, **Magalang**.
   status: "reserved" | "waiting" | "checked_in" | "with_doctor" |
           "in_consultation" | "consultation_completed" | "cancelled" |
           "forfeited" | "expired" | ...,
-  childName, age, sex, concern,
+  childName, age, sex, concern,    // legacy mirrors (first selected child + shared concern)
+  children: [                      // 1+ patients on this reservation (1 slot)
+    { childId, childName, age, sex }
+  ],
   doctorNotes,
   checkedIn, createdAt, reservationCreatedAt,
   penaltyCount, lateCount

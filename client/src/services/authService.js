@@ -57,6 +57,7 @@ export const completeParentRegistration = async (user) => {
     phone: pendingData.phone || "",
     role: "parent",
     status: "active",
+    inAppNotificationsEnabled: true,
     createdAt: now,
     updatedAt: now
   });
@@ -79,9 +80,18 @@ export const loginUser = async (
   return userCredential.user;
 };
 
+const PUSH_CLEANUP_TIMEOUT_MS = 4000;
+
 export const logoutUser = async (user) => {
-  if (user && user.role === "parent") {
-    await cleanupPushSubscriptionOnLogout(user);
+  try {
+    if (user && user.role === "parent") {
+      await Promise.race([
+        cleanupPushSubscriptionOnLogout(user),
+        new Promise((resolve) => setTimeout(resolve, PUSH_CLEANUP_TIMEOUT_MS)),
+      ]);
+    }
+  } catch (error) {
+    console.error("Push cleanup on logout failed:", error);
   }
   await signOut(auth);
 };

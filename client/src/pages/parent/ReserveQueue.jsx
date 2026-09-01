@@ -1,4 +1,4 @@
-import { CalendarPlus, CalendarDays, Clock, MapPin, Users, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { CalendarPlus, CalendarDays, Clock, MapPin, Users, CheckCircle2, AlertCircle, Baby, Plus } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
@@ -13,10 +13,15 @@ import {
   cancelReservation,
   ACTIVE_RESERVATION_STATUSES
 } from "../../services/reservationService";
-import { formatName } from "../../utils/stringUtils";
+import { addChild, subscribeToChildren } from "../../services/childProfileService";
+import { buildPatientInfoPayload } from "../../utils/reservationPatients";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { useAuth } from "../../hooks/useAuth";
 import MessageModal from "../../components/common/MessageModal";
+import ChildProfileForm, {
+  emptyChildProfile,
+  isChildProfileValid
+} from "../../components/parent/ChildProfileForm";
 
 export default function ReserveQueue() {
   const { user } = useAuth();
@@ -37,48 +42,12 @@ export default function ReserveQueue() {
   const [activeReservationId, setActiveReservationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Patient Info Form State
-  const [formData, setFormData] = useState({
-    childName: "",
-    age: "",
-    sex: "",
-    concern: ""
-  });
-  const [ageError, setAgeError] = useState("");
-
-  const handleAgeChange = (e) => {
-    const rawVal = e.target.value;
-    if (/[^0-9]/.test(rawVal)) {
-      setAgeError("Please enter numbers only (no letters, decimals, or negative signs).");
-      const cleanVal = rawVal.replace(/[^0-9]/g, "");
-      setFormData(prev => ({ ...prev, age: cleanVal }));
-    } else {
-      const numVal = parseInt(rawVal, 10);
-      if (rawVal && (numVal <= 0 || numVal > 25)) {
-        setAgeError("Please enter a valid pediatric age (1 - 25).");
-      } else {
-        setAgeError("");
-      }
-      setFormData(prev => ({ ...prev, age: rawVal }));
-    }
-  };
-
-  const handleAgePaste = (e) => {
-    const pasteData = e.clipboardData.getData("text");
-    if (/[^0-9]/.test(pasteData)) {
-      e.preventDefault();
-      setAgeError("Pasted text contained invalid characters. Only whole numeric ages are allowed.");
-      const cleanVal = pasteData.replace(/[^0-9]/g, "");
-      setFormData(prev => ({ ...prev, age: cleanVal }));
-    }
-  };
-
-  const handleAgeKeyDown = (e) => {
-    if (["e", "E", "+", "-", "."].includes(e.key)) {
-      e.preventDefault();
-      setAgeError("Special characters, decimals, and negative signs are not allowed.");
-    }
-  };
+  const [savedChildren, setSavedChildren] = useState([]);
+  const [selectedChildIds, setSelectedChildIds] = useState([]);
+  const [concern, setConcern] = useState("");
+  const [isAddChildOpen, setIsAddChildOpen] = useState(false);
+  const [newChildForm, setNewChildForm] = useState(emptyChildProfile());
+  const [isSavingChild, setIsSavingChild] = useState(false);
 
   const [messageModalState, setMessageModalState] = useState({
     isOpen: false,
@@ -98,10 +67,12 @@ export default function ReserveQueue() {
 
   useEffect(() => {
     let unsubParent = () => {};
+    let unsubChildren = () => {};
     if (user) {
       unsubParent = subscribeToParentReservations(user.uid, (data) => {
         setParentReservationsList(data);
       });
+      unsubChildren = subscribeToChildren(user.uid, setSavedChildren);
     }
 
     const unsubSchedules = subscribeToPublishedSchedules((data) => {
@@ -121,6 +92,7 @@ export default function ReserveQueue() {
     return () => {
       unsubSchedules();
       unsubParent();
+      unsubChildren();
     };
   }, [user]);
 
@@ -217,7 +189,10 @@ export default function ReserveQueue() {
     }
 
     setSelectedSchedule(schedule);
-    setFormData({ childName: "", age: "", sex: "", concern: "" });
+    setSelectedChildIds([]);
+    setConcern("");
+    setIsAddChildOpen(false);
+    setNewChildForm(emptyChildProfile());
     
     setIsSubmitting(true);
     try {
@@ -257,7 +232,9 @@ export default function ReserveQueue() {
       setActiveReservationId(null);
       setGeneratedQueuePosition(null);
       setSelectedSchedule(null);
-      setFormData({ childName: "", age: "", sex: "", concern: "" });
+      setSelectedChildIds([]);
+      setConcern("");
+      setIsAddChildOpen(false);
       setIsPatientInfoModalOpen(false);
     } catch (error) {
       console.error("Failed to cancel reservation", error);
@@ -272,16 +249,42 @@ export default function ReserveQueue() {
     }
   };
 
+  const toggleChildSelection = (childId) => {
+    setSelectedChildIds((prev) =>
+      prev.includes(childId) ? prev.filter((id) => id !== childId) : [...prev, childId]
+    );
+  };
+
+  const handleAddChildFromReserve = async () => {
+    if (!user?.uid || !isChildProfileValid(newChildForm)) return;
+    setIsSavingChild(true);
+    try {
+      const childId = await addChild(user.uid, newChildForm);
+      if (childId) {
+        setSelectedChildIds((prev) => prev.includes(childId) ? prev : [...prev, childId]);
+      }
+      setNewChildForm(emptyChildProfile());
+      setIsAddChildOpen(false);
+    } catch (err) {
+      console.error(err);
+      setMessageModalState({
+        isOpen: true,
+        type: "error",
+        title: "Could Not Add Child",
+        message: "There was an error saving this child profile. Please try again."
+      });
+    } finally {
+      setIsSavingChild(false);
+    }
+  };
+
   const handleSubmitPatientInfo = async () => {
     if (!activeReservationId) return;
+    const selected = savedChildren.filter((child) => selectedChildIds.includes(child.id));
+    if (selected.length === 0) return;
     setIsSubmitting(true);
     try {
-      await updatePatientInfo(activeReservationId, {
-        childName: formatName(formData.childName),
-        age: formData.age.trim(),
-        sex: formData.sex,
-        concern: formData.concern.trim(),
-      });
+      await updatePatientInfo(activeReservationId, buildPatientInfoPayload(selected, concern));
       setIsPatientInfoModalOpen(false);
       setIsSuccessModalOpen(true);
     } catch (err) {
@@ -292,7 +295,6 @@ export default function ReserveQueue() {
         title: 'Update Failed',
         message: 'Could not save patient information. Please try again.'
       });
-      // Do not close modal on error
     } finally {
       setIsSubmitting(false);
     }
@@ -471,66 +473,80 @@ export default function ReserveQueue() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-5 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-800">Complete Patient Information</h2>
+              <h2 className="text-lg font-bold text-gray-800">Select Patients</h2>
             </div>
             
             <div className="p-6 overflow-y-auto">
               <div className="flex items-start text-blue-700 bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6">
                 <CheckCircle2 className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
-                <p className="text-sm font-medium">Your slot is reserved! Please provide the patient's information to finalize the check-in process.</p>
+                <p className="text-sm font-medium">Your slot is reserved. Choose one or more children this visit is for, then add the reason for the visit.</p>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Child Full Name *</label>
-                  <input 
-                    type="text" 
-                    value={formData.childName}
-                    onChange={e => setFormData(prev => ({ ...prev, childName: e.target.value }))}
-                    placeholder="Enter child's full name"
-                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Age (numeric) *</label>
-                    <input 
-                      type="text" 
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={formData.age}
-                      onChange={handleAgeChange}
-                      onPaste={handleAgePaste}
-                      onKeyDown={handleAgeKeyDown}
-                      placeholder="e.g. 5"
-                      className={`w-full px-4 py-2.5 bg-white border rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none transition-all ${
-                        ageError ? "border-red-500 text-red-600" : "border-gray-200 focus:border-blue-500"
-                      }`}
-                    />
-                    {ageError && (
-                      <p className="text-xs font-semibold text-red-600 mt-1 leading-tight">{ageError}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Sex *</label>
-                    <select
-                      value={formData.sex}
-                      onChange={e => setFormData(prev => ({ ...prev, sex: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all cursor-pointer"
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">Who is this reservation for? *</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewChildForm(emptyChildProfile());
+                        setIsAddChildOpen(true);
+                      }}
+                      className="text-xs font-bold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
                     >
-                      <option value="">Select</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                    </select>
+                      <Plus className="w-3.5 h-3.5" />
+                      Add a Child
+                    </button>
                   </div>
+
+                  {savedChildren.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-5 text-center">
+                      <Baby className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600 font-medium mb-3">No child profiles yet. Add a child to continue.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewChildForm(emptyChildProfile());
+                          setIsAddChildOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add a Child
+                      </button>
+                    </div>
+                  ) : (
+                    <ul className="space-y-2">
+                      {savedChildren.map((child) => {
+                        const checked = selectedChildIds.includes(child.id);
+                        return (
+                          <li key={child.id}>
+                            <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                              checked ? "border-blue-300 bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"
+                            }`}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleChildSelection(child.id)}
+                                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="min-w-0">
+                                <span className="block text-sm font-bold text-gray-800 truncate">{child.childName}</span>
+                                <span className="block text-xs text-gray-500">{child.age} • {child.sex}</span>
+                              </span>
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Concern / Reason for Visit</label>
                   <textarea 
-                    value={formData.concern}
-                    onChange={e => setFormData(prev => ({ ...prev, concern: e.target.value }))}
+                    value={concern}
+                    onChange={e => setConcern(e.target.value)}
                     placeholder="Optional: briefly describe the symptoms or reason for visit"
                     rows={3}
                     className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none"
@@ -549,7 +565,7 @@ export default function ReserveQueue() {
               </button>
               <button 
                 onClick={handleSubmitPatientInfo}
-                disabled={isSubmitting || !formData.childName.trim() || !formData.age.trim() || !!ageError || !/^\d+$/.test(formData.age) || !formData.sex}
+                disabled={isSubmitting || selectedChildIds.length === 0}
                 className="w-full px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed shadow-sm focus:outline-none"
               >
                 {isSubmitting ? (
@@ -558,6 +574,37 @@ export default function ReserveQueue() {
                     Saving...
                   </>
                 ) : "Save Information"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isAddChildOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-5 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-800">Add a Child</h2>
+            </div>
+            <div className="p-6 overflow-y-auto">
+              <ChildProfileForm value={newChildForm} onChange={setNewChildForm} idPrefix="reserve-child" />
+            </div>
+            <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => !isSavingChild && setIsAddChildOpen(false)}
+                disabled={isSavingChild}
+                className="px-5 py-2.5 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddChildFromReserve}
+                disabled={isSavingChild || !isChildProfileValid(newChildForm)}
+                className="px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
+              >
+                {isSavingChild ? "Saving..." : "Save Child"}
               </button>
             </div>
           </div>

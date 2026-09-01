@@ -20,8 +20,10 @@ export default function NativeNotificationBridge() {
 
   useEffect(() => {
     if (loading || !user || user.role !== "parent") return undefined;
-    return startNativeNotificationListener(user.uid);
-  }, [user?.uid, user?.role, loading]);
+    return startNativeNotificationListener(user.uid, {
+      devicePushEnabled: user.devicePushEnabled === true,
+    });
+  }, [user?.uid, user?.role, user?.devicePushEnabled, loading]);
 
   return null;
 }

@@ -5,11 +5,13 @@ import QRCode from "qrcode";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
 import { subscribeToParentReservations, cancelReservation, updatePatientInfo, expireReservation } from "../../services/reservationService";
 import { formatName } from "../../utils/stringUtils";
+import { buildPatientInfoPayload, getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { isReservationExpired } from "../../services/timeService";
 import { useAuth } from "../../hooks/useAuth";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
+import ChildProfileForm, { isChildProfileValid } from "../../components/parent/ChildProfileForm";
 import toast from "react-hot-toast";
 
 export default function QRTicket() {
@@ -32,41 +34,6 @@ export default function QRTicket() {
   const [isPatientInfoModalOpen, setIsPatientInfoModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ childName: "", age: "", sex: "", concern: "" });
-  const [ageError, setAgeError] = useState("");
-
-  const handleAgeChange = (e) => {
-    const rawVal = e.target.value;
-    if (/[^0-9]/.test(rawVal)) {
-      setAgeError("Please enter numbers only (no letters, decimals, or negative signs).");
-      const cleanVal = rawVal.replace(/[^0-9]/g, "");
-      setFormData(prev => ({ ...prev, age: cleanVal }));
-    } else {
-      const numVal = parseInt(rawVal, 10);
-      if (rawVal && (numVal <= 0 || numVal > 25)) {
-        setAgeError("Please enter a valid pediatric age (1 - 25).");
-      } else {
-        setAgeError("");
-      }
-      setFormData(prev => ({ ...prev, age: rawVal }));
-    }
-  };
-
-  const handleAgePaste = (e) => {
-    const pasteData = e.clipboardData.getData("text");
-    if (/[^0-9]/.test(pasteData)) {
-      e.preventDefault();
-      setAgeError("Pasted text contained invalid characters. Only whole numeric ages are allowed.");
-      const cleanVal = pasteData.replace(/[^0-9]/g, "");
-      setFormData(prev => ({ ...prev, age: cleanVal }));
-    }
-  };
-
-  const handleAgeKeyDown = (e) => {
-    if (["e", "E", "+", "-", "."].includes(e.key)) {
-      e.preventDefault();
-      setAgeError("Special characters, decimals, and negative signs are not allowed.");
-    }
-  };
 
   useEffect(() => {
     const unsubSchedules = subscribeToAllSchedules((data) => {
@@ -173,10 +140,11 @@ export default function QRTicket() {
 
   const handleOpenPatientInfo = () => {
     if (!activeReservation) return;
+    const existing = getReservationChildren(activeReservation)[0] || {};
     setFormData({
-      childName: activeReservation.childName || "",
-      age: activeReservation.age || "",
-      sex: activeReservation.sex || "",
+      childName: existing.childName || activeReservation.childName || "",
+      age: existing.age || activeReservation.age || "",
+      sex: existing.sex || activeReservation.sex || "",
       concern: activeReservation.concern || ""
     });
     setIsPatientInfoModalOpen(true);
@@ -186,12 +154,14 @@ export default function QRTicket() {
     if (!activeReservation) return;
     setIsSubmitting(true);
     try {
-      await updatePatientInfo(activeReservation.id, {
-        childName: formatName(formData.childName),
-        age: formData.age.trim(),
-        sex: formData.sex,
-        concern: formData.concern.trim()
-      });
+      await updatePatientInfo(activeReservation.id, buildPatientInfoPayload(
+        [{
+          childName: formatName(formData.childName),
+          age: formData.age.trim(),
+          sex: formData.sex
+        }],
+        formData.concern
+      ));
       setIsPatientInfoModalOpen(false);
       toast.success("Patient information updated successfully.");
     } catch (err) {
@@ -231,7 +201,7 @@ export default function QRTicket() {
     }
   };
 
-  const isIncomplete = activeReservation && (!activeReservation.childName || !activeReservation.age || !activeReservation.sex);
+  const isIncomplete = activeReservation && getReservationChildren(activeReservation).length === 0;
 
   return (
     <div className="space-y-6 pb-8 relative">
@@ -395,18 +365,35 @@ export default function QRTicket() {
                   </button>
                 )}
               </div>
-              <div className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100 grid grid-cols-2 gap-y-3 gap-x-4 text-xs sm:text-sm">
-                <div>
-                  <span className="text-gray-400 font-semibold block text-[11px]">Child Name</span>
-                  <span className="font-bold text-gray-800 truncate block mt-0.5">{activeReservation.childName || "N/A"}</span>
-                </div>
-                <div>
-                  <span className="text-gray-400 font-semibold block text-[11px]">Age & Sex</span>
-                  <span className="font-bold text-gray-800 block mt-0.5">
-                    {activeReservation.age ? `${activeReservation.age} • ${activeReservation.sex || "N/A"}` : "N/A"}
-                  </span>
-                </div>
-                <div className="col-span-2 pt-2 border-t border-gray-200/60">
+              <div className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100 space-y-3 text-xs sm:text-sm">
+                {getReservationChildren(activeReservation).length > 0 ? (
+                  getReservationChildren(activeReservation).map((child, index) => (
+                    <div key={child.childId || index} className="grid grid-cols-2 gap-y-1 gap-x-4">
+                      <div>
+                        <span className="text-gray-400 font-semibold block text-[11px]">Child Name</span>
+                        <span className="font-bold text-gray-800 truncate block mt-0.5">{child.childName || "N/A"}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 font-semibold block text-[11px]">Age & Sex</span>
+                        <span className="font-bold text-gray-800 block mt-0.5">
+                          {child.age ? `${child.age} • ${child.sex || "N/A"}` : "N/A"}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="grid grid-cols-2 gap-y-1 gap-x-4">
+                    <div>
+                      <span className="text-gray-400 font-semibold block text-[11px]">Child Name</span>
+                      <span className="font-bold text-gray-800 truncate block mt-0.5">N/A</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 font-semibold block text-[11px]">Age & Sex</span>
+                      <span className="font-bold text-gray-800 block mt-0.5">N/A</span>
+                    </div>
+                  </div>
+                )}
+                <div className="pt-2 border-t border-gray-200/60">
                   <span className="text-gray-400 font-semibold block text-[11px] mb-1">Reason for Visit</span>
                   <span className="font-semibold text-gray-700 block bg-white p-2.5 rounded-xl border border-gray-100 text-xs">
                     {activeReservation.concern || "Regular checkup / consultation"}
@@ -457,7 +444,7 @@ export default function QRTicket() {
                 Queue #{permanentQueueNumber || "-"}
               </h2>
               <p className="text-sm font-bold text-gray-700 mt-1 truncate">
-                {activeReservation.childName || "Patient"}
+                {getReservationChildDisplayName(activeReservation, "Patient")}
               </p>
             </div>
 
@@ -514,50 +501,11 @@ export default function QRTicket() {
             
             <div className="p-6 overflow-y-auto">
               <div className="space-y-4 text-left">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Child Full Name *</label>
-                  <input 
-                    type="text" 
-                    value={formData.childName}
-                    onChange={e => setFormData(prev => ({ ...prev, childName: e.target.value }))}
-                    placeholder="Enter child's full name"
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200/80 rounded-2xl text-sm font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Age (numeric) *</label>
-                    <input 
-                      type="text" 
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={formData.age}
-                      onChange={handleAgeChange}
-                      onPaste={handleAgePaste}
-                      onKeyDown={handleAgeKeyDown}
-                      placeholder="e.g. 5"
-                      className={`w-full px-4 py-2.5 bg-gray-50 border rounded-2xl text-sm font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all ${
-                        ageError ? "border-red-500 text-red-600" : "border-gray-200/80 focus:border-blue-500"
-                      }`}
-                    />
-                    {ageError && (
-                      <p className="text-xs font-semibold text-red-600 mt-1 leading-tight">{ageError}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Sex *</label>
-                    <select
-                      value={formData.sex}
-                      onChange={e => setFormData(prev => ({ ...prev, sex: e.target.value }))}
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200/80 rounded-2xl text-sm font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all cursor-pointer"
-                    >
-                      <option value="">Select</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                    </select>
-                  </div>
-                </div>
+                <ChildProfileForm
+                  value={formData}
+                  onChange={(next) => setFormData((prev) => ({ ...prev, ...next }))}
+                  idPrefix="ticket-child"
+                />
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Concern / Reason for Visit</label>
@@ -582,7 +530,7 @@ export default function QRTicket() {
               </button>
               <button 
                 onClick={handleSubmitPatientInfo}
-                disabled={isSubmitting || !formData.childName.trim() || !formData.age.trim() || !!ageError || !/^\d+$/.test(formData.age) || !formData.sex}
+                disabled={isSubmitting || !isChildProfileValid(formData)}
                 className="w-full sm:w-auto px-6 py-2.5 text-white font-bold bg-blue-600 hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed text-sm shadow-2xs focus:outline-none"
               >
                 {isSubmitting ? (

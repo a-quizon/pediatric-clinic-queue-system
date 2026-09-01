@@ -2,6 +2,7 @@ import React from 'react';
 import toast from 'react-hot-toast';
 import NotificationToast from '../components/common/NotificationToast';
 import { saveNotification } from './notificationCenterService';
+import { isInAppNotificationsEnabled } from './notificationPreferencesService';
 
 /**
  * Notification Event IDs
@@ -214,7 +215,7 @@ class NotificationService {
     }
 
     // Step 3: Display Toast Notification sequentially (isolated error handling)
-    if (context.showToast !== false) {
+    if (context.showToast !== false && isInAppNotificationsEnabled()) {
       try {
         this.toastQueue.push({
           eventId,

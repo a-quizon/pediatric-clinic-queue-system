@@ -48,6 +48,7 @@ A reservation follows a strict linear progression, with early exits for cancella
   4. The parent must not already have an active, non-terminal reservation for that specific clinic date.
 * **Identity Generation**: Upon creation, the system generates a 6-character alphanumeric `reservationCode`.
 * **Queue Number Assignment**: The system queries existing reservations for that schedule and assigns the next incremental integer as the permanent `queueNumber`.
+* **Patients**: After the slot is claimed, the parent selects one or more saved child profiles and a single `concern` string. The reservation stores `children[]` plus legacy `childName` / `age` / `sex` mirrored from the first selected child. Multiple children still consume **one** slot.
 
 ---
 
@@ -91,7 +92,8 @@ Slots are evaluated dynamically at runtime by counting active reservations.
 ---
 
 ## 10. Parent Rules
-* **Reserve**: May book one active reservation per clinic day.
+* **Reserve**: May book one active reservation per clinic day. That reservation may include one or more saved child profiles plus a single shared visit concern. Multiple children still consume one slot and one queue ticket.
+* **Child Profiles**: Parents manage reusable child records (name, age, sex) from Profile. Selecting patients at reservation time snapshots those profiles onto the reservation.
 * **View Ticket**: Can view their live digital ticket, displaying their permanent `queueNumber`, generated QR code, and `reservationCode`.
 * **View Queue Status**: Can monitor their dynamic `queueState` (e.g., "Almost Next") and `aheadOfYou` count relative to the live clinic floor.
 * **Cancel**: May cancel at any time before consultation begins.

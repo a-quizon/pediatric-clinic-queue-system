@@ -4,6 +4,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { subscribeToScheduleReservations } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
+import { getReservationChildDisplayName } from "../../utils/reservationPatients";
 import ManageQueue from "./ManageQueue";
 
 export default function Dashboard() {
@@ -105,7 +106,7 @@ export default function Dashboard() {
 
   let activities = [];
   activeReservations.forEach(res => {
-    const name = res.childName || "Patient";
+    const name = getReservationChildDisplayName(res, "Patient");
     
     if (res.createdAt) activities.push({ time: res.createdAt, text: `Parent/Guardian reserved a slot.` });
     if (res.checkedInAt) activities.push({ time: res.checkedInAt, text: `${name} checked in` });
@@ -211,7 +212,7 @@ export default function Dashboard() {
                   <span className="text-xl font-black">#{currentWithDoctor.queueNumber || currentWithDoctor.queuePosition}</span>
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-gray-900 mb-1">{currentWithDoctor.childName || "Unnamed Patient"}</p>
+                  <p className="text-xl font-bold text-gray-900 mb-1">{getReservationChildDisplayName(currentWithDoctor, "Unnamed Patient")}</p>
                   <p className="text-sm font-medium text-purple-700 bg-purple-50 inline-flex items-center px-2 py-1 rounded-md">
                     Consultation Started: {formatTime(currentWithDoctor.consultationStartedAt || currentWithDoctor.sentToDoctorAt)}
                   </p>

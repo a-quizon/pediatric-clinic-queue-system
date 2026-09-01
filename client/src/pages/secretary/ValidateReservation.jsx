@@ -6,6 +6,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { validateReservationByCode, checkInReservation } from "../../services/reservationService";
 import { getScheduleById } from "../../services/scheduleService";
 import { isReservationExpired } from "../../services/timeService";
+import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
 
 export default function ValidateReservation() {
   const { user } = useAuth();
@@ -128,7 +129,7 @@ export default function ValidateReservation() {
       setShowInConsultationModal(true);
     } else if (reservation.checkedIn || reservation.status === "checked_in") {
       setShowCheckedInModal(true);
-    } else if (!reservation.childName || !reservation.age || !reservation.sex) {
+    } else if (getReservationChildren(reservation).length === 0) {
       toast.error("Patient information is incomplete. Parent must complete it first.");
       setShowInvalidModal(true);
     } else {
@@ -356,7 +357,7 @@ export default function ValidateReservation() {
             <div className="text-left space-y-3 mb-6 bg-gray-50 p-4 rounded-xl">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-500">Child Name</span>
-                <span className="font-bold text-gray-800">{validatedDetails.reservation.childName}</span>
+                <span className="font-bold text-gray-800">{getReservationChildDisplayName(validatedDetails.reservation)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-500">Queue Number</span>

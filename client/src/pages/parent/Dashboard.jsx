@@ -9,6 +9,7 @@ import { isReservationExpired, getRemainingValidationTime, formatRemainingTime }
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 import { computeReservationState, computeAheadOfYou, QUEUE_STATES } from "../../services/queueEngine";
 import PushNotificationSettings from "../../components/parent/PushNotificationSettings";
+import { getReservationChildDisplayName } from "../../utils/reservationPatients";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -91,7 +92,7 @@ export default function Dashboard() {
     return null;
   }, [schedules, todayStr]);
 
-  const childName = activeReservation?.childName || "N/A";
+  const childName = getReservationChildDisplayName(activeReservation);
   const nameSizeClass = childName.length > 24
     ? "text-base sm:text-lg"
     : childName.length > 16

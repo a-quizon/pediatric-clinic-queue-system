@@ -87,6 +87,14 @@ export default function Login() {
 
         // If active and profile exists, show success message and keep loading=true while waiting for AuthContext to navigate
         toast.success('Login Successfully');
+        if (userData.role === 'parent') {
+          const { requestPushPermissionAfterLogin } = await import("../../services/pushService");
+          await requestPushPermissionAfterLogin({
+            uid: authUser.uid,
+            role: "parent",
+            devicePushEnabled: userData.devicePushEnabled,
+          });
+        }
       } else {
         // No RTDB profile exists
         if (!authUser.emailVerified) {

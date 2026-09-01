@@ -8,6 +8,8 @@ import { Activity, Play, Pause, Square, CheckCircle, User, AlertCircle, FileText
 import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal";
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 import toast from "react-hot-toast";
+import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
+import ReservationPatientNames from "../common/ReservationPatientNames";
 
 export default function QueueControlCenter() {
   const [schedules, setSchedules] = useState([]);
@@ -299,14 +301,29 @@ export default function QueueControlCenter() {
             }}
           >
             <div className="mb-6">
-              <div className="flex justify-between items-start">
-                <div className="text-2xl font-black text-gray-800 mb-1">{inConsultation.childName || "N/A"}</div>
-                <span className="text-xs text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded-lg border border-blue-200">View Details</span>
+              <div className="flex justify-between items-start gap-3">
+                <div className="min-w-0 flex-1 mb-1">
+                  <ReservationPatientNames
+                    reservation={inConsultation}
+                    nameClassName="font-black text-gray-800 text-2xl"
+                  />
+                </div>
+                <span className="text-xs text-blue-600 font-bold bg-blue-100 px-2 py-1 rounded-lg border border-blue-200 shrink-0">View Details</span>
               </div>
-              <div className="text-sm text-gray-500 flex items-center gap-3">
-                <span className="flex items-center"><User className="w-4 h-4 mr-1.5" /> Age: {inConsultation.age || "N/A"}</span>
-                <span className="text-gray-300">|</span>
-                <span className="flex items-center">Sex: {inConsultation.sex || "N/A"}</span>
+              <div className="text-sm text-gray-500 flex flex-col gap-1">
+                {getReservationChildren(inConsultation).length > 0 ? (
+                  getReservationChildren(inConsultation).map((child, index) => (
+                    <span key={child.childId || index} className="flex items-center">
+                      <User className="w-4 h-4 mr-1.5" />
+                      {child.childName}: {child.age || "N/A"} • {child.sex || "N/A"}
+                    </span>
+                  ))
+                ) : (
+                  <>
+                    <span className="flex items-center"><User className="w-4 h-4 mr-1.5" /> Age: {inConsultation.age || "N/A"}</span>
+                    <span className="flex items-center">Sex: {inConsultation.sex || "N/A"}</span>
+                  </>
+                )}
               </div>
             </div>
             
@@ -351,19 +368,24 @@ export default function QueueControlCenter() {
               return (
                 <div 
                   key={res.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200"
+                  className="flex items-start sm:items-center justify-between gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200"
                 >
-                  <div className="flex items-center">
-                    <div className="w-12 h-12 bg-white border border-gray-200 rounded-xl flex items-center justify-center font-black text-gray-700 mr-4 shadow-sm text-lg">
+                  <div className="flex items-start min-w-0 flex-1 gap-4">
+                    <div className="w-12 h-12 bg-white border border-gray-200 rounded-xl flex items-center justify-center font-black text-gray-700 shadow-sm text-lg shrink-0">
                       {res.queueNumber || res.queuePosition}
                     </div>
-                    <div>
-                      <div className="font-bold text-gray-800 text-base mb-1">{res.childName || res.parentEmail}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1">
+                        <ReservationPatientNames
+                          reservation={res}
+                          fallback={res.parentEmail || "Unnamed Patient"}
+                        />
+                      </div>
                       <ReservationStatusBadge status={expired ? "expired" : res.status} />
                     </div>
                   </div>
                   {res.checkedInAt && (
-                    <div className="text-right hidden sm:block">
+                    <div className="text-right hidden sm:block shrink-0">
                       <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Checked In</div>
                       <div className="text-sm font-semibold text-gray-600">
                         {new Date(res.checkedInAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -400,7 +422,7 @@ export default function QueueControlCenter() {
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <div className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Patient</div>
-                  <div className="text-2xl font-black text-gray-800">{infoPatient.childName || "N/A"}</div>
+                  <div className="text-2xl font-black text-gray-800">{getReservationChildDisplayName(infoPatient)}</div>
                 </div>
                 <div className="bg-blue-50 text-blue-600 border border-blue-100 px-4 py-2 rounded-xl text-lg font-black shadow-sm">
                   #{infoPatient.queueNumber || infoPatient.queuePosition}
@@ -408,15 +430,36 @@ export default function QueueControlCenter() {
               </div>
               
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Age</div>
-                    <div className="font-semibold text-gray-800 text-sm">{infoPatient.age || "N/A"}</div>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Sex</div>
-                    <div className="font-semibold text-gray-800 text-sm">{infoPatient.sex || "N/A"}</div>
-                  </div>
+                <div className="space-y-3">
+                  {getReservationChildren(infoPatient).length > 0 ? (
+                    getReservationChildren(infoPatient).map((child, index) => (
+                      <div key={child.childId || index} className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                          <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Child</div>
+                          <div className="font-semibold text-gray-800 text-sm">{child.childName || "N/A"}</div>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                          <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Age</div>
+                          <div className="font-semibold text-gray-800 text-sm">{child.age || "N/A"}</div>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                          <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Sex</div>
+                          <div className="font-semibold text-gray-800 text-sm">{child.sex || "N/A"}</div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Age</div>
+                        <div className="font-semibold text-gray-800 text-sm">{infoPatient.age || "N/A"}</div>
+                      </div>
+                      <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Sex</div>
+                        <div className="font-semibold text-gray-800 text-sm">{infoPatient.sex || "N/A"}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
@@ -460,7 +503,7 @@ export default function QueueControlCenter() {
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-6 flex justify-between items-center">
                 <div>
                   <div className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Patient</div>
-                  <div className="font-bold text-gray-800 text-lg">{selectedPatient.childName}</div>
+                  <div className="font-bold text-gray-800 text-lg">{getReservationChildDisplayName(selectedPatient)}</div>
                 </div>
                 <div className="bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-sm font-bold text-gray-600 shadow-sm">
                   #{selectedPatient.queueNumber || selectedPatient.queuePosition}

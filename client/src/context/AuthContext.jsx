@@ -5,6 +5,7 @@ import { ref, onValue } from "firebase/database";
 import { auth } from "../firebase/auth";
 import { database } from "../firebase/database";
 import { cleanupPushSubscriptionOnLogout, registerPushSubscription } from "../services/pushService";
+import { cacheNotificationPreferences } from "../services/notificationPreferencesService";
 
 export const AuthContext = createContext();
 
@@ -58,6 +59,11 @@ export function AuthProvider({ children }) {
                                 updates.assignedBranch = "Angeles";
                                 needsUpdate = true;
                             }
+                            if (userData.role === "parent" && typeof userData.inAppNotificationsEnabled !== "boolean") {
+                                userData.inAppNotificationsEnabled = true;
+                                updates.inAppNotificationsEnabled = true;
+                                needsUpdate = true;
+                            }
                             
                             if (needsUpdate) {
                                 // Background save, no need to await so it doesn't block login
@@ -89,6 +95,7 @@ export function AuthProvider({ children }) {
 
                             setRole(userData.role);
                             setUser(enrichedUser);
+                            cacheNotificationPreferences(enrichedUser);
 
                             console.log("Role:", userData.role);
                         }
@@ -102,6 +109,7 @@ export function AuthProvider({ children }) {
                         if (prevUser && prevUser.role === "parent") {
                             cleanupPushSubscriptionOnLogout(prevUser).catch(() => {});
                         }
+                        cacheNotificationPreferences(null);
                         return null;
                     });
                     setRole(null);
@@ -133,7 +141,11 @@ export function AuthProvider({ children }) {
     }, [user?.uid, user?.role]);
 
     const updateContextUser = (updates) => {
-        setUser(prev => ({ ...prev, ...updates }));
+        setUser((prev) => {
+            const next = { ...prev, ...updates };
+            cacheNotificationPreferences(next);
+            return next;
+        });
     };
 
     return (

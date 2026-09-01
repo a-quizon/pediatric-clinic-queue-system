@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, MapPin, CalendarDays, FileText, Activity } from 'lucide-react';
+import { getReservationChildDisplayName, getReservationChildren } from '../../utils/reservationPatients';
 
 export default function NotesDetailsModal({ isOpen, onClose, reservation, schedule }) {
   if (!isOpen || !reservation || !schedule) return null;
@@ -21,9 +22,14 @@ export default function NotesDetailsModal({ isOpen, onClose, reservation, schedu
           {/* Patient Header */}
           <div>
             <div className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Patient</div>
-            <div className="text-xl font-bold text-gray-800">{reservation.childName || "N/A"}</div>
-            {reservation.age && reservation.sex && (
-              <div className="text-sm text-gray-500 mt-1">{reservation.age} • {reservation.sex}</div>
+            <div className="text-xl font-bold text-gray-800">{getReservationChildDisplayName(reservation)}</div>
+            {getReservationChildren(reservation).length > 0 && (
+              <div className="text-sm text-gray-500 mt-1">
+                {getReservationChildren(reservation)
+                  .map((child) => [child.age, child.sex].filter(Boolean).join(" • "))
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
             )}
           </div>
 

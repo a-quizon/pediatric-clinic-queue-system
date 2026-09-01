@@ -4,8 +4,8 @@ import {
   subscribeToUserNotifications,
   markAllNotificationsAsRead,
 } from '../../services/notificationCenterService';
-import { Bell, CheckCircle2, AlertCircle, Info, Clock, CheckCheck } from 'lucide-react';
-import PushNotificationSettings from '../../components/parent/PushNotificationSettings';
+import { Bell, CheckCircle2, AlertCircle, Info, Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function ParentNotifications() {
   const { user } = useAuth();
@@ -84,22 +84,22 @@ export default function ParentNotifications() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-16">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      
-      {/* Push Notification Settings Banner */}
-      <PushNotificationSettings variant="settings" />
+      <div className="flex justify-end">
+        <Link
+          to="/parent/profile/notification-settings"
+          className="text-sm font-semibold text-blue-600 hover:underline transition-all"
+        >
+          Notification Settings
+        </Link>
+      </div>
 
-      {/* Notifications List */}
-      {notifications.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center items-center py-16">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      ) : notifications.length === 0 ? (
         <div className="bg-white rounded-3xl p-10 text-center border border-gray-100 shadow-xs">
           <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Bell className="w-7 h-7" />

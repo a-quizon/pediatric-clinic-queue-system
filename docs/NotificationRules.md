@@ -81,12 +81,16 @@ When a clinic event occurs:
 ---
 
 ## 10. Push Notification Rules
-* **Permission Request**: Must be triggered by a user action (`Notification.requestPermission()` from Enable Notifications).
+* **Permission Request**: After a successful verified parent login (the Sign In click is the user gesture), the client calls `requestPushPermissionAfterLogin`, which uses the **OS** dialog — Capacitor `LocalNotifications.requestPermissions()` on Android/iOS, or `Notification.requestPermission()` on web. Do not show a custom in-app permission modal. On native, a silent cold-start gate may request once if permission is still `prompt`. Already granted/denied results are synced to RTDB without re-prompting.
+* **Parent Preferences** (`users/${uid}`):
+  * `inAppNotificationsEnabled` (default `true`) — gates in-app toasts only. Notification Center records under `notifications/${parentId}` are still written.
+  * `devicePushEnabled` — parent opt-in for OS/device banners. Set `true` when the OS prompt is Allowed; set `false` when Denied or when the parent turns the Profile toggle off.
+  * `notificationPermission` — last OS result: `default` | `granted` | `denied`.
 * **Service Worker**: The app registers `/sw.js` at the site root. It listens for `push` and `notificationclick`.
 * **Subscription**: `PushManager.subscribe({ userVisibleOnly: true, applicationServerKey })` using the VAPID **public** key. The subscription is saved to `users/${uid}/pushSubscriptions` and POSTed to `POST /api/save-subscription`.
-* **Dispatch**: `POST /api/send-notification` plus realtime RTDB listeners (Express) and Cloud Functions `onReservationWrite` / `onScheduleWrite` send payloads with the `web-push` library and the VAPID **private** key.
+* **Dispatch**: `POST /api/send-notification` plus realtime RTDB listeners (Express) and Cloud Functions `onReservationWrite` / `onScheduleWrite` send payloads with the `web-push` library and the VAPID **private** key. Native APK delivery uses Local Notifications, which respect `devicePushEnabled`.
 * **Closed browser**: The browser push service wakes `/sw.js` even when no window is open. The worker must call `showNotification()` or the push is dropped.
-* **Logout Cleanup**: `cleanupPushSubscriptionOnLogout` unsubscribes the device and deletes that device's subscription node.
+* **Logout Cleanup**: `cleanupPushSubscriptionOnLogout` unsubscribes the device and deletes that device's subscription node. Turning off device-level push in Profile uses the same web unsubscribe path without signing out.
 
 ### Generating VAPID keys
 ```bash
@@ -112,11 +116,11 @@ A notification transitions from `read: false` to `read: true` via a direct datab
 ---
 
 ## 13. Edge Cases
-* **Notification Permission Denied**: If a user denies browser notifications, the system silently degrades. It still writes to the database Notification Center and shows local Toasts, but no push subscription is created.
+* **Notification Permission Denied**: If a user denies OS/browser notifications, `devicePushEnabled` is `false` and the Profile device toggle stays off. The system still writes to the Notification Center. Toasts still show unless `inAppNotificationsEnabled` is false. No push subscription is created.
 * **Missing / invalid subscription**: Fails gracefully; the app never crashes due to push registration failure.
 * **Duplicate Notifications**: Client toasts use an in-memory `Set` plus `sessionStorage`. Persistent/push delivery uses deterministic `dedupeKey` ids and `pushDispatchedAt`.
-* **Browser fully closed**: Service worker + Web Push still deliver. Requires a previously granted permission, an active subscription, and a running dispatcher (local Express or deployed Cloud Functions).
-* **Unsupported browsers / insecure origins**: Push is unavailable except on HTTPS or localhost. The Enable Notifications UI explains this.
+* **Browser fully closed**: Service worker + Web Push still deliver. Requires a previously granted permission, `devicePushEnabled`, an active subscription, and a running dispatcher (local Express or deployed Cloud Functions).
+* **Unsupported browsers / insecure origins**: Push is unavailable except on HTTPS or localhost. Notification Settings explains this.
 
 ---
 
@@ -146,6 +150,7 @@ When modifying the Notification System, developers must verify the following con
 - [ ] ✓ Reservation History remains immutable.
 - [ ] ✓ Notification metadata is strictly stored under `notifications/${parentId}`.
 - [ ] ✓ Web Push subscription is saved under `users/${uid}/pushSubscriptions` upon permission grant.
+- [ ] ✓ Parent `inAppNotificationsEnabled` / `devicePushEnabled` match Profile toggles; OS Allow/Deny updates device-level push.
 - [ ] ✓ Push subscription for this device is wiped from the database upon logout.
 - [ ] ✓ Closed-browser push still delivers via `/sw.js` + `web-push`.
 - [ ] ✓ Role filtering correctly blocks Doctors, Secretaries, and Admins from receiving persistent notifications.

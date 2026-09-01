@@ -1,171 +1,142 @@
-import React, { useState, useEffect } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { Bell, BellOff, BellRing, Loader2, Info } from 'lucide-react';import { checkMessagingSupported } from '../../firebase/messaging';
-import { registerPushSubscription, hasActivePushSubscription } from '../../services/pushService';
-import { useAuth } from '../../hooks/useAuth';
+import React, { useState, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
+import { Bell, Loader2, Info } from "lucide-react";
+import { checkMessagingSupported } from "../../firebase/messaging";
+import {
+  checkPushSupport,
+  disableDevicePush,
+  getOsNotificationPermissionStatus,
+  isOsPermissionPromptable,
+  registerPushSubscription,
+} from "../../services/pushService";
+import { setInAppNotificationsEnabled } from "../../services/notificationPreferencesService";
+import { useAuth } from "../../hooks/useAuth";
 
-export default function PushNotificationSettings({ variant = 'settings' }) {
-  const { user } = useAuth();
-  const [status, setStatus] = useState('loading'); // loading, unsupported, default, granted, denied, error
-  const [isRegistering, setIsRegistering] = useState(false);
-  const silentRegAttempted = React.useRef(false);
+function ToggleSwitch({ checked, disabled, onChange, label }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onChange}
+      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed ${
+        checked ? "bg-blue-600" : "bg-gray-200"
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
+          checked ? "translate-x-6" : "translate-x-1"
+        }`}
+      />
+    </button>
+  );
+}
+
+export default function PushNotificationSettings({ variant = "settings" }) {
+  const { user, updateContextUser } = useAuth();
+  const [osStatus, setOsStatus] = useState("loading");
+  const [supported, setSupported] = useState(true);
+  const [isUpdatingInApp, setIsUpdatingInApp] = useState(false);
+  const [isUpdatingDevice, setIsUpdatingDevice] = useState(false);
+
+  const inAppEnabled = user?.inAppNotificationsEnabled !== false;
+  const deviceEnabled = user?.devicePushEnabled === true;
+  const osDenied = osStatus === "denied";
+  const osGranted = osStatus === "granted";
+  const promptable = isOsPermissionPromptable(osStatus);
 
   useEffect(() => {
     let isMounted = true;
 
-    const checkSupport = async () => {
+    const load = async () => {
       try {
-        if (!Capacitor.isNativePlatform() && !('Notification' in window)) {
-          if (isMounted) setStatus('unsupported');
+        const isSupported = Capacitor.isNativePlatform()
+          ? true
+          : await checkMessagingSupported();
+        if (!isMounted) return;
+        if (!isSupported) {
+          setSupported(false);
+          setOsStatus("unsupported");
           return;
         }
-
-        const supported = await checkMessagingSupported();
-        if (!supported) {
-          if (isMounted) setStatus('unsupported');
-          return;
+        setSupported(true);
+        const status = await getOsNotificationPermissionStatus();
+        if (!isMounted) return;
+        setOsStatus(status);
+        if (status === "denied" && user?.devicePushEnabled) {
+          await disableDevicePush(user);
+          updateContextUser?.({
+            devicePushEnabled: false,
+            notificationPermission: "denied",
+          });
         }
-
-        // On native Android, PushPermissionGate already prompts on app open.
-        if (Capacitor.isNativePlatform()) {
-          const hasSub = await hasActivePushSubscription(user?.uid);
-          if (isMounted) setStatus(hasSub ? 'granted' : 'default');
-          return;
+      } catch (_err) {
+        if (isMounted) {
+          setSupported(false);
+          setOsStatus("unsupported");
         }
-
-        // On web, sync Web Push subscription state for the settings UI.
-        if (Notification.permission === 'granted') {
-          const hasSub = await hasActivePushSubscription(user?.uid);
-          if (hasSub) {
-            if (isMounted) setStatus('granted');
-          } else {
-            if (silentRegAttempted.current) {
-              if (isMounted) setStatus('default');
-              return;
-            }
-            silentRegAttempted.current = true;
-
-            if (isMounted) setIsRegistering(true);
-            try {
-              const subscription = await registerPushSubscription(user);
-              if (isMounted) {
-                if (subscription) setStatus('granted');
-                else setStatus('error');
-              }
-            } catch (err) {
-              if (isMounted) setStatus('error');
-            } finally {
-              if (isMounted) setIsRegistering(false);
-            }
-          }
-        } else if (Notification.permission === 'denied') {
-          if (isMounted) setStatus('denied');
-        } else {
-          if (isMounted) setStatus('default');
-        }
-      } catch (error) {
-        console.error("Error checking push support:", error);
-        if (isMounted) setStatus('unsupported');
       }
     };
 
-    if (user) {
-      checkSupport();
-    }
-
+    if (user) load();
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user?.uid, user?.devicePushEnabled, user?.notificationPermission]);
 
-  const handleEnablePush = async () => {
-    if (isRegistering) return;
-    setIsRegistering(true);
-
+  const handleInAppToggle = async () => {
+    if (!user?.uid || isUpdatingInApp) return;
+    const next = !inAppEnabled;
+    setIsUpdatingInApp(true);
     try {
-      const subscription = await registerPushSubscription(user);
-
-      if (Capacitor.isNativePlatform()) {
-        setStatus(subscription ? 'granted' : 'error');
-      } else if (Notification.permission === 'denied') {
-        setStatus('denied');
-      } else if (subscription) {
-        setStatus('granted');
-      } else {
-        setStatus('error');
-      }
-    } catch (error) {
-      console.error("Failed to enable push notifications:", error);
-      setStatus('error');
+      await setInAppNotificationsEnabled(user.uid, next);
+      updateContextUser?.({ inAppNotificationsEnabled: next });
+    } catch (err) {
+      console.error("Failed to update in-app notification preference:", err);
     } finally {
-      setIsRegistering(false);
+      setIsUpdatingInApp(false);
     }
   };
 
-  if (status === 'loading') {
-    if (variant === 'dashboard') return null; // Don't show loading spinner on dashboard
+  const handleDeviceToggle = async () => {
+    if (!user?.uid || isUpdatingDevice || osDenied) return;
+    setIsUpdatingDevice(true);
+    try {
+      if (deviceEnabled) {
+        await disableDevicePush(user);
+        updateContextUser?.({ devicePushEnabled: false });
+      } else {
+        const result = await registerPushSubscription(user);
+        const status = await getOsNotificationPermissionStatus();
+        setOsStatus(status);
+        const granted = Boolean(result) && status === "granted";
+        updateContextUser?.({
+          devicePushEnabled: granted,
+          notificationPermission: status,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to update device push preference:", err);
+    } finally {
+      setIsUpdatingDevice(false);
+    }
+  };
+
+  if (osStatus === "loading") {
+    if (variant === "dashboard") return null;
     return (
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-xs flex justify-center items-center">
+      <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex justify-center items-center">
         <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
       </div>
     );
   }
 
-  // Hide granted state on dashboard to save space
-  if (status === 'granted' && variant === 'dashboard') {
-    return null;
-  }
+  if (variant === "dashboard") {
+    if (!supported || osDenied || deviceEnabled || !promptable) return null;
+    if (!checkPushSupport()) return null;
 
-  if (status === 'unsupported') {
-    return (
-      <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200 shadow-sm flex items-center gap-4 animate-in fade-in">
-        <div className="bg-gray-200 p-2 rounded-xl text-gray-500 shrink-0">
-          <Info className="w-5 h-5" />
-        </div>
-        <div>
-          <h4 className="font-bold text-gray-700">Push Notifications Unavailable</h4>
-          <p className="text-xs text-gray-500 mt-0.5">Your browser does not support receiving background notifications.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (status === 'denied') {
-    return (
-      <div className="bg-red-50 rounded-2xl p-4 border border-red-100 shadow-sm flex items-center gap-4 animate-in fade-in">
-        <div className="bg-red-100 p-2 rounded-xl text-red-600 shrink-0">
-          <BellOff className="w-5 h-5" />
-        </div>
-        <div>
-          <h4 className="font-bold text-red-800">Notifications Blocked</h4>
-          <p className="text-xs text-red-600 mt-0.5">You have blocked notifications in your browser settings. Please unblock them to receive alerts.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (status === 'granted') {
-    return (
-      <div className="bg-green-50 rounded-2xl p-4 border border-green-100 shadow-sm flex items-center justify-between gap-4 animate-in fade-in">
-        <div className="flex items-center gap-4">
-          <div className="bg-green-100 p-2 rounded-xl text-green-600 shrink-0">
-            <BellRing className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className="font-bold text-green-800">Push Notifications Enabled</h4>
-            <p className="text-xs text-green-600 mt-0.5">
-              {Capacitor.isNativePlatform()
-                ? 'You will receive alerts on this device when clinic updates occur.'
-                : 'You will receive alerts on this device even if the browser is closed.'}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Dashboard variant for default/error state
-  if (variant === 'dashboard') {
     return (
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-4">
         <div className="flex items-start sm:items-center gap-3">
@@ -175,48 +146,82 @@ export default function PushNotificationSettings({ variant = 'settings' }) {
           <div>
             <h4 className="font-bold text-blue-900 text-sm">Stay updated on your queue</h4>
             <p className="text-xs text-blue-700 mt-0.5 pr-2">
-              {status === 'error' 
-                ? <span className="text-red-600 font-semibold">Unable to enable notifications. Please try again.</span>
-                : "Get notified when you're almost next, when it's your turn, or when your reservation changes."}
+              Get notified when you are almost next, when it is your turn, or when your reservation changes.
             </p>
           </div>
         </div>
-        <button 
-          onClick={handleEnablePush}
-          disabled={isRegistering}
+        <button
+          onClick={handleDeviceToggle}
+          disabled={isUpdatingDevice}
           className="w-full sm:w-auto shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {isRegistering && <Loader2 className="w-4 h-4 animate-spin" />}
-          {isRegistering ? 'Enabling...' : 'Enable Notifications'}
+          {isUpdatingDevice && <Loader2 className="w-4 h-4 animate-spin" />}
+          {isUpdatingDevice ? "Enabling..." : "Enable Notifications"}
         </button>
       </div>
     );
   }
 
-  // Settings variant for default/error state
+  const deviceHelper = !supported
+    ? "This device cannot receive background notifications."
+    : osDenied
+      ? Capacitor.isNativePlatform()
+        ? "Notifications are blocked in system settings. Enable them there to turn this on."
+        : "Notifications are blocked in your browser settings. Unblock them to turn this on."
+      : deviceEnabled
+        ? Capacitor.isNativePlatform()
+          ? "You will receive alerts on this device when clinic updates occur."
+          : "You will receive alerts on this device even if the browser is closed."
+        : "Allow device notifications to get alerts when the app is in the background.";
+
   return (
-    <div className={`bg-blue-50 rounded-2xl p-4 border shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in ${status === 'error' ? 'border-red-200' : 'border-blue-100'}`}>
-      <div className="flex items-center gap-4">
-        <div className="bg-blue-100 p-2 rounded-xl text-blue-600 shrink-0">
-          <Bell className="w-5 h-5" />
-        </div>
-        <div>
-          <h4 className="font-bold text-blue-900">Enable Push Notifications</h4>
-          <p className="text-xs text-blue-700 mt-0.5">
-            {status === 'error' 
-              ? <span className="text-red-600 font-semibold">Unable to enable notifications. Please try again.</span>
-              : 'Receive alerts even when your browser is closed or in the background.'}
+    <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-xs space-y-5">
+      <p className="text-sm text-gray-500">
+        Choose how you want to receive clinic and queue updates.
+      </p>
+
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-extrabold text-gray-800">In-app notifications</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Show toast alerts while you are using the app. Your notification history is always saved.
           </p>
         </div>
+        <ToggleSwitch
+          checked={inAppEnabled}
+          disabled={isUpdatingInApp}
+          onChange={handleInAppToggle}
+          label="In-app notifications"
+        />
       </div>
-      <button 
-        onClick={handleEnablePush}
-        disabled={isRegistering}
-        className="w-full sm:w-auto shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-      >
-        {isRegistering && <Loader2 className="w-4 h-4 animate-spin" />}
-        {isRegistering ? 'Enabling...' : 'Enable'}
-      </button>
+
+      <div className="border-t border-gray-100" />
+
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-extrabold text-gray-800">Device-level push notifications</p>
+          <p className="text-sm text-gray-500 mt-0.5">{deviceHelper}</p>
+        </div>
+        {isUpdatingDevice ? (
+          <Loader2 className="w-5 h-5 text-gray-400 animate-spin flex-shrink-0 mt-1" />
+        ) : (
+          <ToggleSwitch
+            checked={deviceEnabled && osGranted}
+            disabled={!supported || osDenied || isUpdatingDevice}
+            onChange={handleDeviceToggle}
+            label="Device-level push notifications"
+          />
+        )}
+      </div>
+
+      {osGranted && !deviceEnabled && supported && (
+        <div className="flex items-start gap-2 text-xs text-gray-500 bg-gray-50 rounded-2xl p-3">
+          <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <p>
+            System permission is still allowed. Turning this off stops alerts from this app; revoke permission in device settings if you want to block them system-wide.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

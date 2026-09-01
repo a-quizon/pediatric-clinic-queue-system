@@ -2,7 +2,8 @@ import { Capacitor } from "@capacitor/core";
 import { auth } from "../firebase/auth";
 import { ref, update } from "firebase/database";
 import { database } from "../firebase/database";
-import { hasNativeNotificationPermission, requestNativeNotificationPermission } from "./nativeNotificationService";
+import { getNativeNotificationPermissionStatus, requestNativeNotificationPermission } from "./nativeNotificationService";
+import { persistNotificationPreferences } from "./notificationPreferencesService";
 const SW_PATH = "/sw.js";
 const LEGACY_SW_PATH = "firebase-messaging-sw.js";
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || "";
@@ -40,9 +41,22 @@ export function checkPushSupport() {
   return true;
 }
 
+export async function getOsNotificationPermissionStatus() {
+  if (Capacitor.isNativePlatform()) {
+    return getNativeNotificationPermissionStatus();
+  }
+  if (typeof Notification === "undefined") return "unsupported";
+  return Notification.permission;
+}
+
+export function isOsPermissionPromptable(status) {
+  return status === "default" || status === "prompt";
+}
+
 export async function hasActivePushSubscription(uid) {
   if (Capacitor.isNativePlatform()) {
-    return hasNativeNotificationPermission();
+    const status = await getNativeNotificationPermissionStatus();
+    return status === "granted";
   }
   if (!uid || !checkPushSupport()) return false;
   if (localStorage.getItem(localSubKeyName(uid))) return true;
@@ -147,6 +161,11 @@ async function postSubscriptionToBackend(userId, subscription, action = "save") 
 async function persistSubscriptionToDatabase(uid, subscriptionJson, extra = {}) {
   const key = await sha256Hex(subscriptionJson.endpoint);
   if (localStorage.getItem(localSubKeyName(uid)) === key) {
+    await persistNotificationPreferences(uid, {
+      notificationPermission: "granted",
+      devicePushEnabled: true,
+      notificationTokenUpdatedAt: Date.now(),
+    });
     return key;
   }
   await update(ref(database, `users/${uid}/pushSubscriptions/${key}`), {
@@ -157,8 +176,9 @@ async function persistSubscriptionToDatabase(uid, subscriptionJson, extra = {}) 
     updatedAt: Date.now(),
     createdAt: extra.createdAt || Date.now(),
   });
-  await update(ref(database, `users/${uid}`), {
+  await persistNotificationPreferences(uid, {
     notificationPermission: "granted",
+    devicePushEnabled: true,
     notificationTokenUpdatedAt: Date.now(),
   });
   localStorage.setItem(localSubKeyName(uid), key);
@@ -192,8 +212,9 @@ export async function registerPushSubscription(user) {
       const granted = await requestNativeNotificationPermission();
       if (granted) {
         try {
-          await update(ref(database, `users/${user.uid}`), {
+          await persistNotificationPreferences(user.uid, {
             notificationPermission: "granted",
+            devicePushEnabled: true,
             notificationTokenUpdatedAt: Date.now(),
           });
         } catch (_err) {
@@ -203,8 +224,9 @@ export async function registerPushSubscription(user) {
         return { native: true };
       }
       try {
-        await update(ref(database, `users/${user.uid}`), {
+        await persistNotificationPreferences(user.uid, {
           notificationPermission: "denied",
+          devicePushEnabled: false,
         });
       } catch (_err) {
         // Non-fatal.
@@ -223,14 +245,13 @@ export async function registerPushSubscription(user) {
 
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
-      if (user.notificationPermission !== permission) {
-        try {
-          await update(ref(database, `users/${user.uid}`), {
-            notificationPermission: permission,
-          });
-        } catch (_err) {
-          // Non-fatal: in-app notifications still work.
-        }
+      try {
+        await persistNotificationPreferences(user.uid, {
+          notificationPermission: permission,
+          devicePushEnabled: false,
+        });
+      } catch (_err) {
+        // Non-fatal: in-app notifications still work.
       }
       return null;
     }
@@ -276,6 +297,54 @@ export async function registerPushSubscription(user) {
   }
 }
 
+export async function disableDevicePush(user) {
+  if (!user?.uid || (user.role && user.role !== "parent")) return;
+  try {
+    await persistNotificationPreferences(user.uid, {
+      devicePushEnabled: false,
+    });
+    if (!Capacitor.isNativePlatform()) {
+      await cleanupPushSubscriptionOnLogout(user);
+    }
+  } catch (error) {
+    debugLog("disableDevicePush failed", error);
+  }
+}
+
+/**
+ * After parent login (or native cold start while permission is still undecided),
+ * invoke the OS permission dialog and persist Allowed/Denied onto the user record.
+ */
+export async function requestPushPermissionAfterLogin(user) {
+  try {
+    if (!user?.uid || (user.role && user.role !== "parent")) return null;
+
+    const status = await getOsNotificationPermissionStatus();
+    if (status === "unsupported") return null;
+
+    if (status === "denied") {
+      await persistNotificationPreferences(user.uid, {
+        notificationPermission: "denied",
+        devicePushEnabled: false,
+      });
+      return null;
+    }
+
+    if (status === "granted") {
+      await persistNotificationPreferences(user.uid, {
+        notificationPermission: "granted",
+      });
+      if (user.devicePushEnabled === false) return null;
+      return registerPushSubscription(user);
+    }
+
+    return registerPushSubscription(user);
+  } catch (error) {
+    debugLog("requestPushPermissionAfterLogin failed", error);
+    return null;
+  }
+}
+
 export async function cleanupPushSubscriptionOnLogout(user) {
   try {
     if (!user?.uid || (user.role && user.role !== "parent")) return;
@@ -285,7 +354,11 @@ export async function cleanupPushSubscriptionOnLogout(user) {
       return;
     }
 
-    const registration = await navigator.serviceWorker.ready.catch(() => null);
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    const registration = registrations.find((reg) => {
+      const scriptUrl = reg.active?.scriptURL || reg.installing?.scriptURL || reg.waiting?.scriptURL || "";
+      return scriptUrl.includes(SW_PATH);
+    }) || registrations[0];
     const subscription = await registration?.pushManager?.getSubscription();
     const subscriptionJson = subscription ? subscription.toJSON() : null;
 

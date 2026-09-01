@@ -8,6 +8,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { get, ref } from "firebase/database";
 import { database } from "../../firebase/database";
 import toast from "react-hot-toast";
+import { getReservationChildDisplayName } from "../../utils/reservationPatients";
+import ReservationPatientNames from "../../components/common/ReservationPatientNames";
 
 export default function ManageQueue({ hideHeader = false }) {
   const { user } = useAuth();
@@ -182,7 +184,7 @@ export default function ManageQueue({ hideHeader = false }) {
     try {
       setActionLoading(res.id);
       await sendToDoctor(res.id);
-      toast.success(`Sent ${res.childName || "patient"} to Doctor room`);
+      toast.success(`Sent ${getReservationChildDisplayName(res, "patient")} to Doctor room`);
     } catch (err) {
       toast.error("Failed to send patient to Doctor");
     } finally {
@@ -198,9 +200,9 @@ export default function ManageQueue({ hideHeader = false }) {
       const newPenaltyCount = (res.penaltyCount || 0) + 1;
       const lateLimit = Number(schedule.lateLimit) || 3;
       if (newPenaltyCount >= lateLimit) {
-        toast.error(`${res.childName} reached late limit (${lateLimit}) and was removed from the queue.`);
+        toast.error(`${getReservationChildDisplayName(res, "Patient")} reached late limit (${lateLimit}) and was removed from the queue.`);
       } else {
-        toast.success(`Penalty applied to ${res.childName} (${newPenaltyCount}/${lateLimit}). Moved back in queue.`);
+        toast.success(`Penalty applied to ${getReservationChildDisplayName(res, "Patient")} (${newPenaltyCount}/${lateLimit}). Moved back in queue.`);
       }
     } catch (err) {
       toast.error("Failed to apply penalty");
@@ -246,7 +248,7 @@ export default function ManageQueue({ hideHeader = false }) {
       setRequestingCheckIn(true);
       await requestCheckInReminder(nextEligibleRes.id);
       toast.success(
-        `Check-in reminder sent to Queue #${nextEligibleRes.queueNumber || "?"} (${nextEligibleRes.childName || "Patient"})`
+        `Check-in reminder sent to Queue #${nextEligibleRes.queueNumber || "?"} (${getReservationChildDisplayName(nextEligibleRes, "Patient")})`
       );
     } catch (err) {
       toast.error("Failed to send check-in reminder.");
@@ -339,16 +341,20 @@ export default function ManageQueue({ hideHeader = false }) {
               className="p-4 sm:p-5 rounded-2xl bg-blue-50/70 border-2 border-blue-400 shadow-sm transition-all cursor-pointer hover:shadow-md hover:bg-blue-50"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3.5 min-w-0">
+                <div className="flex items-center gap-3.5 min-w-0 flex-1">
                   <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex flex-col items-center justify-center shrink-0 font-black text-sm border border-blue-600 shadow-xs">
                     <span className="text-[9px] uppercase font-bold leading-none opacity-80 mb-0.5">
                       Queue
                     </span>
                     <span>#{res.queueNumber || res.queuePosition}</span>
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="font-bold text-blue-950 text-base truncate">
-                      {res.childName || "Unnamed Patient"}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="min-w-0">
+                      <ReservationPatientNames
+                        reservation={res}
+                        fallback="Unnamed Patient"
+                        nameClassName="font-bold text-blue-950 text-base"
+                      />
                     </h3>
                     <div className="text-xs text-blue-700 flex items-center gap-1.5 mt-1">
                       <span>Inside Doctor Room</span>
@@ -405,7 +411,7 @@ export default function ManageQueue({ hideHeader = false }) {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     {/* Left: Original Queue Number + Patient Name */}
-                    <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
                       <div
                         className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 font-black text-sm border ${
                           isFirstWaiting
@@ -419,13 +425,16 @@ export default function ManageQueue({ hideHeader = false }) {
                         <span>#{res.queueNumber || res.queuePosition}</span>
                       </div>
 
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-gray-800 text-base truncate">
-                            {res.childName || "Unnamed Patient"}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-col sm:flex-row sm:items-start gap-1.5 sm:gap-2 min-w-0">
+                          <h3 className="min-w-0 flex-1">
+                            <ReservationPatientNames
+                              reservation={res}
+                              fallback="Unnamed Patient"
+                            />
                           </h3>
                           {res.penaltyCount > 0 && (
-                            <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-200 uppercase">
+                            <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-200 uppercase self-start shrink-0">
                               Late ({res.penaltyCount})
                             </span>
                           )}

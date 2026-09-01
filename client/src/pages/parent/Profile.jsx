@@ -1,9 +1,8 @@
 import React from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { User, LogOut, History, ChevronRight } from "lucide-react";
+import { User, History, ChevronRight, Baby, Bell } from "lucide-react";
 import { Link } from "react-router-dom";
 import LogoutButton from "../../components/common/LogoutButton";
-import PushNotificationSettings from "../../components/parent/PushNotificationSettings";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -12,12 +11,28 @@ export default function Profile() {
 
   const menuItems = [
     {
+      title: "Notification Settings",
+      description: "Manage in-app alerts and device push notifications.",
+      icon: Bell,
+      path: "/parent/profile/notification-settings",
+      color: "text-amber-600",
+      bgColor: "bg-amber-50"
+    },
+    {
       title: "Account",
       description: "View and edit your account information.",
       icon: User,
       path: "/parent/profile/personal-info",
       color: "text-blue-600",
       bgColor: "bg-blue-50"
+    },
+    {
+      title: "Child Profiles",
+      description: "Add and manage children for reservations.",
+      icon: Baby,
+      path: "/parent/profile/children",
+      color: "text-indigo-600",
+      bgColor: "bg-indigo-50"
     },
     {
       title: "Reservation History",
@@ -41,8 +56,6 @@ export default function Profile() {
           <p className="text-gray-500 font-medium mt-1">{user?.email || "Loading email..."}</p>
         </div>
       </div>
-
-      <PushNotificationSettings variant="settings" />
 
       {/* Menu Options */}
       <div className="grid grid-cols-1 gap-4">

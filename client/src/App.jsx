@@ -8,7 +8,8 @@ function App() {
   return (
     <>
       <NotificationObserver />
-      <PushPermissionGate />      <Toaster position="top-right" toastOptions={{
+      <PushPermissionGate />
+      <Toaster position="top-right" toastOptions={{
         className: 'md:top-right sm:top-center',
         duration: 4000,
       }} />

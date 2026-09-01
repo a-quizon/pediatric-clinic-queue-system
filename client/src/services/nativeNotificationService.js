@@ -11,30 +11,43 @@ function notificationIdToInt(id) {
   return Math.abs(hash) % 2147483647 || 1;
 }
 
-export async function hasNativeNotificationPermission() {
-  if (!Capacitor.isNativePlatform()) return false;
+export function normalizeNativeDisplayStatus(display) {
+  if (display === "granted") return "granted";
+  if (display === "denied") return "denied";
+  return "prompt";
+}
+
+export async function getNativeNotificationPermissionStatus() {
+  if (!Capacitor.isNativePlatform()) return "default";
   try {
     const result = await LocalNotifications.checkPermissions();
-    return result.display === "granted";
+    return normalizeNativeDisplayStatus(result.display);
   } catch (_err) {
-    return false;
+    return "default";
   }
+}
+
+export async function hasNativeNotificationPermission() {
+  const status = await getNativeNotificationPermissionStatus();
+  return status === "granted";
 }
 
 export async function requestNativeNotificationPermission() {
   if (!Capacitor.isNativePlatform()) return false;
   try {
     const current = await LocalNotifications.checkPermissions();
-    if (current.display === "granted") return true;
-    if (current.display === "denied") return false;
+    const status = normalizeNativeDisplayStatus(current.display);
+    if (status === "granted") return true;
+    if (status === "denied") return false;
     const result = await LocalNotifications.requestPermissions();
-    return result.display === "granted";
+    return normalizeNativeDisplayStatus(result.display) === "granted";
   } catch (_err) {
     return false;
   }
 }
 
-async function showLocalNotification(notif) {
+async function showLocalNotification(notif, devicePushEnabled) {
+  if (!devicePushEnabled) return;
   const perm = await LocalNotifications.checkPermissions();
   if (perm.display !== "granted") return;
 
@@ -59,9 +72,10 @@ async function showLocalNotification(notif) {
  * On native Android, RTDB notifications are mirrored to the OS notification shade
  * via Local Notifications (Web Push is unavailable in the WebView).
  */
-export function startNativeNotificationListener(parentId) {
+export function startNativeNotificationListener(parentId, options = {}) {
   if (!Capacitor.isNativePlatform() || !parentId) return () => {};
 
+  const devicePushEnabled = options.devicePushEnabled === true;
   const seenIds = new Set();
   let isInitialLoad = true;
 
@@ -75,7 +89,7 @@ export function startNativeNotificationListener(parentId) {
     list.forEach((notif) => {
       if (!notif?.id || seenIds.has(notif.id)) return;
       seenIds.add(notif.id);
-      showLocalNotification(notif).catch(() => {});
+      showLocalNotification(notif, devicePushEnabled).catch(() => {});
     });
   });
 

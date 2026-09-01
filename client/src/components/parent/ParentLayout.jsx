@@ -59,7 +59,13 @@ export default function ParentLayout() {
     if (path.includes("/personal-info")) {
       return { title: "Account", showBack: true, backPath: "/parent/profile" };
     }
-    if (path.includes("/notifications")) {
+    if (path.includes("/children")) {
+      return { title: "Child Profiles", showBack: true, backPath: "/parent/profile" };
+    }
+    if (path.includes("/notification-settings")) {
+      return { title: "Notification Settings", showBack: true, backPath: "/parent/profile" };
+    }
+    if (path === "/parent/notifications" || path.startsWith("/parent/notifications/")) {
       return { title: "Notifications", showBack: true, useHistoryBack: true, backPath: "/parent" };
     }
     return { title: "Home", showBack: false };

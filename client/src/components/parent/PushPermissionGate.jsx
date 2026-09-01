@@ -2,14 +2,14 @@ import { useEffect, useRef } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useAuth } from "../../hooks/useAuth";
 import {
-  checkPushSupport,
-  hasActivePushSubscription,
-  registerPushSubscription,
+  getOsNotificationPermissionStatus,
+  isOsPermissionPromptable,
+  requestPushPermissionAfterLogin,
 } from "../../services/pushService";
 
 /**
- * On the Android APK, request notification permission as soon as a parent session
- * is ready instead of waiting for them to find the Enable Notifications button.
+ * On the native APK, request the OS notification permission if it was never decided
+ * (cold start with an existing parent session). Does not render UI.
  */
 export default function PushPermissionGate() {
   const { user, loading } = useAuth();
@@ -17,32 +17,14 @@ export default function PushPermissionGate() {
 
   useEffect(() => {
     if (loading || !user || user.role !== "parent") return;
-    if (!checkPushSupport()) return;
-    if (!Capacitor.isNativePlatform() && typeof Notification === "undefined") return;
+    if (!Capacitor.isNativePlatform()) return;
 
     const run = async () => {
-      if (Capacitor.isNativePlatform()) {
-        const hasSub = await hasActivePushSubscription(user.uid);
-        if (!hasSub && !attemptedRef.current) {
-          attemptedRef.current = true;
-          await registerPushSubscription(user).catch(() => {});
-        }
-        return;
-      }
-
-      if (Notification.permission === "granted") {
-        const hasSub = await hasActivePushSubscription(user.uid);
-        if (!hasSub) {
-          await registerPushSubscription(user).catch(() => {});
-        }
-        return;
-      }
-
-      if (Notification.permission === "denied") return;
       if (attemptedRef.current) return;
-
+      const status = await getOsNotificationPermissionStatus();
+      if (!isOsPermissionPromptable(status)) return;
       attemptedRef.current = true;
-      await registerPushSubscription(user).catch(() => {});
+      await requestPushPermissionAfterLogin(user).catch(() => {});
     };
 
     run();

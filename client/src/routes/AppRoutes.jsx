@@ -18,6 +18,8 @@ import ParentQRTicket from "../pages/parent/QRTicket";
 import ParentProfile from "../pages/parent/Profile";
 import ParentReservationHistory from "../pages/parent/ReservationHistory";
 import ParentPersonalInformation from "../pages/parent/PersonalInformation";
+import ParentChildProfiles from "../pages/parent/ChildProfiles";
+import ParentNotificationSettings from "../pages/parent/NotificationSettings";
 import ParentNotifications from "../pages/parent/ParentNotifications";
 
 import SecretaryLayout from "../components/secretary/SecretaryLayout";
@@ -66,7 +68,9 @@ export default function AppRoutes() {
           <Route path="reservations/:id/qr" element={<ParentQRTicket />} />
           <Route path="profile" element={<ParentProfile />} />
           <Route path="profile/personal-info" element={<ParentPersonalInformation />} />
+          <Route path="profile/children" element={<ParentChildProfiles />} />
           <Route path="profile/history" element={<ParentReservationHistory />} />
+          <Route path="profile/notification-settings" element={<ParentNotificationSettings />} />
           <Route path="notifications" element={<ParentNotifications />} />
         </Route>
 

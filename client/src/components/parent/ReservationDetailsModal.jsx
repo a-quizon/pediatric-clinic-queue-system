@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, MapPin, CalendarDays, Clock, User, FileText, Activity, Hash } from 'lucide-react';
 import ReservationStatusBadge from '../common/ReservationStatusBadge';
+import { getReservationChildren } from '../../utils/reservationPatients';
 
 export default function ReservationDetailsModal({ isOpen, onClose, reservation, schedule, clinicAddress }) {
   if (!isOpen || !reservation) return null;
@@ -120,19 +121,40 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
               <User className="w-3.5 h-3.5 mr-1.5 text-blue-500" />
               Patient Information
             </div>
-            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100/80 grid grid-cols-3 gap-3 text-sm">
-              <div className="col-span-3 sm:col-span-1">
-                <span className="text-xs text-gray-400 block mb-0.5">Child Name</span>
-                <span className="font-bold text-gray-800 break-words">{reservation.childName || "N/A"}</span>
-              </div>
-              <div>
-                <span className="text-xs text-gray-400 block mb-0.5">Age</span>
-                <span className="font-semibold text-gray-700">{reservation.age || "N/A"}</span>
-              </div>
-              <div>
-                <span className="text-xs text-gray-400 block mb-0.5">Sex</span>
-                <span className="font-semibold text-gray-700">{reservation.sex || "N/A"}</span>
-              </div>
+            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100/80 space-y-3 text-sm">
+              {getReservationChildren(reservation).length > 0 ? (
+                getReservationChildren(reservation).map((child, index) => (
+                  <div key={child.childId || index} className="grid grid-cols-3 gap-3">
+                    <div className="col-span-3 sm:col-span-1">
+                      <span className="text-xs text-gray-400 block mb-0.5">Child Name</span>
+                      <span className="font-bold text-gray-800 break-words">{child.childName || "N/A"}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-400 block mb-0.5">Age</span>
+                      <span className="font-semibold text-gray-700">{child.age || "N/A"}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-400 block mb-0.5">Sex</span>
+                      <span className="font-semibold text-gray-700">{child.sex || "N/A"}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-3 sm:col-span-1">
+                    <span className="text-xs text-gray-400 block mb-0.5">Child Name</span>
+                    <span className="font-bold text-gray-800 break-words">N/A</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-400 block mb-0.5">Age</span>
+                    <span className="font-semibold text-gray-700">N/A</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-400 block mb-0.5">Sex</span>
+                    <span className="font-semibold text-gray-700">N/A</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
