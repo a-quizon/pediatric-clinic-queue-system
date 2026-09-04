@@ -92,9 +92,9 @@ Branches represent the physical infrastructure of the business.
 
 ## 10. User Management
 User Management ensures role-based access control.
-* **Admin**: Operates purely in the back-office. They create Doctor and Secretary accounts, assign roles, and bind Secretaries to Branches. They may permanently delete staff and parent accounts, which revokes Firebase Authentication and removes the user profile. Historical reservations and audit records are never physically deleted. They do not interact with patients.
+* **Admin**: Operates purely in the back-office. They create Doctor and Secretary accounts, assign roles, and bind Secretaries to Branches. They may deactivate accounts (`deactivationSource: admin`), which blocks login until an Admin reactivates them. They may permanently delete staff and parent accounts, which revokes Firebase Authentication and removes the user profile. Historical reservations and audit records are never physically deleted. They do not interact with patients.
 * **Doctor & Secretary**: Staff accounts created by the Admin.
-* **Parent**: Self-registering consumer accounts that authenticate via the public-facing app. 
+* **Parent**: Self-registering consumer accounts that authenticate via the public-facing app. New parents must verify their email and create at least one child profile before entering the parent portal. Existing parents without that onboarding flag are grandfathered. Parents may self-deactivate (`status: inactive`, `deactivationSource: self`); logging in reactivates the account. Parents may soft-delete their account: Firebase Auth is revoked, the profile is marked `isDeleted`, and historical queue/appointment records are retained for analytics. Active reservations are cancelled on deactivate and forfeited on delete so they do not hold clinic slots. 
 
 ---
 

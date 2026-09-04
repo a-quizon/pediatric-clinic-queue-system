@@ -1,11 +1,16 @@
 import { createContext, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { ref, onValue } from "firebase/database";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { ref, onValue, update } from "firebase/database";
 
 import { auth } from "../firebase/auth";
 import { database } from "../firebase/database";
 import { cleanupPushSubscriptionOnLogout, registerPushSubscription } from "../services/pushService";
 import { cacheNotificationPreferences } from "../services/notificationPreferencesService";
+import {
+    canParentSelfReactivate,
+    isAccountLifecycleInProgress,
+    reactivateSelfDeactivatedParent,
+} from "../services/authService";
 
 export const AuthContext = createContext();
 
@@ -65,23 +70,48 @@ export function AuthProvider({ children }) {
                                 needsUpdate = true;
                             }
                             
+                            if (userData.role === "parent" && typeof userData.onboardingComplete !== "boolean") {
+                                userData.onboardingComplete = true;
+                                updates.onboardingComplete = true;
+                                needsUpdate = true;
+                            }
+                            
                             if (needsUpdate) {
                                 // Background save, no need to await so it doesn't block login
-                                import("firebase/database").then(({ update, ref }) => {
-                                    update(ref(database, `users/${currentUser.uid}`), updates).catch(console.error);
-                                });
+                                update(ref(database, `users/${currentUser.uid}`), updates).catch(console.error);
                             }
 
-                            // Block deactivated users
-                            if (userData.status === "inactive") {
-                                import("firebase/auth").then(({ signOut }) => {
+                            if (userData.isDeleted) {
+                                if (!isAccountLifecycleInProgress()) {
                                     signOut(auth);
-                                });
-                                import("react-hot-toast").then(({ toast }) => {
-                                    toast.error("This account has been deactivated. Please contact the clinic administrator.");
-                                });
+                                    import("react-hot-toast").then(({ toast }) => {
+                                        toast.error("This account has been deleted.");
+                                    });
+                                }
                                 setLoading(false);
                                 return;
+                            }
+
+                            if (userData.status === "inactive") {
+                                if (isAccountLifecycleInProgress()) {
+                                    setLoading(false);
+                                    return;
+                                }
+                                if (canParentSelfReactivate(userData)) {
+                                    reactivateSelfDeactivatedParent(currentUser.uid).catch(console.error);
+                                    userData = {
+                                        ...userData,
+                                        status: "active",
+                                        deactivationSource: null,
+                                    };
+                                } else {
+                                    signOut(auth);
+                                    import("react-hot-toast").then(({ toast }) => {
+                                        toast.error("This account has been deactivated. Please contact the clinic administrator.");
+                                    });
+                                    setLoading(false);
+                                    return;
+                                }
                             }
 
                             const enrichedUser = {

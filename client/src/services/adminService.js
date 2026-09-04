@@ -123,7 +123,11 @@ export const toggleUserStatus = async (uid, currentStatus) => {
   const newStatus = currentStatus === "active" ? "inactive" : "active";
   
   const { update } = await import("firebase/database");
-  await update(userRef, { status: newStatus, updatedAt: Date.now() });
+  await update(userRef, {
+    status: newStatus,
+    deactivationSource: newStatus === "inactive" ? "admin" : null,
+    updatedAt: Date.now()
+  });
   
   logAuditEvent({
     action: newStatus === "active" ? AUDIT_ACTIONS.USER_ACTIVATED : AUDIT_ACTIONS.USER_DEACTIVATED,

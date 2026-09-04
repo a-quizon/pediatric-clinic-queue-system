@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { formatName } from "../../utils/stringUtils";
-import { updateUserProfile } from "../../services/authService";
+import { updateUserProfile, deactivateOwnAccount, softDeleteOwnAccount } from "../../services/authService";
 import { User, Mail, Phone, Save, Lock, Shield, Key, Eye, EyeOff } from "lucide-react";
 import { handlePasswordChangeRequest, usePasswordValidation } from "../../utils/passwordUtils";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
 import { useNavigate } from "react-router-dom";
 import InformationModal from "../../components/common/InformationModal";
+import ConfirmationModal from "../../components/common/ConfirmationModal";
+import DeleteAccountModal from "../../components/common/DeleteAccountModal";
+import { mapAuthError } from "../../utils/authErrors";
+import toast from "react-hot-toast";
 
 export default function PersonalInformation() {
   const { user, updateContextUser } = useAuth();
@@ -36,6 +40,12 @@ export default function PersonalInformation() {
   const passwordInvalid = newPassword.length > 0 && !isPasswordValid;
   const confirmInvalid = confirmPassword.length > 0 && newPassword !== confirmPassword;
   const isPasswordFormValid = currentPassword.length > 0 && isPasswordValid && newPassword === confirmPassword && !isChecking;
+
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -104,6 +114,31 @@ export default function PersonalInformation() {
       setPasswordError("An unexpected error occurred. Please try again.");
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleDeactivate = async () => {
+    setIsDeactivating(true);
+    try {
+      await deactivateOwnAccount(user);
+      navigate("/", { replace: true });
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to deactivate account. Please try again.");
+      setIsDeactivating(false);
+    }
+  };
+
+  const handleDelete = async (password) => {
+    setIsDeleting(true);
+    setDeleteError("");
+    try {
+      await softDeleteOwnAccount(password, user);
+      navigate("/", { replace: true });
+    } catch (err) {
+      console.error(err);
+      setDeleteError(err.code ? mapAuthError(err.code) : "Failed to delete account. Please try again.");
+      setIsDeleting(false);
     }
   };
 
@@ -203,6 +238,32 @@ export default function PersonalInformation() {
               Change Password
             </button>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl border border-red-100 shadow-xs p-6 sm:p-8">
+        <h3 className="text-lg font-extrabold text-gray-800">Account actions</h3>
+        <p className="text-sm text-gray-500 mt-1 mb-5">
+          Pause your account or permanently delete your login. Clinic history is kept for analytics.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            type="button"
+            onClick={() => setDeactivateOpen(true)}
+            className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors"
+          >
+            Deactivate Account
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteError("");
+              setDeleteOpen(true);
+            }}
+            className="flex-1 px-6 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-sm"
+          >
+            Delete Account
+          </button>
         </div>
       </div>
 
@@ -367,6 +428,24 @@ export default function PersonalInformation() {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={deactivateOpen}
+        onClose={() => !isDeactivating && setDeactivateOpen(false)}
+        onConfirm={handleDeactivate}
+        title="Deactivate Account"
+        message="Your account will be paused. You will not receive notifications, but your data is saved. You can reactivate by logging in or contacting an Admin."
+        confirmText="Deactivate"
+        isLoading={isDeactivating}
+      />
+
+      <DeleteAccountModal
+        isOpen={deleteOpen}
+        onClose={() => !isDeleting && setDeleteOpen(false)}
+        onConfirm={handleDelete}
+        isLoading={isDeleting}
+        error={deleteError}
+      />
     </div>
   );
 }

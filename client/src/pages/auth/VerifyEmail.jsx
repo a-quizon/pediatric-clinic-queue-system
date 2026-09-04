@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { sendEmailVerification } from "firebase/auth";
 import { auth } from "../../firebase/auth";
 import { logoutUser, completeParentRegistration } from "../../services/authService";
+import OnboardingStepper from "../../components/auth/OnboardingStepper";
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
@@ -33,7 +34,14 @@ export default function VerifyEmail() {
       } else if (role === 'admin') {
         navigate('/admin', { replace: true });
       } else if (user.emailVerified) {
-        navigate('/parent', { replace: true });
+        const firebaseUser = auth.currentUser;
+        if (firebaseUser) {
+          completeParentRegistration(firebaseUser)
+            .catch(console.error)
+            .finally(() => {
+              navigate("/onboarding/child", { replace: true });
+            });
+        }
       }
     }
   }, [user, role, loading, navigate]);
@@ -52,7 +60,7 @@ export default function VerifyEmail() {
         toast.success("Email verified successfully!");
         await completeParentRegistration(firebaseUser);
         await new Promise(r => setTimeout(r, 1000));
-        navigate('/parent');
+        navigate("/onboarding/child");
       } else {
         toast.error("Email is not verified yet. Please check your inbox.");
       }
@@ -77,7 +85,7 @@ export default function VerifyEmail() {
           toast.success("Email is already verified!");
           await completeParentRegistration(firebaseUser);
           await new Promise(r => setTimeout(r, 1000));
-          navigate('/parent');
+          navigate("/onboarding/child");
           return;
       }
       await sendEmailVerification(firebaseUser);
@@ -116,6 +124,7 @@ export default function VerifyEmail() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 font-sans py-8">
       <div className="w-full max-w-md bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden text-center p-8">
+        <OnboardingStepper currentStep={1} />
         <div className="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-blue-100">
           <Mail className="w-8 h-8" />
         </div>

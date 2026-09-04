@@ -432,3 +432,45 @@ export const requestCheckInReminder = async (reservationId) => {
     checkInRequestedAt: Date.now(),
   });
 };
+
+export const closeActiveReservationsForParent = async (parentId, { terminalStatus, reason }) => {
+  if (!parentId) return;
+  if (terminalStatus !== "cancelled" && terminalStatus !== "forfeited") {
+    throw new Error("terminalStatus must be cancelled or forfeited.");
+  }
+
+  const q = query(
+    ref(database, "reservations"),
+    orderByChild("parentId"),
+    equalTo(parentId)
+  );
+  const snapshot = await get(q);
+  if (!snapshot.exists()) return;
+
+  const now = Date.now();
+  const rootUpdates = {};
+  const scheduleIds = new Set();
+
+  Object.entries(snapshot.val()).forEach(([id, val]) => {
+    if (!ACTIVE_RESERVATION_STATUSES.includes(val?.status)) return;
+    rootUpdates[`reservations/${id}/status`] = terminalStatus;
+    if (terminalStatus === "cancelled") {
+      rootUpdates[`reservations/${id}/cancelledAt`] = now;
+      if (reason) rootUpdates[`reservations/${id}/cancellationReason`] = reason;
+    } else {
+      rootUpdates[`reservations/${id}/forfeitedAt`] = now;
+      rootUpdates[`reservations/${id}/queueState`] = "FORFEITED";
+      if (reason) rootUpdates[`reservations/${id}/forfeitureReason`] = reason;
+    }
+    if (val.scheduleId) scheduleIds.add(val.scheduleId);
+  });
+
+  if (Object.keys(rootUpdates).length > 0) {
+    await update(ref(database), rootUpdates);
+  }
+
+  for (const scheduleId of scheduleIds) {
+    await recalculateRollingValidation(scheduleId);
+    await recalculateEntireQueue(scheduleId);
+  }
+};

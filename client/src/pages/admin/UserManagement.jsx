@@ -37,7 +37,7 @@ export default function UserManagement() {
         const usersList = Object.keys(usersData).map(key => ({
           id: key,
           ...usersData[key]
-        })).filter(user => user.role !== 'admin' && user.id !== 'admin');
+        })).filter(user => user.role !== 'admin' && user.id !== 'admin' && user.isDeleted !== true);
         
         setUsers(usersList);
       } else {

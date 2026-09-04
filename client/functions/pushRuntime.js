@@ -155,11 +155,15 @@ async function sendPushToParent(parentId, notification, notificationId) {
   }
 
   const userSnap = await db().ref(`users/${parentId}`).once("value");
-  if (!userSnap.exists() || userSnap.val().role !== "parent") {
+  const user = userSnap.val();
+  if (!user || user.role !== "parent") {
     return { sent: 0, failed: 0, reason: "not_parent" };
   }
+  if (user.status === "inactive" || user.isDeleted === true) {
+    return { sent: 0, failed: 0, reason: "inactive_or_deleted" };
+  }
 
-  const entries = collectSubscriptions(userSnap.val().pushSubscriptions);
+  const entries = collectSubscriptions(user.pushSubscriptions);
   if (!entries.length) {
     console.warn(`[functions/push] no_subscriptions parentId=${parentId}`);
     return { sent: 0, failed: 0, reason: "no_subscriptions" };
@@ -243,8 +247,10 @@ function computeReservationState(reservation, allReservations = []) {
 }
 
 async function isParent(uid) {
-  const snap = await db().ref(`users/${uid}/role`).once("value");
-  return snap.exists() && snap.val() === "parent";
+  const snap = await db().ref(`users/${uid}`).once("value");
+  if (!snap.exists()) return false;
+  const user = snap.val() || {};
+  return user.role === "parent" && user.status !== "inactive" && user.isDeleted !== true;
 }
 
 async function deliverNotification(eventId, context = {}) {
@@ -366,7 +372,7 @@ async function getAllParentIds() {
   const snap = await db().ref("users").once("value");
   if (!snap.exists()) return [];
   return Object.entries(snap.val())
-    .filter(([, user]) => user && user.role === "parent" && user.status !== "inactive")
+    .filter(([, user]) => user && user.role === "parent" && user.status !== "inactive" && user.isDeleted !== true)
     .map(([uid]) => uid);
 }
 

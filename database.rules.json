@@ -4,7 +4,7 @@
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
       "$uid": {
         ".read": "auth != null",
-        ".write": "auth != null && (root.child('users').child(auth.uid).child('status').val() === 'active' || (!root.child('users').child(auth.uid).child('status').exists() && newData.child('status').val() === 'active')) && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin') && (root.child('users').child(auth.uid).child('status').val() === 'active' || (!root.child('users').child(auth.uid).child('status').exists() && newData.child('status').val() === 'active') || (auth.uid === $uid && root.child('users').child($uid).child('role').val() === 'parent' && root.child('users').child($uid).child('status').val() === 'inactive' && root.child('users').child($uid).child('isDeleted').val() !== true && newData.child('status').val() === 'active' && newData.child('isDeleted').val() !== true))"
       }
     },
     "notifications": {

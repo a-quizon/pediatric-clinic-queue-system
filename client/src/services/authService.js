@@ -1,9 +1,37 @@
-import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendEmailVerification } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendEmailVerification, deleteUser } from "firebase/auth";
 import { ref, set, update, get } from "firebase/database";
 
 import { auth } from "../firebase/auth";
 import { database } from "../firebase/database";
 import { cleanupPushSubscriptionOnLogout } from "./pushService";
+import { closeActiveReservationsForParent } from "./reservationService";
+
+let accountLifecycleInProgress = false;
+
+export const isAccountLifecycleInProgress = () => accountLifecycleInProgress;
+
+export const canParentSelfReactivate = (userData) => (
+  Boolean(userData)
+  && userData.role === "parent"
+  && userData.status === "inactive"
+  && userData.deactivationSource === "self"
+  && userData.isDeleted !== true
+);
+
+export const getParentPostAuthPath = (userData, firebaseUser) => {
+  if (firebaseUser && !firebaseUser.emailVerified) return "/verify-email";
+  if (userData?.onboardingComplete === false) return "/onboarding/child";
+  return "/parent";
+};
+
+export const reactivateSelfDeactivatedParent = async (uid) => {
+  if (!uid) return;
+  await update(ref(database, `users/${uid}`), {
+    status: "active",
+    deactivationSource: null,
+    updatedAt: Date.now()
+  });
+};
 
 export const registerUser = async (
   name,
@@ -57,6 +85,7 @@ export const completeParentRegistration = async (user) => {
     phone: pendingData.phone || "",
     role: "parent",
     status: "active",
+    onboardingComplete: false,
     inAppNotificationsEnabled: true,
     createdAt: now,
     updatedAt: now
@@ -125,4 +154,73 @@ export const changeUserPassword = async (currentPassword, newPassword) => {
 
   // Update password
   await updatePassword(user, newPassword);
+};
+
+export const completeParentOnboarding = async (uid) => {
+  if (!uid) return;
+  await update(ref(database, `users/${uid}`), {
+    onboardingComplete: true,
+    updatedAt: Date.now()
+  });
+};
+
+export const deactivateOwnAccount = async (user) => {
+  const uid = user?.uid || auth.currentUser?.uid;
+  if (!uid) throw new Error("User not authenticated.");
+
+  accountLifecycleInProgress = true;
+  try {
+    await closeActiveReservationsForParent(uid, {
+      terminalStatus: "cancelled",
+      reason: "Parent deactivated their account."
+    });
+    await update(ref(database, `users/${uid}`), {
+      status: "inactive",
+      deactivationSource: "self",
+      updatedAt: Date.now()
+    });
+    await logoutUser(user || { uid, role: "parent" });
+  } finally {
+    accountLifecycleInProgress = false;
+  }
+};
+
+export const softDeleteOwnAccount = async (password, user) => {
+  const currentUser = auth.currentUser;
+  if (!currentUser || !currentUser.email) throw new Error("User not authenticated.");
+  if (!password) throw new Error("Password is required.");
+
+  accountLifecycleInProgress = true;
+  try {
+    const credential = EmailAuthProvider.credential(currentUser.email, password);
+    await reauthenticateWithCredential(currentUser, credential);
+
+    await closeActiveReservationsForParent(currentUser.uid, {
+      terminalStatus: "forfeited",
+      reason: "Parent account was deleted."
+    });
+
+    await update(ref(database, `users/${currentUser.uid}`), {
+      isDeleted: true,
+      deletedAt: Date.now(),
+      status: "inactive",
+      deactivationSource: "self",
+      updatedAt: Date.now()
+    });
+
+    try {
+      await cleanupPushSubscriptionOnLogout(user || { uid: currentUser.uid, role: "parent" });
+    } catch (error) {
+      console.error("Push cleanup on account delete failed:", error);
+    }
+
+    await deleteUser(currentUser);
+    try {
+      await signOut(auth);
+    } catch {
+      // Session is already invalid after deleteUser.
+    }
+  } finally {
+    accountLifecycleInProgress = false;
+  }
 };

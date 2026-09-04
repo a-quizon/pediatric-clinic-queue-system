@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { loginUser } from "../../services/authService";
+import {
+  loginUser,
+  canParentSelfReactivate,
+  reactivateSelfDeactivatedParent,
+  getParentPostAuthPath,
+} from "../../services/authService";
 import { Activity, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import toast from "react-hot-toast";
 import { mapAuthError } from "../../utils/authErrors";
@@ -26,12 +31,7 @@ export default function Login() {
         else if (role === 'secretary') navigate('/secretary');
         else if (role === 'admin') navigate('/admin');
         else {
-          const firebaseUser = auth.currentUser;
-          if (firebaseUser && !firebaseUser.emailVerified) {
-            navigate('/verify-email');
-          } else {
-            navigate('/parent');
-          }
+          navigate(getParentPostAuthPath(user, auth.currentUser));
         }
       } else {
         // User exists but has no RTDB profile (role is null)
@@ -70,24 +70,38 @@ export default function Login() {
       const snapshot = await get(userRef);
 
       if (snapshot.exists()) {
-        const userData = snapshot.val();
-        if (userData.status === 'inactive') {
-          // AuthContext will independently intercept this, call signOut(), and show the deactivated toast.
-          // We simply reset the local loading state and abort the local success flow.
-          setLoading(false);
-          return;
-        }
-        
-        if (userData.role === 'parent' && !authUser.emailVerified) {
-          toast('Please verify your email before continuing.', { icon: 'ℹ️' });
-          navigate('/verify-email');
+        let userData = snapshot.val();
+        if (userData.isDeleted) {
+          await signOut(auth);
+          toast.error("This account has been deleted.");
           setLoading(false);
           return;
         }
 
-        // If active and profile exists, show success message and keep loading=true while waiting for AuthContext to navigate
-        toast.success('Login Successfully');
-        if (userData.role === 'parent') {
+        if (userData.status === "inactive") {
+          if (canParentSelfReactivate(userData)) {
+            await reactivateSelfDeactivatedParent(authUser.uid);
+            userData = { ...userData, status: "active", deactivationSource: null };
+            toast.success("Welcome back. Your account has been reactivated.");
+          } else {
+            setLoading(false);
+            return;
+          }
+        } else {
+          toast.success("Login Successfully");
+        }
+
+        if (userData.role === "parent" && !authUser.emailVerified) {
+          toast("Please verify your email before continuing.", { icon: "ℹ️" });
+          navigate("/verify-email");
+          setLoading(false);
+          return;
+        }
+
+        if (userData.role === "parent") {
+          if (userData.onboardingComplete === false) {
+            navigate("/onboarding/child");
+          }
           const { requestPushPermissionAfterLogin } = await import("../../services/pushService");
           await requestPushPermissionAfterLogin({
             uid: authUser.uid,

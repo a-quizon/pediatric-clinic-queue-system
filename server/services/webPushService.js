@@ -131,6 +131,9 @@ async function sendPushToParent(parentId, notification, options = {}) {
   if (user.role && user.role !== "parent") {
     return { success: false, sent: 0, failed: 0, reason: "not_parent" };
   }
+  if (user.status === "inactive" || user.isDeleted === true) {
+    return { success: false, sent: 0, failed: 0, reason: "inactive_or_deleted" };
+  }
 
   const entries = collectSubscriptions(user.pushSubscriptions);
   if (!entries.length) {

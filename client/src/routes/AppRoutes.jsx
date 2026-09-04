@@ -46,8 +46,10 @@ import AdminActivity from "../pages/admin/Activity";
 import AdminSystemSettings from "../pages/admin/SystemSettings";
 import AdminProfile from "../pages/admin/Profile";
 
+import OnboardingRoute from "./OnboardingRoute";
 import RoleRoute from "./RoleRoute";
 import NativeNotificationBridge from "../components/common/NativeNotificationBridge";
+import OnboardingChildProfile from "../pages/auth/OnboardingChildProfile";
 
 export default function AppRoutes() {
   return (
@@ -59,9 +61,10 @@ export default function AppRoutes() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<ProtectedRoute><VerifyEmail /></ProtectedRoute>} />
+        <Route path="/onboarding/child" element={<ProtectedRoute><OnboardingChildProfile /></ProtectedRoute>} />
         
         {/* Parent Routes */}
-        <Route path="/parent" element={<ProtectedRoute> <VerifiedRoute> <RoleRoute allowedRole="parent"><ParentLayout /></RoleRoute> </VerifiedRoute> </ProtectedRoute>}>
+        <Route path="/parent" element={<ProtectedRoute> <VerifiedRoute> <OnboardingRoute> <RoleRoute allowedRole="parent"><ParentLayout /></RoleRoute> </OnboardingRoute> </VerifiedRoute> </ProtectedRoute>}>
           <Route index element={<ParentDashboard />} />
           <Route path="reserve" element={<ParentReserveQueue />} />
           <Route path="reservations" element={<ParentMyReservation />} />

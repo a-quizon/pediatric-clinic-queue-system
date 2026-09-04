@@ -134,8 +134,10 @@ function computeReservationState(reservation, allReservations = []) {
 
 async function isParent(uid) {
   if (!uid) return false;
-  const snap = await getDb().ref(`users/${uid}/role`).once("value");
-  return snap.exists() && snap.val() === "parent";
+  const snap = await getDb().ref(`users/${uid}`).once("value");
+  if (!snap.exists()) return false;
+  const user = snap.val() || {};
+  return user.role === "parent" && user.status !== "inactive" && user.isDeleted !== true;
 }
 
 async function deliverNotification(eventId, context = {}) {
@@ -356,7 +358,7 @@ async function getAllParentIds() {
   if (!snap.exists()) return [];
   const users = snap.val();
   return Object.entries(users)
-    .filter(([, user]) => user && user.role === "parent" && user.status !== "inactive")
+    .filter(([, user]) => user && user.role === "parent" && user.status !== "inactive" && user.isDeleted !== true)
     .map(([uid]) => uid);
 }
 

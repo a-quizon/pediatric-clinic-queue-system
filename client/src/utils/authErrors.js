@@ -14,6 +14,8 @@ export function mapAuthError(errorCode) {
       return 'Password must be at least 6 characters long.';
     case 'auth/network-request-failed':
       return 'Network error. Please check your internet connection.';
+    case 'auth/requires-recent-login':
+      return 'Please enter your password again to continue.';
     case 'auth/too-many-requests':
       return 'Too many failed login attempts. Please try again later.';
     default:

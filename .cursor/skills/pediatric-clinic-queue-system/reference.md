@@ -10,6 +10,10 @@ Read when modifying Firebase data, server routes, or environment setup.
   uid, name, email, phone,
   role: "parent" | "secretary" | "doctor" | "admin",
   status: "active" | "inactive",
+  deactivationSource: "self" | "admin" | null,
+  isDeleted: false,               // parent soft-delete tombstone; Auth is revoked
+  deletedAt,                      // epoch ms when soft-deleted
+  onboardingComplete: true,       // parents; false until first child profile during onboarding
   createdAt, updatedAt,           // epoch ms
   assignedBranch: "Angeles",       // secretaries only
   children/{childId}: {            // parent-saved child profiles

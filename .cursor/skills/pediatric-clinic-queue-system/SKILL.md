@@ -83,12 +83,12 @@ UI (pages/components)
 
 | Role | Path | Email verified? |
 |------|------|-----------------|
-| parent | `/parent/*` | Required (`VerifiedRoute`) |
+| parent | `/parent/*` | Required (`VerifiedRoute`) plus `OnboardingRoute` (`onboardingComplete`) |
 | secretary | `/secretary/*` | No |
 | doctor | `/doctor/*` | No |
 | admin | `/admin/*` | No |
 
-Guard chain: `ProtectedRoute` → `VerifiedRoute` (parents) → `RoleRoute`.
+Guard chain: `ProtectedRoute` → `VerifiedRoute` (parents) → `OnboardingRoute` (parents) → `RoleRoute`.
 
 Entry points: `client/src/routes/AppRoutes.jsx`, `client/src/context/AuthContext.jsx`.
 
@@ -177,7 +177,7 @@ No CI/CD in repo. No automated tests — use manual regression checklists in `do
 | `rollingValidationService.js` | Deprecated no-op — rolling windows removed |
 | Legacy FCM | `messaging.js` returns null; Web Push via `/sw.js` |
 | Firebase rules location | `database.rules.json` at repo root, not in `client/` |
-| AuthContext migration | Auto-adds missing `status`, `createdAt`, `assignedBranch` on login |
+| AuthContext migration | Auto-adds missing `status`, `createdAt`, `assignedBranch`, parent `onboardingComplete` (legacy = true) on login |
 | Capacitor config | Client config (`dist`) is correct; root config (`www`) is stale |
 
 ## File Sync Checklist (notifications / queue changes)
