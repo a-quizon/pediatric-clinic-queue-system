@@ -1,5 +1,10 @@
 const { getDb } = require("./firebaseAdmin");
 const { sendPushToParent, sanitizeKey } = require("./webPushService");
+const {
+  deliverSmsForNotification,
+  enrichSmsContext,
+  computeAheadOfYouForSms,
+} = require("./smsNotificationService");
 
 const ACTIVE_RESERVATION_STATUSES = [
   "reserved",
@@ -11,6 +16,9 @@ const ACTIVE_RESERVATION_STATUSES = [
   "waiting_for_window",
 ];
 
+/** Patients ahead that triggers the one-time nearing-turn SMS. */
+const NEARING_TURN_AHEAD_COUNT = 3;
+
 const NOTIFICATION_CONFIG = {
   SCHEDULE_AVAILABLE: {
     type: "info",
@@ -18,11 +26,23 @@ const NOTIFICATION_CONFIG = {
     message: "New clinic schedule is now available for reservation.",
     url: "/parent/reserve",
   },
+  SLOT_RESERVED: {
+    type: "success",
+    title: "Reservation Confirmed",
+    message: "Your clinic slot has been reserved successfully.",
+    url: "/parent/reservations",
+  },
   QUEUE_STARTED: {
     type: "info",
     title: "Queue Started",
     message: "The clinic queue has started.",
     url: "/parent/notifications",
+  },
+  NEARING_TURN: {
+    type: "warning",
+    title: "Your Turn Is Near",
+    message: "There are only 3 patients ahead of you. Please proceed to the clinic.",
+    url: "/parent/reservations",
   },
   QUEUE_PAUSED: {
     type: "warning",
@@ -146,13 +166,14 @@ async function deliverNotification(eventId, context = {}) {
   if (!(await isParent(context.parentId))) return false;
 
   const key = sanitizeKey(context.dedupeKey || `${eventId}_${Date.now()}`);
+  const body = context.customMessage || config.message;
   const notification = {
     id: key,
     parentId: context.parentId,
     type: eventId,
     title: config.title,
-    body: config.message,
-    message: config.message,
+    body,
+    message: body,
     severity: config.type,
     createdAt: Date.now(),
     read: false,
@@ -169,6 +190,14 @@ async function deliverNotification(eventId, context = {}) {
     await notifRef.update(notification);
   }
   await sendPushToParent(context.parentId, existing.exists() ? existing.val() : notification, { notificationId: key });
+
+  try {
+    const smsContext = await enrichSmsContext(eventId, context);
+    await deliverSmsForNotification(eventId, smsContext, key);
+  } catch (err) {
+    console.error(`[notificationEngine] SMS delivery failed for ${eventId}:`, err.message);
+  }
+
   return true;
 }
 
@@ -184,6 +213,19 @@ function eventsFromReservationChange(before, after) {
   const prevCheckInReq = before?.checkInRequestedAt || 0;
   const currCheckInReq = after.checkInRequestedAt || 0;
   const branchId = after.branchId || after.branch || null;
+
+  // New reservation (create) — Slot Reserved SMS/notification
+  if (!before && currStatus === "reserved") {
+    events.push({
+      eventId: "SLOT_RESERVED",
+      parentId: after.parentId,
+      reservationId: id,
+      scheduleId: after.scheduleId || null,
+      branchId,
+      queueNumber: after.queueNumber ?? after.originalQueueNumber ?? after.queuePosition,
+      dedupeKey: `slot_reserved_${id}`,
+    });
+  }
 
   if (currCheckInReq > prevCheckInReq) {
     events.push({
@@ -281,6 +323,9 @@ function eventsFromScheduleChange(before, after, activeParentIds) {
         ...base,
         eventId: "QUEUE_STARTED",
         parentId,
+        scheduleId: schedId,
+        clinicDate,
+        branchName: after.branch || null,
         dedupeKey: `queue_start_${schedId}_${clinicDate}`,
       })
     );
@@ -375,6 +420,11 @@ async function evaluatePositionEvents(schedule, reservations) {
 
   for (const reservation of candidates) {
     const queueState = computeReservationState(reservation, reservations);
+    const aheadOfYou =
+      reservation.aheadOfYou != null
+        ? Number(reservation.aheadOfYou)
+        : computeAheadOfYouForSms(reservation, reservations);
+
     if (queueState === "YOU_ARE_NEXT") {
       await deliverNotification("YOU_ARE_NEXT", {
         parentId: reservation.parentId,
@@ -388,6 +438,19 @@ async function evaluatePositionEvents(schedule, reservations) {
         reservationId: reservation.id,
         branchId: reservation.branchId || reservation.branch || schedule.branch || null,
         dedupeKey: `almost_next_${reservation.id}`,
+      });
+    }
+
+    // Event C — exactly 3 patients ahead; dedupeKey ensures one SMS even if queue pauses
+    if (aheadOfYou === NEARING_TURN_AHEAD_COUNT) {
+      await deliverNotification("NEARING_TURN", {
+        parentId: reservation.parentId,
+        reservationId: reservation.id,
+        scheduleId: schedule.id,
+        branchId: reservation.branchId || reservation.branch || schedule.branch || null,
+        queueNumber: reservation.queueNumber ?? reservation.originalQueueNumber,
+        clinicDate: schedule.clinicDate,
+        dedupeKey: `nearing_turn_${reservation.id}`,
       });
     }
   }

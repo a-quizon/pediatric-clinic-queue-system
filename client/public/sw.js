@@ -16,6 +16,7 @@ const DEFAULT_URL = "/parent/notifications";
 const HIGH_PRIORITY_TYPES = new Set([
   "YOU_ARE_NEXT",
   "ALMOST_NEXT",
+  "NEARING_TURN",
   "CHECK_IN_REQUESTED",
   "PENALIZED",
   "FORFEITED",

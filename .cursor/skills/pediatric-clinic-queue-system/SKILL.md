@@ -28,7 +28,7 @@ Capstone app that digitizes pediatric clinic patient flow across branches. Paren
 |-------|------|
 | Frontend | React 19, Vite 8, React Router 7, Tailwind CSS 4 |
 | Database | Firebase Realtime Database (not Firestore, not Supabase) |
-| Auth | Firebase Auth (email/password) |
+| Auth | Firebase Auth (email/password; phone verified via SMS OTP before email on register; login = email-or-phone + password) |
 | Push API | Express 5 (`server/`) + Firebase Cloud Functions (`client/functions/`) |
 | Push delivery | Web Push + VAPID (`/sw.js`), not FCM |
 | Mobile | Capacitor 8 (`android/`) |

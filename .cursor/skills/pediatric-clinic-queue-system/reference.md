@@ -8,6 +8,7 @@ Read when modifying Firebase data, server routes, or environment setup.
 ```js
 {
   uid, name, email, phone,
+  isPhoneVerified: true,      // parents; set after SMS OTP during registration
   role: "parent" | "secretary" | "doctor" | "admin",
   status: "active" | "inactive",
   deactivationSource: "self" | "admin" | null,
@@ -113,8 +114,16 @@ Rules file: `database.rules.json` (repo root).
 | POST | `/api/delete-subscription` | Bearer token | Remove subscription |
 | POST | `/api/send-notification` | Bearer token or `x-push-secret` | Dispatch notification + push |
 | POST | `/api/admin/delete-user` | Bearer admin ID token | Delete Auth user + RTDB profile |
+| POST | `/api/auth/resolve-identifier` | None | Resolve email or phone → account email for password login |
+| POST | `/api/auth/sms/send-otp` | None | Generate + SMS-deliver 6-digit OTP (textbee) |
+| POST | `/api/auth/sms/verify-otp` | None | Validate OTP → custom token (login) or verificationId (register) |
 
 Listeners: `server/services/pushListeners.js` watches `reservations` and `schedules`.
+
+### SMS (textbee.dev)
+- Utility: `server/services/smsService.js` (mirrored in `client/functions/smsService.js`)
+- Queue SMS events: `SLOT_RESERVED`, `QUEUE_STARTED`, `NEARING_TURN` (exactly 3 ahead; once per reservation via `dedupeKey` + `smsDispatchedAt`)
+- OTP store: `smsOtps/{phoneKey}` — bcrypt-hashed code, 5-minute `expiresAt`; client R/W denied in rules
 
 ## Cloud Functions (`client/functions/index.js`)
 
@@ -150,6 +159,8 @@ VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:noreply@...
 FIREBASE_PROJECT_ID=pediatric-clinic-queue-testing
 FIREBASE_DATABASE_URL=https://...firebasedatabase.app
+TEXTBEE_API_KEY=
+# TEXTBEE_DEVICE_ID=
 # GOOGLE_APPLICATION_CREDENTIALS=./serviceAccountKey.json
 # FIREBASE_SERVICE_ACCOUNT={"type":"service_account",...}
 # PUSH_DISPATCH_SECRET=

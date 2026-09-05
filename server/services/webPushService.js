@@ -142,7 +142,7 @@ async function sendPushToParent(parentId, notification, options = {}) {
   }
 
   const payload = buildPayload(notification);
-  const urgency = ["YOU_ARE_NEXT", "ALMOST_NEXT", "CHECK_IN_REQUESTED", "PENALIZED", "FORFEITED"].includes(payload.type)
+  const urgency = ["YOU_ARE_NEXT", "ALMOST_NEXT", "NEARING_TURN", "CHECK_IN_REQUESTED", "PENALIZED", "FORFEITED"].includes(payload.type)
     ? "high"
     : "normal";
 

@@ -26,9 +26,16 @@ async function startRealtimePushListeners() {
   }
 
   const reservationsRef = db.ref("reservations");
-  reservationsRef.on("child_added", (snap) => {
+  reservationsRef.on("child_added", async (snap) => {
     if (prevReservations[snap.key]) return;
-    prevReservations[snap.key] = cloneRecord(snap.key, snap.val());
+    const after = cloneRecord(snap.key, snap.val());
+    prevReservations[snap.key] = after;
+    try {
+      // New reservations (before=null) trigger SLOT_RESERVED SMS / notifications
+      await handleReservationChange(null, after);
+    } catch (err) {
+      console.error("[pushListeners] reservation add failed:", err);
+    }
   });
   reservationsRef.on("child_changed", async (snap) => {
     const before = prevReservations[snap.key] || null;

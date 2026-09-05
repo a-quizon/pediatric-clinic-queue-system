@@ -14,6 +14,7 @@ The Notification System keeps users informed of real-time clinic events and queu
 - **Notification Storage**: Persisted in the Firebase Realtime Database exclusively under `notifications/${parentId}`.
 - **Push Subscriptions**: Native Web Push subscriptions (endpoint + `p256dh`/`auth` keys) are stored under `users/${uid}/pushSubscriptions/{hash}` together with `notificationPermission`.
 - **Push Notification Flow**: Clinic events are observed server-side (Express RTDB listeners and Cloud Functions `onWrite`). The server writes the Notification Center record and dispatches a Web Push payload with the `web-push` library and VAPID keys. The root service worker (`/sw.js`) receives the `push` event and calls `self.registration.showNotification`. Clicking a notification opens `/parent/notifications` (or a context-specific URL).
+- **SMS Channel (textbee.dev)**: For `SLOT_RESERVED`, `QUEUE_STARTED`, and `NEARING_TURN`, the same server/Functions dispatcher also sends an SMS via the textbee REST API (`TEXTBEE_API_KEY`). Duplicate SMS is prevented with `smsDispatchedAt` on the notification record (same pattern as `pushDispatchedAt`). `NEARING_TURN` uses a stable `dedupeKey` of `nearing_turn_${reservationId}` so pausing/resuming the queue cannot re-spam the parent.
 
 ---
 
@@ -23,11 +24,13 @@ The system uses strict `NOTIFICATION_EVENTS` as the single source of truth for t
 | Event ID | Purpose | Triggered By | Recipient |
 |----------|---------|--------------|-----------|
 | **SCHEDULE_AVAILABLE** | Informs users of new booking slots. | Doctor publishes schedule. | Parents |
+| **SLOT_RESERVED** | Confirms a successful reservation (SMS includes date, time, queue #, doctor). | Parent creates reservation. | Specific Parent |
 | **QUEUE_STARTED** | Clinic floor is officially open. | Doctor starts queue. | Parents |
 | **QUEUE_PAUSED** | Clinic floor is temporarily halted. | Doctor pauses queue. | Parents |
 | **QUEUE_RESUMED** | Clinic floor resumes operations. | Doctor resumes queue. | Parents |
 | **QUEUE_CLOSED** | End of daily reservations. | Doctor closes queue. | Parents |
 | **CLINIC_SESSION_ENDED**| Clinic day has completely finished. | Doctor completes schedule. | Parents |
+| **NEARING_TURN** | Patient is exactly 3 slots ahead of their turn (SMS once per reservation). | Queue Engine Recalculation | Specific Parent |
 | **ALMOST_NEXT** | Queue index reaches #2. | Queue Engine Recalculation | Specific Parent |
 | **YOU_ARE_NEXT** | Queue index reaches #1. | Queue Engine Recalculation | Specific Parent |
 | **CHECK_IN_REQUESTED**| Manual prompt to approach the desk. | Secretary clicks "Request Check-In" | Specific Parent |

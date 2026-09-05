@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  loginUser,
+  loginWithIdentifier,
   canParentSelfReactivate,
   reactivateSelfDeactivatedParent,
   getParentPostAuthPath,
@@ -12,17 +12,17 @@ import { mapAuthError } from "../../utils/authErrors";
 import { useAuth } from "../../hooks/useAuth";
 import { auth } from "../../firebase/auth";
 import { signOut } from "firebase/auth";
+import { detectLoginIdentifier } from "../../utils/loginIdentifier";
 
 export default function Login() {
   const navigate = useNavigate();
   const { user, role, loading: authLoading } = useAuth();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const detected = detectLoginIdentifier(identifier);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -34,12 +34,10 @@ export default function Login() {
           navigate(getParentPostAuthPath(user, auth.currentUser));
         }
       } else {
-        // User exists but has no RTDB profile (role is null)
         const firebaseUser = auth.currentUser;
         if (firebaseUser && !firebaseUser.emailVerified) {
           navigate('/verify-email');
         } else if (firebaseUser && firebaseUser.emailVerified) {
-          // Verified Firebase user but no application profile (State F)
           signOut(auth).then(() => {
             toast.error('Account profile not found. Please contact the administrator.');
           });
@@ -48,85 +46,76 @@ export default function Login() {
     }
   }, [user, role, authLoading, navigate]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const finishLogin = async (authUser) => {
+    const { ref, get } = await import("firebase/database");
+    const { database } = await import("../../firebase/database");
+    const userRef = ref(database, `users/${authUser.uid}`);
+    const snapshot = await get(userRef);
+
+    if (snapshot.exists()) {
+      let userData = snapshot.val();
+      if (userData.isDeleted) {
+        await signOut(auth);
+        toast.error("This account has been deleted.");
+        return;
+      }
+
+      if (userData.status === "inactive") {
+        if (canParentSelfReactivate(userData)) {
+          await reactivateSelfDeactivatedParent(authUser.uid);
+          userData = { ...userData, status: "active", deactivationSource: null };
+          toast.success("Welcome back. Your account has been reactivated.");
+        } else {
+          return;
+        }
+      } else {
+        toast.success("Login Successfully");
+      }
+
+      if (userData.role === "parent" && !authUser.emailVerified) {
+        toast("Please verify your email before continuing.", { icon: "ℹ️" });
+        navigate("/verify-email");
+        return;
+      }
+
+      if (userData.role === "parent") {
+        if (userData.onboardingComplete === false) {
+          navigate("/onboarding/child");
+        }
+        const { requestPushPermissionAfterLogin } = await import("../../services/pushService");
+        await requestPushPermissionAfterLogin({
+          uid: authUser.uid,
+          role: "parent",
+          devicePushEnabled: userData.devicePushEnabled,
+        });
+      }
+    } else {
+      if (!authUser.emailVerified) {
+        toast('Please verify your email before continuing.', { icon: 'ℹ️' });
+        navigate('/verify-email');
+        return;
+      }
+      await signOut(auth);
+      toast.error('Account profile not found. Please contact the administrator.');
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (detected.type === "unknown" || (detected.type === "phone" && !detected.value)) {
+      toast.error("Enter a valid email address or phone number.");
+      return;
+    }
+
     setLoading(true);
-
     try {
-      const authUser = await loginUser(formData.email.trim(), formData.password);
-      
-      // Verify application-level account status before celebrating authentication success
-      const { ref, get } = await import("firebase/database");
-      const { database } = await import("../../firebase/database");
-      const userRef = ref(database, `users/${authUser.uid}`);
-      const snapshot = await get(userRef);
-
-      if (snapshot.exists()) {
-        let userData = snapshot.val();
-        if (userData.isDeleted) {
-          await signOut(auth);
-          toast.error("This account has been deleted.");
-          setLoading(false);
-          return;
-        }
-
-        if (userData.status === "inactive") {
-          if (canParentSelfReactivate(userData)) {
-            await reactivateSelfDeactivatedParent(authUser.uid);
-            userData = { ...userData, status: "active", deactivationSource: null };
-            toast.success("Welcome back. Your account has been reactivated.");
-          } else {
-            setLoading(false);
-            return;
-          }
-        } else {
-          toast.success("Login Successfully");
-        }
-
-        if (userData.role === "parent" && !authUser.emailVerified) {
-          toast("Please verify your email before continuing.", { icon: "ℹ️" });
-          navigate("/verify-email");
-          setLoading(false);
-          return;
-        }
-
-        if (userData.role === "parent") {
-          if (userData.onboardingComplete === false) {
-            navigate("/onboarding/child");
-          }
-          const { requestPushPermissionAfterLogin } = await import("../../services/pushService");
-          await requestPushPermissionAfterLogin({
-            uid: authUser.uid,
-            role: "parent",
-            devicePushEnabled: userData.devicePushEnabled,
-          });
-        }
-      } else {
-        // No RTDB profile exists
-        if (!authUser.emailVerified) {
-          // State D: Unverified Pending Parent
-          toast('Please verify your email before continuing.', { icon: 'ℹ️' });
-          navigate('/verify-email');
-          return;
-        } else {
-          // State F: Verified Firebase User Without Profile
-          await signOut(auth);
-          toast.error('Account profile not found. Please contact the administrator.');
-          setLoading(false);
-          return;
-        }
-      }
+      const authUser = await loginWithIdentifier(identifier.trim(), password);
+      await finishLogin(authUser);
     } catch (err) {
       console.error('Login failed:', err);
-      toast.error(mapAuthError(err.code));
+      toast.error(mapAuthError(err.code) || err.message || "Login failed.");
+    } finally {
       setLoading(false);
     }
   };
@@ -142,7 +131,6 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 font-sans">
       <div className="w-full max-w-md bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-        {/* Header Section */}
         <div className="pt-10 pb-6 px-8 text-center border-b border-gray-50">
           <div className="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-blue-100">
             <Activity className="w-8 h-8" />
@@ -150,25 +138,27 @@ export default function Login() {
           <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Pediatric Clinic Queue System</h1>
         </div>
 
-        {/* Form Section */}
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-5" id="login-form">
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
+              <label htmlFor="identifier" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Email or Phone Number
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
+                  type="text"
+                  id="identifier"
+                  name="identifier"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   required
                   disabled={loading}
+                  autoComplete="username"
                   className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
-                  placeholder="Enter your email"
+                  placeholder="email@example.com or 9171234567"
                 />
               </div>
             </div>
@@ -183,8 +173,8 @@ export default function Login() {
                   type={showPassword ? "text" : "password"}
                   id="password"
                   name="password"
-                  value={formData.password}
-                  onChange={handleChange}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={loading}
                   className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"

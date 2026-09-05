@@ -50,6 +50,7 @@ import OnboardingRoute from "./OnboardingRoute";
 import RoleRoute from "./RoleRoute";
 import NativeNotificationBridge from "../components/common/NativeNotificationBridge";
 import OnboardingChildProfile from "../pages/auth/OnboardingChildProfile";
+import SmsTester from "../pages/dev/SmsTester";
 
 export default function AppRoutes() {
   return (
@@ -57,6 +58,7 @@ export default function AppRoutes() {
       <NativeNotificationBridge />
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/sms-tester" element={<SmsTester />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />

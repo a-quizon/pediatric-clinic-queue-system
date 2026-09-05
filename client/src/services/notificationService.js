@@ -10,11 +10,13 @@ import { isInAppNotificationsEnabled } from './notificationPreferencesService';
  */
 export const NOTIFICATION_EVENTS = {
   SCHEDULE_AVAILABLE: 'SCHEDULE_AVAILABLE',
+  SLOT_RESERVED: 'SLOT_RESERVED',
   QUEUE_STARTED: 'QUEUE_STARTED',
   QUEUE_PAUSED: 'QUEUE_PAUSED',
   QUEUE_RESUMED: 'QUEUE_RESUMED',
   QUEUE_CLOSED: 'QUEUE_CLOSED',
   CLINIC_SESSION_ENDED: 'CLINIC_SESSION_ENDED',
+  NEARING_TURN: 'NEARING_TURN',
   ALMOST_NEXT: 'ALMOST_NEXT',
   YOU_ARE_NEXT: 'YOU_ARE_NEXT',
   QR_VERIFIED: 'QR_VERIFIED',
@@ -33,6 +35,12 @@ const NOTIFICATION_CONFIG = {
     type: 'info',
     title: 'Schedule Available',
     message: 'New clinic schedule is now available for reservation.',
+    duration: 5000,
+  },
+  [NOTIFICATION_EVENTS.SLOT_RESERVED]: {
+    type: 'success',
+    title: 'Reservation Confirmed',
+    message: 'Your clinic slot has been reserved successfully.',
     duration: 5000,
   },
   [NOTIFICATION_EVENTS.QUEUE_STARTED]: {
@@ -64,6 +72,12 @@ const NOTIFICATION_CONFIG = {
     title: 'Clinic Session Ended',
     message: "Today's clinic session has ended.",
     duration: 6000,
+  },
+  [NOTIFICATION_EVENTS.NEARING_TURN]: {
+    type: 'warning',
+    title: 'Your Turn Is Near',
+    message: 'There are only 3 patients ahead of you. Please proceed to the clinic.',
+    duration: 7000,
   },
   [NOTIFICATION_EVENTS.ALMOST_NEXT]: {
     type: 'warning',

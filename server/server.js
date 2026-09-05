@@ -7,6 +7,9 @@ const { configureVapid } = require("./services/webPushService");
 const { startRealtimePushListeners } = require("./services/pushListeners");
 const pushRouter = require("./routes/push");
 const adminRouter = require("./routes/admin");
+const smsAuthRouter = require("./routes/smsAuth");
+const smsTestRouter = require("./routes/smsTest");
+const authRouter = require("./routes/auth");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -24,6 +27,9 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api", pushRouter);
 app.use("/api", adminRouter);
+app.use("/api", smsAuthRouter);
+app.use("/api", smsTestRouter);
+app.use("/api", authRouter);
 
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);

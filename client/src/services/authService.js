@@ -37,8 +37,17 @@ export const registerUser = async (
   name,
   email,
   phone,
-  password
+  password,
+  { phoneVerificationId, isPhoneVerified = false } = {}
 ) => {
+  if (!isPhoneVerified || !phoneVerificationId) {
+    throw { code: "auth/phone-not-verified" };
+  }
+
+  // Server-side gate: phone must have a valid registration OTP proof
+  const { assertPhoneVerified } = await import("./smsAuthService");
+  await assertPhoneVerified(phone, phoneVerificationId);
+
   const userCredential =
     await createUserWithEmailAndPassword(
         auth,
@@ -53,9 +62,16 @@ export const registerUser = async (
 
     console.log("User created:", user.uid);
 
-    // Temporarily store phone number for when they verify their email
+    // Temporarily store phone + verification for profile creation after email verify
     if (phone) {
-      localStorage.setItem(`pending_registration_${user.uid}`, JSON.stringify({ phone }));
+      localStorage.setItem(
+        `pending_registration_${user.uid}`,
+        JSON.stringify({
+          phone,
+          isPhoneVerified: true,
+          phoneVerificationId,
+        })
+      );
     }
 
     try {
@@ -83,6 +99,7 @@ export const completeParentRegistration = async (user) => {
     name: user.displayName || "Parent",
     email: user.email,
     phone: pendingData.phone || "",
+    isPhoneVerified: pendingData.isPhoneVerified === true,
     role: "parent",
     status: "active",
     onboardingComplete: false,
@@ -90,6 +107,15 @@ export const completeParentRegistration = async (user) => {
     createdAt: now,
     updatedAt: now
   });
+
+  if (pendingData.phone && pendingData.phoneVerificationId) {
+    try {
+      const { consumePhoneVerification } = await import("./smsAuthService");
+      await consumePhoneVerification(pendingData.phone, pendingData.phoneVerificationId);
+    } catch (err) {
+      console.warn("Could not consume phone verification proof:", err.message);
+    }
+  }
   
   localStorage.removeItem(`pending_registration_${user.uid}`);
 };
@@ -107,6 +133,38 @@ export const loginUser = async (
     );
 
   return userCredential.user;
+};
+
+/**
+ * Resolve email or phone → account email, then sign in with password.
+ * @param {string} identifier - email address or PH mobile number
+ * @param {string} password
+ */
+export const loginWithIdentifier = async (identifier, password) => {
+  const { detectLoginIdentifier } = await import("../utils/loginIdentifier");
+  const { getPushApiBase } = await import("./pushService");
+
+  const trimmed = String(identifier || "").trim();
+  const detected = detectLoginIdentifier(trimmed);
+  if (detected.type === "unknown" || (detected.type === "phone" && !detected.value)) {
+    throw { code: "auth/invalid-email" };
+  }
+
+  // Always resolve via server so phone legacy formats (+63 / 09 / 9…) match RTDB
+  const apiBase = (getPushApiBase() || "").replace(/\/$/, "");
+  const res = await fetch(`${apiBase}/api/auth/resolve-identifier`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier: trimmed }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.email) {
+    const err = new Error(data.message || "No account was found with this email or phone number.");
+    err.code = data.error === "user_not_found" ? "auth/user-not-found" : (data.error || "auth/user-not-found");
+    throw err;
+  }
+
+  return loginUser(data.email, password);
 };
 
 const PUSH_CLEANUP_TIMEOUT_MS = 4000;
@@ -130,6 +188,7 @@ export const updateUserProfile = async (uid, data) => {
   const updates = { updatedAt: Date.now() };
   if (data.name !== undefined) updates.name = data.name;
   if (data.phone !== undefined) updates.phone = data.phone;
+  if (data.isPhoneVerified !== undefined) updates.isPhoneVerified = data.isPhoneVerified;
   if (data.contactNumber !== undefined) updates.contactNumber = data.contactNumber;
   if (data.professionalTitle !== undefined) updates.professionalTitle = data.professionalTitle;
   if (data.clinicName !== undefined) updates.clinicName = data.clinicName;

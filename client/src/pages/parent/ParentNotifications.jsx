@@ -72,9 +72,11 @@ export default function ParentNotifications() {
       case 'QR_VERIFIED':
       case 'CONSULTATION_STARTED':
       case 'CONSULTATION_COMPLETED':
+      case 'SLOT_RESERVED':
         return <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />;
       case 'error':
       case 'warning':
+      case 'NEARING_TURN':
       case 'ALMOST_NEXT':
       case 'YOU_ARE_NEXT':
       case 'PENALTY':

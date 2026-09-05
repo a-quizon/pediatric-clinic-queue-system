@@ -94,17 +94,18 @@ Branches represent the physical infrastructure of the business.
 User Management ensures role-based access control.
 * **Admin**: Operates purely in the back-office. They create Doctor and Secretary accounts, assign roles, and bind Secretaries to Branches. They may deactivate accounts (`deactivationSource: admin`), which blocks login until an Admin reactivates them. They may permanently delete staff and parent accounts, which revokes Firebase Authentication and removes the user profile. Historical reservations and audit records are never physically deleted. They do not interact with patients.
 * **Doctor & Secretary**: Staff accounts created by the Admin.
-* **Parent**: Self-registering consumer accounts that authenticate via the public-facing app. New parents must verify their email and create at least one child profile before entering the parent portal. Existing parents without that onboarding flag are grandfathered. Parents may self-deactivate (`status: inactive`, `deactivationSource: self`); logging in reactivates the account. Parents may soft-delete their account: Firebase Auth is revoked, the profile is marked `isDeleted`, and historical queue/appointment records are retained for analytics. Active reservations are cancelled on deactivate and forfeited on delete so they do not hold clinic slots. 
+* **Parent**: Self-registering consumer accounts that authenticate via the public-facing app. New parents must verify their **phone number via SMS OTP** before account creation, then verify their email and create at least one child profile before entering the parent portal. Login uses a single **Email or Phone Number** field plus **Password** (phone is resolved to the account email server-side). Existing parents without that onboarding flag are grandfathered. Parents may self-deactivate (`status: inactive`, `deactivationSource: self`); logging in reactivates the account. Parents may soft-delete their account: Firebase Auth is revoked, the profile is marked `isDeleted`, and historical queue/appointment records are retained for analytics. Active reservations are cancelled on deactivate and forfeited on delete so they do not hold clinic slots. 
 
 ---
 
 ## 11. Notification Workflow
 Notifications provide real-time transparency, reducing physical clinic congestion.
-* **Queue Updates**: Pings parents proactively when their dynamic state shifts to "Almost Next" or "You're Next", or when the Secretary requests they approach the desk.
+* **Reservation Confirmation**: SMS (+ Notification Center) when a parent successfully reserves a slot, including date, clinic hours, queue number, doctor, and branch.
+* **Queue Updates**: Pings parents proactively when they are 3 patients away (`NEARING_TURN`), when their dynamic state shifts to "Almost Next" or "You're Next", or when the Secretary requests they approach the desk.
 * **Consultation Updates**: Confirms when they enter and exit the consultation room.
 * **Penalty Updates**: Alerts parents if they are penalized for absence or permanently forfeited due to exceeding the late limit.
-* **Schedule Updates**: Informs parents when a new schedule becomes available, when the queue starts/pauses/closes, and when the session ends.
-*(Note: Notifications for reservation creation and manual cancellation are not currently implemented, relying instead on UI state changes).*
+* **Schedule Updates**: Informs parents when a new schedule becomes available, when the queue starts/pauses/closes, and when the session ends. Queue start also sends SMS via textbee.dev.
+* **SMS Authentication**: Parents may sign in with a 6-digit OTP delivered by textbee; OTP records live under `smsOtps` (Admin SDK only) and expire after 5 minutes.
 
 ---
 
