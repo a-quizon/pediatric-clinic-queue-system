@@ -3,7 +3,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { updateUserProfile } from "../../services/authService";
 import { subscribeToBranchConfigurations } from "../../services/branchConfigurationService";
 import { handlePasswordChangeRequest, usePasswordValidation } from "../../utils/passwordUtils";
-import { formatName } from "../../utils/stringUtils";
+import { formatName, formatBranchLabel } from "../../utils/stringUtils";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
 import { LogOut, User as UserIcon, Edit2, Save, MapPin, X, Lock, ChevronRight, Info, ArrowLeft, BarChart3, Eye, EyeOff } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -232,7 +232,7 @@ export default function Profile() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {branches.map(branch => (
                 <div key={branch.id} className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:border-gray-300 transition-colors">
-                  <h4 className="font-bold text-gray-800 mb-1">{branch.name} Branch</h4>
+                  <h4 className="font-bold text-gray-800 mb-1">{formatBranchLabel(branch.name)}</h4>
                   <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-line">
                     {branch.clinicAddress || "Address not provided"}
                   </p>

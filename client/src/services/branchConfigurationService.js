@@ -2,6 +2,7 @@ import { database } from "../firebase/database";
 import { ref, push, set, get, update, remove, onValue } from "firebase/database";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { getReservationsBySchedule } from "./reservationService";
+import { branchesMatch, normalizeBranchName } from "../utils/stringUtils";
 
 const defaultSchedule = () => ({
   monday: { isOpen: false, openingTime: "", closingTime: "" },
@@ -159,7 +160,51 @@ export const createBranch = async (branchData) => {
 };
 
 export const updateBranch = async (branchId, branchData) => {
+  const existingSnap = await get(ref(database, `branchConfigurations/${branchId}`));
+  const oldName = existingSnap.exists() ? existingSnap.val().name : null;
+  const newName = branchData.name;
+
   await update(ref(database, `branchConfigurations/${branchId}`), branchData);
+
+  // Keep schedule.branch and secretary assignedBranch in sync when the display name changes.
+  // Without this, Start Queue works for the doctor but secretaries filter on a stale name.
+  if (oldName && newName && oldName !== newName) {
+    const cascadeUpdates = {};
+    const oldNormalized = normalizeBranchName(oldName);
+
+    const schedulesSnap = await get(ref(database, "schedules"));
+    if (schedulesSnap.exists()) {
+      for (const [id, schedule] of Object.entries(schedulesSnap.val())) {
+        const matchesId = schedule.branchId === branchId;
+        const matchesName =
+          schedule.branch === oldName ||
+          normalizeBranchName(schedule.branch) === oldNormalized;
+        if (matchesId || matchesName) {
+          cascadeUpdates[`schedules/${id}/branch`] = newName;
+          cascadeUpdates[`schedules/${id}/branchId`] = branchId;
+        }
+      }
+    }
+
+    const usersSnap = await get(ref(database, "users"));
+    if (usersSnap.exists()) {
+      for (const [id, user] of Object.entries(usersSnap.val())) {
+        if (user.role !== "secretary") continue;
+        const matchesId = user.assignedBranchId === branchId;
+        const matchesName =
+          user.assignedBranch === oldName ||
+          normalizeBranchName(user.assignedBranch) === oldNormalized;
+        if (matchesId || matchesName) {
+          cascadeUpdates[`users/${id}/assignedBranch`] = newName;
+          cascadeUpdates[`users/${id}/assignedBranchId`] = branchId;
+        }
+      }
+    }
+
+    if (Object.keys(cascadeUpdates).length > 0) {
+      await update(ref(database), cascadeUpdates);
+    }
+  }
   
   logAuditEvent({
     action: AUDIT_ACTIONS.BRANCH_EDITED,
@@ -186,7 +231,7 @@ export const deleteBranch = async (branchId) => {
 
 export const getClinicHours = async (branchName, clinicDate) => {
   const branches = await getBranchConfigurations();
-  const branch = branches.find(b => b.name === branchName);
+  const branch = branches.find(b => branchesMatch(b.name, branchName) || b.id === branchName);
   
   if (!branch || !branch.schedule) return null;
 
@@ -258,7 +303,7 @@ export const checkBranchInUse = async (branchName) => {
   if (schedulesSnapshot.exists()) {
     const schedules = schedulesSnapshot.val();
     for (const [id, schedule] of Object.entries(schedules)) {
-      if (schedule.branch === branchName) {
+      if (branchesMatch(schedule.branch, branchName)) {
         scheduleIds.push(id);
         if (schedule.status === "published") {
           hasPublishedSchedules = true;

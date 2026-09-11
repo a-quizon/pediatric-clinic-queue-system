@@ -1,6 +1,6 @@
 import { createContext, useEffect, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { ref, onValue, update } from "firebase/database";
+import { ref, onValue, update, get } from "firebase/database";
 
 import { auth } from "../firebase/auth";
 import { database } from "../firebase/database";
@@ -11,6 +11,7 @@ import {
     isAccountLifecycleInProgress,
     reactivateSelfDeactivatedParent,
 } from "../services/authService";
+import { branchesMatch } from "../utils/stringUtils";
 
 export const AuthContext = createContext();
 
@@ -63,6 +64,29 @@ export function AuthProvider({ children }) {
                                 userData.assignedBranch = "Angeles"; // Default mandatory branch for existing secretaries
                                 updates.assignedBranch = "Angeles";
                                 needsUpdate = true;
+                            }
+
+                            // Backfill assignedBranchId and sync display name after admin renames
+                            if (userData.role === "secretary" && userData.assignedBranch) {
+                                get(ref(database, "branchConfigurations")).then((branchSnap) => {
+                                    if (!branchSnap.exists()) return;
+                                    const branches = Object.entries(branchSnap.val()).map(([id, value]) => ({ id, ...value }));
+                                    const match = branches.find((b) =>
+                                        (userData.assignedBranchId && b.id === userData.assignedBranchId) ||
+                                        branchesMatch(b.name, userData.assignedBranch)
+                                    );
+                                    if (!match) return;
+                                    const syncUpdates = {};
+                                    if (userData.assignedBranchId !== match.id) {
+                                        syncUpdates.assignedBranchId = match.id;
+                                    }
+                                    if (userData.assignedBranch !== match.name) {
+                                        syncUpdates.assignedBranch = match.name;
+                                    }
+                                    if (Object.keys(syncUpdates).length > 0) {
+                                        update(ref(database, `users/${currentUser.uid}`), syncUpdates).catch(console.error);
+                                    }
+                                }).catch(console.error);
                             }
                             if (userData.role === "parent" && typeof userData.inAppNotificationsEnabled !== "boolean") {
                                 userData.inAppNotificationsEnabled = true;

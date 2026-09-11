@@ -4,6 +4,7 @@ import { getBranchConfigurations, getClinicHours } from '../../services/branchCo
 import { useAuth } from '../../hooks/useAuth';
 import { X, AlertCircle, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { branchesMatch } from '../../utils/stringUtils';
 
 export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSuccess }) {
   const { user } = useAuth();
@@ -55,6 +56,21 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
       }
     }
   }, [isOpen, mode, schedule]);
+
+  // Resolve stale schedule.branch strings (e.g. "Angeles Branch") to the current config name
+  useEffect(() => {
+    if (!isOpen || mode !== "edit" || !schedule || branches.length === 0) return;
+    const matchedBranch = branches.find(b =>
+      (schedule.branchId && b.id === schedule.branchId) ||
+      branchesMatch(b.name, schedule.branch)
+    );
+    if (!matchedBranch) return;
+    setFormData(prev => (
+      prev.branch === matchedBranch.name
+        ? prev
+        : { ...prev, branch: matchedBranch.name }
+    ));
+  }, [branches, isOpen, mode, schedule]);
 
   // update min date: kung past closing time na ang branch ngayon, i-disable today by setting min date to tomorrow
   useEffect(() => {
@@ -177,10 +193,12 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
         return;
       }
 
+      const selectedBranch = branches.find(b => b.name === formData.branch || b.id === formData.branch);
       const scheduleData = {
         doctorId: user.uid,
         doctorEmail: user.email,
-        branch: formData.branch,
+        branch: selectedBranch?.name || formData.branch,
+        branchId: selectedBranch?.id || null,
         clinicDate: formData.clinicDate,
         openingTime: formData.openingTime,
         closingTime: formData.closingTime,
@@ -251,7 +269,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
               </select>
               {formData.branch && (
                 <p className="mt-2 text-sm text-gray-500 bg-gray-50 p-2.5 rounded-lg border border-gray-100 whitespace-pre-line leading-relaxed">
-                  {branches.find(b => b.name === formData.branch)?.clinicAddress || "No clinic address provided."}
+                  {branches.find(b => branchesMatch(b.name, formData.branch))?.clinicAddress || "No clinic address provided."}
                 </p>
               )}
             </div>

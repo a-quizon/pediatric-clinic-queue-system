@@ -22,6 +22,7 @@ import ChildProfileForm, {
   emptyChildProfile,
   isChildProfileValid
 } from "../../components/parent/ChildProfileForm";
+import { formatBranchLabel, branchesMatch } from "../../utils/stringUtils";
 
 export default function ReserveQueue() {
   const { user } = useAuth();
@@ -361,10 +362,10 @@ export default function ReserveQueue() {
                   <div className="flex flex-col">
                     <h3 className="text-lg font-bold text-gray-800 flex items-center">
                       <MapPin className="w-5 h-5 mr-2 text-gray-400 shrink-0" />
-                      {schedule.branch} Branch
+                      {formatBranchLabel(schedule.branch)}
                     </h3>
                     <p className="text-xs text-gray-500 whitespace-pre-line ml-7 mt-0.5 line-clamp-2">
-                      {branches.find(b => b.name === schedule.branch)?.clinicAddress || "No clinic address provided."}
+                      {branches.find(b => branchesMatch(b.name, schedule.branch) || b.id === schedule.branchId)?.clinicAddress || "No clinic address provided."}
                     </p>
                   </div>
                   {schedule.queueStatus === 'not_started' ? (

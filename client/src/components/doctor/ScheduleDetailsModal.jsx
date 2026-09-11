@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, MapPin, CalendarDays, Clock, Users, Activity, CheckCircle2, User } from 'lucide-react';
 import { ACTIVE_RESERVATION_STATUSES } from '../../services/reservationService';
+import { formatBranchLabel } from '../../utils/stringUtils';
 
 export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reservations = [] }) {
   if (!isOpen || !schedule) return null;
@@ -107,7 +108,7 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
               <div className="flex items-center text-gray-600">
                 <MapPin className="w-4 h-4 mr-2 text-gray-400" />
-                <span className="font-semibold">{schedule.branch} Branch</span>
+                <span className="font-semibold">{formatBranchLabel(schedule.branch)}</span>
               </div>
               <div className="flex items-center text-gray-600">
                 <CalendarDays className="w-4 h-4 mr-2 text-gray-400" />

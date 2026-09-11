@@ -6,6 +6,7 @@ import { subscribeToScheduleReservations } from "../../services/reservationServi
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { getReservationChildDisplayName } from "../../utils/reservationPatients";
 import ManageQueue from "./ManageQueue";
+import { branchesMatch, scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -17,16 +18,19 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchAddress = async () => {
-      if (user?.assignedBranch) {
+      if (user?.assignedBranch || user?.assignedBranchId) {
         const branches = await getBranchConfigurations();
-        const branch = branches.find(b => b.name === user.assignedBranch);
+        const branch = branches.find(b =>
+          (user.assignedBranchId && b.id === user.assignedBranchId) ||
+          branchesMatch(b.name, user.assignedBranch)
+        );
         if (branch && branch.clinicAddress) {
           setClinicAddress(branch.clinicAddress);
         }
       }
     };
     fetchAddress();
-  }, [user?.assignedBranch]);
+  }, [user?.assignedBranch, user?.assignedBranchId]);
 
   useEffect(() => {
     const unsubSchedules = subscribeToPublishedSchedules((data) => {
@@ -42,7 +46,7 @@ export default function Dashboard() {
   }, []);
 
   // Identify the most relevant active or published schedule for this branch
-  const branchSchedules = Object.values(schedules).filter(s => s.branch === user?.assignedBranch);
+  const branchSchedules = Object.values(schedules).filter(s => scheduleMatchesAssignedBranch(s, user));
   
   // Priority 1: Currently active or paused
   let publishedSchedule = branchSchedules.find(s => s.queueStatus === 'active' || s.queueStatus === 'paused');

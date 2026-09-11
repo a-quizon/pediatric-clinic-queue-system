@@ -4,6 +4,7 @@ import { getReservationsBySchedule } from "./reservationService";
 import { recalculateRollingValidation } from "./rollingValidationService";
 import { validateScheduleClosingTime } from "./branchConfigurationService";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
+import { branchesMatch } from "../utils/stringUtils";
 
 export { validateScheduleClosingTime };
 
@@ -51,7 +52,7 @@ export const scheduleExists = async ( branch, clinicDate ) => {
 
   const schedules = snapshot.val();
 
-  return Object.values(schedules).some( (schedule) => schedule.branch === branch && schedule.clinicDate === clinicDate);
+  return Object.values(schedules).some( (schedule) => branchesMatch(schedule.branch, branch) && schedule.clinicDate === clinicDate);
 };
 
 // check closing time before updating draft schedule or publishing
@@ -61,6 +62,7 @@ export const updateSchedule = async ( scheduleId, updatedData ) => {
     const currentSchedule = snapshot.val();
     if (currentSchedule.status === "published") {
       delete updatedData.branch;
+      delete updatedData.branchId;
       delete updatedData.clinicDate;
     } else {
       const branch = updatedData.branch || currentSchedule.branch;

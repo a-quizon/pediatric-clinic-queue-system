@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Edit2, Shield, Stethoscope, UserCog, User, Mail, Phone, Calendar, Clock, MapPin, CheckCircle, AlertTriangle, Key } from "lucide-react";
 import { updateUser, toggleUserStatus, sendAdminPasswordResetEmail } from "../../services/adminService";
-import { formatName } from "../../utils/stringUtils";
+import { formatName, branchesMatch } from "../../utils/stringUtils";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
 import toast from "react-hot-toast";
@@ -42,6 +42,20 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
     }
   }, [user, isOpen]);
 
+  useEffect(() => {
+    if (!user || !isOpen || user.role !== "secretary" || branches.length === 0) return;
+    const matchedBranch = branches.find(b =>
+      (user.assignedBranchId && b.id === user.assignedBranchId) ||
+      branchesMatch(b.name, user.assignedBranch)
+    );
+    if (!matchedBranch) return;
+    setFormData(prev => (
+      prev.assignedBranch === matchedBranch.name
+        ? prev
+        : { ...prev, assignedBranch: matchedBranch.name }
+    ));
+  }, [branches, user, isOpen]);
+
   if (!isOpen || !user || !user.id) return null;
 
   const handleInputChange = (e) => {
@@ -73,7 +87,9 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
       };
 
       if (user.role === "secretary") {
-        updates.assignedBranch = formData.assignedBranch;
+        const selectedBranch = branches.find(b => b.name === formData.assignedBranch);
+        updates.assignedBranch = selectedBranch?.name || formData.assignedBranch;
+        updates.assignedBranchId = selectedBranch?.id || null;
       }
 
       await updateUser(user.id, updates);

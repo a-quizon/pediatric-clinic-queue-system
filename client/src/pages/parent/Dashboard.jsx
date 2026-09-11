@@ -10,6 +10,7 @@ import ReservationStatusBadge from "../../components/common/ReservationStatusBad
 import { computeReservationState, computeAheadOfYou, QUEUE_STATES } from "../../services/queueEngine";
 import PushNotificationSettings from "../../components/parent/PushNotificationSettings";
 import { getReservationChildDisplayName } from "../../utils/reservationPatients";
+import { formatBranchLabel, branchesMatch } from "../../utils/stringUtils";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -253,10 +254,10 @@ export default function Dashboard() {
                   {!schedule.branch?.toLowerCase().includes('clinic') && " Clinic"}
                 </h2>
                 <span className="text-[11px] font-semibold text-blue-600 block leading-tight mt-0.5">
-                  {schedule.branch?.toLowerCase().includes('branch') ? schedule.branch : `${schedule.branch} Branch`}
+                  {formatBranchLabel(schedule.branch)}
                 </span>
                 <span className="text-[10px] text-gray-500 block truncate max-w-[150px] sm:max-w-[200px] leading-tight mt-0.5">
-                  {branches.find(b => b.name === schedule.branch)?.clinicAddress || "Magalang Road, Angeles City, Pampanga"}
+                  {branches.find(b => branchesMatch(b.name, schedule.branch) || b.id === schedule.branchId)?.clinicAddress || "Magalang Road, Angeles City, Pampanga"}
                 </span>
               </div>
             </div>

@@ -10,6 +10,7 @@ import { database } from "../../firebase/database";
 import toast from "react-hot-toast";
 import { getReservationChildDisplayName } from "../../utils/reservationPatients";
 import ReservationPatientNames from "../../components/common/ReservationPatientNames";
+import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 
 export default function ManageQueue({ hideHeader = false }) {
   const { user } = useAuth();
@@ -62,7 +63,7 @@ export default function ManageQueue({ hideHeader = false }) {
   const activeStartedSchedule = Object.values(schedules).find(s =>
     s.status === "published" && 
     ["active", "paused", "closed"].includes(s.queueStatus) &&
-    s.branch === user?.assignedBranch
+    scheduleMatchesAssignedBranch(s, user)
   );
 
   useEffect(() => {

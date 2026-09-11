@@ -69,6 +69,9 @@ export const createStaffAccount = async (staffData) => {
 
     if (staffData.role === "secretary") {
       dbPayload.assignedBranch = staffData.assignedBranch;
+      if (staffData.assignedBranchId) {
+        dbPayload.assignedBranchId = staffData.assignedBranchId;
+      }
     }
 
     await set(ref(database, `users/${user.uid}`), dbPayload);

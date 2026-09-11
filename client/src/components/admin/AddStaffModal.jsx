@@ -108,13 +108,15 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
 
     setLoading(true);
     try {
+      const selectedBranch = branches.find(b => b.name === formData.assignedBranch);
       await createStaffAccount({
         role,
         name: formatName(formData.name),
         email: formData.email.trim(),
         phone: formatToE164(formData.phone),
         password: formData.password,
-        assignedBranch: role === "secretary" ? formData.assignedBranch : null
+        assignedBranch: role === "secretary" ? (selectedBranch?.name || formData.assignedBranch) : null,
+        assignedBranchId: role === "secretary" ? (selectedBranch?.id || null) : null
       });
       
       toast.success(`${role.charAt(0).toUpperCase() + role.slice(1)} account created successfully!`);

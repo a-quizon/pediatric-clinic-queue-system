@@ -7,6 +7,7 @@ import { validateReservationByCode, checkInReservation } from "../../services/re
 import { getScheduleById } from "../../services/scheduleService";
 import { isReservationExpired } from "../../services/timeService";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
+import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 
 export default function ValidateReservation() {
   const { user } = useAuth();
@@ -100,7 +101,7 @@ export default function ValidateReservation() {
 
     const schedule = await getScheduleById(reservation.scheduleId);
     
-    if (schedule && user.assignedBranch && schedule.branch !== user.assignedBranch) {
+    if (schedule && user.assignedBranch && !scheduleMatchesAssignedBranch(schedule, user)) {
       toast.error(`This reservation belongs to a different branch (${schedule.branch}).`);
       setShowInvalidModal(true);
       return;

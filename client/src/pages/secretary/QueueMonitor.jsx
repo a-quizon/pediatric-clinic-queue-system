@@ -4,6 +4,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { subscribeToScheduleReservations } from "../../services/reservationService";
 import { sortActiveQueue } from "../../services/queueEngine";
+import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 
 export default function QueueMonitor() {
   const { user } = useAuth();
@@ -55,7 +56,7 @@ export default function QueueMonitor() {
   }, []);
 
   const activeSchedule = Object.values(schedules).find(s =>
-    s.branch === user?.assignedBranch && 
+    scheduleMatchesAssignedBranch(s, user) && 
     ["active", "paused", "closed"].includes(s.queueStatus)
   );
 
