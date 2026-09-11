@@ -1,34 +1,46 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { getSchedules, deleteSchedule, publishSchedule, completeSchedule } from "../../services/scheduleService";
+import { getSchedules, deleteSchedule, publishSchedule } from "../../services/scheduleService";
 import { subscribeToAllReservations, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
-import ScheduleCard from "../../components/schedule/ScheduleCard";
-import ScheduleFormModal from "../../components/schedule/ScheduleFormModal";
-import ScheduleDetailsModal from "../../components/doctor/ScheduleDetailsModal";
-import ConfirmationModal from "../../components/common/ConfirmationModal";
-import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal";
-import { Plus, Search, Filter, PlayCircle, CalendarX, CalendarCheck, Activity } from "lucide-react";
+import ScheduleCard from "./ScheduleCard";
+import ScheduleFormModal from "./ScheduleFormModal";
+import ScheduleDetailsModal from "../doctor/ScheduleDetailsModal";
+import ConfirmationModal from "../common/ConfirmationModal";
+import ScheduleConfirmModal from "./ScheduleConfirmModal";
+import { Plus, Search, Filter, PlayCircle, CalendarX, CalendarCheck } from "lucide-react";
 import toast from "react-hot-toast";
 import { sortSchedules } from "../../utils/scheduleUtils";
+import { useAuth } from "../../hooks/useAuth";
+import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 
-export default function ScheduleManagement() {
+/**
+ * Shared schedule lifecycle UI (create / publish / start queue).
+ * Used by the Secretary role; filters to assigned branch when the user has one.
+ */
+export default function ScheduleManagement({
+  queuePath = "/secretary/queue",
+  queueControlLabel = "Manage Queue",
+}) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [schedules, setSchedules] = useState([]);
   const [branches, setBranches] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create");
   const [selectedSchedule, setSelectedSchedule] = useState(null);
-  
+
   const [currentFilter, setCurrentFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   const [reservations, setReservations] = useState([]);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, action: null, scheduleId: null, title: "", message: "", confirmText: "Confirm" });
   const [scheduleActionModal, setScheduleActionModal] = useState({ isOpen: false, action: null, schedule: null });
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const lockBranch = user?.role === "secretary";
 
   useEffect(() => {
     const unsub = subscribeToAllReservations((data) => {
@@ -45,10 +57,13 @@ export default function ScheduleManagement() {
         setSchedules([]);
         return;
       }
-      const scheduleArray = Object.entries(data).map(([id, value]) => ({
+      let scheduleArray = Object.entries(data).map(([id, value]) => ({
         id,
         ...value,
       }));
+      if (lockBranch && user) {
+        scheduleArray = scheduleArray.filter((s) => scheduleMatchesAssignedBranch(s, user));
+      }
       setSchedules(scheduleArray);
     } catch (error) {
       console.error(error);
@@ -57,7 +72,7 @@ export default function ScheduleManagement() {
 
   useEffect(() => {
     loadSchedules();
-  }, []);
+  }, [user?.assignedBranch, user?.assignedBranchId, lockBranch]);
 
   const handleOpenCreateModal = () => {
     setModalMode("create");
@@ -84,16 +99,11 @@ export default function ScheduleManagement() {
     });
   };
   const handlePublish = (scheduleOrId) => {
-    const scheduleObj = typeof scheduleOrId === 'string' ? schedules.find(s => s.id === scheduleOrId) : scheduleOrId;
+    const scheduleObj = typeof scheduleOrId === "string" ? schedules.find((s) => s.id === scheduleOrId) : scheduleOrId;
     setScheduleActionModal({
       isOpen: true,
       action: "publish",
       schedule: scheduleObj,
-    });
-  };
-  const handleComplete = (scheduleId) => {
-    setConfirmModal({
-      isOpen: true, action: "complete", scheduleId, title: "Complete Schedule?", message: "No new reservations will be allowed and this clinic session will be closed.", confirmText: "Complete"
     });
   };
   const executeConfirmAction = async () => {
@@ -103,28 +113,24 @@ export default function ScheduleManagement() {
       if (confirmModal.action === "delete") {
         await deleteSchedule(confirmModal.scheduleId);
         await loadSchedules();
-      } else if (confirmModal.action === "complete") {
-        await completeSchedule(confirmModal.scheduleId);
-        await loadSchedules();
-        toast.success("The schedule has been successfully closed.");
       }
-      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      setConfirmModal((prev) => ({ ...prev, isOpen: false }));
     } catch (error) {
       toast.error("An error occurred while processing your request.");
-      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      setConfirmModal((prev) => ({ ...prev, isOpen: false }));
     } finally {
       setIsProcessing(false);
     }
   };
   const handleStartQueue = (scheduleOrId) => {
-    const scheduleObj = typeof scheduleOrId === 'string' ? schedules.find(s => s.id === scheduleOrId) : scheduleOrId;
+    const scheduleObj = typeof scheduleOrId === "string" ? schedules.find((s) => s.id === scheduleOrId) : scheduleOrId;
     setScheduleActionModal({
       isOpen: true,
       action: "startQueue",
       schedule: scheduleObj,
     });
   };
-  // check closing time validation bago i-publish
+
   const executeScheduleAction = async () => {
     if (!scheduleActionModal.schedule || !scheduleActionModal.action) return;
     setIsProcessing(true);
@@ -143,11 +149,11 @@ export default function ScheduleManagement() {
         setScheduleActionModal({ isOpen: false, action: null, schedule: null });
       } else if (scheduleActionModal.action === "startQueue") {
         const { updateQueueStatus } = await import("../../services/scheduleService");
-        await updateQueueStatus(scheduleActionModal.schedule.id, 'active');
+        await updateQueueStatus(scheduleActionModal.schedule.id, "active");
         await loadSchedules();
         toast.success("Clinic queue has been started.");
         setScheduleActionModal({ isOpen: false, action: null, schedule: null });
-        navigate("/doctor/queue");
+        navigate(queuePath);
       }
     } catch (error) {
       console.error(error);
@@ -158,66 +164,49 @@ export default function ScheduleManagement() {
   };
 
   const handleOpenQueueControl = () => {
-    navigate("/doctor/queue");
+    navigate(queuePath);
   };
 
-  // compute available and reserved slots gamit ang active statuses para hindi mag-release habang in_consultation/with_doctor pa
   const getAvailableSlots = (schedule) => {
-    const count = reservations.filter(r => r.scheduleId === schedule.id && ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
+    const count = reservations.filter((r) => r.scheduleId === schedule.id && ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
     return schedule.slotCapacity - count;
   };
   const getReservedCount = (schedule) => {
-    return reservations.filter(r => r.scheduleId === schedule.id && ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
+    return reservations.filter((r) => r.scheduleId === schedule.id && ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
   };
   const getCheckedInCount = (schedule) => {
-    return reservations.filter(r => r.scheduleId === schedule.id && (r.status === 'checked_in' || r.checkedIn)).length;
+    return reservations.filter((r) => r.scheduleId === schedule.id && (r.status === "checked_in" || r.checkedIn)).length;
   };
   const getTotalReservations = (schedule) => {
-    return reservations.filter(r => r.scheduleId === schedule.id).length;
+    return reservations.filter((r) => r.scheduleId === schedule.id).length;
   };
   const getCheckedUpCount = (schedule) => {
-    return reservations.filter(r => r.scheduleId === schedule.id && ["completed", "consultation_completed"].includes(r.status)).length;
+    return reservations.filter((r) => r.scheduleId === schedule.id && ["completed", "consultation_completed"].includes(r.status)).length;
   };
   const getCancelledCount = (schedule) => {
-    return reservations.filter(r => r.scheduleId === schedule.id && r.status === 'cancelled').length;
+    return reservations.filter((r) => r.scheduleId === schedule.id && r.status === "cancelled").length;
   };
   const getForfeitedCount = (schedule) => {
-    return reservations.filter(r => r.scheduleId === schedule.id && ["forfeited", "penalized", "late_limit_reached"].includes(r.status)).length;
+    return reservations.filter((r) => r.scheduleId === schedule.id && ["forfeited", "penalized", "late_limit_reached"].includes(r.status)).length;
   };
 
   const getLocalStatus = (schedule) => {
-    if (schedule.status === 'draft') return 'Draft';
-    if (schedule.status === 'completed' || schedule.queueStatus === 'completed' || schedule.queueStatus === 'ended') return 'Completed';
-    if (schedule.status === 'published') return 'Published';
-    return 'Unknown';
+    if (schedule.status === "draft") return "Draft";
+    if (schedule.status === "completed" || schedule.queueStatus === "completed" || schedule.queueStatus === "ended") return "Completed";
+    if (schedule.status === "published") return "Published";
+    return "Unknown";
   };
 
-  const isAnyQueueActive = schedules.some(s => s.status === 'published' && (s.queueStatus === 'active' || s.queueStatus === 'paused' || s.queueStatus === 'closed'));
+  const isAnyQueueActive = schedules.some((s) => s.status === "published" && (s.queueStatus === "active" || s.queueStatus === "paused" || s.queueStatus === "closed"));
 
-  const activeQueue = useMemo(() => {
-    return schedules.find(s => s.status === 'published' && (s.queueStatus === 'active' || s.queueStatus === 'paused' || s.queueStatus === 'closed'));
-  }, [schedules]);
-
-  const formatTime = (time) => {
-    if (!time) return '';
-    const [hours, minutes] = time.split(':');
-    const h = parseInt(hours, 10);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const formattedH = h % 12 || 12;
-    return `${formattedH}:${minutes} ${ampm}`;
-  };
-
-  // Filter & Search
   const filteredSchedules = useMemo(() => {
-    const validSchedules = schedules.filter(s => {
+    const validSchedules = schedules.filter((s) => {
       const stat = getLocalStatus(s);
-      
-      // Filter dropdown
-      if (currentFilter !== 'All' && stat !== currentFilter) {
+
+      if (currentFilter !== "All" && stat !== currentFilter) {
         return false;
       }
-      
-      // Search text
+
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         if (
@@ -234,7 +223,6 @@ export default function ScheduleManagement() {
     return sortSchedules(validSchedules);
   }, [schedules, currentFilter, searchQuery]);
 
-  // Pagination
   const PAGE_SIZE = 10;
   const totalPages = Math.max(1, Math.ceil(filteredSchedules.length / PAGE_SIZE));
   const validCurrentPage = Math.min(currentPage, totalPages);
@@ -244,14 +232,12 @@ export default function ScheduleManagement() {
 
   return (
     <div className="w-full pb-20 pt-4">
-      
-      {/* Filter and Search */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Search branch, date, or status..." 
+          <input
+            type="text"
+            placeholder="Search branch, date, or status..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -262,7 +248,7 @@ export default function ScheduleManagement() {
         </div>
         <div className="relative min-w-[200px]">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-          <select 
+          <select
             value={currentFilter}
             onChange={(e) => {
               setCurrentFilter(e.target.value);
@@ -278,19 +264,17 @@ export default function ScheduleManagement() {
         </div>
       </div>
 
-      {/* Active Queue Warning */}
       {isAnyQueueActive && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 flex items-start text-sm font-medium mb-6 animate-in fade-in">
           <p>You already have an active clinic queue. End the current queue before starting another.</p>
         </div>
       )}
 
-      {/* Schedule List */}
       {filteredSchedules.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center mt-4">
           <CalendarX className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-gray-800 mb-2">No schedules found</h3>
-          <p className="text-gray-500">Try adjusting your filters or search query.</p>
+          <p className="text-gray-500">Try adjusting your filters or create a new schedule.</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -312,36 +296,36 @@ export default function ScheduleManagement() {
                 onPublish={handlePublish}
                 onStartQueue={handleStartQueue}
                 onOpenQueueControl={handleOpenQueueControl}
+                queueControlLabel={queueControlLabel}
                 isStartQueueDisabled={isAnyQueueActive}
-                clinicAddress={branches.find(b => b.name === schedule.branch)?.clinicAddress}
+                clinicAddress={branches.find((b) => b.name === schedule.branch)?.clinicAddress}
               />
             ))}
           </div>
 
-          {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 gap-4 md:flex-none z-10 rounded-b-xl">
               <div className="text-sm text-gray-500 font-medium text-center sm:text-left">
                 Showing {startIndex + 1}–{Math.min(validCurrentPage * PAGE_SIZE, filteredSchedules.length)} of {filteredSchedules.length} schedules
               </div>
               <div className="flex items-center justify-center gap-2">
-                <button 
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={validCurrentPage === 1}
                   className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Previous
                 </button>
-                
+
                 <div className="hidden sm:flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
                       className={`w-8 h-8 flex items-center justify-center rounded-lg border text-sm font-medium transition-colors ${
-                        validCurrentPage === page 
-                          ? 'bg-blue-600 text-white border-blue-600' 
-                          : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50'
+                        validCurrentPage === page
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "border-gray-200 text-gray-600 bg-white hover:bg-gray-50"
                       }`}
                     >
                       {page}
@@ -349,8 +333,8 @@ export default function ScheduleManagement() {
                   ))}
                 </div>
 
-                <button 
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={validCurrentPage === totalPages}
                   className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
@@ -362,24 +346,24 @@ export default function ScheduleManagement() {
         </div>
       )}
 
-      {/* Floating Action Button */}
       <button
         onClick={handleOpenCreateModal}
-        className="fixed bottom-20 right-8 w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 hover:scale-105 transition-all z-100"
+        className="fixed bottom-24 right-6 md:bottom-8 md:right-8 w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 hover:scale-105 transition-all z-30"
         title="Add Schedule"
       >
         <Plus className="w-6 h-6" />
       </button>
 
-      <ScheduleFormModal 
+      <ScheduleFormModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         mode={modalMode}
         schedule={selectedSchedule}
         onSuccess={handleSuccess}
+        lockBranch={lockBranch}
       />
 
-      <ScheduleDetailsModal 
+      <ScheduleDetailsModal
         isOpen={detailsModalOpen}
         onClose={() => setDetailsModalOpen(false)}
         schedule={selectedSchedule}
@@ -393,7 +377,7 @@ export default function ScheduleManagement() {
         confirmText={confirmModal.confirmText}
         cancelText="Cancel"
         onConfirm={executeConfirmAction}
-        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
         loading={isProcessing}
       />
 
@@ -403,7 +387,7 @@ export default function ScheduleManagement() {
         description={
           scheduleActionModal.action === "publish"
             ? "Please review the schedule details below before publishing. Once published, parents will immediately be able to reserve available slots for this clinic schedule."
-            : "Please review the selected clinic schedule before starting today's queue.\n\nOnce the queue starts:\n• Parents may begin QR validation.\n• The secretary may begin checking in patients.\n• Consultations may begin."
+            : "Please review the selected clinic schedule before starting today's queue.\n\nOnce the queue starts:\n• Parents may begin QR validation.\n• Check-in may begin at the desk.\n• Consultations may begin."
         }
         schedule={scheduleActionModal.schedule}
         confirmText={scheduleActionModal.action === "publish" ? "Publish Schedule" : "Start Queue"}

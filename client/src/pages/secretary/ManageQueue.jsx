@@ -25,6 +25,7 @@ export default function ManageQueue({ hideHeader = false }) {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [parentContactInfo, setParentContactInfo] = useState(null);
   const [loadingContactInfo, setLoadingContactInfo] = useState(false);
+  const [contactIsWalkIn, setContactIsWalkIn] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -267,8 +268,17 @@ export default function ManageQueue({ hideHeader = false }) {
     if (e.target.closest('button')) return;
     
     setIsContactModalOpen(true);
-    setLoadingContactInfo(true);
     setParentContactInfo(null);
+
+    const isWalkIn = res.source === "walk_in" || !res.parentId;
+    setContactIsWalkIn(isWalkIn);
+
+    if (isWalkIn) {
+      setLoadingContactInfo(false);
+      return;
+    }
+
+    setLoadingContactInfo(true);
     
     try {
       const parentRef = ref(database, `users/${res.parentId}`);
@@ -499,10 +509,16 @@ export default function ManageQueue({ hideHeader = false }) {
         >
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-1">Parent / Guardian</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-1">
+                {contactIsWalkIn ? "Walk-in Patient" : "Parent / Guardian"}
+              </h2>
               {loadingContactInfo ? (
                 <div className="flex justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : contactIsWalkIn ? (
+                <div className="py-6 text-center text-gray-500">
+                  <p>Walk-in patient (no parent account).</p>
                 </div>
               ) : parentContactInfo ? (
                 <div className="mt-4 space-y-4">

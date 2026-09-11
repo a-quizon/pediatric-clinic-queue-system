@@ -23,9 +23,9 @@ The system uses strict `NOTIFICATION_EVENTS` as the single source of truth for t
 
 | Event ID | Purpose | Triggered By | Recipient |
 |----------|---------|--------------|-----------|
-| **SCHEDULE_AVAILABLE** | Informs users of new booking slots. | Doctor publishes schedule. | Parents |
+| **SCHEDULE_AVAILABLE** | Informs users of new booking slots. | Secretary publishes schedule. | Parents |
 | **SLOT_RESERVED** | Confirms a successful reservation (SMS includes date, time, queue #, doctor). | Parent creates reservation. | Specific Parent |
-| **QUEUE_STARTED** | Clinic floor is officially open. | Doctor starts queue. | Parents |
+| **QUEUE_STARTED** | Clinic floor is officially open. | Secretary starts queue. | Parents |
 | **QUEUE_PAUSED** | Clinic floor is temporarily halted. | Doctor pauses queue. | Parents |
 | **QUEUE_RESUMED** | Clinic floor resumes operations. | Doctor resumes queue. | Parents |
 | **QUEUE_CLOSED** | End of daily reservations. | Doctor closes queue. | Parents |
@@ -49,13 +49,13 @@ Parents are the **only** entity in the system that receives persistent notificat
 
 ## 5. Secretary Notifications
 **None.** 
-The Secretary does not receive any persistent database notifications or push notifications. They only receive transient, local, browser-level Toast messages (e.g., "Penalty Applied successfully") when they perform direct actions on the dashboard.
+The Secretary does not receive any persistent database notifications or push notifications. They only receive transient, local, browser-level Toast messages (e.g., "Schedule Published", "Penalty Applied successfully") when they perform direct actions on the dashboard.
 
 ---
 
 ## 6. Doctor Notifications
 **None.** 
-The Doctor does not receive persistent database notifications or push notifications. Similar to the Secretary, they only see local UI feedback toasts confirming their actions (e.g., "Schedule Published").
+The Doctor does not receive persistent database notifications or push notifications. Similar to the Secretary, they only see local UI feedback toasts confirming their actions (e.g., "Consultation Completed").
 
 ---
 

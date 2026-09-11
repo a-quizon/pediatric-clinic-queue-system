@@ -85,7 +85,7 @@ A reservation follows a strict linear progression, with early exits for cancella
 
 ## 9. Slot Management Rules
 Slots are evaluated dynamically at runtime by counting active reservations.
-* **Total Capacity**: Defined by the Doctor upon Schedule creation (e.g., 30 slots).
+* **Total Capacity**: Defined by the Secretary upon Schedule creation (e.g., 30 slots).
 * **Consumption**: Any reservation that is `reserved`, `waiting`, `checked_in`, `with_doctor`, or `in_consultation` counts as 1 consumed slot.
 * **Release**: Any reservation that reaches a terminal state (`cancelled`, `forfeited`, or `consultation_completed`) is excluded from the active count, immediately releasing the slot back to the public pool for a new reservation.
 
@@ -102,16 +102,17 @@ Slots are evaluated dynamically at runtime by counting active reservations.
 ---
 
 ## 11. Secretary Rules
+* **Schedule Creation**: Defines the framework (date, time, slot capacity) for their assigned branch; creates drafts, publishes schedules, and starts the queue.
 * **Monitor Floor**: Observes the physical clinic flow.
-* **Check In**: Validates QR codes.
+* **Check In**: Validates QR codes or the 6-character reservation code (camera auto-starts on the Validation screen; manual entry auto-submits at full length).
+* **Walk-in Patient**: From Profile, the secretary may create a reservation for one or more children physically present at the clinic without a parent account. The record is stored with `source: "walk_in"`, `createdBy` set to the secretary’s uid, and **no** `parentId` / `parentEmail` (the one-active-reservation-per-parent rule does not apply). Patient data uses the same `children[]` + shared `concern` model as parent bookings; multiple children still consume **one** slot and one queue ticket. On submit the reservation is created already `checked_in` (QR/code validation is skipped) and injected into the Queue Engine like any other reservation, so it appears on Manage Queue, the doctor’s live queue, and doctor Reports once the schedule completes.
 * **Penalize**: Applies penalties to absent patients. Patients are moved backward by the configured Penalty Move-Back count. Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent. If the penalty count reaches the schedule's `lateLimit` (usually 3), the Secretary's action automatically transitions the reservation to `forfeited`.
 * **Send to Doctor**: Manages the final gateway into the consultation room, strictly abiding by the Active Consultation lock.
 
 ---
 
 ## 12. Doctor Rules
-* **Schedule Creation**: Defines the framework (date, time, slot capacity) within which reservations are created.
-* **Queue Control**: Starts the queue, which enables the live pipeline.
+* **Queue Control**: Pauses, resumes, or closes the live queue during a clinic session.
 * **Consultation**: Receives the patient.
 * **Completion**: Ends the reservation lifecycle by completing the consultation and providing optional notes.
 

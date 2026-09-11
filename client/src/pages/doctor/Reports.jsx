@@ -76,10 +76,10 @@ export default function Reports() {
 
   const handleResetFilters = () => {
     setBranch("All Branches");
-    setDateRange("This Month");
+    setDateRange("This Year");
   };
 
-  const isFiltered = branch !== "All Branches" || dateRange !== "This Month";
+  const isFiltered = branch !== "All Branches" || dateRange !== "This Year";
 
   return (
     <div className="space-y-6 pb-6 relative">
@@ -130,6 +130,7 @@ export default function Reports() {
               <option value="Today">Today</option>
               <option value="This Week">This Week</option>
               <option value="This Month">This Month</option>
+              <option value="This Year">This Year</option>
             </select>
           </div>
         </div>

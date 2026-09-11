@@ -6,7 +6,7 @@ import { X, AlertCircle, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { branchesMatch } from '../../utils/stringUtils';
 
-export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSuccess }) {
+export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSuccess, lockBranch = false }) {
   const { user } = useAuth();
   
   const initialFormState = {
@@ -21,6 +21,16 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
   const [formData, setFormData] = useState(initialFormState);
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState([]);
+
+  const resolveLockedBranchName = (branchList) => {
+    if (!lockBranch || !user) return "";
+    const matched = branchList.find(
+      (b) =>
+        (user.assignedBranchId && b.id === user.assignedBranchId) ||
+        branchesMatch(b.name, user.assignedBranch)
+    );
+    return matched?.name || user.assignedBranch || "";
+  };
 
   // helper to get local date string yyyy-mm-dd
   const getLocalDateString = (offsetDays = 0) => {
@@ -52,10 +62,14 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
           lateLimit: schedule.lateLimit !== undefined ? String(schedule.lateLimit) : "3",
         });
       } else {
-        setFormData(initialFormState);
+        const lockedBranch = resolveLockedBranchName(branches);
+        setFormData({
+          ...initialFormState,
+          branch: lockedBranch || "",
+        });
       }
     }
-  }, [isOpen, mode, schedule]);
+  }, [isOpen, mode, schedule, branches, lockBranch, user?.assignedBranch, user?.assignedBranchId]);
 
   // Resolve stale schedule.branch strings (e.g. "Angeles Branch") to the current config name
   useEffect(() => {
@@ -194,9 +208,25 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
       }
 
       const selectedBranch = branches.find(b => b.name === formData.branch || b.id === formData.branch);
+      let doctorId = user.uid;
+      let doctorEmail = user.email;
+      if (lockBranch || user?.role === "secretary") {
+        try {
+          const { getActiveDoctor } = await import("../../services/adminService");
+          const activeDoctor = await getActiveDoctor();
+          if (activeDoctor) {
+            doctorId = activeDoctor.id || activeDoctor.uid;
+            doctorEmail = activeDoctor.email || doctorEmail;
+          }
+        } catch (err) {
+          console.warn("Could not resolve active doctor for schedule; using creator id.", err);
+        }
+      }
       const scheduleData = {
-        doctorId: user.uid,
-        doctorEmail: user.email,
+        doctorId,
+        doctorEmail,
+        createdBy: user.uid,
+        createdByRole: user.role || "secretary",
         branch: selectedBranch?.name || formData.branch,
         branchId: selectedBranch?.id || null,
         clinicDate: formData.clinicDate,
@@ -259,11 +289,18 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
                 value={formData.branch}
                 onChange={handleChange}
                 required
-                disabled={loading || (mode === "edit" && schedule?.status === "published")}
+                disabled={loading || lockBranch || (mode === "edit" && schedule?.status === "published")}
                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 disabled:bg-gray-100 text-gray-800"
               >
                 <option value="">Select Branch</option>
-                {branches.map(b => (
+                {(lockBranch
+                  ? branches.filter(
+                      (b) =>
+                        (user?.assignedBranchId && b.id === user.assignedBranchId) ||
+                        branchesMatch(b.name, user?.assignedBranch)
+                    )
+                  : branches
+                ).map((b) => (
                   <option key={b.id} value={b.name}>{b.name}</option>
                 ))}
               </select>

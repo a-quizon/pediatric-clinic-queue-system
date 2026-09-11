@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { Home, CalendarDays, Users, Stethoscope, User, BarChart3, Activity } from "lucide-react";
+import { Home, Users, User, BarChart3, Activity } from "lucide-react";
 import PageHeader from "../common/PageHeader";
 
 export default function Layout() {
@@ -9,9 +9,6 @@ export default function Layout() {
     const path = location.pathname;
     if (path === "/doctor" || path === "/doctor/") {
       return { desktop: "Dashboard", mobile: "Home" };
-    }
-    if (path.startsWith("/doctor/schedules")) {
-      return { desktop: "Schedules", mobile: "Schedules" };
     }
     if (path.startsWith("/doctor/queue")) {
       return { desktop: "Queue", mobile: "Queue" };
@@ -32,7 +29,6 @@ export default function Layout() {
 
   const navItems = [
     { name: "Dashboard", path: "/doctor", icon: Home },
-    { name: "Schedules", path: "/doctor/schedules", icon: CalendarDays },
     { name: "Queue", path: "/doctor/queue", icon: Users },
     { name: "Reports & Analytics", path: "/doctor/reports", icon: BarChart3, desktopOnly: true },
     { name: "Profile", path: "/doctor/profile", icon: User },

@@ -17,7 +17,8 @@ export default function ScheduleCard({
   onOpenQueueControl,
   onViewDetails,
   isStartQueueDisabled,
-  clinicAddress
+  clinicAddress,
+  queueControlLabel = "Open Queue Control",
 }) {
 
   let localStatus = 'unknown';
@@ -184,7 +185,7 @@ export default function ScheduleCard({
               onClick={(e) => { e.stopPropagation(); onOpenQueueControl(); }} 
               className="flex-1 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-all shadow-sm flex items-center justify-center"
             >
-              <Activity className="w-4 h-4 mr-2" /> Open Queue Control
+              <Activity className="w-4 h-4 mr-2" /> {queueControlLabel}
             </button>
           )}
         </div>

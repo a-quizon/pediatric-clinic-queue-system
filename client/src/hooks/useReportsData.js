@@ -1,6 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { database } from '../firebase/database';
 import { ref, get } from 'firebase/database';
+import { branchesMatch } from '../utils/stringUtils';
+
+/** Parse YYYY-MM-DD as a local calendar date (avoids UTC shift from Date("YYYY-MM-DD")). */
+const parseClinicDateLocal = (clinicDate) => {
+  if (!clinicDate || typeof clinicDate !== 'string') return null;
+  const parts = clinicDate.split('-').map(Number);
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
+  const [year, month, day] = parts;
+  const d = new Date(year, month - 1, day);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
 
 export const useReportsData = () => {
   const [data, setData] = useState({
@@ -11,9 +23,9 @@ export const useReportsData = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Filter states
+  // Filter states — default This Year so current-year completed sessions are visible
   const [branchFilter, setBranchFilter] = useState("All Branches");
-  const [dateRange, setDateRange] = useState("This Month"); // "Today", "This Week", "This Month", "Custom Range"
+  const [dateRange, setDateRange] = useState("This Year"); // "Today", "This Week", "This Month", "This Year", "Custom Range"
   const [customDateRange, setCustomDateRange] = useState({ start: null, end: null });
 
   useEffect(() => {
@@ -42,6 +54,15 @@ export const useReportsData = () => {
         const completedSchedules = rawSchedules.filter(s => 
           s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended'
         );
+
+        if (import.meta.env.DEV) {
+          console.info("[useReportsData]", {
+            totalSchedules: rawSchedules.length,
+            completedSchedules: completedSchedules.length,
+            totalReservations: rawReservations.length,
+            walkInReservations: rawReservations.filter((r) => r.source === "walk_in").length,
+          });
+        }
 
         // Step 2 & 3: Link reservations and compute metrics
         const processed = completedSchedules.map(schedule => {
@@ -101,18 +122,19 @@ export const useReportsData = () => {
   // Step 4: Filters
   const filteredDataset = useMemo(() => {
     return data.processedDataset.filter(item => {
-      // Branch filtering
-      if (branchFilter !== "All Branches" && item.branch !== branchFilter) {
+      // Branch filtering (normalized name match)
+      if (branchFilter !== "All Branches" && !branchesMatch(item.branch, branchFilter)) {
         return false;
       }
 
       // Date Range filtering
       if (!item.clinicDate) return false;
       
-      const itemDate = new Date(item.clinicDate);
+      const itemDate = parseClinicDateLocal(item.clinicDate);
+      if (!itemDate) return false;
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      itemDate.setHours(0, 0, 0, 0);
 
       if (dateRange === "Today") {
         if (itemDate.getTime() !== today.getTime()) return false;
@@ -129,11 +151,23 @@ export const useReportsData = () => {
         if (itemDate < startOfWeek || itemDate > endOfWeek) return false;
       } else if (dateRange === "This Month") {
         if (itemDate.getMonth() !== today.getMonth() || itemDate.getFullYear() !== today.getFullYear()) return false;
+      } else if (dateRange === "This Year") {
+        if (itemDate.getFullYear() !== today.getFullYear()) return false;
       } else if (dateRange === "Custom Range" && customDateRange.start && customDateRange.end) {
-        const start = new Date(customDateRange.start);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(customDateRange.end);
-        end.setHours(23, 59, 59, 999);
+        const start = parseClinicDateLocal(customDateRange.start) || (() => {
+          const d = new Date(customDateRange.start);
+          d.setHours(0, 0, 0, 0);
+          return d;
+        })();
+        const endParts = typeof customDateRange.end === 'string' ? customDateRange.end.split('-').map(Number) : null;
+        let end;
+        if (endParts && endParts.length === 3 && !endParts.some((n) => Number.isNaN(n))) {
+          end = new Date(endParts[0], endParts[1] - 1, endParts[2]);
+          end.setHours(23, 59, 59, 999);
+        } else {
+          end = new Date(customDateRange.end);
+          end.setHours(23, 59, 59, 999);
+        }
         if (itemDate < start || itemDate > end) return false;
       }
 

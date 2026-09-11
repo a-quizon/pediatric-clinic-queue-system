@@ -4,6 +4,7 @@ import { recalculateRollingValidation } from "./rollingValidationService";
 import { recalculateEntireQueue, enrichReservationsWithState } from "./queueEngine";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { getScheduleById } from "./scheduleService";
+import { buildPatientInfoPayload } from "../utils/reservationPatients";
 
 const generateReservationCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -36,7 +37,7 @@ export const createReservation = async (reservationData) => {
     queueNumber: nextQueueNumber,
     originalQueueNumber: nextQueueNumber,
     queuePosition: nextQueueNumber,
-    checkedIn: false,
+    checkedIn: reservationData.checkedIn ?? false,
     createdAt: now,
     reservationCreatedAt: now,
   });
@@ -45,6 +46,78 @@ export const createReservation = async (reservationData) => {
     await recalculateEntireQueue(reservationData.scheduleId);
   }
   return reservationRef.key;
+};
+
+const MAX_WALK_IN_CHILDREN = 10;
+
+/**
+ * Secretary-created walk-in: no parent account, immediately checked in.
+ * Uses the same reservation/queue record as parent bookings.
+ */
+export const createWalkInReservation = async ({ scheduleId, children, concern, secretaryUid }) => {
+  if (!scheduleId) throw new Error("Schedule is required.");
+  if (!secretaryUid) throw new Error("Secretary identity is required.");
+
+  const schedule = await getScheduleById(scheduleId);
+  if (!schedule) throw new Error("Schedule not found.");
+  if (schedule.status !== "published") {
+    throw new Error("Schedule is not available for booking.");
+  }
+
+  const queueStatus = schedule.queueStatus;
+  if (queueStatus === "closed" || queueStatus === "ended" || queueStatus === "completed") {
+    throw new Error("This clinic queue has closed to new reservations.");
+  }
+
+  const existing = await getReservationsBySchedule(scheduleId);
+  const activeCount = existing.filter((r) => ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
+  if (activeCount >= Number(schedule.slotCapacity || 0)) {
+    throw new Error("This schedule is already full.");
+  }
+
+  const normalizedChildren = (children || []).map((child) => ({
+    childName: String(child.childName || "").trim(),
+    age: String(child.age ?? "").trim(),
+    sex: child.sex === "Male" || child.sex === "Female" ? child.sex : "",
+    childId: null,
+  }));
+
+  if (normalizedChildren.length === 0) {
+    throw new Error("At least one child is required.");
+  }
+  if (normalizedChildren.length > MAX_WALK_IN_CHILDREN) {
+    throw new Error(`A maximum of ${MAX_WALK_IN_CHILDREN} children is allowed.`);
+  }
+  if (normalizedChildren.some((c) => !c.childName)) {
+    throw new Error("Each child must have a name.");
+  }
+  if (
+    normalizedChildren.some((c) => {
+      if (!/^\d+$/.test(c.age)) return true;
+      const ageNum = parseInt(c.age, 10);
+      return ageNum < 1 || ageNum > 25;
+    })
+  ) {
+    throw new Error("Each child must have a valid age (1–25).");
+  }
+  if (normalizedChildren.some((c) => !c.sex)) {
+    throw new Error("Each child must have a sex selected.");
+  }
+
+  const patientPayload = buildPatientInfoPayload(normalizedChildren, concern);
+  const checkedInAt = Date.now();
+
+  return createReservation({
+    scheduleId,
+    status: "checked_in",
+    source: "walk_in",
+    createdBy: secretaryUid,
+    ...patientPayload,
+    patientInfoCompleted: true,
+    checkedIn: true,
+    checkedInAt,
+    checkedInBy: secretaryUid,
+  });
 };
 
 export const getReservationsBySchedule = async (scheduleId) => {

@@ -1,12 +1,12 @@
-import React from "react";
-import { User, Mail, LogOut, MapPin, Phone } from "lucide-react";
+import React, { useState } from "react";
+import { User, Mail, MapPin, Phone, UserPlus } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import LogoutButton from "../../components/common/LogoutButton";
-import { useNavigate } from "react-router-dom";
+import WalkInPatientModal from "../../components/secretary/WalkInPatientModal";
 
 export default function Profile() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const [isWalkInOpen, setIsWalkInOpen] = useState(false);
 
   if (!user) return null;
 
@@ -36,11 +36,22 @@ export default function Profile() {
             </div>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setIsWalkInOpen(true)}
+          className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-sm transition-colors"
+        >
+          <UserPlus className="w-5 h-5" />
+          Walk-in Patient
+        </button>
       </div>
 
       <div className="mt-auto pt-8">
         <LogoutButton />
       </div>
+
+      <WalkInPatientModal isOpen={isWalkInOpen} onClose={() => setIsWalkInOpen(false)} />
     </div>
   );
 }

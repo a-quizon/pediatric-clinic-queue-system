@@ -27,12 +27,12 @@ import SecretaryDashboard from "../pages/secretary/Dashboard";
 import SecretaryValidateReservation from "../pages/secretary/ValidateReservation";
 import SecretaryManageQueue from "../pages/secretary/ManageQueue";
 import SecretaryQueueMonitor from "../pages/secretary/QueueMonitor";
+import SecretarySchedules from "../pages/secretary/Schedules";
 
 import SecretaryProfile from "../pages/secretary/Profile";
 // Doctor Layout and Pages
 import DoctorLayout from "../components/doctor/Layout";
 import DoctorHome from "../pages/doctor/Home";
-import DoctorSchedules from "../pages/doctor/Schedules";
 import DoctorQueue from "../pages/doctor/Queue";
 import DoctorReports from "../pages/doctor/Reports";
 import DoctorProfile from "../pages/doctor/Profile";
@@ -83,6 +83,7 @@ export default function AppRoutes() {
         <Route path="/secretary/monitor" element={<ProtectedRoute> <RoleRoute allowedRole="secretary"><SecretaryQueueMonitor /></RoleRoute> </ProtectedRoute>} />
         <Route path="/secretary" element={<ProtectedRoute> <RoleRoute allowedRole="secretary"><SecretaryLayout /></RoleRoute> </ProtectedRoute>}>
           <Route index element={<SecretaryDashboard />} />
+          <Route path="schedules" element={<SecretarySchedules />} />
           <Route path="validate" element={<SecretaryValidateReservation />} />
           <Route path="queue" element={<SecretaryManageQueue />} />
 
@@ -92,7 +93,6 @@ export default function AppRoutes() {
         {/* Doctor Routes */}
         <Route path="/doctor" element={<ProtectedRoute> <RoleRoute allowedRole="doctor"><DoctorLayout /></RoleRoute> </ProtectedRoute>}>
           <Route index element={<DoctorHome />} />
-          <Route path="schedules" element={<DoctorSchedules />} />
           <Route path="queue" element={<DoctorQueue />} />
           <Route path="reports" element={<DoctorReports />} />
 

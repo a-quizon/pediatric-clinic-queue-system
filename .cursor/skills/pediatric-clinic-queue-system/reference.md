@@ -96,7 +96,7 @@ Default branches: **Angeles**, **Magalang**.
 | `users` | Admin all; user own | Own profile (active status) |
 | `notifications` | Parent own | Parent own |
 | `branchConfigurations` | All auth | Admin |
-| `schedules` | All auth | Doctor, secretary |
+| `schedules` | All auth | Secretary (create/publish/start); doctor (pause/resume/close) |
 | `reservations` | All auth | Parent, doctor, secretary (active) |
 | `auditLogs` | Admin | Admin, doctor, secretary |
 | `systemConfiguration` | Admin, doctor, secretary | Admin |
@@ -195,10 +195,10 @@ TEXTBEE_API_KEY=
 
 ## Queue Management Critical Path
 
-1. Doctor creates schedule (draft) → publishes
+1. Secretary creates schedule (draft) → publishes (assigned branch only)
 2. Parent reserves → `createReservation()` → `queueNumber` assigned → `recalculateEntireQueue`
-3. Doctor starts queue → `queueStatus: active`
-4. Secretary scans QR → `checkInReservation()` → `checked_in`
+3. Secretary starts queue → `queueStatus: active`
+4. Secretary scans QR / enters code → `checkInReservation()` → `checked_in`
 5. Secretary sends to doctor → `sendToDoctor()` → `with_doctor` (blocked if consultation active)
 6. Doctor completes → `completeConsultation()` → releases slot, unlocks queue
 7. Penalties → `penalizeReservation()` shifts `sortTimestamp`, may forfeit at `lateLimit`
