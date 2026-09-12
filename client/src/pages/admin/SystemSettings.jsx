@@ -18,6 +18,7 @@ import {
 export default function SystemSettings({ isEmbedded = false }) {
   const [penaltyMoveBack, setPenaltyMoveBack] = useState("");
   const [nearingTurnAheadCount, setNearingTurnAheadCount] = useState("");
+  const [templateSlotReserved, setTemplateSlotReserved] = useState("");
   const [templateQueueStarted, setTemplateQueueStarted] = useState("");
   const [templateNearingTurn, setTemplateNearingTurn] = useState("");
 
@@ -40,6 +41,7 @@ export default function SystemSettings({ isEmbedded = false }) {
       ]);
       setPenaltyMoveBack(queueConfig.penaltyMoveBack.toString());
       setNearingTurnAheadCount(smsConfig.nearingTurnAheadCount.toString());
+      setTemplateSlotReserved(smsConfig.templateSlotReserved);
       setTemplateQueueStarted(smsConfig.templateQueueStarted);
       setTemplateNearingTurn(smsConfig.templateNearingTurn);
     } catch (err) {
@@ -72,6 +74,7 @@ export default function SystemSettings({ isEmbedded = false }) {
     if (smsError) {
       const validation = validateSmsConfiguration({
         nearingTurnAheadCount: value,
+        templateSlotReserved,
         templateQueueStarted,
         templateNearingTurn,
       });
@@ -104,6 +107,7 @@ export default function SystemSettings({ isEmbedded = false }) {
   const handleSaveSms = async () => {
     const validation = validateSmsConfiguration({
       nearingTurnAheadCount,
+      templateSlotReserved,
       templateQueueStarted,
       templateNearingTurn,
     });
@@ -118,6 +122,7 @@ export default function SystemSettings({ isEmbedded = false }) {
       const saved = await updateSmsConfiguration(validation.value);
       toast.success("SMS configuration updated successfully.");
       setNearingTurnAheadCount(saved.nearingTurnAheadCount.toString());
+      setTemplateSlotReserved(saved.templateSlotReserved);
       setTemplateQueueStarted(saved.templateQueueStarted);
       setTemplateNearingTurn(saved.templateNearingTurn);
     } catch (err) {
@@ -306,13 +311,44 @@ export default function SystemSettings({ isEmbedded = false }) {
 
             <div className="bg-gray-50/50 rounded-xl p-5 border border-gray-100">
               <label
+                htmlFor="templateSlotReserved"
+                className="block text-sm font-semibold text-gray-700 mb-1"
+              >
+                Reservation Confirmed Message
+              </label>
+              <div className="flex flex-wrap gap-2 mb-3 mt-2">
+                {["date", "timeRange", "queueNumber", "doctor", "branch"].map((ph) => (
+                  <button
+                    key={ph}
+                    type="button"
+                    onClick={() =>
+                      insertPlaceholder(setTemplateSlotReserved, templateSlotReserved, ph)
+                    }
+                    className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-700"
+                  >
+                    {`{${ph}}`}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                id="templateSlotReserved"
+                rows={7}
+                value={templateSlotReserved}
+                onChange={(e) => setTemplateSlotReserved(e.target.value)}
+                className="w-full px-4 py-3 text-sm text-gray-800 bg-white border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono"
+              />
+              {renderCharHint(templateSlotReserved)}
+            </div>
+
+            <div className="bg-gray-50/50 rounded-xl p-5 border border-gray-100">
+              <label
                 htmlFor="templateQueueStarted"
                 className="block text-sm font-semibold text-gray-700 mb-1"
               >
                 Queue Started Message
               </label>
               <div className="flex flex-wrap gap-2 mb-3 mt-2">
-                {["branch", "date", "queueNumber"].map((ph) => (
+                {["branch", "date"].map((ph) => (
                   <button
                     key={ph}
                     type="button"
@@ -327,7 +363,7 @@ export default function SystemSettings({ isEmbedded = false }) {
               </div>
               <textarea
                 id="templateQueueStarted"
-                rows={4}
+                rows={3}
                 value={templateQueueStarted}
                 onChange={(e) => setTemplateQueueStarted(e.target.value)}
                 className="w-full px-4 py-3 text-sm text-gray-800 bg-white border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"

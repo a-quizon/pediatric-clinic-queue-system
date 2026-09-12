@@ -31,7 +31,6 @@ async function startRealtimePushListeners() {
     const after = cloneRecord(snap.key, snap.val());
     prevReservations[snap.key] = after;
     try {
-      // New reservations (before=null) trigger SLOT_RESERVED SMS / notifications
       await handleReservationChange(null, after);
     } catch (err) {
       console.error("[pushListeners] reservation add failed:", err);

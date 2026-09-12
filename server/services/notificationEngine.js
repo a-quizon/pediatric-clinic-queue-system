@@ -214,8 +214,8 @@ function eventsFromReservationChange(before, after) {
   const currCheckInReq = after.checkInRequestedAt || 0;
   const branchId = after.branchId || after.branch || null;
 
-  // New reservation (create) — in-app / push only (SLOT_RESERVED SMS deprecated)
-  if (!before && currStatus === "reserved") {
+  // Reservation confirmed — when parent finalizes patient info (Save Information)
+  if (!before?.patientInfoCompleted && after.patientInfoCompleted) {
     events.push({
       eventId: "SLOT_RESERVED",
       parentId: after.parentId,

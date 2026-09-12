@@ -93,7 +93,8 @@ Default branches: **Angeles**, **Magalang**.
 ```js
 {
   nearingTurnAheadCount: 3,          // 1–10; exact patients-ahead that fires NEARING_TURN SMS/push/toast
-  templateQueueStarted: "...",       // placeholders: {branch} {date} {queueNumber}
+  templateSlotReserved: "...",       // placeholders: {date} {timeRange} {queueNumber} {doctor} {branch}
+  templateQueueStarted: "...",       // placeholders: {branch} {date}
   templateNearingTurn: "...",        // placeholders: {count} {queueNumber} {branch}; default shorter clinic copy
   updatedAt: 0
 }
@@ -133,7 +134,7 @@ Listeners: `server/services/pushListeners.js` watches `reservations` and `schedu
 
 ### SMS (textbee.dev)
 - Utility: `server/services/smsService.js` (mirrored in `client/functions/smsService.js`)
-- Queue SMS events: `QUEUE_STARTED`, `NEARING_TURN` (patients-ahead from `systemConfiguration/sms`, default 3; once per reservation via `dedupeKey` + `smsDispatchedAt`; Admin-editable templates). `QUEUE_STARTED` SMS includes branch, date, and per-parent queue number. `SLOT_RESERVED` is in-app/push only (no SMS).
+- Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`), `QUEUE_STARTED`, `NEARING_TURN` (patients-ahead from `systemConfiguration/sms`, default 3; once per reservation via `dedupeKey` + `smsDispatchedAt`; Admin-editable templates).
 - OTP store: `smsOtps/{phoneKey}` — bcrypt-hashed code, 5-minute `expiresAt`; client R/W denied in rules
 
 ## Cloud Functions (`client/functions/index.js`)

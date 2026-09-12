@@ -7,6 +7,7 @@ const { sendSms, normalizePhoneE164 } = require("./smsService");
 
 /** Events that send an automated SMS in addition to push / notification center. */
 const SMS_NOTIFICATION_EVENTS = new Set([
+  "SLOT_RESERVED",
   "QUEUE_STARTED",
   "NEARING_TURN",
 ]);
@@ -16,9 +17,13 @@ const MAX_NEARING_TURN_AHEAD = 10;
 const DEFAULT_NEARING_TURN_AHEAD = 3;
 const MAX_SMS_TEMPLATE_LENGTH = 320;
 
-const LEGACY_QUEUE_STARTED_TEMPLATE =
+/** Previous merged Queue Started template — migrate RTDB copies back to the simple default. */
+const LEGACY_MERGED_QUEUE_STARTED_TEMPLATE =
   "Hello! The queue at {branch} for {date} has officially started. " +
-  "Please monitor your place in line and be ready when we notify you that your turn is near.";
+  "Please monitor your place in line and be ready when we notify you that your turn is near. " +
+  "Here's your Reservation details:\n" +
+  "Date: {date}\n" +
+  "Queue Number: {queueNumber}";
 
 const ALLOWED_PLACEHOLDERS = new Set([
   "count",
@@ -30,12 +35,17 @@ const ALLOWED_PLACEHOLDERS = new Set([
 ]);
 
 const DEFAULT_SMS_TEMPLATES = {
-  templateQueueStarted:
-    "Hello! The queue at {branch} for {date} has officially started. " +
-    "Please monitor your place in line and be ready when we notify you that your turn is near. " +
-    "Here's your Reservation details:\n" +
+  templateSlotReserved:
+    "Your clinic reservation is confirmed.\n" +
     "Date: {date}\n" +
-    "Queue Number: {queueNumber}",
+    "Time: {timeRange}\n" +
+    "Queue Number: {queueNumber}\n" +
+    "Doctor: {doctor}\n" +
+    "Branch: {branch}\n" +
+    "Please keep this message for your visit. Thank you.",
+  templateQueueStarted:
+    "The queue at {branch} for {date} has started. " +
+    "Please monitor your place in line and be ready when we notify you that your turn is near.",
   templateNearingTurn:
     "Only {count} patients ahead (Queue #{queueNumber}). Please head to the clinic now.",
 };
@@ -91,13 +101,17 @@ function sanitizeAheadCount(value) {
 function parseSmsConfig(data) {
   const storedQueueStarted = String(data?.templateQueueStarted || "").trim();
   const queueStartedSource =
-    !storedQueueStarted || storedQueueStarted === LEGACY_QUEUE_STARTED_TEMPLATE
+    !storedQueueStarted || storedQueueStarted === LEGACY_MERGED_QUEUE_STARTED_TEMPLATE
       ? DEFAULT_SMS_TEMPLATES.templateQueueStarted
       : storedQueueStarted;
 
   return {
     nearingTurnAheadCount: sanitizeAheadCount(
       data?.nearingTurnAheadCount ?? DEFAULT_NEARING_TURN_AHEAD
+    ),
+    templateSlotReserved: sanitizeTemplate(
+      data?.templateSlotReserved,
+      DEFAULT_SMS_TEMPLATES.templateSlotReserved
     ),
     templateQueueStarted: sanitizeTemplate(
       queueStartedSource,
@@ -173,7 +187,7 @@ async function buildTemplateVars(eventId, context = {}, config) {
   return {
     count,
     queueNumber,
-    branch,
+    branch: eventId === "SLOT_RESERVED" ? branch.replace(/^the /, "") || "clinic" : branch,
     date: dateLabel,
     timeRange,
     doctor: doctorName,
@@ -189,6 +203,8 @@ async function buildSmsMessage(eventId, context = {}) {
     template = config.templateQueueStarted;
   } else if (eventId === "NEARING_TURN") {
     template = config.templateNearingTurn;
+  } else if (eventId === "SLOT_RESERVED") {
+    template = config.templateSlotReserved;
   } else {
     return context.customMessage || null;
   }
@@ -237,7 +253,7 @@ async function deliverSmsForNotification(eventId, context = {}, notificationId) 
 }
 
 /**
- * Enrich QUEUE_STARTED / NEARING_TURN context from schedule + reservation.
+ * Enrich SLOT_RESERVED / QUEUE_STARTED / NEARING_TURN context from schedule + reservation.
  */
 async function enrichSmsContext(eventId, context = {}) {
   const enriched = { ...context };
@@ -255,6 +271,10 @@ async function enrichSmsContext(eventId, context = {}) {
       enriched.branchName = enriched.branchName || schedule.branch;
       enriched.branchId = enriched.branchId || schedule.branch;
     }
+  }
+
+  if (eventId === "SLOT_RESERVED" && !enriched.doctorName) {
+    enriched.doctorName = await resolveDoctorName(enriched.doctorId);
   }
 
   if (context.reservationId && (enriched.queueNumber == null || enriched.queueNumber === "")) {

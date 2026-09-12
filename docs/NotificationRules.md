@@ -14,7 +14,7 @@ The Notification System keeps users informed of real-time clinic events and queu
 - **Notification Storage**: Persisted in the Firebase Realtime Database exclusively under `notifications/${parentId}`.
 - **Push Subscriptions**: Native Web Push subscriptions (endpoint + `p256dh`/`auth` keys) are stored under `users/${uid}/pushSubscriptions/{hash}` together with `notificationPermission`.
 - **Push Notification Flow**: Clinic events are observed server-side (Express RTDB listeners and Cloud Functions `onWrite`). The server writes the Notification Center record and dispatches a Web Push payload with the `web-push` library and VAPID keys. The root service worker (`/sw.js`) receives the `push` event and calls `self.registration.showNotification`. Clicking a notification opens `/parent/notifications` (or a context-specific URL).
-- **SMS Channel (textbee.dev)**: For `QUEUE_STARTED` and `NEARING_TURN`, the same server/Functions dispatcher also sends an SMS via the textbee REST API (`TEXTBEE_API_KEY`). `QUEUE_STARTED` is sent once per parent with an active reservation on that schedule and includes branch, date, and that parent's queue number. Duplicate SMS is prevented with `smsDispatchedAt` on the notification record (same pattern as `pushDispatchedAt`). `NEARING_TURN` uses a stable `dedupeKey` of `nearing_turn_${reservationId}` so pausing/resuming the queue cannot re-spam the parent. SMS message templates and the near-turn patients-ahead threshold are Admin-configurable under `systemConfiguration/sms` (defaults: count `3`, seeded templates). Push/toast near-turn copy stays system-managed but uses the same configured count. `SLOT_RESERVED` remains an in-app/push event only (no SMS).
+- **SMS Channel (textbee.dev)**: For `SLOT_RESERVED`, `QUEUE_STARTED`, and `NEARING_TURN`, the same server/Functions dispatcher also sends an SMS via the textbee REST API (`TEXTBEE_API_KEY`). `SLOT_RESERVED` SMS fires when the parent finalizes patient info (`patientInfoCompleted` → true / Save Information), not on bare reservation create. `QUEUE_STARTED` is sent once per parent with an active reservation on that schedule (branch + date). Duplicate SMS is prevented with `smsDispatchedAt` on the notification record (same pattern as `pushDispatchedAt`). `NEARING_TURN` uses a stable `dedupeKey` of `nearing_turn_${reservationId}` so pausing/resuming the queue cannot re-spam the parent. SMS message templates and the near-turn patients-ahead threshold are Admin-configurable under `systemConfiguration/sms` (defaults: count `3`, seeded templates). Push/toast near-turn copy stays system-managed but uses the same configured count.
 
 ---
 
@@ -24,8 +24,8 @@ The system uses strict `NOTIFICATION_EVENTS` as the single source of truth for t
 | Event ID | Purpose | Triggered By | Recipient |
 |----------|---------|--------------|-----------|
 | **SCHEDULE_AVAILABLE** | Informs users of new booking slots. | Secretary publishes schedule. | Parents |
-| **SLOT_RESERVED** | Confirms a successful reservation (in-app / push only; no SMS). | Parent creates reservation. | Specific Parent |
-| **QUEUE_STARTED** | Clinic floor is officially open; SMS includes branch, date, and the parent's queue number. | Secretary/doctor starts queue. | Parents with active reservations on that schedule |
+| **SLOT_RESERVED** | Confirms a finalized reservation (in-app / push / SMS with reservation details). | Parent clicks Save Information (`patientInfoCompleted`). | Specific Parent |
+| **QUEUE_STARTED** | Clinic floor is open; SMS announces queue start (branch + date). | Secretary/doctor starts queue. | Parents with active reservations on that schedule |
 | **QUEUE_PAUSED** | Clinic floor is temporarily halted. | Doctor pauses queue. | Parents |
 | **QUEUE_RESUMED** | Clinic floor resumes operations. | Doctor resumes queue. | Parents |
 | **QUEUE_CLOSED** | End of daily reservations. | Doctor closes queue. | Parents |
