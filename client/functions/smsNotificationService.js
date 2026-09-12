@@ -5,7 +5,7 @@
 const admin = require("firebase-admin");
 const { sendSms, normalizePhoneE164 } = require("./smsService");
 
-const SMS_NOTIFICATION_EVENTS = new Set(["SLOT_RESERVED", "QUEUE_STARTED", "NEARING_TURN"]);
+const SMS_NOTIFICATION_EVENTS = new Set(["QUEUE_STARTED", "NEARING_TURN"]);
 
 const MIN_NEARING_TURN_AHEAD = 1;
 const MAX_NEARING_TURN_AHEAD = 10;
@@ -21,18 +21,17 @@ const ALLOWED_PLACEHOLDERS = new Set([
   "doctor",
 ]);
 
+const LEGACY_QUEUE_STARTED_TEMPLATE =
+  "Hello! The queue at {branch} for {date} has officially started. " +
+  "Please monitor your place in line and be ready when we notify you that your turn is near.";
+
 const DEFAULT_SMS_TEMPLATES = {
-  templateSlotReserved:
-    "Your clinic reservation is confirmed.\n" +
-    "Date: {date}\n" +
-    "Time: {timeRange}\n" +
-    "Queue Number: {queueNumber}\n" +
-    "Doctor: {doctor}\n" +
-    "Branch: {branch}\n" +
-    "Please keep this message for your visit. Thank you.",
   templateQueueStarted:
     "Hello! The queue at {branch} for {date} has officially started. " +
-    "Please monitor your place in line and be ready when we notify you that your turn is near.",
+    "Please monitor your place in line and be ready when we notify you that your turn is near. " +
+    "Here's your Reservation details:\n" +
+    "Date: {date}\n" +
+    "Queue Number: {queueNumber}",
   templateNearingTurn:
     "Only {count} patients ahead (Queue #{queueNumber}). Please head to the clinic now.",
 };
@@ -90,16 +89,18 @@ function sanitizeAheadCount(value) {
 }
 
 function parseSmsConfig(data) {
+  const storedQueueStarted = String(data?.templateQueueStarted || "").trim();
+  const queueStartedSource =
+    !storedQueueStarted || storedQueueStarted === LEGACY_QUEUE_STARTED_TEMPLATE
+      ? DEFAULT_SMS_TEMPLATES.templateQueueStarted
+      : storedQueueStarted;
+
   return {
     nearingTurnAheadCount: sanitizeAheadCount(
       data?.nearingTurnAheadCount ?? DEFAULT_NEARING_TURN_AHEAD
     ),
-    templateSlotReserved: sanitizeTemplate(
-      data?.templateSlotReserved,
-      DEFAULT_SMS_TEMPLATES.templateSlotReserved
-    ),
     templateQueueStarted: sanitizeTemplate(
-      data?.templateQueueStarted,
+      queueStartedSource,
       DEFAULT_SMS_TEMPLATES.templateQueueStarted
     ),
     templateNearingTurn: sanitizeTemplate(
@@ -172,7 +173,7 @@ async function buildTemplateVars(eventId, context = {}, config) {
   return {
     count,
     queueNumber,
-    branch: eventId === "SLOT_RESERVED" ? branch.replace(/^the /, "") || "clinic" : branch,
+    branch,
     date: dateLabel,
     timeRange,
     doctor: doctorName,
@@ -188,8 +189,6 @@ async function buildSmsMessage(eventId, context = {}) {
     template = config.templateQueueStarted;
   } else if (eventId === "NEARING_TURN") {
     template = config.templateNearingTurn;
-  } else if (eventId === "SLOT_RESERVED") {
-    template = config.templateSlotReserved;
   } else {
     return context.customMessage || null;
   }
@@ -231,9 +230,9 @@ async function deliverSmsForNotification(eventId, context = {}, notificationId) 
 async function enrichSmsContext(eventId, context = {}) {
   const enriched = { ...context };
   const scheduleId = context.scheduleId || context.entityId;
-  if (!scheduleId) return enriched;
+  if (!scheduleId && !context.reservationId) return enriched;
 
-  if (!enriched.clinicDate || !enriched.openingTime || !enriched.doctorId) {
+  if (scheduleId && (!enriched.clinicDate || !enriched.openingTime || !enriched.doctorId)) {
     const snap = await db().ref(`schedules/${scheduleId}`).once("value");
     if (snap.exists()) {
       const schedule = snap.val() || {};
@@ -246,11 +245,7 @@ async function enrichSmsContext(eventId, context = {}) {
     }
   }
 
-  if (eventId === "SLOT_RESERVED" && !enriched.doctorName) {
-    enriched.doctorName = await resolveDoctorName(enriched.doctorId);
-  }
-
-  if (context.reservationId && enriched.queueNumber == null) {
+  if (context.reservationId && (enriched.queueNumber == null || enriched.queueNumber === "")) {
     const resSnap = await db().ref(`reservations/${context.reservationId}`).once("value");
     if (resSnap.exists()) {
       const reservation = resSnap.val() || {};

@@ -21,20 +21,19 @@ export const SMS_TEMPLATE_PLACEHOLDERS = [
 ];
 
 export const DEFAULT_SMS_TEMPLATES = {
-  templateSlotReserved:
-    "Your clinic reservation is confirmed.\n" +
-    "Date: {date}\n" +
-    "Time: {timeRange}\n" +
-    "Queue Number: {queueNumber}\n" +
-    "Doctor: {doctor}\n" +
-    "Branch: {branch}\n" +
-    "Please keep this message for your visit. Thank you.",
   templateQueueStarted:
     "Hello! The queue at {branch} for {date} has officially started. " +
-    "Please monitor your place in line and be ready when we notify you that your turn is near.",
+    "Please monitor your place in line and be ready when we notify you that your turn is near. " +
+    "Here's your Reservation details:\n" +
+    "Date: {date}\n" +
+    "Queue Number: {queueNumber}",
   templateNearingTurn:
     "Only {count} patients ahead (Queue #{queueNumber}). Please head to the clinic now.",
 };
+
+const LEGACY_QUEUE_STARTED_TEMPLATE =
+  "Hello! The queue at {branch} for {date} has officially started. " +
+  "Please monitor your place in line and be ready when we notify you that your turn is near.";
 
 /**
  * Validates the penalty move back value.
@@ -223,9 +222,6 @@ export const validateSmsConfiguration = (input = {}) => {
   const ahead = validateNearingTurnAheadCount(input.nearingTurnAheadCount);
   if (!ahead.valid) return ahead;
 
-  const slot = validateSmsTemplate(input.templateSlotReserved, "Reservation Confirmed message");
-  if (!slot.valid) return slot;
-
   const started = validateSmsTemplate(input.templateQueueStarted, "Queue Started message");
   if (!started.valid) return started;
 
@@ -236,7 +232,6 @@ export const validateSmsConfiguration = (input = {}) => {
     valid: true,
     value: {
       nearingTurnAheadCount: ahead.value,
-      templateSlotReserved: slot.value,
       templateQueueStarted: started.value,
       templateNearingTurn: near.value,
     },
@@ -248,14 +243,15 @@ const parseSmsConfig = (data) => {
     data?.nearingTurnAheadCount ?? DEFAULT_NEARING_TURN_AHEAD
   );
 
-  const slot = validateSmsTemplate(
-    data?.templateSlotReserved ?? DEFAULT_SMS_TEMPLATES.templateSlotReserved,
-    "Reservation Confirmed message"
-  );
-  const started = validateSmsTemplate(
-    data?.templateQueueStarted ?? DEFAULT_SMS_TEMPLATES.templateQueueStarted,
-    "Queue Started message"
-  );
+  const storedQueueStarted = String(
+    data?.templateQueueStarted ?? DEFAULT_SMS_TEMPLATES.templateQueueStarted
+  ).trim();
+  const queueStartedSource =
+    storedQueueStarted === LEGACY_QUEUE_STARTED_TEMPLATE
+      ? DEFAULT_SMS_TEMPLATES.templateQueueStarted
+      : storedQueueStarted;
+
+  const started = validateSmsTemplate(queueStartedSource, "Queue Started message");
   const near = validateSmsTemplate(
     data?.templateNearingTurn ?? DEFAULT_SMS_TEMPLATES.templateNearingTurn,
     "Near Turn message"
@@ -265,9 +261,6 @@ const parseSmsConfig = (data) => {
     nearingTurnAheadCount: aheadValidation.valid
       ? aheadValidation.value
       : DEFAULT_NEARING_TURN_AHEAD,
-    templateSlotReserved: slot.valid
-      ? slot.value
-      : DEFAULT_SMS_TEMPLATES.templateSlotReserved,
     templateQueueStarted: started.valid
       ? started.value
       : DEFAULT_SMS_TEMPLATES.templateQueueStarted,
@@ -321,7 +314,6 @@ export const updateSmsConfiguration = async (input) => {
 
   const unchanged =
     current.nearingTurnAheadCount === next.nearingTurnAheadCount &&
-    current.templateSlotReserved === next.templateSlotReserved &&
     current.templateQueueStarted === next.templateQueueStarted &&
     current.templateNearingTurn === next.templateNearingTurn;
 
@@ -331,6 +323,8 @@ export const updateSmsConfiguration = async (input) => {
 
   const payload = {
     ...next,
+    // Remove deprecated Reservation Confirmed SMS template from RTDB if present.
+    templateSlotReserved: null,
     updatedAt: Date.now(),
   };
 
@@ -341,9 +335,6 @@ export const updateSmsConfiguration = async (input) => {
     changes.push(
       `near-turn ahead ${current.nearingTurnAheadCount} → ${next.nearingTurnAheadCount}`
     );
-  }
-  if (current.templateSlotReserved !== next.templateSlotReserved) {
-    changes.push("reservation SMS template");
   }
   if (current.templateQueueStarted !== next.templateQueueStarted) {
     changes.push("queue-started SMS template");

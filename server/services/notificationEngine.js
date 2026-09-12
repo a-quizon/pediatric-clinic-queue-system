@@ -214,7 +214,7 @@ function eventsFromReservationChange(before, after) {
   const currCheckInReq = after.checkInRequestedAt || 0;
   const branchId = after.branchId || after.branch || null;
 
-  // New reservation (create) — Slot Reserved SMS/notification
+  // New reservation (create) — in-app / push only (SLOT_RESERVED SMS deprecated)
   if (!before && currStatus === "reserved") {
     events.push({
       eventId: "SLOT_RESERVED",
@@ -314,11 +314,23 @@ function eventsFromScheduleChange(before, after, activeParentIds) {
   const recipients = activeParentIds.forSchedule || [];
   if (!recipients.length) return events;
 
+  const reservations = activeParentIds.reservations || [];
+  const reservationByParent = new Map();
+  reservations.forEach((reservation) => {
+    if (
+      reservation.parentId &&
+      ACTIVE_RESERVATION_STATUSES.includes(reservation.status)
+    ) {
+      reservationByParent.set(reservation.parentId, reservation);
+    }
+  });
+
   const clinicDate = after.clinicDate || "unknown";
   const base = { entityId: schedId, branchId: after.branch || null };
 
   if ((prevStatus === "not_started" || !prevStatus) && currStatus === "active") {
-    recipients.forEach((parentId) =>
+    recipients.forEach((parentId) => {
+      const reservation = reservationByParent.get(parentId);
       events.push({
         ...base,
         eventId: "QUEUE_STARTED",
@@ -326,9 +338,15 @@ function eventsFromScheduleChange(before, after, activeParentIds) {
         scheduleId: schedId,
         clinicDate,
         branchName: after.branch || null,
+        reservationId: reservation?.id || null,
+        queueNumber:
+          reservation?.queueNumber ??
+          reservation?.originalQueueNumber ??
+          reservation?.queuePosition ??
+          null,
         dedupeKey: `queue_start_${schedId}_${clinicDate}`,
-      })
-    );
+      });
+    });
   } else if (prevStatus === "active" && currStatus === "paused") {
     const ts = after.queueStatusUpdatedAt || after.updatedAt || 0;
     recipients.forEach((parentId) =>
@@ -494,7 +512,11 @@ async function handleScheduleChange(before, after) {
     reservations = active.reservations;
   }
 
-  const events = eventsFromScheduleChange(before, after, { allParents, forSchedule });
+  const events = eventsFromScheduleChange(before, after, {
+    allParents,
+    forSchedule,
+    reservations,
+  });
   for (const event of events) {
     await deliverNotification(event.eventId, event);
   }

@@ -516,8 +516,19 @@ async function handleScheduleChange(before, after) {
     const prevStatus = before?.queueStatus;
     const currStatus = after.queueStatus;
     if (prevStatus !== currStatus && forSchedule.length) {
+      const reservationByParent = new Map();
+      reservations.forEach((reservation) => {
+        if (
+          reservation.parentId &&
+          ACTIVE_RESERVATION_STATUSES.includes(reservation.status)
+        ) {
+          reservationByParent.set(reservation.parentId, reservation);
+        }
+      });
+
       if ((prevStatus === "not_started" || !prevStatus) && currStatus === "active") {
-        forSchedule.forEach((parentId) =>
+        forSchedule.forEach((parentId) => {
+          const reservation = reservationByParent.get(parentId);
           events.push({
             ...base,
             eventId: "QUEUE_STARTED",
@@ -525,9 +536,15 @@ async function handleScheduleChange(before, after) {
             scheduleId: schedId,
             clinicDate,
             branchName: after.branch || null,
+            reservationId: reservation?.id || null,
+            queueNumber:
+              reservation?.queueNumber ??
+              reservation?.originalQueueNumber ??
+              reservation?.queuePosition ??
+              null,
             dedupeKey: `queue_start_${schedId}_${clinicDate}`,
-          })
-        );
+          });
+        });
       } else if (prevStatus === "active" && currStatus === "paused") {
         const ts = after.queueStatusUpdatedAt || after.updatedAt || 0;
         forSchedule.forEach((parentId) =>
