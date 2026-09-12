@@ -24,18 +24,57 @@ async function authHeaders() {
 
 async function postJson(path, body, { withAuth = false } = {}) {
   const headers = withAuth ? await authHeaders() : { "Content-Type": "application/json" };
-  const res = await fetch(`${apiBase()}${path}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
+  let res;
+  try {
+    res = await fetch(`${apiBase()}${path}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+  } catch (networkErr) {
+    const err = new Error("Unable to reach the server. Please try again.");
+    err.code = "network_error";
+    err.cause = networkErr;
+    throw err;
+  }
+
+  const contentType = res.headers.get("content-type") || "";
+  const raw = await res.text();
+  let data = {};
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      const err = new Error(
+        "Unable to reach the SMS API. On the hosted site, deploy Cloud Functions; locally run the Express server (port 5000)."
+      );
+      err.code = "invalid_response";
+      throw err;
+    }
+  }
+
+  if (!contentType.includes("application/json") && Object.keys(data).length === 0) {
+    const err = new Error(
+      "Unable to reach the SMS API. On the hosted site, deploy Cloud Functions; locally run the Express server (port 5000)."
+    );
+    err.code = "invalid_response";
+    throw err;
+  }
+
   if (!res.ok) {
     const err = new Error(data.message || "Request failed.");
     err.code = data.error || "request_failed";
     err.retryAfterSeconds = data.retryAfterSeconds;
     throw err;
   }
+
+  if (data && typeof data === "object" && data.success === false) {
+    const err = new Error(data.message || "Request failed.");
+    err.code = data.error || "request_failed";
+    err.retryAfterSeconds = data.retryAfterSeconds;
+    throw err;
+  }
+
   return data;
 }
 
@@ -44,7 +83,7 @@ async function postJson(path, body, { withAuth = false } = {}) {
  * @param {"login"|"register"|"update"} [purpose="login"]
  */
 export async function sendSmsOtp(phoneLocalOrE164, purpose = "login") {
-  return postJson(
+  const data = await postJson(
     "/api/auth/sms/send-otp",
     {
       phone: toE164(phoneLocalOrE164),
@@ -52,6 +91,13 @@ export async function sendSmsOtp(phoneLocalOrE164, purpose = "login") {
     },
     { withAuth: purpose === "update" }
   );
+  if (!data?.success) {
+    const err = new Error(data?.message || "Failed to send OTP, please try again.");
+    err.code = data?.error || "sms_failed";
+    err.retryAfterSeconds = data?.retryAfterSeconds;
+    throw err;
+  }
+  return data;
 }
 
 /**

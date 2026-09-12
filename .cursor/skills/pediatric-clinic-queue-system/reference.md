@@ -89,6 +89,17 @@ Default branches: **Angeles**, **Magalang**.
 { penaltyMoveBack: 2 }   // 0–10; Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent.
 ```
 
+### `systemConfiguration/sms`
+```js
+{
+  nearingTurnAheadCount: 3,          // 1–10; exact patients-ahead that fires NEARING_TURN SMS/push/toast
+  templateSlotReserved: "...",       // placeholders: {date} {timeRange} {queueNumber} {doctor} {branch}
+  templateQueueStarted: "...",       // placeholders: {branch} {date}
+  templateNearingTurn: "...",        // placeholders: {count} {queueNumber} {branch}; default shorter clinic copy
+  updatedAt: 0
+}
+```
+Defaults apply when the node is missing so existing clinics keep prior behavior until Admin saves SMS settings.
 ## RTDB Security Rules Summary
 
 | Node | Read | Write |
@@ -99,7 +110,8 @@ Default branches: **Angeles**, **Magalang**.
 | `schedules` | All auth | Secretary (create/publish/start); doctor (pause/resume/close) |
 | `reservations` | All auth | Parent, doctor, secretary (active) |
 | `auditLogs` | Admin | Admin, doctor, secretary |
-| `systemConfiguration` | Admin, doctor, secretary | Admin |
+| `systemConfiguration/queue` | Admin, doctor, secretary | Admin |
+| `systemConfiguration/sms` | Admin, doctor, secretary, parent | Admin |
 
 Rules file: `database.rules.json` (repo root).
 
@@ -122,7 +134,7 @@ Listeners: `server/services/pushListeners.js` watches `reservations` and `schedu
 
 ### SMS (textbee.dev)
 - Utility: `server/services/smsService.js` (mirrored in `client/functions/smsService.js`)
-- Queue SMS events: `SLOT_RESERVED`, `QUEUE_STARTED`, `NEARING_TURN` (exactly 3 ahead; once per reservation via `dedupeKey` + `smsDispatchedAt`)
+- Queue SMS events: `SLOT_RESERVED`, `QUEUE_STARTED`, `NEARING_TURN` (patients-ahead from `systemConfiguration/sms`, default 3; once per reservation via `dedupeKey` + `smsDispatchedAt`; Admin-editable templates)
 - OTP store: `smsOtps/{phoneKey}` — bcrypt-hashed code, 5-minute `expiresAt`; client R/W denied in rules
 
 ## Cloud Functions (`client/functions/index.js`)

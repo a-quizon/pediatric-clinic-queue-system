@@ -1,15 +1,31 @@
 import notificationService, { NOTIFICATION_EVENTS } from './notificationService';
 import { computeReservationState, computeAheadOfYou, QUEUE_STATES } from './queueEngine';
-
-const NEARING_TURN_AHEAD_COUNT = 3;
+import {
+  DEFAULT_NEARING_TURN_AHEAD,
+  buildNearingTurnPushMessage,
+} from './systemConfigurationService';
 
 /**
  * Position Event Engine
  * Evaluates live queue position changes and dispatches Position Events
  * (NEARING_TURN, ALMOST_NEXT, YOU_ARE_NEXT) from Queue Engine state.
+ *
+ * @param {object[]} allReservations
+ * @param {object} schedules
+ * @param {object|null} user
+ * @param {{ nearingTurnAheadCount?: number }} [options]
  */
-export const evaluatePositionEvents = (allReservations = [], schedules = {}, user = null) => {
+export const evaluatePositionEvents = (
+  allReservations = [],
+  schedules = {},
+  user = null,
+  options = {}
+) => {
   if (!user || !user.uid) return;
+
+  const nearingTurnAheadCount = Number.isInteger(options.nearingTurnAheadCount)
+    ? options.nearingTurnAheadCount
+    : DEFAULT_NEARING_TURN_AHEAD;
 
   // Filter active reservations belonging to the current parent
   const myActiveReservations = allReservations.filter(
@@ -26,11 +42,12 @@ export const evaluatePositionEvents = (allReservations = [], schedules = {}, use
     const queueState = computeReservationState(r, allReservations);
     const aheadOfYou = r.aheadOfYou != null ? Number(r.aheadOfYou) : computeAheadOfYou(r, allReservations);
 
-    if (aheadOfYou === NEARING_TURN_AHEAD_COUNT) {
+    if (aheadOfYou === nearingTurnAheadCount) {
       notificationService.notify(NOTIFICATION_EVENTS.NEARING_TURN, {
         entityId: r.id,
         parentId: r.parentId,
         dedupeKey: `nearing_turn_${r.id}`,
+        customMessage: buildNearingTurnPushMessage(nearingTurnAheadCount),
       });
     }
 

@@ -7,6 +7,36 @@ const { sendSms, normalizePhoneE164 } = require("./smsService");
 
 const SMS_NOTIFICATION_EVENTS = new Set(["SLOT_RESERVED", "QUEUE_STARTED", "NEARING_TURN"]);
 
+const MIN_NEARING_TURN_AHEAD = 1;
+const MAX_NEARING_TURN_AHEAD = 10;
+const DEFAULT_NEARING_TURN_AHEAD = 3;
+const MAX_SMS_TEMPLATE_LENGTH = 320;
+
+const ALLOWED_PLACEHOLDERS = new Set([
+  "count",
+  "queueNumber",
+  "branch",
+  "date",
+  "timeRange",
+  "doctor",
+]);
+
+const DEFAULT_SMS_TEMPLATES = {
+  templateSlotReserved:
+    "Your clinic reservation is confirmed.\n" +
+    "Date: {date}\n" +
+    "Time: {timeRange}\n" +
+    "Queue Number: {queueNumber}\n" +
+    "Doctor: {doctor}\n" +
+    "Branch: {branch}\n" +
+    "Please keep this message for your visit. Thank you.",
+  templateQueueStarted:
+    "Hello! The queue at {branch} for {date} has officially started. " +
+    "Please monitor your place in line and be ready when we notify you that your turn is near.",
+  templateNearingTurn:
+    "Only {count} patients ahead (Queue #{queueNumber}). Please head to the clinic now.",
+};
+
 function db() {
   return admin.database();
 }
@@ -40,6 +70,69 @@ function formatTime(hhmm) {
   return `${hour12}:${mins} ${period}`;
 }
 
+function sanitizeTemplate(value, fallback) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed || trimmed.length > MAX_SMS_TEMPLATE_LENGTH) return fallback;
+  const matches = trimmed.matchAll(/\{([a-zA-Z]+)\}/g);
+  for (const match of matches) {
+    if (!ALLOWED_PLACEHOLDERS.has(match[1])) return fallback;
+  }
+  return trimmed;
+}
+
+function sanitizeAheadCount(value) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed)) return DEFAULT_NEARING_TURN_AHEAD;
+  if (parsed < MIN_NEARING_TURN_AHEAD || parsed > MAX_NEARING_TURN_AHEAD) {
+    return DEFAULT_NEARING_TURN_AHEAD;
+  }
+  return parsed;
+}
+
+function parseSmsConfig(data) {
+  return {
+    nearingTurnAheadCount: sanitizeAheadCount(
+      data?.nearingTurnAheadCount ?? DEFAULT_NEARING_TURN_AHEAD
+    ),
+    templateSlotReserved: sanitizeTemplate(
+      data?.templateSlotReserved,
+      DEFAULT_SMS_TEMPLATES.templateSlotReserved
+    ),
+    templateQueueStarted: sanitizeTemplate(
+      data?.templateQueueStarted,
+      DEFAULT_SMS_TEMPLATES.templateQueueStarted
+    ),
+    templateNearingTurn: sanitizeTemplate(
+      data?.templateNearingTurn,
+      DEFAULT_SMS_TEMPLATES.templateNearingTurn
+    ),
+  };
+}
+
+async function getSmsConfiguration() {
+  try {
+    const snap = await db().ref("systemConfiguration/sms").once("value");
+    return parseSmsConfig(snap.exists() ? snap.val() : null);
+  } catch (err) {
+    console.error("[functions/sms] failed to load systemConfiguration/sms:", err.message);
+    return parseSmsConfig(null);
+  }
+}
+
+function applySmsTemplate(template, vars = {}) {
+  return String(template || "").replace(/\{([a-zA-Z]+)\}/g, (full, key) => {
+    if (!ALLOWED_PLACEHOLDERS.has(key)) return full;
+    const value = vars[key];
+    if (value === null || value === undefined || value === "") return "";
+    return String(value);
+  });
+}
+
+function buildNearingTurnPushMessage(count = DEFAULT_NEARING_TURN_AHEAD) {
+  const safeCount = sanitizeAheadCount(count);
+  return `There are only ${safeCount} patients ahead of you. Please proceed to the clinic.`;
+}
+
 async function getParentPhone(parentId) {
   if (!parentId) return "";
   const snap = await db().ref(`users/${parentId}`).once("value");
@@ -59,45 +152,50 @@ async function resolveDoctorName(doctorId) {
   return `${title} ${name}`.replace(/\s+/g, " ").trim();
 }
 
+async function buildTemplateVars(eventId, context = {}, config) {
+  const branch = context.branchName || context.branchId || "the clinic";
+  const dateLabel = formatClinicDate(context.clinicDate);
+  const open = formatTime(context.openingTime);
+  const close = formatTime(context.closingTime);
+  const timeRange = open && close ? `${open} – ${close}` : open || "clinic hours";
+  const doctorName =
+    context.doctorName || (await resolveDoctorName(context.doctorId)) || "your doctor";
+  const queueNumber =
+    context.queueNumber != null && context.queueNumber !== ""
+      ? context.queueNumber
+      : "—";
+  const count =
+    context.nearingTurnAheadCount != null
+      ? sanitizeAheadCount(context.nearingTurnAheadCount)
+      : config.nearingTurnAheadCount;
+
+  return {
+    count,
+    queueNumber,
+    branch: eventId === "SLOT_RESERVED" ? branch.replace(/^the /, "") || "clinic" : branch,
+    date: dateLabel,
+    timeRange,
+    doctor: doctorName,
+  };
+}
+
 async function buildSmsMessage(eventId, context = {}) {
+  const config = await getSmsConfiguration();
+  const vars = await buildTemplateVars(eventId, context, config);
+
+  let template = null;
   if (eventId === "QUEUE_STARTED") {
-    const branch = context.branchName || context.branchId || "the clinic";
-    const dateLabel = formatClinicDate(context.clinicDate);
-    return (
-      `Hello! The queue at ${branch} for ${dateLabel} has officially started. ` +
-      `Please monitor your place in line and be ready when we notify you that your turn is near.`
-    );
+    template = config.templateQueueStarted;
+  } else if (eventId === "NEARING_TURN") {
+    template = config.templateNearingTurn;
+  } else if (eventId === "SLOT_RESERVED") {
+    template = config.templateSlotReserved;
+  } else {
+    return context.customMessage || null;
   }
 
-  if (eventId === "NEARING_TURN") {
-    const queueNumber = context.queueNumber != null ? context.queueNumber : "your";
-    return (
-      `Hello! There are now only 3 patients ahead of you` +
-      (queueNumber !== "your" ? ` (Queue #${queueNumber})` : "") +
-      `. Please make your way to the clinic and be ready for your turn. Thank you.`
-    );
-  }
-
-  if (eventId === "SLOT_RESERVED") {
-    const dateLabel = formatClinicDate(context.clinicDate);
-    const open = formatTime(context.openingTime);
-    const close = formatTime(context.closingTime);
-    const timeRange = open && close ? `${open} – ${close}` : open || "clinic hours";
-    const doctorName = context.doctorName || (await resolveDoctorName(context.doctorId));
-    const branch = context.branchName || context.branchId || "clinic";
-    const queueNumber = context.queueNumber != null ? context.queueNumber : "—";
-    return (
-      `Your clinic reservation is confirmed.\n` +
-      `Date: ${dateLabel}\n` +
-      `Time: ${timeRange}\n` +
-      `Queue Number: ${queueNumber}\n` +
-      `Doctor: ${doctorName}\n` +
-      `Branch: ${branch}\n` +
-      `Please keep this message for your visit. Thank you.`
-    );
-  }
-
-  return context.customMessage || null;
+  const message = applySmsTemplate(template, vars).trim();
+  return message || null;
 }
 
 async function claimSmsDispatch(parentId, notificationId) {
@@ -194,7 +292,11 @@ function computeAheadOfYouForSms(reservation, allReservations = []) {
 
 module.exports = {
   SMS_NOTIFICATION_EVENTS,
+  DEFAULT_NEARING_TURN_AHEAD,
   deliverSmsForNotification,
   enrichSmsContext,
+  buildSmsMessage,
+  getSmsConfiguration,
+  buildNearingTurnPushMessage,
   computeAheadOfYouForSms,
 };

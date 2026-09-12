@@ -16,6 +16,18 @@ function recordFromSnap(id, snap) {
 }
 
 /**
+ * Hosting rewrite target for /api/** (SMS OTP + auth identifier resolve).
+ * Lazy-load Express app so deploy analysis stays under the load timeout.
+ */
+let apiApp;
+exports.api = functions.region("asia-southeast1").https.onRequest((req, res) => {
+  if (!apiApp) {
+    apiApp = require("./apiApp").createApiApp();
+  }
+  return apiApp(req, res);
+});
+
+/**
  * Real-time reservation dispatcher. Sends Web Push even if the parent browser is closed.
  */
 exports.onReservationWrite = rtdb

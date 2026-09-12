@@ -4,6 +4,9 @@ const {
   deliverSmsForNotification,
   enrichSmsContext,
   computeAheadOfYouForSms,
+  getSmsConfiguration,
+  buildNearingTurnPushMessage,
+  DEFAULT_NEARING_TURN_AHEAD,
 } = require("./smsNotificationService");
 
 const ACTIVE_RESERVATION_STATUSES = [
@@ -15,9 +18,6 @@ const ACTIVE_RESERVATION_STATUSES = [
   "validation_open",
   "waiting_for_window",
 ];
-
-/** Patients ahead that triggers the one-time nearing-turn SMS. */
-const NEARING_TURN_AHEAD_COUNT = 3;
 
 const NOTIFICATION_CONFIG = {
   SCHEDULE_AVAILABLE: {
@@ -41,7 +41,7 @@ const NOTIFICATION_CONFIG = {
   NEARING_TURN: {
     type: "warning",
     title: "Your Turn Is Near",
-    message: "There are only 3 patients ahead of you. Please proceed to the clinic.",
+    message: buildNearingTurnPushMessage(DEFAULT_NEARING_TURN_AHEAD),
     url: "/parent/reservations",
   },
   QUEUE_PAUSED: {
@@ -410,6 +410,9 @@ async function getAllParentIds() {
 async function evaluatePositionEvents(schedule, reservations) {
   if (!schedule || !["active", "paused", "closed"].includes(schedule.queueStatus)) return;
 
+  const smsConfig = await getSmsConfiguration();
+  const nearingTurnAheadCount = smsConfig.nearingTurnAheadCount;
+
   const candidates = reservations.filter(
     (r) =>
       r.parentId &&
@@ -441,8 +444,8 @@ async function evaluatePositionEvents(schedule, reservations) {
       });
     }
 
-    // Event C — exactly 3 patients ahead; dedupeKey ensures one SMS even if queue pauses
-    if (aheadOfYou === NEARING_TURN_AHEAD_COUNT) {
+    // Exact patients-ahead match from systemConfiguration/sms; dedupeKey ensures one SMS even if queue pauses
+    if (aheadOfYou === nearingTurnAheadCount) {
       await deliverNotification("NEARING_TURN", {
         parentId: reservation.parentId,
         reservationId: reservation.id,
@@ -450,6 +453,8 @@ async function evaluatePositionEvents(schedule, reservations) {
         branchId: reservation.branchId || reservation.branch || schedule.branch || null,
         queueNumber: reservation.queueNumber ?? reservation.originalQueueNumber,
         clinicDate: schedule.clinicDate,
+        nearingTurnAheadCount,
+        customMessage: buildNearingTurnPushMessage(nearingTurnAheadCount),
         dedupeKey: `nearing_turn_${reservation.id}`,
       });
     }

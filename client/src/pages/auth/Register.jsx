@@ -74,9 +74,10 @@ export default function Register() {
     if (name === "number") {
       const sanitized = value.replace(/\D/g, "").slice(0, 10);
       setFormData((prev) => ({ ...prev, number: sanitized }));
+      // Reset verification for new digits, but keep resend cooldown
+      // tied to time since last OTP send (not the phone field value).
       if (sanitized !== formData.number) {
         resetPhoneVerification();
-        setCooldownLeft(0);
       }
       return;
     }
@@ -108,7 +109,11 @@ export default function Register() {
       toast.success("Verification code sent via SMS.");
       setTimeout(() => otpInputRef.current?.focus(), 50);
     } catch (err) {
-      toast.error(err.message || "Failed to send code.");
+      toast.error(
+        err.code === "rate_limited" && err.message
+          ? err.message
+          : err.message || "Failed to send OTP, please try again."
+      );
       if (err.retryAfterSeconds) setCooldownLeft(err.retryAfterSeconds);
     } finally {
       setOtpBusy(false);

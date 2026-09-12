@@ -5,6 +5,10 @@ import { subscribeToParentReservations, subscribeToScheduleReservations, ACTIVE_
 import notificationService, { NOTIFICATION_EVENTS } from '../../services/notificationService';
 import { evaluatePositionEvents } from '../../services/positionEventEngine';
 import { cleanupNonParentNotifications } from '../../services/notificationCenterService';
+import {
+  subscribeToSmsConfiguration,
+  DEFAULT_NEARING_TURN_AHEAD,
+} from '../../services/systemConfigurationService';
 
 /**
  * Global Notification Observer
@@ -26,6 +30,7 @@ export default function NotificationObserver() {
   const prevSchedulesRef = useRef({});
   const prevMyReservationsRef = useRef({});
   const prevPatientsAheadRef = useRef({});
+  const nearingTurnAheadCountRef = useRef(DEFAULT_NEARING_TURN_AHEAD);
 
   useEffect(() => {
     if (!user || role !== 'parent') return;
@@ -128,6 +133,10 @@ export default function NotificationObserver() {
   useEffect(() => {
     if (!user || role !== 'parent') return;
 
+    const unsubSmsConfig = subscribeToSmsConfiguration((config) => {
+      nearingTurnAheadCountRef.current = config.nearingTurnAheadCount;
+    });
+
     let unsubSchedule = () => {};
     let activeScheduleId = null;
 
@@ -221,7 +230,9 @@ export default function NotificationObserver() {
               isInitialScheduleLoad.current = false;
             } else {
               // Position Event Architecture: Re-evaluate position thresholds across active reservations
-              evaluatePositionEvents(scheduleData || [], prevSchedulesRef.current, user);
+              evaluatePositionEvents(scheduleData || [], prevSchedulesRef.current, user, {
+                nearingTurnAheadCount: nearingTurnAheadCountRef.current,
+              });
             }
           });
         }
@@ -231,6 +242,7 @@ export default function NotificationObserver() {
     });
 
     return () => {
+      unsubSmsConfig();
       unsubParent();
       unsubSchedule();
     };

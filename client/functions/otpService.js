@@ -1,11 +1,11 @@
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const { admin, getDb } = require("./firebaseAdmin");
+const admin = require("firebase-admin");
 const { sendSms, normalizePhoneE164 } = require("./smsService");
 const { findUserByPhoneFlexible } = require("./phoneLookup");
 
 const OTP_TTL_MS = 5 * 60 * 1000;
-const OTP_RESEND_COOLDOWN_MS = 90 * 1000; // 1 minute 30 seconds
+const OTP_RESEND_COOLDOWN_MS = 90 * 1000;
 const PHONE_VERIFICATION_TTL_MS = 30 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
 const BCRYPT_ROUNDS = 10;
@@ -13,6 +13,10 @@ const BCRYPT_ROUNDS = 10;
 const PURPOSE_LOGIN = "login";
 const PURPOSE_REGISTER = "register";
 const PURPOSE_UPDATE = "update";
+
+function getDb() {
+  return admin.database();
+}
 
 function phoneToKey(phoneE164) {
   return String(phoneE164 || "").replace(/[.#$\[\]]/g, "_");
@@ -84,7 +88,7 @@ async function deliverAndStoreOtp({ phone, purpose, uid = null }) {
   if (!smsResult.success || smsResult.skipped) {
     await otpRef.remove();
     if (smsResult.skipped) {
-      console.warn("[otp] SMS not configured — OTP not delivered");
+      console.warn("[functions/otp] SMS not configured — OTP not delivered");
     }
     const err = new Error("Failed to send verification SMS. Please try again.");
     err.code = "sms_failed";
@@ -100,9 +104,6 @@ async function deliverAndStoreOtp({ phone, purpose, uid = null }) {
   };
 }
 
-/**
- * Login OTP — requires an existing active parent account.
- */
 async function sendLoginOtp(rawPhone) {
   const phone = normalizePhoneE164(rawPhone);
   if (!phone) {
@@ -121,9 +122,6 @@ async function sendLoginOtp(rawPhone) {
   return deliverAndStoreOtp({ phone, purpose: PURPOSE_LOGIN, uid: parent.uid });
 }
 
-/**
- * Registration OTP — phone must not already belong to an active parent.
- */
 async function sendRegistrationOtp(rawPhone) {
   const phone = normalizePhoneE164(rawPhone);
   if (!phone) {
@@ -230,9 +228,6 @@ async function verifyLoginOtp(rawPhone, rawCode) {
   return { success: true, customToken, uid };
 }
 
-/**
- * Verify registration OTP and issue a short-lived phone verification proof.
- */
 async function verifyRegistrationOtp(rawPhone, rawCode) {
   const phone = normalizePhoneE164(rawPhone);
   const code = String(rawCode || "").replace(/\D/g, "");
@@ -281,9 +276,6 @@ async function verifyRegistrationOtp(rawPhone, rawCode) {
   };
 }
 
-/**
- * Profile phone-update OTP — requires authenticated parent uid.
- */
 async function sendUpdatePhoneOtp(rawPhone, uid) {
   const phone = normalizePhoneE164(rawPhone);
   if (!phone) {
@@ -367,10 +359,6 @@ async function verifyUpdatePhoneOtp(rawPhone, rawCode, uid) {
   };
 }
 
-/**
- * Confirm a phone verification proof is still valid (does not consume).
- * @param {{ uid?: string, purpose?: string }} [options]
- */
 async function assertPhoneVerified(rawPhone, verificationId, options = {}) {
   const phone = normalizePhoneE164(rawPhone);
   if (!phone || !verificationId) {
@@ -416,9 +404,6 @@ async function assertPhoneVerified(rawPhone, verificationId, options = {}) {
   return { success: true, phone, verified: true, purpose: record.purpose || null };
 }
 
-/**
- * Consume verification proof after account creation / phone update.
- */
 async function consumePhoneVerification(rawPhone, verificationId, options = {}) {
   await assertPhoneVerified(rawPhone, verificationId, options);
   const phone = normalizePhoneE164(rawPhone);

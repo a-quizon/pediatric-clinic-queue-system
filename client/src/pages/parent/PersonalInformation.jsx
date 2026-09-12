@@ -60,19 +60,27 @@ export default function PersonalInformation() {
   const [deleteError, setDeleteError] = useState("");
 
   const phoneChanged = phone.length === 10 && phone !== originalPhoneLocal;
+  const hydratedUidRef = useRef(null);
 
   useEffect(() => {
-    if (user) {
-      setName(user.fullName || user.displayName || user.name || "");
-      const local = parseToLocal(user.phoneNumber || user.phone || "");
-      setPhone(local);
-      setOriginalPhoneLocal(local);
-      setOtp("");
-      setOtpSent(false);
-      setPhoneVerified(false);
-      setVerificationId("");
-      setCooldownLeft(0);
+    if (!user?.uid) {
+      hydratedUidRef.current = null;
+      return;
     }
+    // Only hydrate profile fields once per signed-in user — AuthContext
+    // recreates `user` on every RTDB onValue and must not wipe OTP/cooldown.
+    if (hydratedUidRef.current === user.uid) return;
+    hydratedUidRef.current = user.uid;
+
+    setName(user.fullName || user.displayName || user.name || "");
+    const local = parseToLocal(user.phoneNumber || user.phone || "");
+    setPhone(local);
+    setOriginalPhoneLocal(local);
+    setOtp("");
+    setOtpSent(false);
+    setPhoneVerified(false);
+    setVerificationId("");
+    setCooldownLeft(0);
   }, [user]);
 
   useEffect(() => {
@@ -138,7 +146,12 @@ export default function PersonalInformation() {
       toast.success("Verification code sent via SMS.");
       setTimeout(() => otpInputRef.current?.focus(), 50);
     } catch (err) {
-      setError(err.message || "Failed to send verification code.");
+      const message =
+        err.code === "rate_limited" && err.message
+          ? err.message
+          : err.message || "Failed to send OTP, please try again.";
+      setError(message);
+      toast.error(message);
       if (err.retryAfterSeconds) setCooldownLeft(err.retryAfterSeconds);
     } finally {
       setOtpBusy(false);
@@ -329,12 +342,10 @@ export default function PersonalInformation() {
                 onChange={(e) => {
                   const sanitized = e.target.value.replace(/\D/g, "").slice(0, 10);
                   setPhone(sanitized);
-                  if (sanitized !== originalPhoneLocal) {
+                  // Reset verification for the new digits, but keep resend cooldown
+                  // tied to time since last OTP send (not the phone field value).
+                  if (sanitized !== phone) {
                     resetPhoneVerification();
-                    setCooldownLeft(0);
-                  } else {
-                    resetPhoneVerification();
-                    setCooldownLeft(0);
                   }
                 }}
                 disabled={phoneVerified && phoneChanged}
@@ -347,7 +358,7 @@ export default function PersonalInformation() {
             </div>
           </div>
 
-          {phoneChanged && (
+          {(phoneChanged || cooldownLeft > 0) && (
             <div className="space-y-2">
               <label className="block text-sm font-bold text-gray-700 ml-1">Verification Code</label>
               <div className="flex gap-2">
@@ -362,7 +373,7 @@ export default function PersonalInformation() {
                     pattern="[0-9]*"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    disabled={phoneVerified || !otpSent || isSaving}
+                    disabled={phoneVerified || !otpSent || isSaving || !phoneChanged}
                     autoComplete="one-time-code"
                     className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-gray-800 font-medium tracking-widest"
                     placeholder="6-digit code"
@@ -375,6 +386,7 @@ export default function PersonalInformation() {
                     otpBusy ||
                     isSaving ||
                     phoneVerified ||
+                    !phoneChanged ||
                     phone.length !== 10 ||
                     (!otpSent && cooldownLeft > 0) ||
                     (otpSent && otp.length !== 6)
@@ -382,7 +394,7 @@ export default function PersonalInformation() {
                   className={`shrink-0 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                     phoneVerified
                       ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default"
-                      : otpBusy || phone.length !== 10 || (!otpSent && cooldownLeft > 0) || (otpSent && otp.length !== 6)
+                      : otpBusy || !phoneChanged || phone.length !== 10 || (!otpSent && cooldownLeft > 0) || (otpSent && otp.length !== 6)
                         ? "bg-blue-300 text-white cursor-not-allowed"
                         : "bg-blue-600 text-white hover:bg-blue-700"
                   }`}
@@ -403,7 +415,7 @@ export default function PersonalInformation() {
                   <button
                     type="button"
                     onClick={handleSendCode}
-                    disabled={otpBusy || isSaving}
+                    disabled={otpBusy || isSaving || !phoneChanged}
                     className="text-xs font-semibold text-blue-600 hover:underline ml-1"
                   >
                     Resend code
