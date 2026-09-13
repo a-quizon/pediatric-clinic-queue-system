@@ -1,36 +1,37 @@
-import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { Home, Users, User, BarChart3, Activity } from "lucide-react";
-import PageHeader from "../common/PageHeader";
+import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Home, Users, User, BarChart3, ArrowLeft } from "lucide-react";
+import { PqBrand } from "../parent/pqUi";
 
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const getHeaderInfo = () => {
     const path = location.pathname;
     if (path === "/doctor" || path === "/doctor/") {
-      return { desktop: "Dashboard", mobile: "Home" };
+      return { title: "Dashboard", showBack: false };
     }
     if (path.startsWith("/doctor/queue")) {
-      return { desktop: "Queue", mobile: "Queue" };
+      return { title: "Queue", showBack: false };
     }
     if (path.startsWith("/doctor/reports")) {
-      return { desktop: "Reports & Analytics", mobile: "Reports & Analytics", backTo: true };
+      return { title: "Reports & Analytics", showBack: true, backPath: "/doctor" };
     }
     if (path.startsWith("/doctor/profile")) {
       const view = new URLSearchParams(location.search).get("view");
-      if (view === "account") return { desktop: "Profile", mobile: "Account Settings", backTo: true };
-      if (view === "system") return { desktop: "Profile", mobile: "About System", backTo: true };
-      return { desktop: "Profile", mobile: "Profile" };
+      if (view === "account") return { title: "Account Settings", showBack: true, backPath: "/doctor/profile" };
+      if (view === "system") return { title: "About System", showBack: true, backPath: "/doctor/profile" };
+      return { title: "Profile", showBack: false };
     }
-    return { desktop: "Dashboard", mobile: "Home" };
+    return { title: "Dashboard", showBack: false };
   };
 
   const headerInfo = getHeaderInfo();
 
   const navItems = [
-    { name: "Dashboard", path: "/doctor", icon: Home },
+    { name: "Dashboard", mobileName: "Home", path: "/doctor", icon: Home },
     { name: "Queue", path: "/doctor/queue", icon: Users },
-    { name: "Reports & Analytics", path: "/doctor/reports", icon: BarChart3, desktopOnly: true },
+    { name: "Reports & Analytics", mobileName: "Reports", path: "/doctor/reports", icon: BarChart3, desktopOnly: true },
     { name: "Profile", path: "/doctor/profile", icon: User },
   ];
 
@@ -41,85 +42,89 @@ export default function Layout() {
     return location.pathname.startsWith(path);
   };
 
+  const handleBack = () => {
+    if (headerInfo.backPath) {
+      navigate(headerInfo.backPath);
+    } else {
+      navigate(-1);
+    }
+  };
+
   return (
-    <div className="flex h-screen bg-white md:bg-gray-50 md:flex-row flex-col font-sans overflow-hidden">
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-100 z-20">
-        <div className="p-6 flex items-center border-b border-gray-50">
-          <Activity className="w-6 h-6 text-blue-600 mr-3" />
-          <h1 className="text-lg font-bold text-gray-800">Doctor Portal</h1>
+    <div className="pq-shell flex h-screen md:flex-row flex-col overflow-hidden">
+      <aside className="hidden md:flex flex-col w-64 pq-glass-nav z-20 flex-shrink-0 rounded-none border-y-0 border-l-0">
+        <div className="p-6 flex items-center" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <PqBrand size={36} />
         </div>
-        <nav className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 py-6 px-4 space-y-1.5 overflow-y-auto" aria-label="Doctor">
           {navItems.map((item) => (
             <NavLink
               key={item.name}
               to={item.path}
-              className={({ isActive: isNavLinkActive }) =>
-                `flex items-center px-4 py-3 rounded-xl transition-colors duration-200 ${
-                  isActive(item.path)
-                    ? "bg-blue-50 text-blue-600 font-semibold"
-                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium"
-                }`
+              aria-current={isActive(item.path) ? "page" : undefined}
+              className={() =>
+                `pq-side-link ${isActive(item.path) ? "pq-side-link-active" : ""}`
               }
             >
-              {({ isActive: isNavLinkActive }) => (
-                <>
-                  <item.icon 
-                    className={`w-5 h-5 mr-3 ${
-                      isActive(item.path) ? "text-blue-600" : "text-gray-400"
-                    }`} 
-                  />
-                  <span className="text-[14px]">
-                    {item.name}
-                  </span>
-                </>
-              )}
+              <item.icon className="w-5 h-5 flex-shrink-0" />
+              <span>{item.name}</span>
             </NavLink>
           ))}
         </nav>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-24 bg-gray-50 md:bg-transparent h-full relative flex flex-col">
-        <PageHeader 
-          desktopTitle={headerInfo.desktop} 
-          mobileTitle={headerInfo.mobile}
-          backTo={headerInfo.backTo}
-        />
+      <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-[6.5rem] h-full relative flex flex-col bg-transparent">
+        <div className="pq-header-wrap">
+          <header className="pq-header-pill">
+            <div className="flex items-center gap-3 min-w-0">
+              {headerInfo.showBack ? (
+                <button
+                  onClick={handleBack}
+                  className="pq-icon-btn flex-shrink-0"
+                  aria-label="Go back"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+              ) : (
+                <span className="md:hidden flex-shrink-0">
+                  <PqBrand size={32} wordmark={false} />
+                </span>
+              )}
+              <h1 className="text-lg sm:text-xl font-extrabold tracking-tight truncate">
+                {headerInfo.title}
+              </h1>
+            </div>
+          </header>
+        </div>
 
-        <div className="p-4 md:p-8 lg:p-10 max-w-5xl mx-auto flex-1 w-full">
+        <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-5xl mx-auto w-full flex-1">
           <Outlet />
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-40 pb-safe">
-        <div className="flex justify-around items-center h-16 px-1">
-          {navItems.filter(item => !item.desktopOnly).map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              className="flex flex-col items-center justify-center w-full h-full space-y-1"
-            >
-              {({ isActive: isNavLinkActive }) => {
-                const active = isActive(item.path);
-                return (
-                  <>
-                    <item.icon 
-                      className={`w-[22px] h-[22px] transition-colors ${
-                        active ? "text-blue-600" : "text-gray-400"
-                      }`} 
-                    />
-                    <span className={`text-[10px] transition-colors ${
-                      active ? "text-blue-600 font-semibold" : "text-gray-500 font-medium"
-                    }`}>
-                      {item.name === "Dashboard" ? "Home" : item.name === "Reports & Analytics" ? "Reports" : item.name}
-                    </span>
-                  </>
-                );
-              }}
-            </NavLink>
-          ))}
+      <nav className="md:hidden pq-dock-wrap" aria-label="Main">
+        <div className="pq-dock">
+          {navItems.filter((item) => !item.desktopOnly).map((item) => {
+            const active = isActive(item.path);
+            const label = item.mobileName || item.name;
+            return (
+              <NavLink
+                key={item.name}
+                to={item.path}
+                aria-label={item.name}
+                aria-current={active ? "page" : undefined}
+                className={`pq-dock-item ${active ? "pq-dock-item-active" : ""}`}
+              >
+                <item.icon
+                  className="w-[22px] h-[22px] flex-shrink-0"
+                  strokeWidth={active ? 2 : 1.85}
+                  fill={active ? "currentColor" : "none"}
+                  aria-hidden="true"
+                />
+                <span className="pq-dock-label">{label}</span>
+              </NavLink>
+            );
+          })}
         </div>
       </nav>
     </div>

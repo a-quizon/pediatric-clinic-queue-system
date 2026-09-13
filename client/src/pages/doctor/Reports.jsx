@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { BarChart3, TrendingUp, Users, Clock, AlertCircle, PieChart, Activity, CheckCircle, XCircle, Calendar, MapPin, Inbox, Loader2, ChevronLeft, ChevronRight, RefreshCcw } from "lucide-react";
+import { Users, AlertCircle, Activity, CheckCircle, XCircle, MapPin, Inbox, ChevronLeft, ChevronRight, RefreshCcw } from "lucide-react";
 import { useReportsData } from "../../hooks/useReportsData";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, Legend } from 'recharts';
+import { PqSpinner } from "../../components/parent/pqUi";
+
+const DATE_RANGES = ["Today", "This Week", "This Month", "This Year"];
+
+const CHART_INK = "#16344a";
+const CHART_MUTED = "#5a7a88";
+const CHART_LINE = "#2f6fdb";
+const CHART_GRID = "rgba(22, 52, 74, 0.1)";
 
 export default function Reports() {
   const { loading, error, dataset, unfilteredDataset, filters } = useReportsData();
@@ -22,7 +30,7 @@ export default function Reports() {
     setCurrentPage(1);
   }, [dataset]);
 
-  if (error) return <div className="text-red-500 text-center py-10">Failed to load reports data.</div>;
+  if (error) return <div className="pq-error-text text-center py-10 text-base">Failed to load reports data.</div>;
 
   const aggregated = dataset.reduce((acc, curr) => {
     acc.totalReservations += curr.metrics.totalReservations;
@@ -54,9 +62,9 @@ export default function Reports() {
   const trendData = Object.values(trendDataMap).sort((a, b) => new Date(a.date) - new Date(b.date));
 
   const outcomeData = [
-    { name: 'Checked Up', value: aggregated.checkedUp, color: '#16a34a' },
-    { name: 'Cancelled', value: aggregated.cancelled, color: '#dc2626' },
-    { name: 'Forfeited', value: aggregated.forfeited, color: '#ea580c' },
+    { name: 'Checked Up', value: aggregated.checkedUp, color: '#0f7a5a' },
+    { name: 'Cancelled', value: aggregated.cancelled, color: '#b4232c' },
+    { name: 'Forfeited', value: aggregated.forfeited, color: '#9a5b12' },
   ].filter(item => item.value > 0);
 
   const sortedDataset = [...dataset].sort((a, b) => {
@@ -81,107 +89,84 @@ export default function Reports() {
 
   const isFiltered = branch !== "All Branches" || dateRange !== "This Year";
 
+  const tooltipStyle = {
+    borderRadius: "0.95rem",
+    border: "1px solid rgba(22, 52, 74, 0.1)",
+    background: "color-mix(in srgb, #ffffff 92%, #e4f3f4)",
+    color: CHART_INK,
+    boxShadow: "0 12px 28px -14px rgba(22, 52, 74, 0.28)",
+  };
+
   return (
     <div className="space-y-6 pb-6 relative">
-      
-      {/* Filters and Summary */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
-        <div className="flex flex-col">
-          <span className="text-sm text-gray-500 font-medium">Showing:</span>
-          <div className="flex items-center gap-3 mt-1">
-            <span className="text-gray-800 font-semibold">{branch}</span>
-            <span className="text-gray-400">•</span>
-            <span className="text-gray-800 font-semibold">{dateRange}</span>
-            {isFiltered && (
-              <button 
-                onClick={handleResetFilters}
-                className="ml-2 flex items-center text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 px-2 py-1 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                aria-label="Reset filters"
+      <div className="pq-filter-bar p-4 sm:p-5">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+          <div className="flex flex-col min-w-0">
+            <span className="pq-label mb-1">Showing</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-extrabold tracking-tight">{branch}</span>
+              <span className="pq-faint" aria-hidden="true">•</span>
+              <span className="font-extrabold tracking-tight">{dateRange}</span>
+              {isFiltered && (
+                <button 
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="pq-btn-ghost min-h-[44px] text-sm"
+                  aria-label="Reset filters"
+                >
+                  <RefreshCcw className="w-4 h-4" aria-hidden="true" /> Reset
+                </button>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            <div className="relative min-w-[180px] flex-1 lg:flex-none">
+              <MapPin className="pq-field-icon w-4 h-4" aria-hidden="true" />
+              <select 
+                value={branch}
+                onChange={(e) => setBranch(e.target.value)}
+                className="pq-input pl-10 appearance-none cursor-pointer"
+                aria-label="Filter by Branch"
               >
-                <RefreshCcw className="w-3 h-3 mr-1" /> Reset
-              </button>
-            )}
-          </div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative min-w-[180px]">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <select 
-              value={branch}
-              onChange={(e) => setBranch(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm font-medium text-gray-700 shadow-sm appearance-none cursor-pointer"
-              aria-label="Filter by Branch"
-            >
-              <option value="All Branches">All Branches</option>
-              {branches.map(b => (
-                <option key={b.id} value={b.name}>{b.name}</option>
+                <option value="All Branches">All Branches</option>
+                {branches.map(b => (
+                  <option key={b.id} value={b.name}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0" role="group" aria-label="Filter by Date Range">
+              {DATE_RANGES.map((range) => (
+                <button
+                  key={range}
+                  type="button"
+                  onClick={() => setDateRange(range)}
+                  className={dateRange === range ? "pq-btn-primary flex-shrink-0" : "pq-btn-secondary flex-shrink-0"}
+                  aria-pressed={dateRange === range}
+                >
+                  {range}
+                </button>
               ))}
-            </select>
-          </div>
-          <div className="relative min-w-[160px]">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            <select 
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm font-medium text-gray-700 shadow-sm appearance-none cursor-pointer"
-              aria-label="Filter by Date Range"
-            >
-              <option value="Today">Today</option>
-              <option value="This Week">This Week</option>
-              <option value="This Month">This Month</option>
-              <option value="This Year">This Year</option>
-            </select>
+            </div>
           </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="space-y-6 animate-pulse">
-          {/* Summary Cards Skeleton */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm col-span-1 h-[104px] flex flex-col">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-9 h-9 bg-gray-200 rounded-lg"></div>
-                  <div className="h-4 bg-gray-200 rounded w-20"></div>
-                </div>
-                <div className="h-8 bg-gray-200 rounded w-12 mt-auto"></div>
-              </div>
-            ))}
-          </div>
-          {/* Charts Skeleton */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 h-[340px]">
-              <div className="h-6 bg-gray-200 rounded w-40 mb-6"></div>
-              <div className="h-64 bg-gray-100 rounded"></div>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 h-[340px]">
-              <div className="h-6 bg-gray-200 rounded w-40 mb-6"></div>
-              <div className="h-64 bg-gray-100 rounded-full mx-auto w-64"></div>
-            </div>
-          </div>
-          {/* Table Skeleton */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm h-64 p-6 mt-6">
-             <div className="h-6 bg-gray-200 rounded w-32 mb-6"></div>
-             <div className="space-y-4">
-               {[1, 2, 3, 4].map(i => (
-                 <div key={i} className="h-4 bg-gray-100 rounded w-full"></div>
-               ))}
-             </div>
-          </div>
+        <div className="pq-glass p-10">
+          <PqSpinner label="Loading reports" />
         </div>
       ) : dataset.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-          <div className="mx-auto w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mb-4">
-            <Inbox className="w-8 h-8" />
+        <div className="pq-glass p-12 text-center">
+          <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: "color-mix(in srgb, #ffffff 55%, transparent)", color: "var(--pq-ink-faint)" }}>
+            <Inbox className="w-8 h-8" aria-hidden="true" />
           </div>
-          <h3 className="text-lg font-bold text-gray-800 mb-1">
+          <h3 className="text-lg font-extrabold tracking-tight mb-1">
             {unfilteredDataset && unfilteredDataset.length === 0 
               ? "No completed clinic sessions yet" 
               : "No reports available for these filters"}
           </h3>
-          <p className="text-gray-500 text-sm max-w-sm mx-auto">
+          <p className="pq-muted text-sm max-w-sm mx-auto">
             {unfilteredDataset && unfilteredDataset.length === 0 
               ? "Complete a clinic session to start viewing analytics and historical reports."
               : "Try adjusting your branch or date range to see more results."}
@@ -189,102 +174,71 @@ export default function Reports() {
         </div>
       ) : (
         <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col col-span-2 md:col-span-1 lg:col-span-1">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <Users className="w-5 h-5 text-blue-600" />
-                </div>
-                <span className="text-sm font-semibold text-gray-600">Total Reservations</span>
+          <div className="pq-glass p-5">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              <div className="pq-stat pq-stat-info col-span-2 md:col-span-1">
+                <span className="pq-stat-label flex items-center gap-1"><Users className="w-3.5 h-3.5" aria-hidden="true" /> Total</span>
+                <span className="pq-stat-value">{aggregated.totalReservations}</span>
               </div>
-              <div className="text-3xl font-bold text-gray-800 mt-auto">{aggregated.totalReservations}</div>
-            </div>
-            
-            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col col-span-1 md:col-span-1 lg:col-span-1">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-green-50 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                </div>
-                <span className="text-sm font-semibold text-gray-600">Checked Up</span>
+              <div className="pq-stat pq-stat-live">
+                <span className="pq-stat-label flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" aria-hidden="true" /> Checked Up</span>
+                <span className="pq-stat-value">{aggregated.checkedUp}</span>
               </div>
-              <div className="text-3xl font-bold text-gray-800 mt-auto">{aggregated.checkedUp}</div>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col col-span-1 md:col-span-1 lg:col-span-1">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-red-50 rounded-lg">
-                  <XCircle className="w-5 h-5 text-red-600" />
-                </div>
-                <span className="text-sm font-semibold text-gray-600">Cancelled</span>
+              <div className="pq-stat" style={{ background: "var(--pq-alert-wash)", borderColor: "color-mix(in srgb, var(--pq-alert) 22%, white)" }}>
+                <span className="pq-stat-label flex items-center gap-1" style={{ color: "var(--pq-alert)" }}><XCircle className="w-3.5 h-3.5" aria-hidden="true" /> Cancelled</span>
+                <span className="pq-stat-value" style={{ color: "var(--pq-alert)" }}>{aggregated.cancelled}</span>
               </div>
-              <div className="text-3xl font-bold text-gray-800 mt-auto">{aggregated.cancelled}</div>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col col-span-1 md:col-span-1 lg:col-span-1">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-orange-50 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-orange-600" />
-                </div>
-                <span className="text-sm font-semibold text-gray-600">Forfeited</span>
+              <div className="pq-stat pq-stat-wait">
+                <span className="pq-stat-label flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" aria-hidden="true" /> Forfeited</span>
+                <span className="pq-stat-value">{aggregated.forfeited}</span>
               </div>
-              <div className="text-3xl font-bold text-gray-800 mt-auto">{aggregated.forfeited}</div>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col col-span-1 md:col-span-2 lg:col-span-1">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-purple-50 rounded-lg">
-                  <Activity className="w-5 h-5 text-purple-600" />
-                </div>
-                <span className="text-sm font-semibold text-gray-600">Completion Rate</span>
+              <div className="pq-stat col-span-1 md:col-span-2 lg:col-span-1">
+                <span className="pq-stat-label flex items-center gap-1"><Activity className="w-3.5 h-3.5" aria-hidden="true" /> Completion</span>
+                <span className="pq-stat-value">{completionRate}%</span>
               </div>
-              <div className="text-3xl font-bold text-gray-800 mt-auto">{completionRate}%</div>
             </div>
           </div>
 
-          {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            {/* Reservation Trend Chart */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-6">Reservation Trend</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="pq-glass p-6">
+              <h3 className="text-lg font-extrabold tracking-tight mb-6">Reservation Trend</h3>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_GRID} />
                     <XAxis 
                       dataKey="date" 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: '#6b7280', fontSize: 12 }}
+                      tick={{ fill: CHART_MUTED, fontSize: 12, fontFamily: "Lexend, Segoe UI, sans-serif" }}
                       dy={10}
                     />
                     <YAxis 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: '#6b7280', fontSize: 12 }}
+                      tick={{ fill: CHART_MUTED, fontSize: 12, fontFamily: "Lexend, Segoe UI, sans-serif" }}
                       allowDecimals={false}
                     />
                     <Tooltip 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                      labelStyle={{ fontWeight: 'bold', color: '#374151', marginBottom: '4px' }}
+                      contentStyle={tooltipStyle}
+                      labelStyle={{ fontWeight: 800, color: CHART_INK, marginBottom: 4 }}
                     />
                     <Line 
                       type="monotone" 
                       dataKey="reservations" 
                       name="Reservations"
-                      stroke="#2563eb" 
+                      stroke={CHART_LINE} 
                       strokeWidth={3}
-                      dot={{ r: 4, strokeWidth: 2 }}
-                      activeDot={{ r: 6, strokeWidth: 0 }}
+                      dot={{ r: 4, strokeWidth: 2, fill: "#fff", stroke: CHART_LINE }}
+                      activeDot={{ r: 6, strokeWidth: 0, fill: CHART_LINE }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            {/* Outcome Distribution Chart */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-6">Outcome Distribution</h3>
+            <div className="pq-glass p-6">
+              <h3 className="text-lg font-extrabold tracking-tight mb-6">Outcome Distribution</h3>
               <div className="h-72 w-full">
                 {outcomeData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -303,7 +257,7 @@ export default function Reports() {
                         ))}
                       </Pie>
                       <Tooltip 
-                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        contentStyle={tooltipStyle}
                       />
                       <Legend 
                         verticalAlign="bottom" 
@@ -313,7 +267,7 @@ export default function Reports() {
                     </RePieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-gray-400">
+                  <div className="flex items-center justify-center h-full pq-faint">
                     No outcome data to display
                   </div>
                 )}
@@ -321,80 +275,77 @@ export default function Reports() {
             </div>
           </div>
 
-          {/* Session History Table */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-6">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-800">Session History</h3>
+          <div className="pq-glass overflow-hidden">
+            <div className="p-6 flex justify-between items-center" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+              <h3 className="text-lg font-extrabold tracking-tight">Session History</h3>
             </div>
             {paginatedDataset.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 text-sm">
+              <div className="p-8 text-center pq-muted text-sm">
                 No completed clinic sessions match the selected filters.
               </div>
             ) : (
               <>
-                {/* Desktop/Tablet Table View */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
+                  <table className="pq-table">
                     <thead>
-                      <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-                        <th className="p-4 font-semibold">Clinic Date</th>
-                        <th className="p-4 font-semibold">Branch</th>
-                        <th className="p-4 font-semibold text-center">Total</th>
-                        <th className="p-4 font-semibold text-center">Checked Up</th>
-                        <th className="p-4 font-semibold text-center">Cancelled</th>
-                        <th className="p-4 font-semibold text-center">Forfeited</th>
-                        <th className="p-4 font-semibold text-center">Completion</th>
+                      <tr>
+                        <th>Clinic Date</th>
+                        <th>Branch</th>
+                        <th className="text-center">Total</th>
+                        <th className="text-center">Checked Up</th>
+                        <th className="text-center">Cancelled</th>
+                        <th className="text-center">Forfeited</th>
+                        <th className="text-center">Completion</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 text-sm">
+                    <tbody>
                       {paginatedDataset.map((session) => (
-                        <tr key={session.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="p-4 text-gray-800 font-medium whitespace-nowrap">
+                        <tr key={session.id}>
+                          <td className="whitespace-nowrap">
                             {formatDate(session.clinicDate)}
-                            <div className="text-xs text-gray-500 font-normal mt-0.5">
+                            <div className="text-xs pq-muted font-medium mt-0.5">
                               {session.openingTime} - {session.closingTime}
                             </div>
                           </td>
-                          <td className="p-4 text-gray-600 whitespace-nowrap">{session.branch}</td>
-                          <td className="p-4 text-center font-medium text-gray-800">{session.metrics.totalReservations}</td>
-                          <td className="p-4 text-center font-medium text-green-600">{session.metrics.checkedUp}</td>
-                          <td className="p-4 text-center font-medium text-red-600">{session.metrics.cancelled}</td>
-                          <td className="p-4 text-center font-medium text-orange-600">{session.metrics.forfeited}</td>
-                          <td className="p-4 text-center font-bold text-purple-600">{(session.metrics.completionRate || 0).toFixed(1)}%</td>
+                          <td className="whitespace-nowrap pq-muted">{session.branch}</td>
+                          <td className="text-center">{session.metrics.totalReservations}</td>
+                          <td className="text-center" style={{ color: "var(--pq-live)" }}>{session.metrics.checkedUp}</td>
+                          <td className="text-center" style={{ color: "var(--pq-alert)" }}>{session.metrics.cancelled}</td>
+                          <td className="text-center" style={{ color: "var(--pq-wait)" }}>{session.metrics.forfeited}</td>
+                          <td className="text-center font-extrabold" style={{ color: "var(--pq-mark-blue-deep)" }}>{(session.metrics.completionRate || 0).toFixed(1)}%</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
 
-                {/* Mobile Card View */}
-                <div className="block md:hidden divide-y divide-gray-100">
+                <div className="block md:hidden">
                   {paginatedDataset.map((session) => (
-                    <div key={session.id} className="p-4 space-y-3">
-                      <div className="flex justify-between items-start">
+                    <div key={session.id} className="p-4 space-y-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+                      <div className="flex justify-between items-start gap-3">
                         <div>
-                          <div className="font-bold text-gray-800">{formatDate(session.clinicDate)}</div>
-                          <div className="text-xs text-gray-500">{session.openingTime} - {session.closingTime}</div>
+                          <div className="font-extrabold tracking-tight">{formatDate(session.clinicDate)}</div>
+                          <div className="text-xs pq-muted">{session.openingTime} - {session.closingTime}</div>
                         </div>
-                        <div className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">{session.branch}</div>
+                        <div className="pq-chip pq-chip-info">{session.branch}</div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm bg-gray-50 p-3 rounded-xl">
+                      <div className="grid grid-cols-2 gap-2 text-sm pq-row" style={{ display: "grid", minHeight: 0 }}>
                         <div className="flex flex-col">
-                          <span className="text-gray-500 text-xs">Total</span>
-                          <span className="font-medium text-gray-800">{session.metrics.totalReservations}</span>
+                          <span className="pq-faint text-xs">Total</span>
+                          <span className="font-semibold">{session.metrics.totalReservations}</span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-gray-500 text-xs">Completion</span>
-                          <span className="font-bold text-purple-600">{(session.metrics.completionRate || 0).toFixed(1)}%</span>
+                          <span className="pq-faint text-xs">Completion</span>
+                          <span className="font-extrabold" style={{ color: "var(--pq-mark-blue-deep)" }}>{(session.metrics.completionRate || 0).toFixed(1)}%</span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-gray-500 text-xs">Checked Up</span>
-                          <span className="font-medium text-green-600">{session.metrics.checkedUp}</span>
+                          <span className="pq-faint text-xs">Checked Up</span>
+                          <span className="font-semibold" style={{ color: "var(--pq-live)" }}>{session.metrics.checkedUp}</span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-gray-500 text-xs">Cancelled/Forfeited</span>
-                          <span className="font-medium text-gray-800">
-                            <span className="text-red-600">{session.metrics.cancelled}</span> / <span className="text-orange-600">{session.metrics.forfeited}</span>
+                          <span className="pq-faint text-xs">Cancelled/Forfeited</span>
+                          <span className="font-semibold">
+                            <span style={{ color: "var(--pq-alert)" }}>{session.metrics.cancelled}</span> / <span style={{ color: "var(--pq-wait)" }}>{session.metrics.forfeited}</span>
                           </span>
                         </div>
                       </div>
@@ -404,24 +355,27 @@ export default function Reports() {
               </>
             )}
             
-            {/* Pagination */}
             {totalPages > 1 && (
-              <div className="p-4 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
-                <span className="text-sm text-gray-500">
-                  Showing <span className="font-medium text-gray-700">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium text-gray-700">{Math.min(currentPage * itemsPerPage, sortedDataset.length)}</span> of <span className="font-medium text-gray-700">{sortedDataset.length}</span> sessions
+              <div className="p-4 flex items-center justify-between" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+                <span className="text-sm pq-muted">
+                  Showing <span className="font-semibold" style={{ color: "var(--pq-ink)" }}>{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-semibold" style={{ color: "var(--pq-ink)" }}>{Math.min(currentPage * itemsPerPage, sortedDataset.length)}</span> of <span className="font-semibold" style={{ color: "var(--pq-ink)" }}>{sortedDataset.length}</span> sessions
                 </span>
                 <div className="flex gap-2">
                   <button 
+                    type="button"
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                    className="pq-icon-btn"
+                    aria-label="Previous page"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
                   <button 
+                    type="button"
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                    className="pq-icon-btn"
+                    aria-label="Next page"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>

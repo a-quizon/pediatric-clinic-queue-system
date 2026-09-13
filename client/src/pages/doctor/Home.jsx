@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
 import { subscribeToScheduleReservations } from "../../services/reservationService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
-import { 
-  CalendarDays, Users, User, ChevronRight, Activity, 
-  MapPin, Clock, CalendarCheck, CheckCircle2, Lock, FileText, XCircle, AlertTriangle, X 
+import {
+  CalendarDays, ChevronRight, Activity, CheckCircle2, X
 } from "lucide-react";
 import QueueControlCenter from "../../components/doctor/QueueControlCenter";
 import { sortSchedules } from "../../utils/scheduleUtils";
+import { PqSpinner } from "../../components/parent/pqUi";
 
 export default function Home() {
   const { user } = useAuth();
@@ -221,36 +221,36 @@ export default function Home() {
     if (!schedule) return null;
     if (schedule.status === 'completed' || schedule.queueStatus === 'completed' || schedule.queueStatus === 'ended') {
       return (
-        <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full font-bold text-[10px] shadow-sm border border-gray-200 flex items-center">
-          <div className="w-1.5 h-1.5 rounded-full bg-gray-500 mr-1"></div> Completed
+        <span className="pq-chip">
+          <span className="pq-pip" style={{ width: 6, height: 6, animation: "none", boxShadow: "none", background: "var(--pq-ink-faint)" }} /> Completed
         </span>
       );
     }
     if (schedule.queueStatus === 'closed') {
       return (
-        <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-bold text-[10px] shadow-sm border border-red-200 flex items-center">
-          <div className="w-1.5 h-1.5 rounded-full bg-red-500 mr-1"></div> Closed
+        <span className="pq-chip pq-chip-alert">
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--pq-alert)" }} /> Closed
         </span>
       );
     }
     if (schedule.queueStatus === 'active') {
       return (
-        <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-bold text-[10px] shadow-sm border border-green-200 flex items-center">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1"></div> Active
+        <span className="pq-chip pq-chip-live">
+          <span className="pq-pip" style={{ width: 6, height: 6 }} /> Active
         </span>
       );
     }
     if (schedule.queueStatus === 'paused') {
       return (
-        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold text-[10px] shadow-sm border border-amber-200 flex items-center">
-          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1"></div> Paused
+        <span className="pq-chip pq-chip-wait">
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--pq-wait)" }} /> Paused
         </span>
       );
     }
     if (schedule.status === 'published') {
       return (
-        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold text-[10px] shadow-sm border border-blue-200 flex items-center">
-          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1"></div> Published
+        <span className="pq-chip pq-chip-info">
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--pq-mark-blue)" }} /> Published
         </span>
       );
     }
@@ -262,275 +262,259 @@ export default function Home() {
 
   return (
     <div className="space-y-6 pb-6">
-
-      {/* Desktop side-by-side, Mobile stacked */}
       <div className="flex flex-col lg:flex-row gap-6">
-        
-        {/* 2. Today's Statistics */}
         {loading ? (
-          <div className="flex-[2] bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col justify-between min-h-[400px] animate-pulse">
-            <div className="w-full h-12 bg-gray-100 rounded-xl mb-6"></div>
-            <div className="flex-1 flex flex-col gap-4">
-              <div className="bg-blue-50 py-10 rounded-2xl border border-blue-100 flex-shrink-0 flex flex-col items-center justify-center">
-                <div className="w-32 h-4 bg-blue-200/50 rounded-full mb-3"></div>
-                <div className="w-16 h-12 bg-blue-200/50 rounded-xl"></div>
-              </div>
-              <div className="grid grid-cols-3 gap-3 flex-shrink-0">
-                <div className="bg-amber-50 h-24 rounded-2xl border border-amber-100"></div>
-                <div className="bg-blue-50 h-24 rounded-2xl border border-blue-100"></div>
-                <div className="bg-green-50 h-24 rounded-2xl border border-green-100"></div>
-              </div>
-              <div className="grid grid-cols-3 gap-3 flex-shrink-0 mt-auto">
-                <div className="bg-gray-50 h-20 rounded-xl border border-gray-100"></div>
-                <div className="bg-gray-50 h-20 rounded-xl border border-gray-100"></div>
-                <div className="bg-gray-50 h-20 rounded-xl border border-gray-100"></div>
-              </div>
-            </div>
+          <div className="flex-[2] pq-glass p-6 md:p-8 flex flex-col justify-center min-h-[400px]">
+            <PqSpinner label="Loading today's clinic" />
           </div>
         ) : dashboardSchedules.length > 0 ? (
-          <div className="flex-[2] bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col justify-between">
+          <div className="flex-[2] pq-glass p-6 md:p-8 flex flex-col justify-between">
             <div className="flex justify-between items-center mb-6 w-full">
-              
-              {/* Single Source Dropdown */}
               <div className="w-full relative custom-schedule-dropdown">
                 <button
+                  type="button"
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="w-full flex justify-between items-center text-left bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm transition-colors hover:bg-gray-100"
+                  aria-expanded={isDropdownOpen}
+                  aria-haspopup="listbox"
+                  className="w-full flex justify-between items-center text-left pq-input min-h-[72px]"
                 >
-                  <div className="flex flex-col w-full">
-                    {/* First Line: Branch Name + Badge */}
-                    <div className="flex items-center w-full mb-1.5">
-                      <span className="text-lg font-bold text-gray-800 truncate mr-3">
+                  <div className="flex flex-col w-full min-w-0">
+                    <div className="flex items-center w-full mb-1.5 gap-2 min-w-0">
+                      <span className="text-lg font-extrabold tracking-tight truncate">
                         {selectedSchedule?.branch || 'Select Schedule'}
                       </span>
                       {selectedSchedule && (
-                        <div className="flex-shrink-0 mr-4">
+                        <div className="flex-shrink-0">
                           {renderBadge(selectedSchedule)}
                         </div>
                       )}
                     </div>
-                    
-                    {/* Second Line: Date & Time */}
                     {selectedSchedule && (
-                      <div className="text-sm text-gray-500 font-medium">
+                      <div className="text-sm pq-muted font-medium">
                         {selectedSchedule.clinicDate} • {formatTime(selectedSchedule.openingTime)}
                       </div>
                     )}
                   </div>
-                  
-                  {/* Dropdown Arrow: Centered vertically across the entire button */}
-                  <svg className={`w-5 h-5 text-gray-500 transition-transform duration-200 flex-shrink-0 ml-2 ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className={`w-5 h-5 pq-faint transition-transform duration-200 flex-shrink-0 ml-2 ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="absolute z-50 mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-lg overflow-y-auto max-h-96 flex flex-col">
-                    
-                    {/* Current Schedules Group */}
+                  <div
+                    className="absolute z-50 mt-2 w-full overflow-y-auto max-h-96 flex flex-col"
+                    style={{
+                      background: "color-mix(in srgb, #ffffff 92%, var(--pq-paper))",
+                      border: "1px solid var(--pq-glass-line)",
+                      borderRadius: "var(--pq-radius-sm)",
+                      boxShadow: "var(--pq-shadow)",
+                    }}
+                    role="listbox"
+                  >
                     {dashboardSchedules.filter(s => !(s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended')).length > 0 && (
-                      <div className="px-3 py-2 text-xs font-bold text-gray-500 bg-gray-50 border-b border-gray-100 uppercase tracking-wider sticky top-0 z-10">
+                      <div className="px-3 py-2 text-xs font-extrabold pq-muted uppercase tracking-wider sticky top-0 z-10" style={{ background: "color-mix(in srgb, #ffffff 88%, var(--pq-paper))", borderBottom: "1px solid var(--pq-glass-line)" }}>
                         Current Schedules
                       </div>
                     )}
                     {dashboardSchedules.filter(s => !(s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended')).map(schedule => (
                       <button
+                        type="button"
                         key={schedule.id}
+                        role="option"
+                        aria-selected={selectedSchedule?.id === schedule.id}
                         onClick={() => {
                           setSelectedSchedule(schedule);
                           setSelectionMode('manual');
                           setIsDropdownOpen(false);
                         }}
-                        className={`w-full flex flex-col text-left px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${selectedSchedule?.id === schedule.id ? 'bg-blue-50/50' : ''}`}
+                        className="w-full flex flex-col text-left px-4 py-3 min-h-[44px] transition-colors"
+                        style={{
+                          borderBottom: "1px solid var(--pq-glass-line)",
+                          background: selectedSchedule?.id === schedule.id ? "color-mix(in srgb, var(--pq-mark-blue) 10%, white)" : "transparent",
+                        }}
                       >
                         <div className="flex items-center w-full mb-1.5">
-                          <span className={`font-medium truncate mr-3 text-base ${selectedSchedule?.id === schedule.id ? 'text-blue-700' : 'text-gray-800'}`}>
+                          <span className={`font-semibold truncate mr-3 text-base ${selectedSchedule?.id === schedule.id ? "" : ""}`} style={{ color: selectedSchedule?.id === schedule.id ? "var(--pq-mark-blue-deep)" : "var(--pq-ink)" }}>
                             {schedule.branch}
                           </span>
                           <div className="flex-shrink-0 mr-4">
                             {renderBadge(schedule)}
                           </div>
                         </div>
-                        
-                        <div className="text-xs text-gray-500 font-medium">
+                        <div className="text-xs pq-muted font-medium">
                           {schedule.clinicDate} • {formatTime(schedule.openingTime)}
                         </div>
                       </button>
                     ))}
 
-                    {/* Completed Today Group */}
                     {dashboardSchedules.filter(s => s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended').length > 0 && (
-                      <div className="px-3 py-2 text-xs font-bold text-gray-500 bg-gray-50 border-y border-gray-100 uppercase tracking-wider sticky top-0 z-10">
+                      <div className="px-3 py-2 text-xs font-extrabold pq-muted uppercase tracking-wider sticky top-0 z-10" style={{ background: "color-mix(in srgb, #ffffff 88%, var(--pq-paper))", borderTop: "1px solid var(--pq-glass-line)", borderBottom: "1px solid var(--pq-glass-line)" }}>
                         Completed Today
                       </div>
                     )}
                     {dashboardSchedules.filter(s => s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended').map(schedule => (
-                      <div key={schedule.id} className="relative group w-full border-b border-gray-100 last:border-0">
+                      <div key={schedule.id} className="relative group w-full" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
                         <button
+                          type="button"
+                          role="option"
+                          aria-selected={selectedSchedule?.id === schedule.id}
                           onClick={() => {
                             setSelectedSchedule(schedule);
                             setSelectionMode('manual');
                             setIsDropdownOpen(false);
                           }}
-                          className={`w-full flex flex-col text-left px-4 py-3 hover:bg-gray-50 transition-colors ${selectedSchedule?.id === schedule.id ? 'bg-blue-50/50' : ''}`}
+                          className="w-full flex flex-col text-left px-4 py-3 min-h-[44px] transition-colors"
+                          style={{
+                            background: selectedSchedule?.id === schedule.id ? "color-mix(in srgb, var(--pq-mark-blue) 10%, white)" : "transparent",
+                          }}
                         >
-                          <div className="flex items-center w-full mb-1.5 pr-8">
-                            <span className={`font-medium truncate mr-3 text-base ${selectedSchedule?.id === schedule.id ? 'text-blue-700' : 'text-gray-800'}`}>
+                          <div className="flex items-center w-full mb-1.5 pr-10">
+                            <span className="font-semibold truncate mr-3 text-base" style={{ color: selectedSchedule?.id === schedule.id ? "var(--pq-mark-blue-deep)" : "var(--pq-ink)" }}>
                               {schedule.branch}
                             </span>
                             <div className="flex-shrink-0 flex items-center">
                               {renderBadge(schedule)}
                             </div>
                           </div>
-                          <div className="text-xs text-gray-500 font-medium">
+                          <div className="text-xs pq-muted font-medium">
                             {schedule.clinicDate} • {formatTime(schedule.openingTime)}
                           </div>
                         </button>
-                        {/* Dismiss Icon */}
-                        <div
+                        <button
+                          type="button"
                           onClick={(e) => { 
                             e.stopPropagation(); 
                             setHideConfirmModal({ isOpen: true, schedule }); 
                             setIsDropdownOpen(false); 
                           }}
-                          className="absolute right-3 top-4 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors opacity-0 md:group-hover:opacity-100"
+                          className="absolute right-2 top-3 pq-icon-btn opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                          style={{ width: 36, height: 36, color: "var(--pq-ink-faint)" }}
+                          aria-label="Hide this completed schedule"
                           title="Hide this completed schedule"
                         >
                           <X className="w-4 h-4" />
-                        </div>
+                        </button>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-              
             </div>
             
             <div className="flex-1 flex flex-col gap-4">
-              {/* Tier 1: Total Reservations */}
-              <div className="text-center bg-blue-50 py-6 rounded-2xl border border-blue-100 flex-shrink-0">
-                <div className="text-blue-600 text-sm font-black uppercase tracking-widest mb-1">Total Reservations</div>
-                <div className="text-5xl font-black text-blue-900 leading-none">{stats.total}</div>
+              <div className="pq-stat pq-stat-total py-6">
+                <span className="pq-stat-label">Total Reservations</span>
+                <span className="pq-stat-value">{stats.total}</span>
               </div>
 
-              {/* Tier 2: Waiting, In Consultation, Completed */}
               <div className="grid grid-cols-3 gap-3 flex-shrink-0">
-                <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex flex-col items-center justify-center text-center shadow-sm">
-                  <span className="text-amber-600 text-[10px] font-bold uppercase tracking-wider mb-2">Waiting</span>
-                  <span className="text-2xl font-black text-amber-900 leading-none">{stats.waiting}</span>
+                <div className="pq-stat pq-stat-wait">
+                  <span className="pq-stat-label">Waiting</span>
+                  <span className="pq-stat-value">{stats.waiting}</span>
                 </div>
-                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex flex-col items-center justify-center text-center shadow-sm">
-                  <span className="text-blue-600 text-[10px] font-bold uppercase tracking-wider mb-2 text-nowrap">In Consult</span>
-                  <span className="text-2xl font-black text-blue-900 leading-none">{stats.inConsultation}</span>
+                <div className="pq-stat pq-stat-info">
+                  <span className="pq-stat-label" style={{ whiteSpace: "nowrap" }}>In Consult</span>
+                  <span className="pq-stat-value">{stats.inConsultation}</span>
                 </div>
-                <div className="bg-green-50 p-4 rounded-2xl border border-green-100 flex flex-col items-center justify-center text-center shadow-sm">
-                  <span className="text-green-600 text-[10px] font-bold uppercase tracking-wider mb-2">Completed</span>
-                  <span className="text-2xl font-black text-green-900 leading-none">{stats.completed}</span>
+                <div className="pq-stat pq-stat-live">
+                  <span className="pq-stat-label">Completed</span>
+                  <span className="pq-stat-value">{stats.completed}</span>
                 </div>
               </div>
 
-              {/* Tier 3: Checked In, Cancelled, Forfeited */}
               <div className="grid grid-cols-3 gap-3 flex-shrink-0 mt-auto">
-                <div className="bg-gray-50 p-3 rounded-xl flex flex-col items-center justify-center text-center border border-gray-100">
-                  <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider mb-1">Checked In</span>
-                  <span className="text-lg font-black text-gray-800 leading-none">{stats.checkedIn}</span>
+                <div className="pq-stat">
+                  <span className="pq-stat-label">Checked In</span>
+                  <span className="pq-stat-value" style={{ fontSize: "1.125rem" }}>{stats.checkedIn}</span>
                 </div>
-                <div className="bg-gray-50 p-3 rounded-xl flex flex-col items-center justify-center text-center border border-gray-100">
-                  <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider mb-1">Cancelled</span>
-                  <span className="text-lg font-black text-gray-800 leading-none">{stats.cancelled}</span>
+                <div className="pq-stat">
+                  <span className="pq-stat-label">Cancelled</span>
+                  <span className="pq-stat-value" style={{ fontSize: "1.125rem" }}>{stats.cancelled}</span>
                 </div>
-                <div className="bg-gray-50 p-3 rounded-xl flex flex-col items-center justify-center text-center border border-gray-100">
-                  <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider mb-1">Forfeited</span>
-                  <span className="text-lg font-black text-gray-800 leading-none">{stats.forfeited}</span>
+                <div className="pq-stat">
+                  <span className="pq-stat-label">Forfeited</span>
+                  <span className="pq-stat-value" style={{ fontSize: "1.125rem" }}>{stats.forfeited}</span>
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex-[2] bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col justify-center items-center text-center">
-            <Activity className="w-16 h-16 text-gray-300 mb-4" />
-            <h2 className="text-xl font-bold text-gray-800 mb-2">No Clinic Schedule Today</h2>
-            <p className="text-gray-500 max-w-sm">You don't have a published schedule for today. Publish a schedule to begin monitoring today's clinic.</p>
+          <div className="flex-[2] pq-glass p-6 md:p-8 flex flex-col justify-center items-center text-center">
+            <Activity className="w-16 h-16 mb-4 pq-faint" aria-hidden="true" />
+            <h2 className="text-xl font-extrabold tracking-tight mb-2">No Clinic Schedule Today</h2>
+            <p className="pq-muted max-w-sm">You don't have a published schedule for today. Publish a schedule to begin monitoring today's clinic.</p>
           </div>
         )}
 
-        {/* 3. Schedule Overview */}
-        <div className="flex-1 bg-white rounded-3xl p-6 md:p-8 border border-gray-200 shadow-sm flex flex-col">
-          <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
-            <CalendarDays className="w-5 h-5 mr-2 text-blue-600" />
+        <div className="flex-1 pq-glass p-6 md:p-8 flex flex-col">
+          <h2 className="text-lg font-extrabold tracking-tight mb-6 flex items-center">
+            <CalendarDays className="w-5 h-5 mr-2" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
             Schedule Overview
           </h2>
-          <div className="space-y-4 flex-1">
-            <div className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
-              <span className="font-bold text-gray-600 flex items-center text-sm">
-                <div className="w-2.5 h-2.5 rounded-full bg-gray-400 mr-3"></div> Draft
-              </span>
-              <span className="text-xl font-black text-gray-800">{scheduleOverview.Draft}</span>
-            </div>
-            <div className="flex justify-between items-center p-4 bg-blue-50 rounded-2xl border border-blue-100">
-              <span className="font-bold text-blue-700 flex items-center text-sm">
-                <div className="w-2.5 h-2.5 rounded-full bg-blue-500 mr-3"></div> Published
-              </span>
-              <span className="text-xl font-black text-blue-800">{scheduleOverview.Published}</span>
-            </div>
-            <div className="flex justify-between items-center p-4 bg-green-50 rounded-2xl border border-green-100">
-              <span className="font-bold text-green-700 flex items-center text-sm">
-                <div className="w-2.5 h-2.5 rounded-full bg-green-500 mr-3"></div> Active
-              </span>
-              <span className="text-xl font-black text-green-800">{scheduleOverview.Active}</span>
-            </div>
-            <div className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
-              <span className="font-bold text-gray-600 flex items-center text-sm">
-                <div className="w-2.5 h-2.5 rounded-full bg-gray-400 mr-3"></div> Completed
-              </span>
-              <span className="text-xl font-black text-gray-800">{scheduleOverview.Completed}</span>
-            </div>
+          <div className="space-y-3 flex-1">
+            {[
+              { label: "Draft", count: scheduleOverview.Draft },
+              { label: "Published", count: scheduleOverview.Published, tone: "info" },
+              { label: "Active", count: scheduleOverview.Active, tone: "live" },
+              { label: "Completed", count: scheduleOverview.Completed },
+            ].map((row) => (
+              <div key={row.label} className={`pq-row ${row.tone === "live" ? "pq-now" : ""}`} style={row.tone === "info" ? { background: "color-mix(in srgb, var(--pq-mark-blue) 10%, white)", borderColor: "color-mix(in srgb, var(--pq-mark-blue) 18%, white)" } : undefined}>
+                <span className="font-bold text-sm flex items-center" style={{ color: row.tone === "live" ? "var(--pq-live)" : row.tone === "info" ? "var(--pq-mark-blue-deep)" : "var(--pq-ink-soft)" }}>
+                  <span
+                    className="w-2.5 h-2.5 rounded-full mr-3"
+                    style={{ background: row.tone === "live" ? "var(--pq-live)" : row.tone === "info" ? "var(--pq-mark-blue)" : "var(--pq-ink-faint)" }}
+                  />
+                  {row.label}
+                </span>
+                <span className="pq-num text-xl" style={{ color: row.tone === "live" ? "var(--pq-live)" : row.tone === "info" ? "var(--pq-mark-blue-deep)" : "var(--pq-ink)" }}>{row.count}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Queue Control Access (Mobile Only) */}
       {activeOrPublishedSchedule && activeOrPublishedSchedule.status === 'published' && (
         <div className="block lg:hidden mt-2">
           <button 
+            type="button"
             onClick={() => navigate("/doctor/queue")}
-            className="px-6 py-4 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center w-full"
+            className="pq-btn-secondary w-full"
           >
-            Open Queue Control <ChevronRight className="w-5 h-5 ml-2" />
+            Open Queue Control <ChevronRight className="w-5 h-5" />
           </button>
         </div>
       )}
 
-      {/* 4. Queue Control Center (Desktop Only) */}
       <div className="hidden lg:block mt-6">
         <QueueControlCenter />
       </div>
 
-      {/* Hide Confirm Modal */}
       {hideConfirmModal.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="pq-modal-scrim z-[100]">
+          <div className="pq-glass-modal w-full max-w-sm overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="hide-session-title">
             <div className="p-6 text-center">
-              <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center mx-auto mb-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue)" }}>
                 <CheckCircle2 className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Hide completed session?</h3>
-              <p className="text-sm text-gray-500 mb-2">You've already reviewed this completed clinic session.</p>
-              <p className="text-sm text-gray-500 mb-6">You can still access its full summary anytime from the Schedules section. Would you like to hide it from the Dashboard?</p>
+              <h3 id="hide-session-title" className="text-xl font-extrabold tracking-tight mb-2">Hide completed session?</h3>
+              <p className="text-sm pq-muted mb-2">You've already reviewed this completed clinic session.</p>
+              <p className="text-sm pq-muted mb-6">You can still access its full summary anytime from the Schedules section. Would you like to hide it from the Dashboard?</p>
               
               <div className="flex gap-3">
                 <button 
+                  type="button"
                   onClick={() => setHideConfirmModal({ isOpen: false, schedule: null })}
-                  className="flex-1 py-2.5 bg-gray-50 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-colors"
+                  className="pq-btn-secondary flex-1"
                 >
                   Cancel
                 </button>
                 <button 
+                  type="button"
                   onClick={() => {
                     setHiddenSchedules(prev => [...prev, hideConfirmModal.schedule.id]);
                     setHideConfirmModal({ isOpen: false, schedule: null });
                   }}
-                  className="flex-1 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors"
+                  className="pq-btn-primary flex-1"
                 >
                   Hide from Dashboard
                 </button>
@@ -539,7 +523,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

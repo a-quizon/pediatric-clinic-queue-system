@@ -11,7 +11,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-const DEFAULT_ICON = "/favicon.svg";
+const DEFAULT_ICON = "/brand/plusqueue-logo.png";
 const DEFAULT_URL = "/parent/notifications";
 const HIGH_PRIORITY_TYPES = new Set([
   "YOU_ARE_NEXT",

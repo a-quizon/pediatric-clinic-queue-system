@@ -5,7 +5,7 @@ import { subscribeToBranchConfigurations } from "../../services/branchConfigurat
 import { handlePasswordChangeRequest, usePasswordValidation } from "../../utils/passwordUtils";
 import { formatName, formatBranchLabel } from "../../utils/stringUtils";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
-import { LogOut, User as UserIcon, Edit2, Save, MapPin, X, Lock, ChevronRight, Info, ArrowLeft, BarChart3, Eye, EyeOff } from "lucide-react";
+import { User as UserIcon, Save, MapPin, Lock, ChevronRight, Info, BarChart3, Eye, EyeOff } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import LogoutButton from "../../components/common/LogoutButton";
 import toast from "react-hot-toast";
@@ -131,71 +131,77 @@ export default function Profile() {
     const initials = getInitials(currentName);
     
     return (
-      <div className="flex flex-col items-center justify-center pt-4 pb-8 text-center">
-        <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-full flex items-center justify-center text-3xl font-bold shadow-lg mb-4 ring-4 ring-blue-50">
+      <section className="pq-glass p-6 sm:p-8 flex flex-col items-center justify-center text-center">
+        <div
+          className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-extrabold mb-4"
+          style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 14%, white)", color: "var(--pq-mark-blue-deep)" }}
+        >
           {initials}
         </div>
-        <h2 className="text-xl font-bold text-gray-800">{currentName}</h2>
-        <p className="text-sm text-gray-500 mt-1">{user?.email}</p>
-      </div>
+        <h2 className="text-xl font-extrabold tracking-tight">{currentName}</h2>
+        <p className="text-sm pq-muted mt-1">{user?.email}</p>
+      </section>
     );
   };
 
   const renderProfileCard = () => (
-    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="p-6 md:p-8 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50/30">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center">
-          <UserIcon className="w-5 h-5 mr-2 text-blue-600" />
+    <div className="pq-glass overflow-hidden">
+      <div className="p-6 md:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <h2 className="text-lg font-extrabold tracking-tight flex items-center">
+          <UserIcon className="w-5 h-5 mr-2" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
           Profile Information
         </h2>
       </div>
       
       <div className="p-6 md:p-8 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Full Name <span className="text-red-500">*</span>
+          <div>
+            <label className="pq-label" htmlFor="doctor-full-name">
+              Full Name <span style={{ color: "var(--pq-alert)" }}>*</span>
             </label>
             <input 
+              id="doctor-full-name"
               type="text" 
               value={fullName} 
               onChange={(e) => setFullName(e.target.value)}
-              className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              className="pq-input"
               placeholder="e.g. Dr. Juan Dela Cruz"
             />
           </div>
           
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+          <div>
+            <label className="pq-label" htmlFor="doctor-title">
               Professional Title
             </label>
             <input 
+              id="doctor-title"
               type="text" 
               value={professionalTitle} 
               onChange={(e) => setProfessionalTitle(e.target.value)}
-              className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              className="pq-input"
               placeholder="e.g. Pediatrician"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+          <div>
+            <label className="pq-label">
               Email Address
             </label>
-            <div className="font-semibold text-gray-800 bg-gray-50 px-4 py-3 rounded-xl border border-gray-100 truncate opacity-70 cursor-not-allowed" title="Email address cannot be changed here">
+            <div className="pq-input opacity-65 cursor-not-allowed" title="Email address cannot be changed here">
               {user?.email || "Not provided"}
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Contact Number <span className="text-red-500">*</span>
+          <div>
+            <label className="pq-label" htmlFor="doctor-contact">
+              Contact Number <span style={{ color: "var(--pq-alert)" }}>*</span>
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <span className="text-gray-500 font-medium">+63</span>
+              <div className="pq-field-icon font-medium" style={{ color: "var(--pq-ink-soft)" }}>
+                +63
               </div>
               <input 
+                id="doctor-contact"
                 type="tel"
                 maxLength={10} 
                 value={contactNumber} 
@@ -203,59 +209,61 @@ export default function Profile() {
                   const sanitized = e.target.value.replace(/\D/g, "");
                   setContactNumber(sanitized);
                 }}
-                className="w-full font-semibold text-gray-800 bg-white pl-12 pr-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                className="pq-input pl-14"
                 placeholder="912 345 6789"
               />
             </div>
           </div>
 
-          <div className="space-y-1.5 md:col-span-2">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Clinic Name <span className="text-red-500">*</span>
+          <div className="md:col-span-2">
+            <label className="pq-label" htmlFor="doctor-clinic">
+              Clinic Name <span style={{ color: "var(--pq-alert)" }}>*</span>
             </label>
             <input 
+              id="doctor-clinic"
               type="text" 
               value={clinicName} 
               onChange={(e) => setClinicName(e.target.value)}
-              className="w-full font-semibold text-gray-800 bg-white px-4 py-3 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+              className="pq-input"
               placeholder="e.g. L.A. Magat Pediatric Clinic"
             />
           </div>
         </div>
 
-        <div className="border-t border-gray-100 pt-8">
-          <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center">
-            <MapPin className="w-4 h-4 mr-2 text-gray-400" />
+        <div className="pt-8" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+          <h3 className="text-sm font-extrabold tracking-tight mb-4 flex items-center">
+            <MapPin className="w-4 h-4 mr-2 pq-faint" aria-hidden="true" />
             Clinic Locations
           </h3>
           {branches.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {branches.map(branch => (
-                <div key={branch.id} className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:border-gray-300 transition-colors">
-                  <h4 className="font-bold text-gray-800 mb-1">{formatBranchLabel(branch.name)}</h4>
-                  <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-line">
+                <div key={branch.id} className="pq-row" style={{ display: "block", minHeight: 0, padding: "1.1rem 1rem" }}>
+                  <h4 className="font-extrabold tracking-tight mb-1">{formatBranchLabel(branch.name)}</h4>
+                  <p className="text-sm pq-muted leading-relaxed whitespace-pre-line">
                     {branch.clinicAddress || "Address not provided"}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-sm text-gray-500 italic p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="text-sm pq-muted italic p-4 rounded-xl" style={{ background: "color-mix(in srgb, #ffffff 55%, transparent)", border: "1px solid var(--pq-glass-line)" }}>
               No clinic branches have been configured yet. They will appear here once added by an administrator.
             </div>
           )}
         </div>
 
-        <div className="pt-6 border-t border-gray-100 flex justify-end">
+        <div className="pt-6 flex justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
           <button 
+            type="button"
             onClick={handleSave} 
             disabled={!hasChanges || isSaving}
-            className="w-full sm:w-auto flex items-center justify-center text-sm font-bold text-white bg-blue-600 px-6 py-3 rounded-xl hover:bg-blue-700 transition-colors shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="pq-btn-primary w-full sm:w-auto"
           >
             {isSaving ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+              <span className="pq-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} aria-hidden="true" />
             ) : (
-              <Save className="w-4 h-4 mr-2" />
+              <Save className="w-4 h-4" aria-hidden="true" />
             )}
             Save Information
           </button>
@@ -265,94 +273,92 @@ export default function Profile() {
   );
 
   const renderSecurityCard = () => (
-    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="p-6 md:p-8 border-b border-gray-100 bg-gray-50/30">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center">
-          <Lock className="w-5 h-5 mr-2 text-blue-600" />
+    <div className="pq-glass overflow-hidden">
+      <div className="p-6 md:p-8" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <h2 className="text-lg font-extrabold tracking-tight flex items-center">
+          <Lock className="w-5 h-5 mr-2" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
           Security
         </h2>
       </div>
       <div className="p-6 md:p-8">
         <div className="max-w-md space-y-5">
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Current Password <span className="text-red-500">*</span>
+          <div>
+            <label className="pq-label" htmlFor="doctor-current-password">
+              Current Password <span style={{ color: "var(--pq-alert)" }}>*</span>
             </label>
             <div className="relative">
               <input 
+                id="doctor-current-password"
                 type={showCurrentPassword ? "text" : "password"} 
                 value={currentPassword} 
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full font-semibold text-gray-800 bg-white px-4 py-3 pr-10 rounded-xl border-2 border-blue-100 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                className="pq-input pr-11"
                 placeholder="Enter current password"
               />
               <button
                 type="button"
                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint hover:text-[var(--pq-ink)] min-w-[44px] justify-center"
+                aria-label={showCurrentPassword ? "Hide current password" : "Show current password"}
               >
                 {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
           </div>
           
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              New Password <span className="text-red-500">*</span>
+          <div>
+            <label className="pq-label" htmlFor="doctor-new-password">
+              New Password <span style={{ color: "var(--pq-alert)" }}>*</span>
             </label>
             <div className="relative">
               <input 
+                id="doctor-new-password"
                 type={showNewPassword ? "text" : "password"} 
                 value={newPassword} 
                 onChange={(e) => setNewPassword(e.target.value)}
-                className={`w-full font-semibold text-gray-800 bg-white px-4 py-3 pr-10 rounded-xl border-2 focus:outline-none transition-all ${
-                  passwordInvalid
-                    ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/10'
-                    : 'border-blue-100 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10'
-                }`}
+                className={`pq-input pr-11 ${passwordInvalid ? "pq-input-error" : ""}`}
                 placeholder="Enter new password"
               />
               <button
                 type="button"
                 onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint hover:text-[var(--pq-ink)] min-w-[44px] justify-center"
+                aria-label={showNewPassword ? "Hide new password" : "Show new password"}
               >
                 {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
             {passwordInvalid && passwordErrors.length > 0 && (
-              <p className="text-xs text-red-500 font-semibold px-1 pt-1.5">
+              <p className="pq-error-text px-1 pt-1.5">
                 {passwordErrors[0]}
               </p>
             )}
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Confirm New Password <span className="text-red-500">*</span>
+          <div>
+            <label className="pq-label" htmlFor="doctor-confirm-password">
+              Confirm New Password <span style={{ color: "var(--pq-alert)" }}>*</span>
             </label>
             <div className="relative">
               <input 
+                id="doctor-confirm-password"
                 type={showConfirmPassword ? "text" : "password"} 
                 value={confirmPassword} 
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className={`w-full font-semibold text-gray-800 bg-white px-4 py-3 pr-10 rounded-xl border-2 focus:outline-none transition-all ${
-                  confirmInvalid
-                    ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/10'
-                    : 'border-blue-100 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10'
-                }`}
+                className={`pq-input pr-11 ${confirmInvalid ? "pq-input-error" : ""}`}
                 placeholder="Confirm new password"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint hover:text-[var(--pq-ink)] min-w-[44px] justify-center"
+                aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
               >
                 {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
             {confirmInvalid && (
-              <p className="text-xs text-red-500 font-semibold px-1 pt-1">
+              <p className="pq-error-text px-1 pt-1">
                 Passwords do not match.
               </p>
             )}
@@ -360,16 +366,15 @@ export default function Profile() {
 
           <div className="pt-2">
             <button 
+              type="button"
               onClick={handleUpdatePassword}
               disabled={isUpdatingPassword || !isPasswordFormValid || isChecking}
-              className={`w-full sm:w-auto flex items-center justify-center text-sm font-bold text-white px-6 py-3 rounded-xl transition-colors shadow-sm active:scale-95 ${
-                isUpdatingPassword || !isPasswordFormValid || isChecking ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-              }`}
+              className="pq-btn-primary w-full sm:w-auto"
             >
               {isUpdatingPassword ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                <span className="pq-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} aria-hidden="true" />
               ) : (
-                <Save className="w-4 h-4 mr-2" />
+                <Save className="w-4 h-4" aria-hidden="true" />
               )}
               Update Password
             </button>
@@ -381,87 +386,85 @@ export default function Profile() {
 
   return (
     <>
-      {/* --- DESKTOP VIEW --- */}
-      <div className="hidden md:block space-y-6 pb-8 max-w-4xl mx-auto animate-in fade-in">
+      <div className="hidden md:block space-y-6 pb-8 max-w-4xl mx-auto">
         {renderProfileCard()}
         {renderSecurityCard()}
         <div className="pt-4">
-          <LogoutButton />
+          <LogoutButton className="pq-btn-danger w-full" />
         </div>
       </div>
 
-      {/* --- MOBILE VIEW --- */}
-      <div className="block md:hidden pb-8 animate-in fade-in">
+      <div className="block md:hidden pb-8">
         {mobileView === "hub" && (
           <div className="space-y-4">
             {renderMobileSummary()}
             
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-2">
-              <button onClick={() => setMobileView("account")} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl transition-colors">
+            <nav className="pq-glass overflow-hidden">
+              <button type="button" onClick={() => setMobileView("account")} className="w-full flex items-center justify-between p-4 min-h-[72px]">
                 <div className="flex items-center">
-                  <div className="bg-blue-50 p-3 rounded-xl mr-4">
-                    <UserIcon className="w-6 h-6 text-blue-600" />
+                  <div className="w-11 h-11 rounded-2xl mr-4 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
+                    <UserIcon className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <div className="text-left">
-                    <h3 className="font-bold text-gray-800 text-base">Account Settings</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">Manage account & clinic details</p>
+                    <h3 className="font-extrabold">Account Settings</h3>
+                    <p className="text-xs pq-muted mt-0.5">Manage account & clinic details</p>
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-gray-400" />
+                <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />
               </button>
 
-              <button onClick={() => navigate("/doctor/reports")} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl transition-colors mt-1">
+              <button type="button" onClick={() => navigate("/doctor/reports")} className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
                 <div className="flex items-center">
-                  <div className="bg-green-50 p-3 rounded-xl mr-4">
-                    <BarChart3 className="w-6 h-6 text-green-600" />
+                  <div className="w-11 h-11 rounded-2xl mr-4 flex items-center justify-center" style={{ background: "var(--pq-live-wash)", color: "var(--pq-live)" }}>
+                    <BarChart3 className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <div className="text-left">
-                    <h3 className="font-bold text-gray-800 text-base">Reports & Analytics</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">View clinic performance data</p>
+                    <h3 className="font-extrabold">Reports & Analytics</h3>
+                    <p className="text-xs pq-muted mt-0.5">View clinic performance data</p>
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-gray-400" />
+                <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />
               </button>
 
-              <button onClick={() => setMobileView("system")} className="w-full flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl transition-colors mt-1">
+              <button type="button" onClick={() => setMobileView("system")} className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
                 <div className="flex items-center">
-                  <div className="bg-purple-50 p-3 rounded-xl mr-4">
-                    <Info className="w-6 h-6 text-purple-600" />
+                  <div className="w-11 h-11 rounded-2xl mr-4 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--pq-mark-gold-bright) 28%, white)", color: "var(--pq-mark-gold)" }}>
+                    <Info className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <div className="text-left">
-                    <h3 className="font-bold text-gray-800 text-base">About System</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">App version and information</p>
+                    <h3 className="font-extrabold">About System</h3>
+                    <p className="text-xs pq-muted mt-0.5">App version and information</p>
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-gray-400" />
+                <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />
               </button>
-            </div>
+            </nav>
             
             <div className="pt-2">
-              <LogoutButton />
+              <LogoutButton className="pq-btn-danger w-full" />
             </div>
           </div>
         )}
 
         {mobileView === "account" && (
-          <div className="space-y-6 slide-in-from-right-4 animate-in fade-in">
+          <div className="space-y-6">
             {renderProfileCard()}
             {renderSecurityCard()}
           </div>
         )}
 
         {mobileView === "system" && (
-          <div className="space-y-6 slide-in-from-right-4 animate-in fade-in">
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-8 text-center mt-2">
-              <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-5">
-                <Info className="w-10 h-10" />
+          <div className="space-y-6">
+            <div className="pq-glass overflow-hidden p-8 text-center mt-2">
+              <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-5" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue)" }}>
+                <Info className="w-10 h-10" aria-hidden="true" />
               </div>
-              <h3 className="text-lg font-bold text-gray-800">Pediatric Clinic Queue System</h3>
-              <p className="text-sm text-gray-500 mt-2 mb-8 px-4">A modern solution for managing clinic queues and schedules.</p>
+              <h3 className="text-lg font-extrabold tracking-tight">PlusQueue</h3>
+              <p className="text-sm pq-muted mt-2 mb-8 px-4">A modern solution for managing clinic queues and schedules.</p>
               
-              <div className="bg-gray-50 rounded-2xl p-4 flex justify-between items-center text-sm border border-gray-100">
-                <span className="font-bold text-gray-500 uppercase tracking-wider text-[11px]">Application Version</span>
-                <span className="font-bold text-gray-800">v1.0.0</span>
+              <div className="pq-row text-sm">
+                <span className="font-extrabold pq-muted uppercase tracking-wider text-[11px]">Application Version</span>
+                <span className="font-extrabold">v1.0.0</span>
               </div>
             </div>
           </div>

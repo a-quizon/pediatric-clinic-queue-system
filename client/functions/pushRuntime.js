@@ -195,7 +195,7 @@ async function sendPushToParent(parentId, notification, notificationId) {
     type: notification.type,
     tag: notification.dedupeKey || notification.id || notification.type,
     url: notification.url || "/parent/notifications",
-    icon: "/favicon.svg",
+    icon: "/brand/plusqueue-logo.png",
     reservationId: notification.reservationId || null,
   };
   const urgency = ["YOU_ARE_NEXT", "ALMOST_NEXT", "NEARING_TURN", "CHECK_IN_REQUESTED", "PENALIZED", "FORFEITED"].includes(payload.type)

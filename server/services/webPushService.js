@@ -99,7 +99,7 @@ function buildPayload(notification = {}) {
     type,
     tag: notification.dedupeKey || notification.id || type,
     url: notification.url || "/parent/notifications",
-    icon: "/favicon.svg",
+    icon: "/brand/plusqueue-logo.png",
     reservationId: notification.reservationId || null,
     branchId: notification.branchId || null,
   };

@@ -69,15 +69,15 @@ export default function ReservationHistory() {
 
   const getStatusDisplay = (status) => {
     if (["completed", "consultation_completed"].includes(status)) {
-      return { label: "Completed", color: "bg-green-100 text-green-700 border-green-200" };
+      return { label: "Completed", color: "pq-chip pq-chip-live" };
     }
     if (status === "cancelled") {
-      return { label: "Cancelled", color: "bg-red-100 text-red-700 border-red-200" };
+      return { label: "Cancelled", color: "pq-chip pq-chip-alert" };
     }
     if (["forfeited", "penalized", "late_limit_reached"].includes(status)) {
-      return { label: "Forfeited", color: "bg-red-100 text-red-700 border-red-200" };
+      return { label: "Forfeited", color: "pq-chip pq-chip-alert" };
     }
-    return { label: status.replace("_", " "), color: "bg-gray-100 text-gray-700 border-gray-200 uppercase" };
+    return { label: status.replace("_", " "), color: "pq-chip pq-chip-info" };
   };
 
   const getEmptyStateMessage = () => {
@@ -92,17 +92,17 @@ export default function ReservationHistory() {
   };
 
   return (
-    <div className="space-y-6 pb-8 relative">
-      <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-xs sticky top-16 z-10">
+    <div className="space-y-5 pb-8 relative">
+      <div className="pq-filter-bar pq-filter-stick p-4 sm:p-5">
         <div className="flex sm:flex-wrap gap-2 sm:gap-2.5 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide w-full -mx-4 px-4 sm:mx-0 sm:px-0">
           {["All", "Completed", "Cancelled", "Forfeited", "With Notes"].map(filter => (
             <button
               key={filter}
               onClick={() => setActiveFilter(filter)}
-              className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all flex-shrink-0 focus:outline-none ${
+              className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0 min-h-[44px] ${
                 activeFilter === filter 
-                  ? 'bg-blue-600 text-white shadow-sm scale-[1.02]' 
-                  : 'bg-gray-50 text-gray-600 border border-gray-200/80 hover:bg-gray-100 hover:text-gray-800'
+                  ? 'pq-btn-primary' 
+                  : 'pq-btn-secondary'
               }`}
             >
               {filter}
@@ -113,10 +113,10 @@ export default function ReservationHistory() {
 
       {loading ? (
         <div className="flex justify-center items-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="pq-spinner" />
         </div>
       ) : filteredAndSortedReservations.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredAndSortedReservations.map(res => {
             const schedule = schedules[res.scheduleId] || {};
             const { label, color } = getStatusDisplay(res.status);
@@ -131,57 +131,57 @@ export default function ReservationHistory() {
                   setSelectedReservation(res);
                   setIsModalOpen(true);
                 }}
-                className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group flex flex-col justify-between"
+                className="pq-glass p-5 cursor-pointer group flex flex-col justify-between"
               >
                 <div>
                   <div className="flex justify-between items-start mb-3.5 gap-2">
                     <div>
-                      <div className="font-extrabold text-gray-800 text-lg group-hover:text-blue-600 transition-colors">{getReservationChildDisplayName(res)}</div>
-                      <div className="text-xs text-gray-400 uppercase tracking-widest font-bold mt-0.5">Code: {res.reservationCode || "N/A"}</div>
+                      <div className="font-extrabold text-lg">{getReservationChildDisplayName(res)}</div>
+                      <div className="text-xs pq-muted font-bold mt-0.5">Code: {res.reservationCode || "N/A"}</div>
                     </div>
-                    <div className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-2xs flex-shrink-0 ${color}`}>
+                    <div className={`flex-shrink-0 ${color}`}>
                       {label}
                     </div>
                   </div>
                   
-                  <div className="bg-gray-50/80 p-4 rounded-2xl border border-gray-100/80 space-y-2.5 mb-4">
+                  <div className="pq-row flex-col items-stretch py-4 mb-4">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500 flex items-center text-xs font-semibold">
-                        <CalendarDays className="w-3.5 h-3.5 mr-1.5 text-blue-500 flex-shrink-0" />
+                      <span className="pq-muted flex items-center text-xs font-semibold">
+                        <CalendarDays className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" style={{ color: "var(--pq-mark-blue)" }} />
                         Date
                       </span>
-                      <span className="font-bold text-gray-800">
+                      <span className="font-bold">
                         {schedule.clinicDate ? new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "Unknown Date"}
                       </span>
                     </div>
                     <div className="flex items-start justify-between text-sm">
-                      <span className="text-gray-500 flex items-center text-xs font-semibold mt-0.5">
-                        <MapPin className="w-3.5 h-3.5 mr-1.5 text-red-500 flex-shrink-0" />
+                      <span className="pq-muted flex items-center text-xs font-semibold mt-0.5">
+                        <MapPin className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" style={{ color: "var(--pq-mark-coral)" }} />
                         Branch
                       </span>
                       <div className="flex flex-col text-right">
-                        <span className="font-bold text-gray-800">{schedule.branch || "Unknown Branch"}</span>
-                        <span className="text-[10px] text-gray-500 whitespace-pre-line mt-0.5 max-w-[150px]">
+                        <span className="font-bold">{schedule.branch || "Unknown Branch"}</span>
+                        <span className="text-[10px] pq-muted whitespace-pre-line mt-0.5 max-w-[150px]">
                           {branches.find(b => b.name === schedule.branch)?.clinicAddress || "No clinic address provided."}
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-100">
-                      <span className="text-gray-500 text-xs font-semibold">Queue Number</span>
-                      <span className="font-black text-blue-600">
+                    <div className="flex items-center justify-between text-sm pt-1" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+                      <span className="pq-muted text-xs font-semibold">Queue Number</span>
+                      <span className="font-extrabold" style={{ color: "var(--pq-mark-blue-deep)" }}>
                         {queueNum ? `Queue #${queueNum}` : "—"}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center pt-2.5 border-t border-gray-100/80 mt-auto gap-2">
-                  <div className="text-[11px] text-gray-400 font-medium">
+                <div className="flex justify-between items-center pt-2.5 mt-auto gap-2" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+                  <div className="text-[11px] pq-faint font-medium">
                     {label === "Cancelled" ? "Cancelled on" : label === "Completed" ? "Completed on" : label === "Expired" ? "Expired on" : "Logged on"} {timestamp ? new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
                   </div>
                   {hasNotes && (
-                    <span className="bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center border border-blue-200/80 shadow-2xs flex-shrink-0">
-                      <FileText className="w-3 h-3 mr-1 text-blue-600" />
+                    <span className="pq-chip pq-chip-info flex-shrink-0">
+                      <FileText className="w-3 h-3 mr-1" />
                       With Notes
                     </span>
                   )}
@@ -191,14 +191,14 @@ export default function ReservationHistory() {
           })}
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-xs p-12 text-center max-w-lg mx-auto animate-in fade-in mt-4">
-          <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="pq-glass p-12 text-center max-w-lg mx-auto mt-4">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue)" }}>
             <History className="w-8 h-8" />
           </div>
-          <h3 className="text-lg font-bold text-gray-800 mb-1">
+          <h3 className="text-lg font-bold mb-1">
             {activeFilter === "All" ? "No Reservation History" : `No ${activeFilter} Reservations`}
           </h3>
-          <p className="text-sm text-gray-500 max-w-sm mx-auto mt-1">{getEmptyStateMessage()}</p>
+          <p className="text-sm pq-muted max-w-sm mx-auto mt-1">{getEmptyStateMessage()}</p>
         </div>
       )}
 

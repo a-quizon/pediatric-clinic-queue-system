@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Ticket as TicketIcon, Clock, MapPin, CalendarDays, ChevronRight, Activity } from "lucide-react";
+import { Ticket as TicketIcon, Clock, MapPin, CalendarDays, ChevronRight } from "lucide-react";
+import { PqSpinner } from "../../components/parent/pqUi";
 import { subscribeToAllSchedules } from "../../services/scheduleService";
 import { subscribeToParentReservations } from "../../services/reservationService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
@@ -84,98 +85,87 @@ export default function MyReservation() {
   };
 
   return (
-    <div className="space-y-6 pb-8 relative">
-      <div>
-        <p className="text-gray-500 mt-1 text-sm">
+    <div className="space-y-5 pb-8 relative">
+      <p className="pq-muted text-sm">
           View your active clinic reservations, check-in arrival passes, and real-time queue status.
-        </p>
-      </div>
+      </p>
 
       {loading ? (
-        <div className="flex justify-center items-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
+        <PqSpinner />
       ) : activeReservations.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in slide-in-from-bottom-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {activeReservations.map((res) => {
             const schedule = schedules[res.scheduleId];
             if (!schedule) return null;
 
-            // Determine if the queue session is actively started
             const isQueueStarted = ['active', 'paused', 'closed'].includes(schedule.queueStatus);
 
             return (
-              <div 
-                key={res.id} 
+              <button
+                type="button"
+                key={res.id}
                 onClick={() => navigate(`/parent/reservations/${res.id}/qr`)}
-                className={`rounded-2xl border shadow-sm hover:shadow-md transition-all p-5 flex items-center justify-between cursor-pointer group ${
-                  isQueueStarted 
-                    ? "bg-green-50 border-green-300 hover:border-green-400" 
-                    : "bg-white border-gray-200 hover:border-blue-300"
-                }`}
+                className="pq-glass p-5 flex items-center justify-between text-left cursor-pointer group"
               >
                 <div className="flex-1 pr-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className={`text-lg font-bold flex items-center ${isQueueStarted ? 'text-green-900' : 'text-gray-800'}`}>
-                      <MapPin className={`w-5 h-5 mr-1.5 shrink-0 ${isQueueStarted ? 'text-green-600' : 'text-blue-600'}`} />
-                      {schedule.branch}
+                  <div className="flex items-center justify-between mb-3 gap-2">
+                    <h3 className="text-lg font-bold flex items-center min-w-0">
+                      <MapPin className="w-5 h-5 mr-1.5 shrink-0" style={{ color: isQueueStarted ? "var(--pq-live)" : "var(--pq-mark-blue)" }} />
+                      <span className="truncate">{schedule.branch}</span>
                     </h3>
                     
                     {isQueueStarted && (
-                      <span className="flex items-center text-xs font-bold text-green-700 bg-green-200/50 px-2.5 py-1 rounded-full shrink-0 shadow-sm border border-green-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse"></span>
+                      <span className="pq-chip pq-chip-live shrink-0">
+                        <span className="pq-pip" />
                         Queue Started
                       </span>
                     )}
                   </div>
 
                   <div className="space-y-1.5 text-sm">
-                    <div className="flex items-center">
-                      <CalendarDays className={`w-4 h-4 mr-2 ${isQueueStarted ? 'text-green-600' : 'text-gray-400'}`} />
-                      <span className={isQueueStarted ? 'text-green-800' : 'text-gray-600'}>
+                    <div className="flex items-center pq-muted">
+                      <CalendarDays className="w-4 h-4 mr-2" />
+                      <span>
                         {new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                       </span>
                     </div>
                     
-                    <div className="flex items-center">
-                      <Clock className={`w-4 h-4 mr-2 ${isQueueStarted ? 'text-green-600' : 'text-gray-400'}`} />
-                      <span className={isQueueStarted ? 'text-green-800' : 'text-gray-600'}>
+                    <div className="flex items-center pq-muted">
+                      <Clock className="w-4 h-4 mr-2" />
+                      <span>
                         {formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}
                       </span>
                     </div>
 
-                    <div className="flex items-center mt-3 pt-3 border-t border-black/5">
-                      <TicketIcon className={`w-4 h-4 mr-2 ${isQueueStarted ? 'text-green-600' : 'text-gray-400'}`} />
-                      <span className={isQueueStarted ? 'text-green-800' : 'text-gray-500'}>
-                        QR: <span className={`font-bold font-mono tracking-wider ${isQueueStarted ? 'text-green-900' : 'text-gray-800'}`}>{res.reservationCode}</span>
+                    <div className="flex items-center mt-3 pt-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+                      <TicketIcon className="w-4 h-4 mr-2 pq-faint" />
+                      <span className="pq-muted">
+                        QR: <span className="font-bold font-mono tracking-wider">{res.reservationCode}</span>
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-transform group-hover:translate-x-1 ${
-                  isQueueStarted ? 'bg-green-100 text-green-700' : 'bg-blue-50 text-blue-600'
-                }`}>
+                <div className="pq-icon-btn shrink-0">
                   <ChevronRight className="w-5 h-5" />
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
       ) : (
-        /* Empty State */
-        <div className="flex flex-col items-center justify-center min-h-[60vh] w-full">
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-10 sm:p-14 text-center max-w-md mx-auto animate-in fade-in w-full">
-            <div className="mx-auto w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-6 shadow-2xs">
+        <div className="flex flex-col items-center justify-center min-h-[50vh] w-full">
+          <div className="pq-glass p-10 sm:p-14 text-center max-w-md mx-auto w-full">
+            <div className="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
               <TicketIcon className="w-10 h-10" />
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-gray-800 mb-2">No Active Reservations</h2>
-            <p className="text-gray-500 text-sm max-w-xs mx-auto mb-8 leading-relaxed">
+            <h2 className="text-xl sm:text-2xl font-extrabold mb-2">No Active Reservations</h2>
+            <p className="pq-muted text-sm max-w-xs mx-auto mb-8 leading-relaxed">
               You don&apos;t have an active reservation yet. Reserve a queue slot to get started.
             </p>
             <button
               onClick={() => navigate("/parent/reserve")}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center justify-center text-sm sm:text-base focus:outline-none"
+              className="pq-btn-primary w-full"
             >
               Reserve Queue
             </button>

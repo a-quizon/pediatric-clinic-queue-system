@@ -296,14 +296,14 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
-        <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h2 className="text-lg font-bold text-gray-800">Walk-in Patient</h2>
+      <div className="pq-modal-scrim z-50">
+        <div className="pq-glass-modal w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="walkin-title">
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+            <h2 id="walkin-title" className="text-lg font-extrabold tracking-tight">Walk-in Patient</h2>
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
+              className="pq-icon-btn"
               aria-label="Close"
             >
               <X className="w-5 h-5" />
@@ -312,11 +312,10 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
 
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
             <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1">
-              {/* Schedule selection */}
               <section>
-                <h3 className="text-sm font-bold text-gray-800 mb-2">1. Select schedule</h3>
+                <label htmlFor="walkin-schedule" className="pq-label">1. Select schedule</label>
                 {schedules.length === 0 ? (
-                  <p className="text-sm text-gray-500 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                  <p className="text-sm pq-muted pq-row block min-h-0">
                     No published schedules available for your assigned branch.
                   </p>
                 ) : (
@@ -325,7 +324,7 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
                     value={selectedScheduleId}
                     onChange={(e) => setSelectedScheduleId(e.target.value)}
                     required
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-800"
+                    className="pq-input"
                   >
                     <option value="">Select a schedule</option>
                     {schedules.map((schedule) => {
@@ -341,18 +340,17 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
                   </select>
                 )}
                 {selectedIsFull && (
-                  <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
+                  <p className="mt-1.5 pq-error-text flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
                     This schedule is full.
                   </p>
                 )}
               </section>
 
-              {/* Child count */}
               <section>
-                <h3 className="text-sm font-bold text-gray-800 mb-2">
+                <label htmlFor="walkin-child-count" className="pq-label">
                   2. How many children will be checked in?
-                </h3>
+                </label>
                 <input
                   id="walkin-child-count"
                   type="text"
@@ -362,36 +360,43 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
                   onChange={handleChildCountChange}
                   onBlur={handleChildCountBlur}
                   placeholder={`1–${MAX_CHILDREN}`}
-                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                  className={`pq-input ${childCountError ? "pq-input-error" : ""}`}
                 />
                 {childCountError && (
-                  <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
+                  <p className="mt-1.5 pq-error-text flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
                     {childCountError}
                   </p>
                 )}
               </section>
 
-              {/* Dynamic child fields — show once count is a valid integer (after blur sync or matching length) */}
               {fieldsMatchCount && (
-                <section className="space-y-4">
-                  <h3 className="text-sm font-bold text-gray-800">3. Child details</h3>
+                <section className="space-y-3">
+                  <h3 className="text-sm font-extrabold tracking-tight">3. Child details</h3>
                   {children.map((child, index) => {
                     const ageError = getChildAgeError(child.age || "");
                     return (
                       <div
                         key={index}
-                        className="p-4 rounded-xl border border-gray-100 bg-gray-50/80 space-y-3"
+                        className="space-y-3"
+                        style={{
+                          display: "block",
+                          minHeight: 0,
+                          padding: "1rem",
+                          borderRadius: "0.9rem",
+                          background: "color-mix(in srgb, #ffffff 55%, transparent)",
+                          border: "1px solid var(--pq-glass-line)",
+                        }}
                       >
-                        <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                        <p className="pq-stat-label">
                           Child {index + 1}
                         </p>
-                        <div>
+                        <div className="min-w-0">
                           <label
                             htmlFor={`walkin-child-${index}-name`}
-                            className="block text-sm font-medium text-gray-700 mb-1"
+                            className="pq-label"
                           >
-                            Child Name *
+                            Child Name <span style={{ color: "var(--pq-alert)" }}>*</span>
                           </label>
                           <input
                             id={`walkin-child-${index}-name`}
@@ -399,16 +404,19 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
                             value={child.childName}
                             onChange={(e) => updateChild(index, { childName: e.target.value })}
                             placeholder="Enter child's full name"
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                            className="pq-input"
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
+                        <div
+                          className="grid gap-3"
+                          style={{ gridTemplateColumns: "5.75rem minmax(0, 1fr)" }}
+                        >
+                          <div className="min-w-0">
                             <label
                               htmlFor={`walkin-child-${index}-age`}
-                              className="block text-sm font-medium text-gray-700 mb-1"
+                              className="pq-label"
                             >
-                              Child Age *
+                              Age <span style={{ color: "var(--pq-alert)" }}>*</span>
                             </label>
                             <input
                               id={`walkin-child-${index}-age`}
@@ -419,25 +427,25 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
                               onKeyDown={(e) => {
                                 if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
                               }}
-                              placeholder="Age in years"
-                              className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                              placeholder="Yrs"
+                              className={`pq-input ${ageError ? "pq-input-error" : ""}`}
                             />
                             {ageError && (
-                              <p className="mt-1 text-xs text-red-600">{ageError}</p>
+                              <p className="mt-1 pq-error-text">{ageError}</p>
                             )}
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <label
                               htmlFor={`walkin-child-${index}-sex`}
-                              className="block text-sm font-medium text-gray-700 mb-1"
+                              className="pq-label"
                             >
-                              Sex *
+                              Sex <span style={{ color: "var(--pq-alert)" }}>*</span>
                             </label>
                             <select
                               id={`walkin-child-${index}-sex`}
                               value={child.sex || ""}
                               onChange={(e) => updateChild(index, { sex: e.target.value })}
-                              className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all cursor-pointer"
+                              className="pq-input cursor-pointer min-w-0"
                             >
                               <option value="">Select</option>
                               <option value="Male">Male</option>
@@ -451,38 +459,34 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
                 </section>
               )}
 
-              {/* Concern */}
               <section>
-                <h3 className="text-sm font-bold text-gray-800 mb-2">4. Concern</h3>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <h3 className="text-sm font-extrabold tracking-tight mb-2">4. Concern</h3>
+                <label htmlFor="walkin-concern" className="pq-label">
                   Concern / Reason for Visit
                 </label>
                 <textarea
+                  id="walkin-concern"
                   value={concern}
                   onChange={(e) => setConcern(e.target.value)}
                   placeholder="Optional: briefly describe the symptoms or reason for visit"
                   rows={3}
-                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none"
+                  className="pq-input resize-none"
                 />
               </section>
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-100 flex gap-3 bg-gray-50">
+            <div className="px-6 py-4 flex gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-2.5 font-bold rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+                className="pq-btn-secondary flex-1"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className={`flex-1 py-2.5 font-bold rounded-xl text-white shadow-sm transition-colors ${
-                  canSubmit
-                    ? "bg-blue-600 hover:bg-blue-700"
-                    : "bg-blue-300 cursor-not-allowed"
-                }`}
+                className="pq-btn-primary flex-1"
               >
                 {isSubmitting ? "Checking in..." : "Check In Walk-in"}
               </button>

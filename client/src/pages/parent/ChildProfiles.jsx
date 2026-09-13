@@ -105,18 +105,18 @@ export default function ChildProfiles() {
   };
 
   return (
-    <div className="space-y-6 pb-8 max-w-2xl mx-auto">
+    <div className="space-y-5 pb-8 max-w-2xl mx-auto">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-black text-gray-800">Child Profiles</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <h2 className="text-xl font-extrabold">Child Profiles</h2>
+          <p className="text-sm pq-muted mt-1">
             Save your children here so you can select them when reserving a clinic slot.
           </p>
         </div>
         <button
           type="button"
           onClick={openAdd}
-          className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+          className="pq-btn-primary flex-shrink-0"
         >
           <Plus className="w-4 h-4" />
           Add a Child
@@ -125,40 +125,40 @@ export default function ChildProfiles() {
 
       {loading ? (
         <div className="flex justify-center items-center py-16">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="pq-spinner" />
         </div>
       ) : children.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-xs p-10 text-center">
-          <div className="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-5">
+        <div className="pq-glass p-10 text-center">
+          <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-5" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
             <Baby className="w-8 h-8" />
           </div>
-          <h3 className="text-lg font-bold text-gray-800 mb-2">No children added yet</h3>
-          <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
+          <h3 className="text-lg font-bold mb-2">No children added yet</h3>
+          <p className="text-sm pq-muted mb-6 max-w-sm mx-auto">
             Add a child profile with their name, age, and sex to use it on your next reservation.
           </p>
           <button
             type="button"
             onClick={openAdd}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors"
+            className="pq-btn-primary inline-flex"
           >
             <Plus className="w-4 h-4" />
             Add a Child
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3">
+        <div className="space-y-3">
           {children.map((child) => (
             <div
               key={child.id}
-              className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex items-center justify-between gap-3"
+              className="pq-glass p-5 flex items-center justify-between gap-3"
             >
               <div className="flex items-center gap-4 min-w-0">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                  <User className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
+                  <User className="w-6 h-6" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-extrabold text-gray-800 truncate">{child.childName}</h3>
-                  <p className="text-sm text-gray-500 mt-0.5">
+                  <h3 className="font-extrabold truncate">{child.childName}</h3>
+                  <p className="text-sm pq-muted mt-0.5">
                     {child.age ? `${child.age} years` : "Age N/A"} • {child.sex || "N/A"}
                   </p>
                 </div>
@@ -167,7 +167,7 @@ export default function ChildProfiles() {
                 <button
                   type="button"
                   onClick={() => openEdit(child)}
-                  className="w-10 h-10 rounded-full bg-gray-50 hover:bg-blue-50 text-gray-500 hover:text-blue-600 flex items-center justify-center transition-colors"
+                  className="pq-icon-btn"
                   aria-label={`Edit ${child.childName}`}
                 >
                   <Pencil className="w-4 h-4" />
@@ -175,7 +175,8 @@ export default function ChildProfiles() {
                 <button
                   type="button"
                   onClick={() => setDeleteTarget(child)}
-                  className="w-10 h-10 rounded-full bg-gray-50 hover:bg-red-50 text-gray-500 hover:text-red-600 flex items-center justify-center transition-colors"
+                  className="pq-icon-btn"
+                  style={{ color: "var(--pq-alert)" }}
                   aria-label={`Remove ${child.childName}`}
                 >
                   <Trash2 className="w-4 h-4" />
@@ -187,22 +188,22 @@ export default function ChildProfiles() {
       )}
 
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-800">
+        <div className="pq-modal-scrim">
+          <div className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+              <h2 className="text-lg font-bold">
                 {editingChild ? "Edit Child" : "Add a Child"}
               </h2>
             </div>
             <div className="p-6 overflow-y-auto">
               <ChildProfileForm value={formValue} onChange={setFormValue} idPrefix="profile-child" />
             </div>
-            <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
+            <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button
                 type="button"
                 onClick={closeForm}
                 disabled={isSaving}
-                className="px-5 py-2.5 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
+                className="pq-btn-secondary text-sm"
               >
                 Cancel
               </button>
@@ -210,7 +211,7 @@ export default function ChildProfiles() {
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving || !isChildProfileValid(formValue)}
-                className="px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed text-sm shadow-sm"
+                className="pq-btn-primary text-sm"
               >
                 {isSaving ? "Saving..." : editingChild ? "Save Changes" : "Save Child"}
               </button>

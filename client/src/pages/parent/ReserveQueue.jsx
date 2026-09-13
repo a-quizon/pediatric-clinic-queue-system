@@ -313,7 +313,7 @@ export default function ReserveQueue() {
 
       {loading ? (
         <div className="flex justify-center items-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="pq-spinner" />
         </div>
       ) : schedules.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -322,14 +322,14 @@ export default function ReserveQueue() {
             
             if (currentReservations === undefined) {
               return (
-                <div key={schedule.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex flex-col min-h-[250px] animate-pulse">
-                  <div className="w-1/2 h-6 bg-gray-200 rounded mb-4"></div>
+                <div key={schedule.id} className="pq-glass p-5 flex flex-col min-h-[250px] animate-pulse">
+                  <div className="w-1/2 h-6 rounded mb-4" style={{ background: "color-mix(in srgb, var(--pq-ink) 10%, white)" }}></div>
                   <div className="space-y-3 mb-6 flex-1">
-                    <div className="w-3/4 h-4 bg-gray-200 rounded"></div>
-                    <div className="w-2/3 h-4 bg-gray-200 rounded"></div>
-                    <div className="w-1/2 h-4 bg-gray-200 rounded"></div>
+                    <div className="w-3/4 h-4 rounded" style={{ background: "color-mix(in srgb, var(--pq-ink) 10%, white)" }}></div>
+                    <div className="w-2/3 h-4 rounded" style={{ background: "color-mix(in srgb, var(--pq-ink) 10%, white)" }}></div>
+                    <div className="w-1/2 h-4 rounded" style={{ background: "color-mix(in srgb, var(--pq-ink) 10%, white)" }}></div>
                   </div>
-                  <div className="w-full h-10 bg-gray-200 rounded-xl"></div>
+                  <div className="w-full h-10 rounded-xl" style={{ background: "color-mix(in srgb, var(--pq-ink) 10%, white)" }}></div>
                 </div>
               );
             }
@@ -357,39 +357,39 @@ export default function ReserveQueue() {
             const buttonDisabled = isFull || hasReservedOnDate || isEnded;
 
             return (
-              <div key={schedule.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-100 transition-all p-5 flex flex-col">
+              <div key={schedule.id} className="pq-glass p-5 flex flex-col">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex flex-col">
-                    <h3 className="text-lg font-bold text-gray-800 flex items-center">
-                      <MapPin className="w-5 h-5 mr-2 text-gray-400 shrink-0" />
+                    <h3 className="text-lg font-bold flex items-center">
+                      <MapPin className="w-5 h-5 mr-2 pq-faint shrink-0" />
                       {formatBranchLabel(schedule.branch)}
                     </h3>
-                    <p className="text-xs text-gray-500 whitespace-pre-line ml-7 mt-0.5 line-clamp-2">
+                    <p className="text-xs pq-muted whitespace-pre-line ml-7 mt-0.5 line-clamp-2">
                       {branches.find(b => branchesMatch(b.name, schedule.branch) || b.id === schedule.branchId)?.clinicAddress || "No clinic address provided."}
                     </p>
                   </div>
                   {schedule.queueStatus === 'not_started' ? (
-                    <div className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold flex items-center border border-amber-200">
+                    <div className="pq-chip pq-chip-wait">
                       <Clock className="w-3.5 h-3.5 mr-1.5" />
                       Reservations Open
                     </div>
                   ) : schedule.queueStatus === 'active' ? (
-                    <div className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold flex items-center border border-green-200">
-                      <div className="w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse"></div>
+                    <div className="pq-chip pq-chip-live">
+                      <div className="pq-pip mr-1.5"></div>
                       Active Queue
                     </div>
                   ) : schedule.queueStatus === 'paused' ? (
-                    <div className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-bold flex items-center border border-orange-200">
+                    <div className="pq-chip pq-chip-wait">
                       <AlertCircle className="w-3.5 h-3.5 mr-1.5" />
                       Paused
                     </div>
                   ) : schedule.queueStatus === 'closed' ? (
-                    <div className="px-3 py-1 bg-amber-50 text-amber-800 rounded-full text-xs font-bold flex items-center border border-amber-300">
-                      <div className="w-2 h-2 rounded-full bg-amber-500 mr-1.5"></div>
+                    <div className="pq-chip pq-chip-wait">
+                      <div className="w-2 h-2 rounded-full mr-1.5" style={{ background: "var(--pq-wait)" }}></div>
                       Queue Closed
                     </div>
                   ) : (
-                    <div className="px-3 py-1 bg-gray-50 text-gray-700 rounded-full text-xs font-bold flex items-center border border-gray-200">
+                    <div className="pq-chip pq-chip-info">
                       <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
                       {schedule.queueStatus || 'Published'}
                     </div>
@@ -398,25 +398,25 @@ export default function ReserveQueue() {
 
                 <div className="space-y-3 mb-6 flex-1">
                   <div className="flex items-center text-sm">
-                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center mr-3">
-                      <CalendarDays className="w-4 h-4 text-gray-500" />
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center mr-3" style={{ background: "color-mix(in srgb, var(--pq-ink) 6%, white)" }}>
+                      <CalendarDays className="w-4 h-4 pq-muted" />
                     </div>
-                    <span className="text-gray-600 font-medium">Date: <span className="text-gray-800">{new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span></span>
+                    <span className="pq-muted font-medium">Date: <span>{new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span></span>
                   </div>
                   
                   <div className="flex items-center text-sm">
-                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center mr-3">
-                      <Clock className="w-4 h-4 text-gray-500" />
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center mr-3" style={{ background: "color-mix(in srgb, var(--pq-ink) 6%, white)" }}>
+                      <Clock className="w-4 h-4 pq-muted" />
                     </div>
-                    <span className="text-gray-600 font-medium">Clinic Hours: <span className="text-gray-800">{formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}</span></span>
+                    <span className="pq-muted font-medium">Clinic Hours: <span>{formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}</span></span>
                   </div>
 
                   <div className="flex items-center text-sm">
-                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center mr-3">
-                      <Users className="w-4 h-4 text-gray-500" />
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center mr-3" style={{ background: "color-mix(in srgb, var(--pq-ink) 6%, white)" }}>
+                      <Users className="w-4 h-4 pq-muted" />
                     </div>
-                    <span className="text-gray-600 font-medium">
-                      Available Slots: <span className={`${isFull ? 'text-red-600' : 'text-gray-800'} font-bold`}>{availableSlots} / {schedule.slotCapacity}</span>
+                    <span className="pq-muted font-medium">
+                      Available Slots: <span className="font-bold" style={{ color: isFull ? "var(--pq-alert)" : "var(--pq-ink)" }}>{availableSlots} / {schedule.slotCapacity}</span>
                     </span>
                   </div>
                 </div>
@@ -424,16 +424,16 @@ export default function ReserveQueue() {
                 <button 
                   onClick={() => handleReserveClick(schedule)}
                   disabled={buttonDisabled}
-                  className={`w-full py-2.5 font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center ${
+                  className={`w-full py-2.5 font-bold rounded-[0.95rem] min-h-[44px] flex items-center justify-center ${
                     isEnded
-                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed text-sm'
+                      ? 'pq-btn-secondary cursor-not-allowed text-sm'
                       : hasReservedOnDate 
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        ? 'pq-btn-secondary cursor-not-allowed'
                         : hasCompletedOnDate
-                          ? 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 text-sm'
+                          ? 'pq-btn-warn text-sm'
                           : isFull 
-                            ? 'bg-gray-100 text-gray-500 cursor-not-allowed text-xs px-3 leading-snug' 
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                            ? 'pq-btn-secondary cursor-not-allowed text-xs px-3 leading-snug' 
+                            : 'pq-btn-primary'
                   }`}
                 >
                   {!hasReservedOnDate && !hasCompletedOnDate && !isEnded && <CalendarPlus className={`w-4 h-4 mr-2 flex-shrink-0 ${isFull ? 'hidden' : ''}`} />}
@@ -454,13 +454,13 @@ export default function ReserveQueue() {
           })}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="pq-glass overflow-hidden">
           <div className="p-8 md:p-12 text-center">
-            <div className="mx-auto w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mb-6">
+            <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6" style={{ background: "color-mix(in srgb, var(--pq-ink) 8%, white)", color: "var(--pq-ink-faint)" }}>
               <CalendarDays className="w-8 h-8" />
             </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">No Available Schedules</h2>
-            <p className="text-gray-500 max-w-md mx-auto text-sm">
+            <h2 className="text-xl font-bold mb-2">No Available Schedules</h2>
+            <p className="pq-muted max-w-md mx-auto text-sm">
               There are currently no published clinic schedules available for reservation. Please check back later.
             </p>
           </div>
@@ -471,14 +471,14 @@ export default function ReserveQueue() {
 
       {/* Complete Patient Info Modal */}
       {isPatientInfoModalOpen && selectedSchedule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-800">Select Patients</h2>
+        <div className="pq-modal-scrim">
+          <div className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+              <h2 className="text-lg font-bold">Select Patients</h2>
             </div>
             
             <div className="p-6 overflow-y-auto">
-              <div className="flex items-start text-blue-700 bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6">
+              <div className="flex items-start pq-note pq-note-info mb-6">
                 <CheckCircle2 className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
                 <p className="text-sm font-medium">Your slot is reserved. Choose one or more children this visit is for, then add the reason for the visit.</p>
               </div>
@@ -486,14 +486,14 @@ export default function ReserveQueue() {
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">Who is this reservation for? *</label>
+                    <label className="block text-sm font-medium">Who is this reservation for? *</label>
                     <button
                       type="button"
                       onClick={() => {
                         setNewChildForm(emptyChildProfile());
                         setIsAddChildOpen(true);
                       }}
-                      className="text-xs font-bold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
+                      className="pq-link text-xs inline-flex items-center gap-1"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Add a Child
@@ -501,16 +501,16 @@ export default function ReserveQueue() {
                   </div>
 
                   {savedChildren.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-5 text-center">
-                      <Baby className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-600 font-medium mb-3">No child profiles yet. Add a child to continue.</p>
+                    <div className="rounded-xl border border-dashed p-5 text-center" style={{ borderColor: "var(--pq-glass-line)", background: "color-mix(in srgb, #ffffff 45%, transparent)" }}>
+                      <Baby className="w-8 h-8 pq-faint mx-auto mb-2" />
+                      <p className="text-sm font-medium mb-3">No child profiles yet. Add a child to continue.</p>
                       <button
                         type="button"
                         onClick={() => {
                           setNewChildForm(emptyChildProfile());
                           setIsAddChildOpen(true);
                         }}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700"
+                        className="pq-btn-primary text-sm inline-flex"
                       >
                         <Plus className="w-4 h-4" />
                         Add a Child
@@ -522,8 +522,8 @@ export default function ReserveQueue() {
                         const checked = selectedChildIds.includes(child.id);
                         return (
                           <li key={child.id}>
-                            <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                              checked ? "border-blue-300 bg-blue-50" : "border-gray-200 bg-white hover:border-blue-200"
+                            <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${
+                              checked ? "pq-row-you" : "pq-row"
                             }`}>
                               <input
                                 type="checkbox"
@@ -532,8 +532,8 @@ export default function ReserveQueue() {
                                 className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               />
                               <span className="min-w-0">
-                                <span className="block text-sm font-bold text-gray-800 truncate">{child.childName}</span>
-                                <span className="block text-xs text-gray-500">{child.age} • {child.sex}</span>
+                                <span className="block text-sm font-bold truncate">{child.childName}</span>
+                                <span className="block text-xs pq-muted">{child.age} • {child.sex}</span>
                               </span>
                             </label>
                           </li>
@@ -544,34 +544,34 @@ export default function ReserveQueue() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Concern / Reason for Visit</label>
+                  <label className="pq-label">Concern / Reason for Visit</label>
                   <textarea 
                     value={concern}
                     onChange={e => setConcern(e.target.value)}
                     placeholder="Optional: briefly describe the symptoms or reason for visit"
                     rows={3}
-                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none"
+                    className="pq-input resize-none"
                   ></textarea>
                 </div>
               </div>
             </div>
 
-            <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
+            <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button 
                 onClick={handleCancelReservation}
                 disabled={isSubmitting}
-                className="w-full sm:w-auto px-5 py-2.5 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm focus:outline-none"
+                className="pq-btn-secondary w-full sm:w-auto text-sm"
               >
                 Cancel Reservation
               </button>
               <button 
                 onClick={handleSubmitPatientInfo}
                 disabled={isSubmitting || selectedChildIds.length === 0}
-                className="w-full px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed shadow-sm focus:outline-none"
+                className="pq-btn-primary w-full text-sm"
               >
                 {isSubmitting ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <span className="pq-spinner" />
                     Saving...
                   </>
                 ) : "Save Information"}
@@ -582,20 +582,20 @@ export default function ReserveQueue() {
       )}
 
       {isAddChildOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-800">Add a Child</h2>
+        <div className="pq-modal-scrim" style={{ zIndex: 60 }}>
+          <div className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+              <h2 className="text-lg font-bold">Add a Child</h2>
             </div>
             <div className="p-6 overflow-y-auto">
               <ChildProfileForm value={newChildForm} onChange={setNewChildForm} idPrefix="reserve-child" />
             </div>
-            <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
+            <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button
                 type="button"
                 onClick={() => !isSavingChild && setIsAddChildOpen(false)}
                 disabled={isSavingChild}
-                className="px-5 py-2.5 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 text-sm"
+                className="pq-btn-secondary text-sm"
               >
                 Cancel
               </button>
@@ -603,7 +603,7 @@ export default function ReserveQueue() {
                 type="button"
                 onClick={handleAddChildFromReserve}
                 disabled={isSavingChild || !isChildProfileValid(newChildForm)}
-                className="px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
+                className="pq-btn-primary text-sm"
               >
                 {isSavingChild ? "Saving..." : "Save Child"}
               </button>
@@ -614,32 +614,32 @@ export default function ReserveQueue() {
 
       {/* Success Modal */}
       {isSuccessModalOpen && selectedSchedule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden flex flex-col text-center animate-in zoom-in-95 duration-200">
+        <div className="pq-modal-scrim">
+          <div className="pq-glass-modal w-full max-w-sm overflow-hidden flex flex-col text-center">
             <div className="p-8">
-              <div className="mx-auto w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mb-5">
+              <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-5" style={{ background: "var(--pq-live-wash)", color: "var(--pq-live)" }}>
                 <CheckCircle2 className="w-8 h-8" />
               </div>
-              <h2 className="text-xl font-bold text-gray-800 mb-2">Reservation Successful</h2>
-              <p className="text-gray-500 text-sm mb-6">You have successfully reserved a slot.</p>
+              <h2 className="text-xl font-bold mb-2">Reservation Successful</h2>
+              <p className="pq-muted text-sm mb-6">You have successfully reserved a slot.</p>
               
-              <div className="bg-gray-50 rounded-xl p-5 border border-gray-100 mb-6">
-                <div className="text-sm text-gray-500 mb-1">Queue Position</div>
-                <div className="text-4xl font-black text-blue-600 mb-4">{generatedQueuePosition}</div>
+              <div className="pq-row flex-col items-stretch text-left p-5 mb-6">
+                <div className="text-sm pq-muted mb-1 text-center">Queue Position</div>
+                <div className="pq-num text-4xl text-center mb-4" style={{ color: "var(--pq-mark-blue-deep)" }}>{generatedQueuePosition}</div>
                 
                 <div className="flex flex-col space-y-2 text-sm text-left">
-                  <div className="flex justify-between items-start border-t border-gray-200 pt-3">
-                    <span className="text-gray-500 shrink-0 mr-4">Branch:</span>
+                  <div className="flex justify-between items-start pt-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+                    <span className="pq-muted shrink-0 mr-4">Branch:</span>
                     <div className="flex flex-col text-right">
-                      <span className="font-semibold text-gray-800">{selectedSchedule.branch}</span>
-                      <span className="text-xs text-gray-500 whitespace-pre-line mt-0.5">
+                      <span className="font-semibold">{selectedSchedule.branch}</span>
+                      <span className="text-xs pq-muted whitespace-pre-line mt-0.5">
                         {branches.find(b => b.name === selectedSchedule.branch)?.clinicAddress || "No clinic address provided."}
                       </span>
                     </div>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Date:</span>
-                    <span className="font-semibold text-gray-800">{new Date(selectedSchedule.clinicDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                    <span className="pq-muted">Date:</span>
+                    <span className="font-semibold">{new Date(selectedSchedule.clinicDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
                   </div>
                 </div>
               </div>
@@ -647,13 +647,13 @@ export default function ReserveQueue() {
               <div className="space-y-3">
                 <button 
                   onClick={() => { closeSuccessModal(); navigate('/parent/reservations'); }}
-                  className="w-full py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+                  className="pq-btn-primary w-full"
                 >
                   View My Reservation
                 </button>
                 <button 
                   onClick={closeSuccessModal}
-                  className="w-full py-2.5 text-gray-600 font-bold bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors shadow-sm"
+                  className="pq-btn-secondary w-full"
                 >
                   Close
                 </button>

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { X, MapPin, CalendarDays, Clock, Users, Activity, CheckCircle2, User } from 'lucide-react';
 import { ACTIVE_RESERVATION_STATUSES } from '../../services/reservationService';
 import { formatBranchLabel } from '../../utils/stringUtils';
@@ -48,88 +48,87 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
   const checkedInCount = scheduleReservations.filter(r => r.status === 'checked_in' || r.checkedIn).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+    <div className="pq-modal-scrim z-50">
+      <div className="pq-glass-modal w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="schedule-details-title">
         
-        {/* Header */}
-        <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center">
-            <Activity className="w-5 h-5 mr-2 text-blue-600" />
+        <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <h2 id="schedule-details-title" className="text-lg font-extrabold tracking-tight flex items-center">
+            <Activity className="w-5 h-5 mr-2" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
             Schedule Details & Queue
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-200">
+          <button type="button" onClick={onClose} className="pq-icon-btn" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
         
         <div className="p-6 overflow-y-auto flex-1">
-          {/* Schedule Statistics */}
           {!isCompletedSchedule ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                <div className="text-xs text-gray-500 mb-1 flex items-center"><Users className="w-3.5 h-3.5 mr-1"/> Capacity</div>
-                <div className="text-xl font-bold text-gray-800">{schedule.slotCapacity}</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+              <div className="pq-stat">
+                <span className="pq-stat-label">Capacity</span>
+                <span className="pq-stat-value">{schedule.slotCapacity}</span>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm">
-                <div className="text-xs text-blue-500 mb-1 flex items-center"><Users className="w-3.5 h-3.5 mr-1"/> Reserved</div>
-                <div className="text-xl font-bold text-blue-600">{activeCount}</div>
+              <div className="pq-stat pq-stat-info">
+                <span className="pq-stat-label">Reserved</span>
+                <span className="pq-stat-value">{activeCount}</span>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-green-100 shadow-sm">
-                <div className="text-xs text-green-500 mb-1 flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1"/> Checked In</div>
-                <div className="text-xl font-bold text-green-600">{checkedInCount}</div>
+              <div className="pq-stat pq-stat-live">
+                <span className="pq-stat-label">Checked In</span>
+                <span className="pq-stat-value">{checkedInCount}</span>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                <div className="text-xs text-gray-500 mb-1">Status</div>
-                <div className="text-sm font-bold text-gray-800 capitalize mt-1">{schedule.status}</div>
+              <div className="pq-stat">
+                <span className="pq-stat-label">Status</span>
+                <span className="text-sm font-extrabold capitalize mt-1">{schedule.status}</span>
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                <div className="text-xs text-gray-500 mb-1 flex items-center"><Users className="w-3.5 h-3.5 mr-1"/> Total</div>
-                <div className="text-xl font-bold text-gray-800">{totalReservations}</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+              <div className="pq-stat">
+                <span className="pq-stat-label">Total</span>
+                <span className="pq-stat-value">{totalReservations}</span>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-green-100 shadow-sm">
-                <div className="text-xs text-green-500 mb-1 flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1"/> Checked Up</div>
-                <div className="text-xl font-bold text-green-600">{patientsCheckedUp}</div>
+              <div className="pq-stat pq-stat-live">
+                <span className="pq-stat-label">Checked Up</span>
+                <span className="pq-stat-value">{patientsCheckedUp}</span>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-red-100 shadow-sm">
-                <div className="text-xs text-red-500 mb-1 flex items-center"><X className="w-3.5 h-3.5 mr-1"/> Cancelled</div>
-                <div className="text-xl font-bold text-red-600">{cancelledReservations}</div>
+              <div className="pq-stat" style={{ background: "var(--pq-alert-wash)", borderColor: "color-mix(in srgb, var(--pq-alert) 22%, white)" }}>
+                <span className="pq-stat-label" style={{ color: "var(--pq-alert)" }}>Cancelled</span>
+                <span className="pq-stat-value" style={{ color: "var(--pq-alert)" }}>{cancelledReservations}</span>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                <div className="text-xs text-gray-500 mb-1 flex items-center"><X className="w-3.5 h-3.5 mr-1"/> Forfeited</div>
-                <div className="text-xl font-bold text-gray-800">{forfeitedReservations}</div>
+              <div className="pq-stat">
+                <span className="pq-stat-label">Forfeited</span>
+                <span className="pq-stat-value">{forfeitedReservations}</span>
               </div>
             </div>
           )}
 
-          <div className="bg-gray-50 rounded-xl p-5 mb-8 border border-gray-100">
+          <div className="pq-row block min-h-0 p-5">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-              <div className="flex items-center text-gray-600">
-                <MapPin className="w-4 h-4 mr-2 text-gray-400" />
+              <div className="flex items-center">
+                <MapPin className="w-4 h-4 mr-2 pq-faint" aria-hidden="true" />
                 <span className="font-semibold">{formatBranchLabel(schedule.branch)}</span>
               </div>
-              <div className="flex items-center text-gray-600">
-                <CalendarDays className="w-4 h-4 mr-2 text-gray-400" />
+              <div className="flex items-center">
+                <CalendarDays className="w-4 h-4 mr-2 pq-faint" aria-hidden="true" />
                 <span className="font-semibold">{new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
               </div>
-              <div className="flex items-center text-gray-600">
-                <Clock className="w-4 h-4 mr-2 text-gray-400" />
+              <div className="flex items-center">
+                <Clock className="w-4 h-4 mr-2 pq-faint" aria-hidden="true" />
                 <span className="font-semibold">{formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}</span>
               </div>
-              <div className="flex flex-col text-gray-600">
-                <span className="text-xs text-gray-400">Late Limit</span>
-                <span className="font-bold text-gray-800">{schedule.lateLimit || 3} penalties</span>
+              <div className="flex flex-col">
+                <span className="pq-stat-label">Late Limit</span>
+                <span className="font-extrabold">{schedule.lateLimit || 3} penalties</span>
               </div>
             </div>
           </div>
         </div>
         
-        <div className="p-5 border-t border-gray-100 bg-white">
+        <div className="p-5" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
           <button 
+            type="button"
             onClick={onClose}
-            className="w-full py-2.5 text-gray-700 font-bold bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors"
+            className="pq-btn-secondary w-full"
           >
             Close Details
           </button>

@@ -1,5 +1,6 @@
 {
   "hosting": {
+  "target": "plusqueue",
     "public": "dist",
     "ignore": [
       "firebase.json",

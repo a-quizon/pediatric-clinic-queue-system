@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Activity, MapPin, Clock, Stethoscope, CheckCircle2, UserCheck, AlertCircle } from "lucide-react";
+import { Calendar, Clock, Stethoscope, AlertCircle } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { subscribeToScheduleReservations } from "../../services/reservationService";
@@ -7,6 +7,7 @@ import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { getReservationChildDisplayName } from "../../utils/reservationPatients";
 import ManageQueue from "./ManageQueue";
 import { branchesMatch, scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
+import { PqSpinner } from "../../components/parent/pqUi";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -89,10 +90,10 @@ export default function Dashboard() {
   const remainingQueueCount = waitingPatients.length + checkedInPatients.length;
 
   const stats = [
-    { name: "Remaining Queue", value: remainingQueueCount, icon: Users, color: "text-blue-600", bgColor: "bg-blue-100" },
-    { name: "Waiting", value: waitingPatients.length, icon: Clock, color: "text-amber-600", bgColor: "bg-amber-100" },
-    { name: "Checked In", value: checkedInPatients.length, icon: UserCheck, color: "text-green-600", bgColor: "bg-green-100" },
-    { name: "Completed", value: completedPatients.length, icon: CheckCircle2, color: "text-teal-600", bgColor: "bg-teal-100" }
+    { name: "Remaining Queue", value: remainingQueueCount, tone: "info" },
+    { name: "Waiting", value: waitingPatients.length, tone: "wait" },
+    { name: "Checked In", value: checkedInPatients.length, tone: "live" },
+    { name: "Completed", value: completedPatients.length, tone: "default" }
   ];
 
   const sortedWaitingQueue = activeReservations
@@ -145,171 +146,141 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="pq-glass p-10">
+        <PqSpinner label="Loading dashboard" />
       </div>
     );
   }
 
+  const statClass = (tone) => {
+    if (tone === "wait") return "pq-stat pq-stat-wait";
+    if (tone === "live") return "pq-stat pq-stat-live";
+    if (tone === "info") return "pq-stat pq-stat-info";
+    return "pq-stat";
+  };
+
   return (
     <div className="space-y-6 pb-8">
-
-
-      {/* 1. Primary Dashboard Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Card 1: Published Schedule */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-md">
-          <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-blue-600" />
+        <section className="pq-glass p-6 md:p-8">
+          <h2 className="text-lg font-extrabold tracking-tight mb-5 flex items-center gap-2">
+            <Calendar className="w-5 h-5" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
             Published Schedule
           </h2>
           {publishedSchedule ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
               <div>
-                <p className="text-xs text-gray-500 uppercase font-bold mb-1">Branch Name</p>
-                <p className="text-sm font-semibold text-gray-900">{publishedSchedule.branch}</p>
+                <p className="pq-stat-label mb-1">Branch Name</p>
+                <p className="text-sm font-extrabold">{publishedSchedule.branch}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase font-bold mb-1">Reservation Schedule Status</p>
-                <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                  publishedSchedule.queueStatus === 'active' ? 'bg-green-100 text-green-700' : 
-                  'bg-blue-100 text-blue-700'
-                }`}>
-                  {publishedSchedule.queueStatus === 'active' ? 'Active' : 'Published'}
+                <p className="pq-stat-label mb-1">Reservation Schedule Status</p>
+                <span className={`pq-chip ${publishedSchedule.queueStatus === "active" ? "pq-chip-live" : "pq-chip-info"}`}>
+                  {publishedSchedule.queueStatus === "active" ? (
+                    <span className="pq-pip" style={{ width: 6, height: 6 }} />
+                  ) : null}
+                  {publishedSchedule.queueStatus === "active" ? "Active" : "Published"}
                 </span>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase font-bold mb-1">Clinic Date</p>
-                <p className="text-sm font-semibold text-gray-900">{formatDate(publishedSchedule.clinicDate)}</p>
+                <p className="pq-stat-label mb-1">Clinic Date</p>
+                <p className="text-sm font-extrabold">{formatDate(publishedSchedule.clinicDate)}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase font-bold mb-1">Clinic Hours</p>
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="pq-stat-label mb-1">Clinic Hours</p>
+                <p className="text-sm font-extrabold">
                   {formatTime12h(publishedSchedule.openingTime)} - {formatTime12h(publishedSchedule.closingTime)}
                 </p>
               </div>
               <div className="sm:col-span-2">
-                <p className="text-xs text-gray-500 uppercase font-bold mb-1">Clinic Address</p>
-                <p className="text-sm font-medium text-gray-700 whitespace-pre-line leading-relaxed">{clinicAddress || "No address configured"}</p>
+                <p className="pq-stat-label mb-1">Clinic Address</p>
+                <p className="text-sm font-medium pq-muted whitespace-pre-line leading-relaxed">{clinicAddress || "No address configured"}</p>
               </div>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-6 text-center">
-              <AlertCircle className="w-10 h-10 text-gray-300 mb-3" />
-              <p className="text-gray-800 font-bold">No Published Schedule</p>
-              <p className="text-sm text-gray-500 mt-1 max-w-[250px]">The doctor has not yet published a reservation schedule for your assigned branch.</p>
+              <AlertCircle className="w-10 h-10 pq-faint mb-3" aria-hidden="true" />
+              <p className="font-extrabold tracking-tight">No Published Schedule</p>
+              <p className="text-sm pq-muted mt-1 max-w-[250px]">The doctor has not yet published a reservation schedule for your assigned branch.</p>
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Card 2: With Doctor */}
-        <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-md">
-          <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <Stethoscope className="w-5 h-5 text-purple-600" />
+        <section className="pq-glass p-6 md:p-8 flex flex-col">
+          <h2 className="text-lg font-extrabold tracking-tight mb-5 flex items-center gap-2">
+            <Stethoscope className="w-5 h-5" style={{ color: "var(--pq-live)" }} aria-hidden="true" />
             With Doctor
           </h2>
           {currentWithDoctor ? (
-            <div className="flex flex-col h-full justify-center pb-8">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-purple-100 text-purple-700 flex flex-col items-center justify-center border border-purple-200 shadow-sm shrink-0">
-                  <span className="text-[10px] uppercase font-bold leading-none mb-1 opacity-80">Queue</span>
-                  <span className="text-xl font-black">#{currentWithDoctor.queueNumber || currentWithDoctor.queuePosition}</span>
+            <div className="pq-now flex-1">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="pq-queue-plate pq-queue-plate-live w-16 h-16 flex-col" aria-hidden="true">
+                  <span className="text-[9px] uppercase font-extrabold leading-none opacity-80 mb-0.5">Queue</span>
+                  <span className="pq-num text-xl">#{currentWithDoctor.queueNumber || currentWithDoctor.queuePosition}</span>
                 </div>
-                <div>
-                  <p className="text-xl font-bold text-gray-900 mb-1">{getReservationChildDisplayName(currentWithDoctor, "Unnamed Patient")}</p>
-                  <p className="text-sm font-medium text-purple-700 bg-purple-50 inline-flex items-center px-2 py-1 rounded-md">
+                <div className="min-w-0">
+                  <p className="text-xl font-extrabold tracking-tight mb-1 truncate">
+                    {getReservationChildDisplayName(currentWithDoctor, "Unnamed Patient")}
+                  </p>
+                  <p className="text-sm font-semibold" style={{ color: "var(--pq-live)" }}>
                     Consultation Started: {formatTime(currentWithDoctor.consultationStartedAt || currentWithDoctor.sentToDoctorAt)}
                   </p>
                 </div>
               </div>
+              <span className="pq-pip flex-shrink-0" aria-hidden="true" />
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-6 text-center h-full pb-10">
-              <div className="w-12 h-12 rounded-full bg-gray-50 text-gray-300 flex items-center justify-center mb-3 border border-gray-100">
-                <Stethoscope className="w-6 h-6" />
+            <div className="flex flex-col items-center justify-center py-6 text-center flex-1">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 pq-faint" style={{ background: "color-mix(in srgb, #ffffff 55%, transparent)", border: "1px solid var(--pq-glass-line)" }}>
+                <Stethoscope className="w-6 h-6" aria-hidden="true" />
               </div>
-              <p className="text-gray-800 font-bold">Consultation Room Available</p>
-              <p className="text-sm text-gray-500 mt-1">Waiting for the next patient.</p>
+              <p className="font-extrabold tracking-tight">Consultation Room Available</p>
+              <p className="text-sm pq-muted mt-1">Waiting for the next patient.</p>
             </div>
           )}
-        </div>
+        </section>
       </div>
 
-      {/* 3. Statistics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="order-2 sm:order-1">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{stat.name}</p>
-                <h3 className="text-2xl font-black text-gray-800">{stat.value}</h3>
-              </div>
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 order-1 sm:order-2 ${stat.bgColor}`}>
-                <stat.icon className={`w-5 h-5 ${stat.color}`} />
-              </div>
-            </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {stats.map((stat) => (
+          <div key={stat.name} className={statClass(stat.tone)}>
+            <span className="pq-stat-label">{stat.name}</span>
+            <span className="pq-stat-value">{stat.value}</span>
           </div>
         ))}
       </div>
 
-      {/* 8. Desktop Layout: Main Content + Sidebar */}
       <div className="flex flex-col lg:flex-row gap-6">
-        
-        {/* Main Content (Left) - Queue Management */}
-        {/* Hidden on mobile, visible on desktop */}
         <div className="hidden lg:block lg:flex-[2.5] min-w-0">
-          <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden relative">
-            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-              <h2 className="text-sm font-black uppercase text-gray-700 tracking-wide flex items-center gap-2">
-                <Users className="w-4 h-4 text-blue-600" />
-                Manage Queue
-              </h2>
-            </div>
-            <div className="p-4 sm:p-6 pb-0">
-               {/* Embed ManageQueue Component natively */}
-               {/* Note: ManageQueue itself fetches activeStartedSchedule. To prevent duplicated empty states if ManageQueue shows "No Active Queue", it is completely functional and preserves existing logic. */}
-               <ManageQueue hideHeader={true} />
-            </div>
-          </div>
+          <ManageQueue hideHeader={true} />
         </div>
 
-        {/* Information Sidebar (Right) */}
-        <div className="lg:flex-1 flex flex-col gap-6 min-w-0">
-          
-
-          {/* Recent Activity */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col flex-1 min-h-[300px]">
-            <h2 className="text-sm font-black uppercase text-gray-700 tracking-wide mb-4 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-blue-600" />
+        <aside className="lg:flex-1 flex flex-col gap-6 min-w-0">
+          <section className="pq-glass p-6 flex flex-col flex-1 min-h-[300px]">
+            <h2 className="text-lg font-extrabold tracking-tight mb-4 flex items-center gap-2">
+              <Clock className="w-4 h-4" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
               Recent Activity
             </h2>
-            
-            <div className="overflow-y-auto flex-1 pr-1 space-y-4 max-h-[400px]">
+
+            <div className="overflow-y-auto flex-1 pr-1 space-y-2 max-h-[400px]">
               {recentActivities.length === 0 ? (
-                <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                  <p className="text-gray-500 font-bold text-sm">No Activity Yet</p>
-                  <p className="text-xs text-gray-400 mt-1 max-w-[180px] mx-auto">Clinic activity will appear here throughout the day.</p>
+                <div className="text-center py-10 pq-row block min-h-0">
+                  <p className="font-extrabold text-sm">No Activity Yet</p>
+                  <p className="text-xs pq-muted mt-1 max-w-[180px] mx-auto">Clinic activity will appear here throughout the day.</p>
                 </div>
               ) : (
                 recentActivities.map((act, i) => (
-                  <div key={i} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5" />
-                      {i < recentActivities.length - 1 && (
-                        <div className="w-0.5 h-full bg-gray-200 mt-1" />
-                      )}
-                    </div>
-                    <div className="pb-3 min-w-0">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{formatTime(act.time)}</p>
-                      <p className="text-sm font-medium text-gray-800 break-words">{act.text}</p>
+                  <div key={`${act.time}-${i}`} className="pq-row items-start">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-extrabold pq-faint uppercase tracking-wider mb-0.5">{formatTime(act.time)}</p>
+                      <p className="text-sm font-medium break-words">{act.text}</p>
                     </div>
                   </div>
                 ))
               )}
             </div>
-          </div>
-          
-        </div>
+          </section>
+        </aside>
       </div>
     </div>
   );
