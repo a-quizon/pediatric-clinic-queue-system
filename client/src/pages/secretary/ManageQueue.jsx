@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Users, UserCheck, Clock, CheckCircle, Activity, Hash, MapPin, Calendar, CheckCircle2, PlayCircle, AlertTriangle, Monitor } from "lucide-react";
-import { subscribeToScheduleReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder } from "../../services/reservationService";
+import { subscribeToScheduleReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder, cancelReservation } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { subscribeToQueueConfiguration } from "../../services/systemConfigurationService";
 import { computeReservationState, QUEUE_STATES, sortActiveQueue } from "../../services/queueEngine";
@@ -10,7 +10,10 @@ import { database } from "../../firebase/database";
 import toast from "react-hot-toast";
 import { getReservationChildDisplayName } from "../../utils/reservationPatients";
 import ReservationPatientNames from "../../components/common/ReservationPatientNames";
+import ConfirmationModal from "../../components/common/ConfirmationModal";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
+
+const isWalkInReservation = (res) => res?.source === "walk_in";
 
 export default function ManageQueue({ hideHeader = false }) {
   const { user } = useAuth();
@@ -26,16 +29,28 @@ export default function ManageQueue({ hideHeader = false }) {
   const [parentContactInfo, setParentContactInfo] = useState(null);
   const [loadingContactInfo, setLoadingContactInfo] = useState(false);
   const [contactIsWalkIn, setContactIsWalkIn] = useState(false);
+  const [contactReservation, setContactReservation] = useState(null);
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const closeContactModal = () => {
+    if (isCancelling) return;
+    setIsContactModalOpen(false);
+    setContactReservation(null);
+    setParentContactInfo(null);
+    setContactIsWalkIn(false);
+    setIsCancelConfirmOpen(false);
+  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isContactModalOpen) {
-        setIsContactModalOpen(false);
+      if (e.key === "Escape" && isContactModalOpen && !isCancelConfirmOpen && !isCancelling) {
+        closeContactModal();
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isContactModalOpen]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isContactModalOpen, isCancelConfirmOpen, isCancelling]);
 
   useEffect(() => {
     const timer = setInterval(() => setNowTs(Date.now()), 1000);
@@ -266,11 +281,13 @@ export default function ManageQueue({ hideHeader = false }) {
   const handleCardClick = async (res, e) => {
     // Prevent triggering if clicking a button inside the card
     if (e.target.closest('button')) return;
-    
+
     setIsContactModalOpen(true);
     setParentContactInfo(null);
+    setContactReservation(res);
+    setIsCancelConfirmOpen(false);
 
-    const isWalkIn = res.source === "walk_in" || !res.parentId;
+    const isWalkIn = isWalkInReservation(res) || !res.parentId;
     setContactIsWalkIn(isWalkIn);
 
     if (isWalkIn) {
@@ -279,7 +296,7 @@ export default function ManageQueue({ hideHeader = false }) {
     }
 
     setLoadingContactInfo(true);
-    
+
     try {
       const parentRef = ref(database, `users/${res.parentId}`);
       const snapshot = await get(parentRef);
@@ -292,6 +309,35 @@ export default function ManageQueue({ hideHeader = false }) {
       setLoadingContactInfo(false);
     }
   };
+
+  const handleCancelWalkIn = async () => {
+    if (!contactReservation?.id || isCancelling) return;
+    if (!isWalkInReservation(contactReservation)) return;
+
+    setIsCancelling(true);
+    try {
+      await cancelReservation(contactReservation.id);
+      toast.success(
+        `Walk-in reservation for ${getReservationChildDisplayName(contactReservation, "Patient")} cancelled.`
+      );
+      setIsCancelConfirmOpen(false);
+      setIsContactModalOpen(false);
+      setContactReservation(null);
+      setParentContactInfo(null);
+      setContactIsWalkIn(false);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to cancel walk-in reservation.");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const renderWalkInBadge = () => (
+    <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200 uppercase self-start shrink-0">
+      Walk-in
+    </span>
+  );
 
 
   return (
@@ -364,13 +410,16 @@ export default function ManageQueue({ hideHeader = false }) {
                     <span>#{res.queueNumber || res.queuePosition}</span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="min-w-0">
-                      <ReservationPatientNames
-                        reservation={res}
-                        fallback="Unnamed Patient"
-                        nameClassName="font-bold text-blue-950 text-base"
-                      />
-                    </h3>
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-1.5 sm:gap-2 min-w-0">
+                      <h3 className="min-w-0 flex-1">
+                        <ReservationPatientNames
+                          reservation={res}
+                          fallback="Unnamed Patient"
+                          nameClassName="font-bold text-blue-950 text-base"
+                        />
+                      </h3>
+                      {isWalkInReservation(res) && renderWalkInBadge()}
+                    </div>
                     <div className="text-xs text-blue-700 flex items-center gap-1.5 mt-1">
                       <span>Inside Doctor Room</span>
                       {res.consultationStartedAt && (
@@ -448,6 +497,7 @@ export default function ManageQueue({ hideHeader = false }) {
                               fallback="Unnamed Patient"
                             />
                           </h3>
+                          {isWalkInReservation(res) && renderWalkInBadge()}
                           {res.penaltyCount > 0 && (
                             <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-200 uppercase self-start shrink-0">
                               Late ({res.penaltyCount})
@@ -504,7 +554,7 @@ export default function ManageQueue({ hideHeader = false }) {
         <div 
           className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 sm:p-6"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setIsContactModalOpen(false);
+            if (e.target === e.currentTarget && !isCancelling) closeContactModal();
           }}
         >
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
@@ -517,7 +567,10 @@ export default function ManageQueue({ hideHeader = false }) {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
               ) : contactIsWalkIn ? (
-                <div className="py-6 text-center text-gray-500">
+                <div className="py-6 text-center text-gray-500 space-y-2">
+                  <p className="text-base font-medium text-gray-900">
+                    {getReservationChildDisplayName(contactReservation, "Walk-in patient")}
+                  </p>
                   <p>Walk-in patient (no parent account).</p>
                 </div>
               ) : parentContactInfo ? (
@@ -549,10 +602,22 @@ export default function ManageQueue({ hideHeader = false }) {
                 </div>
               )}
             </div>
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row justify-end gap-2">
+              {isWalkInReservation(contactReservation) && (
+                <button
+                  type="button"
+                  onClick={() => setIsCancelConfirmOpen(true)}
+                  disabled={isCancelling}
+                  className="px-6 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-colors"
+                >
+                  Cancel Reservation
+                </button>
+              )}
               <button 
-                onClick={() => setIsContactModalOpen(false)}
-                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl transition-colors"
+                type="button"
+                onClick={closeContactModal}
+                disabled={isCancelling}
+                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-800 font-bold rounded-xl transition-colors"
               >
                 Close
               </button>
@@ -560,6 +625,20 @@ export default function ManageQueue({ hideHeader = false }) {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={isCancelConfirmOpen}
+        title="Cancel Walk-in Reservation?"
+        message={`Are you sure you want to cancel this walk-in reservation for ${getReservationChildDisplayName(contactReservation, "this patient")}? The slot will be released and the queue will update.`}
+        confirmText="Cancel Reservation"
+        cancelText="Keep Reservation"
+        isDestructive
+        isLoading={isCancelling}
+        onConfirm={handleCancelWalkIn}
+        onClose={() => {
+          if (!isCancelling) setIsCancelConfirmOpen(false);
+        }}
+      />
     </div>
   );
 }
