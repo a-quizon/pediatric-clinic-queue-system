@@ -320,7 +320,7 @@ export default function SystemSettings() {
                     Near Turn — Patients Ahead
                   </label>
                   <p className="pq-muted text-sm">
-                    Send the near-turn SMS when exactly this many patients remain ahead ({MIN_NEARING_TURN_AHEAD}–{MAX_NEARING_TURN_AHEAD}).
+                    Send the near-turn SMS when this many patients or fewer remain ahead ({MIN_NEARING_TURN_AHEAD}–{MAX_NEARING_TURN_AHEAD}). Each reservation receives this SMS only once.
                   </p>
                 </div>
                 <div className="w-full sm:w-32 shrink-0">

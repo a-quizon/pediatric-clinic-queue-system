@@ -276,6 +276,20 @@ async function claimSmsDispatch(parentId, notificationId) {
 }
 
 /**
+ * Claim Near Turn SMS once per reservation ticket. Aborts if already set.
+ * Returns true only when this caller won the write.
+ */
+async function claimNearTurnSms(reservationId) {
+  if (!reservationId) return false;
+  const flagRef = getDb().ref(`reservations/${reservationId}/nearTurnSmsSent`);
+  const result = await flagRef.transaction((current) => {
+    if (current) return;
+    return true;
+  });
+  return Boolean(result.committed && result.snapshot.val() === true);
+}
+
+/**
  * Send SMS for an eligible notification event. Idempotent via smsDispatchedAt.
  */
 async function deliverSmsForNotification(eventId, context = {}, notificationId) {
@@ -383,4 +397,5 @@ module.exports = {
   getSmsConfiguration,
   buildNearingTurnPushMessage,
   computeAheadOfYouForSms: computeAheadOfYou,
+  claimNearTurnSms,
 };

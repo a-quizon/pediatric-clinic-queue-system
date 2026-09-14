@@ -6,6 +6,7 @@ const {
   computeAheadOfYouForSms,
   getSmsConfiguration,
   buildNearingTurnPushMessage,
+  claimNearTurnSms,
   DEFAULT_NEARING_TURN_AHEAD,
 } = require("./smsNotificationService");
 
@@ -454,18 +455,26 @@ async function evaluatePositionEvents(schedule, reservations) {
       });
     }
 
-    if (aheadOfYou === nearingTurnAheadCount) {
-      await deliverNotification("NEARING_TURN", {
-        parentId: reservation.parentId,
-        reservationId: reservation.id,
-        scheduleId: schedule.id,
-        branchId: reservation.branchId || schedule.branch || null,
-        queueNumber: reservation.queueNumber ?? reservation.originalQueueNumber,
-        clinicDate: schedule.clinicDate,
-        nearingTurnAheadCount,
-        customMessage: buildNearingTurnPushMessage(nearingTurnAheadCount),
-        dedupeKey: `nearing_turn_${reservation.id}`,
-      });
+    // First time at or below this branch's patients-ahead threshold; reservation flag locks send-once
+    if (
+      Number.isFinite(aheadOfYou) &&
+      aheadOfYou <= nearingTurnAheadCount &&
+      !reservation.nearTurnSmsSent
+    ) {
+      const claimed = await claimNearTurnSms(reservation.id);
+      if (claimed) {
+        await deliverNotification("NEARING_TURN", {
+          parentId: reservation.parentId,
+          reservationId: reservation.id,
+          scheduleId: schedule.id,
+          branchId: reservation.branchId || schedule.branch || null,
+          queueNumber: reservation.queueNumber ?? reservation.originalQueueNumber,
+          clinicDate: schedule.clinicDate,
+          nearingTurnAheadCount,
+          customMessage: buildNearingTurnPushMessage(nearingTurnAheadCount),
+          dedupeKey: `nearing_turn_${reservation.id}`,
+        });
+      }
     }
   }
 }

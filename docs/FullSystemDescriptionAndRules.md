@@ -432,12 +432,13 @@ Only **three** clinic SMS event types exist:
 |-------|----------------------|-----------|--------------|
 | **SLOT_RESERVED** (Confirmed Reservation) | Reservation `patientInfoCompleted` transitions to **true** (parent **Save Information**). **Not** on bare `createReservation`. Walk-ins set this true at create but have no `parentId` → **no SMS**. | That parent’s phone | `templateSlotReserved` |
 | **QUEUE_STARTED** | Schedule `queueStatus` first becomes **`active`** | Each parent with an **active** reservation on that schedule | `templateQueueStarted` |
-| **NEARING_TURN** | After queue recalculation, reservation’s `aheadOfYou` **exactly equals** `nearingTurnAheadCount` (default **3**) | That parent | `templateNearingTurn` |
+| **NEARING_TURN** | After queue recalculation, first time reservation’s `aheadOfYou` **is at or below** `nearingTurnAheadCount` (default **3**). Locked by `reservations/{id}/nearTurnSmsSent`. | That parent | `templateNearingTurn` |
 
 **Deduplication:**
 
 - Notification records use stable `dedupeKey`s (e.g. `nearing_turn_${reservationId}`).
 - SMS send is marked with `smsDispatchedAt` (same pattern as `pushDispatchedAt`) so pause/resume cannot re-spam.
+- `NEARING_TURN` is also locked on the reservation itself (`nearTurnSmsSent: true`, claimed with an RTDB transaction) so lingering at or below the threshold cannot re-send.
 
 **Placeholders allowed in Admin templates:** `{count}`, `{queueNumber}`, `{branch}`, `{date}`, `{timeRange}`, `{doctor}`  
 **Max template length:** 320 characters.
@@ -520,7 +521,7 @@ Staff (secretary/doctor/admin): **local toasts only**; no Notification Center; c
 | `SLOT_RESERVED` | Patient info saved (`patientInfoCompleted`) |
 | `QUEUE_STARTED` / `QUEUE_PAUSED` / `QUEUE_RESUMED` / `QUEUE_CLOSED` | Queue session transitions |
 | `CLINIC_SESSION_ENDED` | Schedule/session completed |
-| `NEARING_TURN` | `aheadOfYou ===` configured count |
+| `NEARING_TURN` | First time `aheadOfYou <=` configured count; `nearTurnSmsSent` on the reservation |
 | `ALMOST_NEXT` / `YOU_ARE_NEXT` | Queue engine positions #2 / #1 in active pipeline |
 | `CHECK_IN_REQUESTED` | Secretary requests check-in |
 | `QR_VERIFIED` | Check-in validated |
@@ -539,7 +540,7 @@ Priority when delivering: **role restriction** → **dedupe** → **DB write** �
 | `users/{uid}` | Profile, role, status, branch, children, push subscriptions, prefs; soft-delete flags |
 | `branchConfigurations/{branchId}` | Name, address, weekly open hours |
 | `schedules/{scheduleId}` | Clinic day capacity + queue session |
-| `reservations/{reservationId}` | Tickets / patients / queue fields / penalties |
+| `reservations/{reservationId}` | Tickets / patients / queue fields / penalties / `nearTurnSmsSent` |
 | `notifications/{parentId}/{id}` | Parent Notification Center |
 | `auditLogs/{logId}` | Immutable staff/admin actions |
 | `systemConfiguration/{branchId}` | Penalty Move-Back, Late Limit, SMS templates (per branch) |

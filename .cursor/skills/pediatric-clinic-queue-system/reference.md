@@ -62,6 +62,7 @@ Default branches: **Angeles**, **Magalang**.
   reservationCode,                 // 6-char alphanumeric
   queueNumber, originalQueueNumber, queuePosition,
   queueOrder, aheadOfYou, queueState, sortTimestamp,
+  nearTurnSmsSent,                 // true after Near Turn SMS claimed for this ticket; unset on new reservations
   status: "reserved" | "waiting" | "checked_in" | "with_doctor" |
           "in_consultation" | "consultation_completed" | "cancelled" |
           "forfeited" | "expired" | ...,
@@ -91,7 +92,7 @@ Default branches: **Angeles**, **Magalang**.
   penaltyMoveBack: 2,              // 0–10; 0 = immediate forfeit on penalty
   lateLimit: 3,                    // 1–10; used by NEW schedules (legacy schedules keep their own lateLimit)
   sms: {
-    nearingTurnAheadCount: 3,      // 1–10; exact patients-ahead that fires NEARING_TURN SMS/push/toast
+    nearingTurnAheadCount: 3,      // 1–10; first time aheadOfYou <= this count fires NEARING_TURN SMS (once per reservation)
     templateSlotReserved: "...",   // placeholders: {date} {timeRange} {queueNumber} {doctor} {branch}
     templateQueueStarted: "...",   // placeholders: {branch} {date}
     templateNearingTurn: "...",    // placeholders: {count} {queueNumber} {branch}
@@ -136,7 +137,7 @@ Listeners: `server/services/pushListeners.js` watches `reservations` and `schedu
 
 ### SMS (textbee.dev)
 - Utility: `server/services/smsService.js` (mirrored in `client/functions/smsService.js`)
-- Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`), `QUEUE_STARTED`, `NEARING_TURN` (patients-ahead from `systemConfiguration/{branchId}/sms`, default 3; once per reservation via `dedupeKey` + `smsDispatchedAt`; Secretary-editable per branch). TextBee credentials remain env-global.
+- Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`), `QUEUE_STARTED`, `NEARING_TURN` (patients-ahead from `systemConfiguration/{branchId}/sms`, default 3; SMS once per reservation via `reservations/{id}/nearTurnSmsSent` transaction + `dedupeKey` / `smsDispatchedAt`; Secretary-editable per branch). TextBee credentials remain env-global.
 - OTP store: `smsOtps/{phoneKey}` — bcrypt-hashed code, 5-minute `expiresAt`; client R/W denied in rules
 
 ## Cloud Functions (`client/functions/index.js`)
