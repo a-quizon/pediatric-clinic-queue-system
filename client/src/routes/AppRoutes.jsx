@@ -34,6 +34,7 @@ import SecretaryProfile from "../pages/secretary/Profile";
 import DoctorLayout from "../components/doctor/Layout";
 import DoctorHome from "../pages/doctor/Home";
 import DoctorQueue from "../pages/doctor/Queue";
+import DoctorSchedules from "../pages/doctor/Schedules";
 import DoctorReports from "../pages/doctor/Reports";
 import DoctorProfile from "../pages/doctor/Profile";
 
@@ -94,6 +95,7 @@ export default function AppRoutes() {
         <Route path="/doctor" element={<ProtectedRoute> <RoleRoute allowedRole="doctor"><DoctorLayout /></RoleRoute> </ProtectedRoute>}>
           <Route index element={<DoctorHome />} />
           <Route path="queue" element={<DoctorQueue />} />
+          <Route path="schedules" element={<DoctorSchedules />} />
           <Route path="reports" element={<DoctorReports />} />
 
           <Route path="profile" element={<DoctorProfile />} />

@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, Users, User, BarChart3, ArrowLeft } from "lucide-react";
+import { Home, Users, User, BarChart3, ArrowLeft, CalendarDays } from "lucide-react";
 import { PqBrand } from "../parent/pqUi";
 
 export default function Layout() {
@@ -13,6 +13,9 @@ export default function Layout() {
     }
     if (path.startsWith("/doctor/queue")) {
       return { title: "Queue", showBack: false };
+    }
+    if (path.startsWith("/doctor/schedules")) {
+      return { title: "Schedules", showBack: false };
     }
     if (path.startsWith("/doctor/reports")) {
       return { title: "Reports & Analytics", showBack: true, backPath: "/doctor" };
@@ -31,6 +34,7 @@ export default function Layout() {
   const navItems = [
     { name: "Dashboard", mobileName: "Home", path: "/doctor", icon: Home },
     { name: "Queue", path: "/doctor/queue", icon: Users },
+    { name: "Schedules", path: "/doctor/schedules", icon: CalendarDays },
     { name: "Reports & Analytics", mobileName: "Reports", path: "/doctor/reports", icon: BarChart3, desktopOnly: true },
     { name: "Profile", path: "/doctor/profile", icon: User },
   ];

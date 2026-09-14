@@ -19,7 +19,7 @@ Primary goals:
 
 - Reduce chaotic walk-up waiting rooms by letting parents **reserve slots remotely** and **monitor turn position** without camping at the clinic.
 - Enforce **strict capacity**, **one consultation at a time**, and **branch-isolated** staff operations.
-- Give secretaries tools to **publish schedules**, **check in** arrivals (QR / code), **penalize** no-shows, and **gate** who enters the doctor’s room.
+- Give secretaries and doctors tools to **publish schedules**, and give secretaries tools to **check in** arrivals (QR / code), **penalize** no-shows, and **gate** who enters the doctor’s room.
 - Keep an **immutable history** of reservations and audit events for reporting and accountability.
 
 Default physical branches in the product: **Angeles** and **Magalang**.
@@ -30,7 +30,7 @@ Default physical branches in the product: **Angeles** and **Magalang**.
 |------|-----|-------------------------|
 | **Parent / Guardian** | Self-registering end users | Reserve slots, enter child/patient info, monitor queue, receive SMS/push/in-app alerts, present QR ticket at clinic, manage child profiles and notification prefs |
 | **Secretary** | Front-desk staff, **one assigned branch** | Create/publish schedules, start the queue, validate check-in, manage queue (send to doctor / penalize / remind), create walk-ins, view full-screen queue monitor |
-| **Doctor** | Clinical provider (system enforces **one active doctor** account) | Live queue view, queue session control (pause / resume / close / complete schedule), complete consultations with optional notes, session reports |
+| **Doctor** | Clinical provider (system enforces **one active doctor** account) | Create/publish schedules (any branch), start the queue, live queue view, queue session control (pause / resume / close / complete schedule), complete consultations with optional notes, session reports |
 | **Admin** | Back-office operator | Staff & parent user management, branch configuration, system settings (penalty move-back + SMS templates/threshold), audit activity / reports |
 
 Parents are the only role that receives **persistent Notification Center records**, **Web Push**, and **clinic SMS**. Staff get **local UI toasts** only when they perform actions.
@@ -147,7 +147,7 @@ State model: `AuthContext` + Firebase `onValue` listeners. No Redux / Zustand / 
 
 #### Workflow A — Create and open a clinic day
 
-1. Secretary creates a **draft** schedule for **their assigned branch** (date, opening/closing times within branch hours, `slotCapacity`, `lateLimit` default 3).
+1. Secretary or Doctor creates a **draft** schedule (Secretary: **their assigned branch**; Doctor: any branch) (date, opening/closing times within branch hours, `slotCapacity`, `lateLimit` default 3).
 2. Publishes schedule → `status: published`, `queueStatus: not_started`; parents can book; **SCHEDULE_AVAILABLE** notifications fire.
 3. When floor opens, secretary **starts queue** → `queueStatus: active`; **QUEUE_STARTED** push/SMS to parents with active reservations on that schedule.
 
@@ -181,6 +181,7 @@ State model: `AuthContext` + Firebase `onValue` listeners. No Redux / Zustand / 
 |------|------------|
 | `/doctor` | Home / session overview |
 | `/doctor/queue` | Live queue + **Queue Control** (pause / resume / close / complete schedule) |
+| `/doctor/schedules` | Draft, edit (draft), publish, **start queue** (same shared UI as Secretary; any branch) |
 | `/doctor/reports` | Completed-session reports |
 | `/doctor/profile` | Profile |
 
@@ -191,7 +192,7 @@ State model: `AuthContext` + Firebase `onValue` listeners. No Redux / Zustand / 
 3. **Complete Consultation** → `consultation_completed`; slot released from active capacity; consultation lock lifts; queue recalculates; parent gets **CONSULTATION_COMPLETED** notification.
 4. As needed, doctor **pauses** / **resumes** / **closes** queue or **completes** the entire schedule (session end notifications).
 
-Secretary **starts** the queue; doctor **controls** the live session after it is active.
+Secretary or Doctor **starts** the queue; doctor **controls** the live session after it is active.
 
 ---
 
@@ -222,7 +223,7 @@ Secretary **starts** the queue; doctor **controls** the live session after it is
 
 ### 3.1 Schedules
 
-**Who creates:** Secretary only, locked to `assignedBranch`.
+**Who creates:** Secretary (locked to `assignedBranch`) or Doctor (any branch). Same schedule record shape and publish flow regardless of creator.
 
 | Field | Meaning |
 |-------|---------|
@@ -236,7 +237,7 @@ Secretary **starts** the queue; doctor **controls** the live session after it is
 
 **Draft vs published:**
 
-- Draft: secretary can edit; parents cannot book.
+- Draft: secretary or doctor can edit; parents cannot book.
 - Publish: validates times; sets `queueStatus: not_started`; parents see it.
 - After publish, **branch** and **clinicDate** cannot be changed.
 - Completing the schedule ends the clinic day; remaining non-terminal reservations are closed out as completed (session end).
@@ -587,9 +588,9 @@ App-level isolation still matters: secretaries filter by `assignedBranch`; role 
 ## 9. END-TO-END CLINIC DAY (HAPPY PATH)
 
 1. Admin has branches + one doctor + branch secretaries configured; SMS/queue settings saved as needed.
-2. Secretary drafts & **publishes** schedule for their branch → parents notified schedule available.
+2. Secretary or Doctor drafts & **publishes** a schedule → parents notified schedule available.
 3. Parents **reserve** → receive ticket numbers → **Save Information** → confirmation SMS/push.
-4. Secretary **starts queue** → QUEUE_STARTED SMS/push.
+4. Secretary or Doctor **starts queue** → QUEUE_STARTED SMS/push.
 5. As line advances, parents hit **NEARING_TURN** (SMS once), then Almost Next / You’re Next (push/in-app).
 6. Parent arrives → secretary **checks in** via QR/code.
 7. Secretary **sends** checked-in #1 to doctor (if room free).

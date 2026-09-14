@@ -23,7 +23,7 @@ The system uses strict `NOTIFICATION_EVENTS` as the single source of truth for t
 
 | Event ID | Purpose | Triggered By | Recipient |
 |----------|---------|--------------|-----------|
-| **SCHEDULE_AVAILABLE** | Informs users of new booking slots. | Secretary publishes schedule. | Parents |
+| **SCHEDULE_AVAILABLE** | Informs users of new booking slots. | Secretary or Doctor publishes schedule. | Parents |
 | **SLOT_RESERVED** | Confirms a finalized reservation (in-app / push / SMS with reservation details). | Parent clicks Save Information (`patientInfoCompleted`). | Specific Parent |
 | **QUEUE_STARTED** | Clinic floor is open; SMS announces queue start (branch + date). | Secretary/doctor starts queue. | Parents with active reservations on that schedule |
 | **QUEUE_PAUSED** | Clinic floor is temporarily halted. | Doctor pauses queue. | Parents |

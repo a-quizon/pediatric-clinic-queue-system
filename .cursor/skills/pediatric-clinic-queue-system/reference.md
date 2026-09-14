@@ -107,7 +107,7 @@ Defaults apply when the node is missing so existing clinics keep prior behavior 
 | `users` | Admin all; user own | Own profile (active status) |
 | `notifications` | Parent own | Parent own |
 | `branchConfigurations` | All auth | Admin |
-| `schedules` | All auth | Secretary (create/publish/start); doctor (pause/resume/close) |
+| `schedules` | All auth | Secretary or doctor (create/publish/start and queue control; active) |
 | `reservations` | All auth | Parent, doctor, secretary (active) |
 | `auditLogs` | Admin | Admin, doctor, secretary |
 | `systemConfiguration/queue` | Admin, doctor, secretary | Admin |

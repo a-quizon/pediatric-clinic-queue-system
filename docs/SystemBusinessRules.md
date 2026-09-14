@@ -13,7 +13,7 @@ The Pediatric Clinic Queue Management System is designed to digitize and orchest
 
 * **Parent / Guardian**: The end-user who consumes clinic services. They browse available schedules, reserve slots, monitor their dynamic queue position remotely, and bring the patient to the clinic for QR validation.
 * **Secretary**: The frontline branch manager. They create and publish reservation schedules for their assigned branch, start the clinic queue, physically verify patient arrivals (Check In), enforce attendance policies (Penalize), and control the flow of patients into the doctor's room (Send to Doctor).
-* **Doctor**: The primary medical provider. They control the live consultation room (pause/resume/close queue via Queue Control), add optional consultation notes, and finalize medical visits (Complete Consultation).
+* **Doctor**: The primary medical provider. They can create and publish reservation schedules (any branch), start the clinic queue, control the live consultation room (pause/resume/close queue via Queue Control), add optional consultation notes, and finalize medical visits (Complete Consultation).
 * **Admin**: The system operator. They manage the internal business structure by creating staff accounts (Secretaries) and defining the clinic's physical locations (Branches). 
 
 ---
@@ -31,7 +31,7 @@ The Pediatric Clinic Queue Management System is designed to digitize and orchest
 
 The complete business workflow follows this sequence:
 
-1. **Schedule Published** → The Secretary opens a clinic day for their assigned branch (and later starts the queue).
+1. **Schedule Published** → The Secretary (assigned branch) or Doctor (any branch) opens a clinic day (and later starts the queue).
 2. **Parent Reserves** → Parent books an available slot, securing a permanent Ticket Number.
 3. **Check-In Requested** → (Optional) Secretary pings the parent to approach the desk.
 4. **Secretary Checks In** → Parent arrives at the physical clinic and the Secretary scans their QR code (or enters the 6-character code).
@@ -86,7 +86,7 @@ Slot availability strictly dictates clinic capacity.
 Branches represent the physical infrastructure of the business.
 * **Configuration**: Admins define Branch Names, Clinic Addresses, and operational metadata.
 * **Secretary Assignment**: Secretaries are strictly bound to a single Branch Configuration, ensuring they only see data relevant to their physical location.
-* **Schedule Creation**: Secretaries create clinic schedules locked to their assigned Branch, ensuring patients know exactly where to go and separating queue pipelines.
+* **Schedule Creation**: Secretaries create clinic schedules locked to their assigned Branch. Doctors may create schedules for any branch. Both roles use the same schedule fields and publish flow.
 
 ---
 
@@ -126,7 +126,7 @@ When conflicting business operations arise, the system obeys this hierarchy:
 ## 13. System-wide Restrictions
 * **One Active Consultation**: Only one patient may be `with_doctor` at a time.
 * **Secretary Branch Isolation**: A Secretary can only view and manage the queue for their assigned branch.
-* **Secretary Schedule Ownership**: Only the Secretary role is authorized to create, edit, publish, and start clinic schedules for their assigned branch. The Doctor retains live Queue Control (pause/resume/close) and Complete Consultation.
+* **Schedule Ownership**: Secretary and Doctor may create, edit, publish, and start clinic schedules. Secretaries are locked to their assigned branch; Doctors may operate on any branch. The Doctor also retains live Queue Control (pause/resume/close) and Complete Consultation.
 * **Admin Exclusivity**: Only the Admin can create or modify staff accounts.
 * **Parent Immutability**: Parents cannot modify or cancel reservations once they are physically `checked_in`.
 

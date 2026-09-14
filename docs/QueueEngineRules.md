@@ -79,7 +79,7 @@ The `recalculateEntireQueue` function executes whenever a mutation occurs in the
 
 ## 8. Secretary Rules
 The Secretary manages schedules and the flow of the physical clinic:
-* **Schedule Lifecycle**: Creates drafts, publishes schedules for their assigned branch, and starts the queue (`queueStatus: active`).
+* **Schedule Lifecycle**: Creates drafts, publishes schedules for their assigned branch, and starts the queue (`queueStatus: active`). The Doctor role has the same create/publish/start actions across all branches.
 * **Check In**: Verifies arrivals via QR scan or 6-character code.
 * **Penalize**: Applies penalties to absent patients who are #1 in the unchecked waiting queue.
 * **Send to Doctor**: Promotes a `checked_in` patient to `with_doctor` **ONLY IF** there are zero active consultations.
@@ -89,6 +89,7 @@ The Secretary manages schedules and the flow of the physical clinic:
 
 ## 9. Doctor Rules
 The Doctor controls the consultation room and live queue session controls:
+* **Schedule Lifecycle**: Creates drafts, publishes schedules for any branch, and starts the queue (`queueStatus: active`). Same validation and record shape as Secretary.
 * **Queue Control**: Pauses, resumes, or closes the live queue during an active clinic session.
 * **Consultation**: Receives the patient (status shifts to `in_consultation` / `with_doctor`).
 * **Complete Consultation**: Ends the session, shifting the patient to `consultation_completed`. This crucially frees the Consultation Room, unlocking the Secretary's ability to send the next patient.

@@ -16,7 +16,7 @@ import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 
 /**
  * Shared schedule lifecycle UI (create / publish / start queue).
- * Used by the Secretary role; filters to assigned branch when the user has one.
+ * Used by Secretary and Doctor. Filters to assigned branch when the user is a secretary.
  */
 export default function ScheduleManagement({
   queuePath = "/secretary/queue",
@@ -383,8 +383,9 @@ export default function ScheduleManagement({
         confirmText={confirmModal.confirmText}
         cancelText="Cancel"
         onConfirm={executeConfirmAction}
-        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
-        loading={isProcessing}
+        onClose={() => !isProcessing && setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        isLoading={isProcessing}
+        isDestructive
       />
 
       <ScheduleConfirmModal

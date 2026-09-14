@@ -102,7 +102,7 @@ Slots are evaluated dynamically at runtime by counting active reservations.
 ---
 
 ## 11. Secretary Rules
-* **Schedule Creation**: Defines the framework (date, time, slot capacity) for their assigned branch; creates drafts, publishes schedules, and starts the queue.
+* **Schedule Creation**: Defines the framework (date, time, slot capacity) for their assigned branch; creates drafts, publishes schedules, and starts the queue. The Doctor role has the same create/publish/start actions across all branches.
 * **Monitor Floor**: Observes the physical clinic flow.
 * **Check In**: Validates QR codes or the 6-character reservation code (camera auto-starts on the Validation screen; manual entry auto-submits at full length).
 * **Walk-in Patient**: From Profile, the secretary may create a reservation for one or more children physically present at the clinic without a parent account. The record is stored with `source: "walk_in"`, `createdBy` set to the secretary’s uid, and **no** `parentId` / `parentEmail` (the one-active-reservation-per-parent rule does not apply). Patient data uses the same `children[]` + shared `concern` model as parent bookings; multiple children still consume **one** slot and one queue ticket. On submit the reservation is created already `checked_in` (QR/code validation is skipped) and injected into the Queue Engine like any other reservation, so it appears on Manage Queue, the doctor’s live queue, and doctor Reports once the schedule completes.
@@ -112,6 +112,7 @@ Slots are evaluated dynamically at runtime by counting active reservations.
 ---
 
 ## 12. Doctor Rules
+* **Schedule Creation**: Creates drafts, publishes schedules for any branch, and starts the queue (`queueStatus: active`). Same schedule fields, validation, and publish flow as Secretary.
 * **Queue Control**: Pauses, resumes, or closes the live queue during a clinic session.
 * **Consultation**: Receives the patient.
 * **Completion**: Ends the reservation lifecycle by completing the consultation and providing optional notes.

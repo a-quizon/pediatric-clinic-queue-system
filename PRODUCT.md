@@ -13,7 +13,7 @@ web
 **Secondary (still first-class Operate surfaces):** Clinic staff. When design trade-offs arise, parent clarity wins; staff UI must remain clear, intuitive, and polished—not an afterthought.
 
 - **Secretary:** Front-desk operator bound to one assigned branch; publishes schedules, starts the queue, checks in arrivals (QR / code), applies penalties, gates entry to the doctor, and may run a full-screen queue monitor.
-- **Doctor:** Clinical provider (system enforces one active doctor account); controls the live queue session and completes consultations.
+- **Doctor:** Clinical provider (system enforces one active doctor account); can create/publish schedules for any branch, start the queue, control the live queue session, and complete consultations.
 - **Admin:** Back-office operator for staff/parent accounts, branches, system settings, and reports.
 
 ## Product Purpose
@@ -36,7 +36,7 @@ Used across physical pediatric clinic branches (product defaults include Angeles
 
 - Parent self-registration (SMS OTP phone verify → email/password → email verification → first child profile onboarding), then reserve, monitor, cancel (pre–check-in), and receive persistent Notification Center + Web Push + clinic SMS.
 - Secretary schedule publish / queue start, check-in, penalties/forfeit, send-to-doctor, walk-ins, branch-scoped operations.
-- Doctor queue session control (pause / resume / close) and consultation completion with optional notes.
+- Doctor schedule create/publish / queue start (any branch), queue session control (pause / resume / close), and consultation completion with optional notes.
 - Admin staff/branch/user management and system configuration (e.g. penalty move-back, SMS templates / near-turn threshold).
 - Capacitor Android wrapper around the same web app (not a separate native design language).
 

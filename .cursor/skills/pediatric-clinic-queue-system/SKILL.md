@@ -10,7 +10,7 @@ description: >-
 
 # Pediatric Clinic Queue System
 
-Capstone app that digitizes pediatric clinic patient flow across branches. Parents reserve slots and monitor queue position; secretaries create/publish schedules, start the queue, check in patients, and gate consultations; doctors control the live queue session and complete consultations; admins manage staff and branches.
+Capstone app that digitizes pediatric clinic patient flow across branches. Parents reserve slots and monitor queue position; secretaries and doctors create/publish schedules; secretaries start the floor (check-in, penalties, send-to-doctor); doctors also start queues, control the live session, and complete consultations; admins manage staff and branches.
 
 ## Before You Code
 
