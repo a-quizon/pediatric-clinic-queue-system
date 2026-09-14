@@ -491,7 +491,7 @@ export default function Home() {
 
       {hideConfirmModal.isOpen && (
         <div className="pq-modal-scrim z-[100]">
-          <div className="pq-glass-modal w-full max-w-sm overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="hide-session-title">
+          <div className="pq-modal w-full max-w-sm overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="hide-session-title">
             <div className="p-6 text-center">
               <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue)" }}>
                 <CheckCircle2 className="w-6 h-6" />

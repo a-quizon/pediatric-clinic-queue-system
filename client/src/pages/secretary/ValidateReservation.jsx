@@ -33,7 +33,7 @@ function ValidateResultModal({
 
   return (
     <div className="pq-modal-scrim z-50">
-      <div className="pq-glass-modal w-full max-w-sm overflow-hidden text-center p-8" role="dialog" aria-modal="true" aria-labelledby="validate-result-title">
+      <div className="pq-modal w-full max-w-sm overflow-hidden text-center p-8" role="dialog" aria-modal="true" aria-labelledby="validate-result-title">
         <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={iconStyle}>
           <Icon className="w-8 h-8" aria-hidden="true" />
         </div>
@@ -441,7 +441,7 @@ export default function ValidateReservation() {
 
       {showSuccessModal && validatedDetails && (
         <div className="pq-modal-scrim z-50">
-          <div className="pq-glass-modal w-full max-w-sm overflow-hidden text-center p-8" role="dialog" aria-modal="true" aria-labelledby="checkin-success-title">
+          <div className="pq-modal w-full max-w-sm overflow-hidden text-center p-8" role="dialog" aria-modal="true" aria-labelledby="checkin-success-title">
             <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "var(--pq-live-wash)", color: "var(--pq-live)" }}>
               <CheckCircle className="w-8 h-8" aria-hidden="true" />
             </div>

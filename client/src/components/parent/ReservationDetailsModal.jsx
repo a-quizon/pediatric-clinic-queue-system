@@ -81,7 +81,7 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
 
   return (
     <div className="pq-modal-scrim">
-      <div className="pq-glass-modal w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="pq-modal w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex justify-between items-center px-6 py-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <div>
             <h2 className="text-lg font-bold">Reservation Details</h2>

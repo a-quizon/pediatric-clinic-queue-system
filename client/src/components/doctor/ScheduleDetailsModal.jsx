@@ -51,7 +51,7 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
 
   return (
     <div className="pq-modal-scrim z-50">
-      <div className="pq-glass-modal w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="schedule-details-title">
+      <div className="pq-modal w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="schedule-details-title">
         
         <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <h2 id="schedule-details-title" className="text-lg font-extrabold tracking-tight flex items-center">

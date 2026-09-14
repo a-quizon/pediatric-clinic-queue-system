@@ -551,7 +551,7 @@ export default function ManageQueue({ hideHeader = false }) {
           }}
         >
           <div
-            className="pq-glass-modal w-full max-w-sm overflow-hidden flex flex-col"
+            className="pq-modal w-full max-w-sm overflow-hidden flex flex-col"
             role="dialog"
             aria-modal="true"
             aria-labelledby="contact-modal-title"

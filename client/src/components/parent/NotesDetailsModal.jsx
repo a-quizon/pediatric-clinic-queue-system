@@ -7,7 +7,7 @@ export default function NotesDetailsModal({ isOpen, onClose, reservation, schedu
 
   return (
     <div className="pq-modal-scrim">
-      <div className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <h2 className="text-lg font-bold flex items-center">
             <Activity className="w-5 h-5 mr-2" style={{ color: "var(--pq-mark-blue)" }} />

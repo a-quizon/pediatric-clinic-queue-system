@@ -438,7 +438,7 @@ export default function QRTicket() {
             <X className="w-6 h-6" />
           </button>
 
-          <div className="pq-glass-modal w-full max-w-sm p-6 sm:p-8 text-center flex flex-col items-center justify-center">
+          <div className="pq-modal w-full max-w-sm p-6 sm:p-8 text-center flex flex-col items-center justify-center">
             <div className="w-full pb-4 mb-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 className="text-3xl font-extrabold" style={{ color: "var(--pq-mark-blue-deep)" }}>
                 Queue #{permanentQueueNumber || "-"}
@@ -489,7 +489,7 @@ export default function QRTicket() {
       {/* Complete Patient Info Modal */}
       {isPatientInfoModalOpen && (
         <div className="pq-modal-scrim">
-          <div className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center px-6 py-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <div>
                 <h2 className="text-lg font-bold">Complete Information</h2>

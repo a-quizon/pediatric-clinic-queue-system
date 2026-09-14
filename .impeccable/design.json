@@ -172,10 +172,10 @@
         "canonical": "color-mix(in srgb, #ffffff 86%, #d4eef2 14%)",
         "tonalRamp": ["#7a969a", "#9ab4b8", "#bcd0d4", "#d8e6e8", "#eaf3f4", "#f2f8f9", "#f8fbfc", "#ffffff"]
       },
-      "glass-modal": {
+      "modal": {
         "role": "neutral",
-        "displayName": "Glass Modal",
-        "canonical": "color-mix(in srgb, #ffffff 86%, transparent)",
+        "displayName": "Modal",
+        "canonical": "#ffffff",
         "tonalRamp": ["#9aa2a4", "#b4bbbc", "#cdd2d3", "#e2e5e6", "#f0f2f2", "#f6f7f7", "#fbfbfb", "#ffffff"]
       },
       "glass-fallback": {
@@ -208,6 +208,11 @@
         "name": "nav-frost",
         "value": "0 8px 24px -16px rgba(22, 52, 74, 0.35), 0 1px 0 rgba(255, 255, 255, 0.9) inset",
         "purpose": "Sticky header, sidebar, and phone footer."
+      },
+      {
+        "name": "modal-lift",
+        "value": "0 18px 40px -12px rgba(22, 52, 74, 0.32), 0 6px 16px -8px rgba(22, 52, 74, 0.18)",
+        "purpose": "Solid modal pane elevation. Offset umbra, no inset frost highlight."
       },
       {
         "name": "mark-glow",

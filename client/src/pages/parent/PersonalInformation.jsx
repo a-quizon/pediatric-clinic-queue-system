@@ -511,7 +511,7 @@ export default function PersonalInformation() {
           }}
         >
           <div
-            className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col"
+            className="pq-modal w-full max-w-md overflow-hidden flex flex-col"
             role="dialog"
             aria-modal="true"
           >

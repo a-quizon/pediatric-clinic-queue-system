@@ -29,8 +29,10 @@
   --pq-blur: 18px;
   --pq-radius: 1.35rem;
   --pq-radius-sm: 0.95rem;
+  --pq-radius-modal: 1.5rem;
   --pq-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --pq-shadow: 0 12px 28px -14px rgba(22, 52, 74, 0.28), 0 1px 0 rgba(255, 255, 255, 0.85) inset;
+  --pq-modal-shadow: 0 18px 40px -12px rgba(22, 52, 74, 0.32), 0 6px 16px -8px rgba(22, 52, 74, 0.18);
   --pq-font: "Lexend", "Segoe UI", sans-serif;
   font-family: var(--pq-font);
   color: var(--pq-ink);
@@ -103,14 +105,20 @@
 }
 
 .pq-glass,
-.pq-glass-strong,
-.pq-glass-modal {
+.pq-glass-strong {
   background: var(--pq-glass);
   backdrop-filter: blur(var(--pq-blur)) saturate(1.35);
   -webkit-backdrop-filter: blur(var(--pq-blur)) saturate(1.35);
   border: 1px solid var(--pq-glass-edge);
   box-shadow: var(--pq-shadow);
   border-radius: var(--pq-radius);
+}
+
+.pq-modal {
+  background: #ffffff;
+  border: 1px solid var(--pq-glass-line);
+  box-shadow: var(--pq-modal-shadow);
+  border-radius: var(--pq-radius-modal);
 }
 
 .pq-glass-strong {
@@ -719,9 +727,7 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  background: color-mix(in srgb, var(--pq-ink) 42%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: color-mix(in srgb, var(--pq-ink) 48%, transparent);
 }
 
 .pq-field-icon {
@@ -1079,7 +1085,6 @@ svg.pq-field-icon {
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .pq-glass,
   .pq-glass-strong,
-  .pq-glass-modal,
   .pq-glass-window,
   .pq-glass-nav,
   .pq-drawer,

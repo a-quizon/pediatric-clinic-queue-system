@@ -178,7 +178,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
 
   return (
     <div className="pq-modal-scrim z-50">
-      <div className="pq-glass-modal w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="user-details-title">
+      <div className="pq-modal w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="user-details-title">
         <div className="flex items-center justify-between p-6" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <div className="flex items-center gap-4 min-w-0">
             <div className="w-12 h-12 rounded-[0.9rem] flex items-center justify-center shrink-0" style={roleIconStyle(user.role)}>

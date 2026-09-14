@@ -126,7 +126,7 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
 
   return (
     <div className="pq-modal-scrim z-[60]">
-      <div className="pq-glass-modal w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="branch-form-title">
+      <div className="pq-modal w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="branch-form-title">
         <div className="flex items-center justify-between p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <h2 id="branch-form-title" className="text-xl font-extrabold tracking-tight">
             {mode === "add" ? "Add Branch" : "Edit Branch"}

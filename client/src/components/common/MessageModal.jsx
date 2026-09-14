@@ -28,8 +28,8 @@ export default function MessageModal({
   const Icon = config.icon;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="pq-modal-scrim">
+      <div className="pq-modal w-full max-w-sm overflow-hidden">
         <div className="p-6 text-center">
           <div className={`w-16 h-16 ${config.bg} rounded-full flex items-center justify-center mx-auto mb-4`}>
             <Icon className={`w-8 h-8 ${config.color}`} />

@@ -37,9 +37,9 @@ export default function DeleteAccountModal({
   const canConfirm = confirmText.trim() === "DELETE" && password.length > 0 && !isLoading;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 sm:p-6">
+    <div className="pq-modal-scrim z-[60]">
       <div
-        className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden flex flex-col transform transition-all animate-in fade-in zoom-in-95 duration-200"
+        className="pq-modal w-full max-w-md overflow-hidden flex flex-col"
         role="dialog"
         aria-modal="true"
       >
@@ -106,7 +106,7 @@ export default function DeleteAccountModal({
           </div>
         </div>
 
-        <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex flex-col-reverse sm:flex-row justify-end gap-3 rounded-b-3xl">
+        <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex flex-col-reverse sm:flex-row justify-end gap-3">
           <button
             onClick={onClose}
             disabled={isLoading}

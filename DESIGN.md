@@ -30,7 +30,7 @@ colors:
   glass-edge: "rgba(255, 255, 255, 0.82)"
   glass-line: "rgba(22, 52, 74, 0.1)"
   glass-nav: "color-mix(in srgb, #ffffff 86%, #d4eef2 14%)"
-  glass-modal: "color-mix(in srgb, #ffffff 86%, transparent)"
+  modal: "#ffffff"
   glass-fallback: "#f7fbfb"
   white: "#ffffff"
 typography:
@@ -180,6 +180,11 @@ components:
     backgroundColor: "{colors.glass-nav}"
     textColor: "{colors.ink}"
     rounded: "0"
+  modal-pane:
+    backgroundColor: "{colors.modal}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.modal}"
+    padding: "{spacing.pane}"
   ticket-num:
     backgroundColor: "color-mix(in srgb, #2f6fdb 14%, transparent)"
     textColor: "{colors.mark-blue-deep}"
@@ -261,6 +266,7 @@ Daylight clinic light: aqua mist, peach warmth, and a gold flare, with logo blue
 - **Paper** (`{colors.paper}` / `--pq-paper`): Shell fallback fill under the wash.
 - **Aqua / Peach / Gold washes** (`{colors.wash-aqua}`, `{colors.wash-peach}`, `{colors.wash-gold}`): Radial stains on the fixed canvas, mixed into `{colors.canvas-aqua}` → `{colors.canvas-peach}` → `{colors.canvas-mist}`.
 - **Glass** (`{colors.glass}` / `--pq-glass`): One 78% white laminate. Stronger and nav mixes add a hint of aqua (`{colors.glass-strong}`, `{colors.glass-nav}`). Edges are white (`{colors.glass-edge}`); inner rules use ink at 10% (`{colors.glass-line}`).
+- **Modal** (`{colors.modal}`): Opaque white dialog plate. Modals are not glass — they sit above frost chrome as a solid surface.
 - **Live / Wait / Alert**: Status pairings — green wash for now-serving and success, amber wash for waiting, red wash for danger and unread. Alert deep (`{colors.alert-deep}`) is danger hover only.
 
 ### Named Rules
@@ -303,12 +309,13 @@ Depth is laminated glass over a fixed wash, not stacked drop shadows. One blur l
 - **Mark glow** (`box-shadow: 0 8px 18px -10px rgba(47, 111, 219, 0.7)`): Primary button. Active side links use `0 8px 16px -10px rgba(47, 111, 219, 0.8)`.
 - **Focus halo** (`box-shadow: 0 0 0 3px color-mix(in srgb, #2f6fdb 22%, transparent)`): Focused fields. Error fields swap the halo to alert at 20%.
 - **Pip halo** (`box-shadow: 0 0 0 4px color-mix(in srgb, #ee7a96 35%, transparent)`): Now-serving coral pip.
-- **Modal scrim** (`background: color-mix(in srgb, #16344a 42%, transparent)` plus `blur(10px)`): Dims the wash behind a stronger glass modal.
+- **Modal lift** (`box-shadow: 0 18px 40px -12px rgba(22, 52, 74, 0.32), 0 6px 16px -8px rgba(22, 52, 74, 0.18)`): Solid modal pane (`--pq-modal-shadow`). Offset umbra, no inset frost highlight.
+- **Modal scrim** (`background: color-mix(in srgb, #16344a 48%, transparent)`): Dims the page behind a solid modal. No backdrop blur.
 
 Motion is short (`160ms`, `--pq-ease: cubic-bezier(0.22, 1, 0.36, 1)`). Primary and icon buttons scale to `0.98` while pressed. The pip breathes `1.6s`; the spinner turns `700ms`. `prefers-reduced-motion` kills pip/spinner animation and press scale.
 
 ### Named Rules
-**The One Frost Layer Rule.** A pane is one blur. Rows, ticket halves, wait keys, and notes are inset fills inside that pane — never a second `backdrop-filter` stack.
+**The One Frost Layer Rule.** A pane is one blur. Rows, ticket halves, wait keys, and notes are inset fills inside that pane — never a second `backdrop-filter` stack. Modals are not frost: they are opaque plates with lift shadow, not a second glass layer.
 
 ## Shapes
 
@@ -369,7 +376,7 @@ Horizontal auto-scroll, `0.5rem` gap, no wrap, scrollbars hidden. Keys are `min-
 48×28 pill. On = mark-blue; off = ink 22% on white. 20px white knob, ink-tinted shadow, travels `4px` → `24px` in 160ms.
 
 ### Modal
-Ink 42% scrim + 10px blur. Modal pane is 86% white, `1.5rem` radius, same frost shadow. Header/footer divide with glass-line; body rows stay inset, not glass.
+Ink 48% scrim, no blur. Modal pane is solid `{colors.modal}` (`#ffffff`), `1.5rem` radius, `--pq-modal-shadow` lift. Header/footer divide with glass-line; body rows stay inset. Never apply `backdrop-filter` to the panel.
 
 ## Do's and Don'ts
 
@@ -380,6 +387,7 @@ Ink 42% scrim + 10px blur. Modal pane is 86% white, `1.5rem` radius, same frost 
 - **Do** make the one next action a solid mark-blue control at 44px minimum.
 - **Do** keep waiting chips in a single horizontal, non-wrapping row.
 - **Do** honor the 3px mark-blue focus ring (2px offset) and `prefers-reduced-motion`.
+- **Do** use `.pq-modal` for dialogs: opaque white, lift shadow, no blur.
 
 ### Don't:
 - **Don't** apply this palette, Lexend stack, or glass language to staff, doctor, or admin dashboards.
@@ -387,4 +395,4 @@ Ink 42% scrim + 10px blur. Modal pane is 86% white, `1.5rem` radius, same frost 
 - **Don't** replace the daylight wash with charcoal, drum-machine black, or SaaS gray.
 - **Don't** substitute a generic clinic logo or invent a second wordmark.
 - **Don't** outline or ghost the primary next action.
-- **Don't** wrap wait keys onto a second line or give each key its own glass blur.
+- **Don't** apply glass, translucency, or `backdrop-filter` to modal panels — dialogs are solid elevated plates.

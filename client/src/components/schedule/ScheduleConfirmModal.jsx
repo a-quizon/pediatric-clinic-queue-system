@@ -44,7 +44,7 @@ export default function ScheduleConfirmModal({
 
   return (
     <div className="pq-modal-scrim z-50">
-      <div className="pq-glass-modal w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="schedule-confirm-title">
+      <div className="pq-modal w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="schedule-confirm-title">
         <div className="p-6">
           <div className="flex flex-col items-center text-center mb-5">
             <div className="w-16 h-16 rounded-full flex items-center justify-center mb-3" style={{ background: "var(--pq-live-wash)", color: "var(--pq-live)" }}>

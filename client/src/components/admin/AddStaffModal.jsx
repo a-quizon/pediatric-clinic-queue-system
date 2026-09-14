@@ -136,7 +136,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
 
   return (
     <div className="pq-modal-scrim z-50">
-      <div className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="add-staff-title">
+      <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="add-staff-title">
         <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <div className="flex items-center gap-3 min-w-0">
             <div

@@ -297,7 +297,7 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
   return (
     <>
       <div className="pq-modal-scrim z-50">
-        <div className="pq-glass-modal w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="walkin-title">
+        <div className="pq-modal w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="walkin-title">
           <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
             <h2 id="walkin-title" className="text-lg font-extrabold tracking-tight">Walk-in Patient</h2>
             <button

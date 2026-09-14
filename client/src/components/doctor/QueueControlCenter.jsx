@@ -424,7 +424,7 @@ export default function QueueControlCenter() {
 
       {isInfoModalOpen && infoPatient && (
         <div className="pq-modal-scrim">
-          <div className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="patient-details-title">
+          <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="patient-details-title">
             <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="patient-details-title" className="text-lg font-extrabold tracking-tight flex items-center">
                 <FileText className="w-5 h-5 mr-2" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
@@ -506,7 +506,7 @@ export default function QueueControlCenter() {
 
       {isCompleteModalOpen && selectedPatient && (
         <div className="pq-modal-scrim">
-          <div className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="complete-consult-title">
+          <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="complete-consult-title">
             <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="complete-consult-title" className="text-lg font-extrabold tracking-tight flex items-center">
                 <CheckCircle className="w-5 h-5 mr-2" style={{ color: "var(--pq-live)" }} aria-hidden="true" />
@@ -590,7 +590,7 @@ export default function QueueControlCenter() {
 
       {isCloseQueueModalOpen && (
         <div className="pq-modal-scrim">
-          <div className="pq-glass-modal w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="close-queue-title">
+          <div className="pq-modal w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="close-queue-title">
             <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="close-queue-title" className="text-lg font-extrabold tracking-tight flex items-center" style={{ color: "var(--pq-wait)" }}>
                 <Lock className="w-5 h-5 mr-2" aria-hidden="true" />
@@ -632,7 +632,7 @@ export default function QueueControlCenter() {
 
       {isEndSessionModalOpen && (
         <div className="pq-modal-scrim">
-          <div className="pq-glass-modal w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="end-session-title">
+          <div className="pq-modal w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="end-session-title">
             <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="end-session-title" className="text-lg font-extrabold tracking-tight flex items-center" style={{ color: "var(--pq-alert)" }}>
                 <Square className="w-5 h-5 mr-2" aria-hidden="true" />

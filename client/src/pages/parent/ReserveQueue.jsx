@@ -472,7 +472,7 @@ export default function ReserveQueue() {
       {/* Complete Patient Info Modal */}
       {isPatientInfoModalOpen && selectedSchedule && (
         <div className="pq-modal-scrim">
-          <div className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 className="text-lg font-bold">Select Patients</h2>
             </div>
@@ -583,7 +583,7 @@ export default function ReserveQueue() {
 
       {isAddChildOpen && (
         <div className="pq-modal-scrim" style={{ zIndex: 60 }}>
-          <div className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 className="text-lg font-bold">Add a Child</h2>
             </div>
@@ -615,7 +615,7 @@ export default function ReserveQueue() {
       {/* Success Modal */}
       {isSuccessModalOpen && selectedSchedule && (
         <div className="pq-modal-scrim">
-          <div className="pq-glass-modal w-full max-w-sm overflow-hidden flex flex-col text-center">
+          <div className="pq-modal w-full max-w-sm overflow-hidden flex flex-col text-center">
             <div className="p-8">
               <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-5" style={{ background: "var(--pq-live-wash)", color: "var(--pq-live)" }}>
                 <CheckCircle2 className="w-8 h-8" />

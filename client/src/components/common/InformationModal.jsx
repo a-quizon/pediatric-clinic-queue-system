@@ -55,11 +55,11 @@ export default function InformationModal({
 
   return (
     <div 
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 sm:p-6"
+      className="pq-modal-scrim z-[60]"
       onClick={handleOverlayClick}
     >
       <div 
-        className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden flex flex-col transform transition-all animate-in fade-in zoom-in-95 duration-200 relative"
+        className="pq-modal w-full max-w-md overflow-hidden flex flex-col relative"
         role="dialog"
         aria-modal="true"
       >
@@ -85,7 +85,7 @@ export default function InformationModal({
           </div>
         </div>
 
-        <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-end gap-3 rounded-b-3xl">
+        <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row justify-end gap-3">
           <button 
             onClick={onClose}
             className="w-full sm:w-auto px-8 py-2.5 bg-blue-600 text-white font-bold hover:bg-blue-700 rounded-xl shadow-sm transition-colors"
