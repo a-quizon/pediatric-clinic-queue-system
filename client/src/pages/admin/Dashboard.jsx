@@ -265,7 +265,7 @@ export default function Dashboard() {
       {error && (
         <div className="pq-note pq-note-alert flex items-center gap-3">
           <Activity className="w-5 h-5 shrink-0" aria-hidden="true" />
-          <p className="font-medium text-sm">{error}</p>
+          <p className="font-medium text-sm leading-snug">{error}</p>
         </div>
       )}
 
@@ -308,7 +308,7 @@ export default function Dashboard() {
                   className="pq-row items-start sm:items-center flex-col sm:flex-row"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 leading-none">
                       {operation.state === "Queue Active" ? (
                         <span className="pq-pip" aria-hidden="true" />
                       ) : (
@@ -322,11 +322,11 @@ export default function Dashboard() {
                   </div>
                   {operation.state ? (
                     <div className="text-sm font-medium pq-muted shrink-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 leading-none">
                         <CalendarDays className="w-4 h-4" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
                         {operation.date}
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 leading-none mt-1.5">
                         <Clock className="w-4 h-4" style={{ color: "var(--pq-live)" }} aria-hidden="true" />
                         {operation.timeStr}
                       </div>

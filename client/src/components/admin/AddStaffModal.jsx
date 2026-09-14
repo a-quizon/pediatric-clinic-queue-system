@@ -146,10 +146,10 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
               <UserPlus className="w-5 h-5" aria-hidden="true" />
             </div>
             <div className="min-w-0">
-              <h2 id="add-staff-title" className="text-lg font-extrabold tracking-tight">
+              <h2 id="add-staff-title" className="text-lg font-extrabold tracking-tight leading-none">
                 {step === 1 ? "Add Staff" : `Create ${role.charAt(0).toUpperCase() + role.slice(1)}`}
               </h2>
-              <p className="text-xs font-semibold pq-muted uppercase tracking-wider">
+              <p className="text-xs font-semibold pq-muted uppercase tracking-wider mt-1">
                 {step === 1 ? "Step 1 of 2" : "Step 2 of 2"}
               </p>
             </div>
@@ -213,7 +213,9 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
               <div>
                 <label htmlFor="staff-name" className="pq-label">Full Name <span style={{ color: "var(--pq-alert)" }}>*</span></label>
                 <div className="relative">
-                  <UserPlus className="pq-field-icon w-5 h-5" aria-hidden="true" />
+                  <div className="pq-field-icon">
+                    <UserPlus className="w-5 h-5" aria-hidden="true" />
+                  </div>
                   <input
                     id="staff-name"
                     type="text"
@@ -231,7 +233,9 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
               <div>
                 <label htmlFor="staff-email" className="pq-label">Email Address <span style={{ color: "var(--pq-alert)" }}>*</span></label>
                 <div className="relative">
-                  <Mail className="pq-field-icon w-5 h-5" aria-hidden="true" />
+                  <div className="pq-field-icon">
+                    <Mail className="w-5 h-5" aria-hidden="true" />
+                  </div>
                   <input
                     id="staff-email"
                     type="email"
@@ -272,7 +276,9 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                 <div>
                   <label htmlFor="staff-branch" className="pq-label">Assigned Branch <span style={{ color: "var(--pq-alert)" }}>*</span></label>
                   <div className="relative">
-                    <MapPin className="pq-field-icon w-5 h-5" aria-hidden="true" />
+                    <div className="pq-field-icon">
+                      <MapPin className="w-5 h-5" aria-hidden="true" />
+                    </div>
                     <select
                       id="staff-branch"
                       name="assignedBranch"
@@ -295,7 +301,9 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                 <div>
                   <label htmlFor="staff-password" className="pq-label">Password <span style={{ color: "var(--pq-alert)" }}>*</span></label>
                   <div className="relative">
-                    <Lock className="pq-field-icon w-4 h-4" aria-hidden="true" />
+                    <div className="pq-field-icon">
+                      <Lock className="w-4 h-4" aria-hidden="true" />
+                    </div>
                     <input
                       id="staff-password"
                       type={showPassword ? "text" : "password"}
@@ -304,13 +312,13 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                       onChange={handleChange}
                       required
                       disabled={loading}
-                      className={`pq-input pl-10 pr-10 text-sm ${passwordInvalid ? "pq-input-error" : ""}`}
+                      className={`pq-input pl-10 pr-11 text-sm ${passwordInvalid ? "pq-input-error" : ""}`}
                       placeholder="Min 12 chars"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint"
+                      className="pq-field-toggle"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -324,7 +332,9 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                 <div>
                   <label htmlFor="staff-confirm-password" className="pq-label">Confirm Password <span style={{ color: "var(--pq-alert)" }}>*</span></label>
                   <div className="relative">
-                    <Lock className="pq-field-icon w-4 h-4" aria-hidden="true" />
+                    <div className="pq-field-icon">
+                      <Lock className="w-4 h-4" aria-hidden="true" />
+                    </div>
                     <input
                       id="staff-confirm-password"
                       type={showConfirmPassword ? "text" : "password"}
@@ -333,13 +343,13 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                       onChange={handleChange}
                       required
                       disabled={loading}
-                      className={`pq-input pl-10 pr-10 text-sm ${confirmInvalid ? "pq-input-error" : ""}`}
+                      className={`pq-input pl-10 pr-11 text-sm ${confirmInvalid ? "pq-input-error" : ""}`}
                       placeholder="Confirm"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint"
+                      className="pq-field-toggle"
                       aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                     >
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

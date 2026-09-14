@@ -69,14 +69,16 @@ const AdminReports = () => {
     <div className="space-y-6 md:flex-1 overflow-y-auto">
       <div className="pq-filter-bar p-4 sm:p-5 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h2 className="text-lg font-extrabold tracking-tight flex items-center gap-2">
+          <h2 className="text-lg font-extrabold tracking-tight flex items-center gap-2 leading-none">
             <Calendar className="w-5 h-5" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
             System Analytics
           </h2>
         </div>
 
         <div className="relative min-w-[180px]">
-          <Calendar className="pq-field-icon w-4 h-4" aria-hidden="true" />
+          <div className="pq-field-icon">
+            <Calendar className="w-4 h-4" aria-hidden="true" />
+          </div>
           <label htmlFor="reports-date-range" className="sr-only">Date range</label>
           <select
             id="reports-date-range"
@@ -420,7 +422,9 @@ export default function Activity() {
         >
           <div className="pq-filter-bar p-3 sm:p-4 flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="pq-field-icon w-5 h-5" aria-hidden="true" />
+              <div className="pq-field-icon">
+                <Search className="w-5 h-5" aria-hidden="true" />
+              </div>
               <label htmlFor="activity-search" className="sr-only">Search activity</label>
               <input
                 id="activity-search"
@@ -434,7 +438,9 @@ export default function Activity() {
 
             <div className="flex gap-3">
               <div className="relative flex-1 md:flex-none">
-                <Filter className="pq-field-icon w-4 h-4" aria-hidden="true" />
+                <div className="pq-field-icon">
+                  <Filter className="w-4 h-4" aria-hidden="true" />
+                </div>
                 <label htmlFor="activity-category-filter" className="sr-only">Filter by category</label>
                 <select
                   id="activity-category-filter"
@@ -486,8 +492,8 @@ export default function Activity() {
                       <div>
                         <h3 className="font-extrabold tracking-tight text-sm leading-tight">{log.description}</h3>
                         <div className="flex items-center gap-2 mt-2">
-                          <span className="text-xs pq-muted flex items-center">
-                            <Clock className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+                          <span className="text-xs pq-muted flex items-center gap-1 leading-none">
+                            <Clock className="w-3.5 h-3.5" aria-hidden="true" />
                             {formatDateTime(log.timestamp)}
                           </span>
                         </div>

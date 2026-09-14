@@ -122,7 +122,9 @@ export default function Reports() {
           
           <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
             <div className="relative min-w-[180px] flex-1 lg:flex-none">
-              <MapPin className="pq-field-icon w-4 h-4" aria-hidden="true" />
+              <div className="pq-field-icon">
+                <MapPin className="w-4 h-4" aria-hidden="true" />
+              </div>
               <select 
                 value={branch}
                 onChange={(e) => setBranch(e.target.value)}

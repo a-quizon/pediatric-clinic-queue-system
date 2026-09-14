@@ -8,6 +8,7 @@ p1_count: 1
 target_identity: "file:C:\\Users\\canil\\OneDrive\\Documents\\CAPSTONE-PROJECT\\pediatric-clinic-queue-system\\client\\src\\pages\\admin"
 timestamp: 2026-09-14T21-28-23Z
 slug: client-src-pages-admin
+closed: true
 ---
 Method: dual-agent (A: 7660e96f-71c6-48b9-b994-98bf81afca1e · B: 5e0c8320-0729-41ca-8f5d-19adc7649613)
 

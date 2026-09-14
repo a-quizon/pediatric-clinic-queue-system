@@ -173,7 +173,9 @@ export default function UserManagement() {
     <div className="space-y-4 pb-4 md:pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
       <div className="pq-filter-bar p-3 sm:p-4 flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="pq-field-icon w-5 h-5" aria-hidden="true" />
+          <div className="pq-field-icon">
+            <Search className="w-5 h-5" aria-hidden="true" />
+          </div>
           <label htmlFor="user-search" className="sr-only">Search by name or email</label>
           <input
             id="user-search"
@@ -187,7 +189,9 @@ export default function UserManagement() {
 
         <div className="flex gap-3">
           <div className="relative flex-1 md:flex-none">
-            <Filter className="pq-field-icon w-4 h-4" aria-hidden="true" />
+            <div className="pq-field-icon">
+              <Filter className="w-4 h-4" aria-hidden="true" />
+            </div>
             <label htmlFor="user-role-filter" className="sr-only">Filter by role</label>
             <select
               id="user-role-filter"
@@ -271,11 +275,11 @@ export default function UserManagement() {
                         </span>
                       </div>
                       <div className="pq-row mt-3" style={{ display: "grid", gap: "0.5rem", minHeight: 0 }}>
-                        <div className="flex items-center gap-2 pq-muted truncate">
+                        <div className="flex items-center gap-2 leading-none pq-muted truncate">
                           <Mail className="w-4 h-4 shrink-0 pq-faint" aria-hidden="true" />
                           <span className="truncate">{user.email}</span>
                         </div>
-                        <div className="flex items-center gap-2 pq-muted">
+                        <div className="flex items-center gap-2 leading-none pq-muted">
                           <Phone className="w-4 h-4 shrink-0 pq-faint" aria-hidden="true" />
                           <span>{user.phone || "No phone"}</span>
                         </div>

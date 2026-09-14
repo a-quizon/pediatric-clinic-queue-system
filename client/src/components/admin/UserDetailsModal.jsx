@@ -185,10 +185,10 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
               {getRoleIcon(user.role)}
             </div>
             <div className="min-w-0">
-              <h2 id="user-details-title" className="text-xl font-extrabold tracking-tight">
+              <h2 id="user-details-title" className="text-xl font-extrabold tracking-tight leading-none">
                 User Details
               </h2>
-              <p className="text-sm pq-muted capitalize font-medium">{user.role}</p>
+              <p className="text-sm pq-muted capitalize font-medium mt-1">{user.role}</p>
             </div>
           </div>
           <button type="button" onClick={onClose} className="pq-icon-btn" aria-label="Close">
@@ -201,7 +201,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
             <h3 className="pq-stat-label mb-4 pb-2" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>Basic Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="user-detail-name" className="pq-label flex items-center gap-1.5"><User className="w-3.5 h-3.5" aria-hidden="true" /> Full Name</label>
+                <label htmlFor="user-detail-name" className="pq-label"><User className="w-3.5 h-3.5" aria-hidden="true" /> Full Name</label>
                 {isEditing ? (
                   <input id="user-detail-name" type="text" name="name" value={formData.name} onChange={handleInputChange} className="pq-input" />
                 ) : (
@@ -210,7 +210,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
               </div>
 
               <div>
-                <label className="pq-label flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" aria-hidden="true" /> Email Address</label>
+                <label className="pq-label"><Mail className="w-3.5 h-3.5" aria-hidden="true" /> Email Address</label>
                 <p className="font-semibold text-base">{user.email}</p>
                 {isEditing && (
                   <p className="text-xs pq-muted mt-1 italic">Login email cannot be changed by administrators.</p>
@@ -218,7 +218,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
               </div>
 
               <div>
-                <label htmlFor="user-detail-phone" className="pq-label flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" aria-hidden="true" /> Phone Number</label>
+                <label htmlFor="user-detail-phone" className="pq-label"><Phone className="w-3.5 h-3.5" aria-hidden="true" /> Phone Number</label>
                 {isEditing ? (
                   <div className="relative">
                     <div className="pq-field-icon">
@@ -250,7 +250,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
 
               {user.role === "secretary" && (
                 <div>
-                  <label htmlFor="user-detail-branch" className="pq-label flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" aria-hidden="true" /> Assigned Branch</label>
+                  <label htmlFor="user-detail-branch" className="pq-label"><MapPin className="w-3.5 h-3.5" aria-hidden="true" /> Assigned Branch</label>
                   {isEditing ? (
                     <select id="user-detail-branch" name="assignedBranch" value={formData.assignedBranch} onChange={handleInputChange} className="pq-input">
                       <option value="" disabled>Select assigned branch</option>
@@ -270,13 +270,13 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
             <h3 className="pq-stat-label mb-4 pb-2" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>Audit Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="pq-label flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" aria-hidden="true" /> Created At</label>
+                <label className="pq-label"><Calendar className="w-3.5 h-3.5" aria-hidden="true" /> Created At</label>
                 <p className="text-sm font-semibold">{formatDate(user.createdAt)}</p>
               </div>
 
               {user.role !== "parent" && (
                 <div>
-                  <label className="pq-label flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" aria-hidden="true" /> Last Updated</label>
+                  <label className="pq-label"><Clock className="w-3.5 h-3.5" aria-hidden="true" /> Last Updated</label>
                   <p className="text-sm font-semibold">{formatDate(user.updatedAt)}</p>
                 </div>
               )}

@@ -219,6 +219,10 @@
   padding: 0.35rem 0.45rem 0.35rem 0.7rem;
 }
 
+.pq-header-pill h1 {
+  line-height: 1;
+}
+
 .pq-filter-bar {
   background: color-mix(in srgb, #ffffff 82%, var(--pq-paper));
   border: 1px solid var(--pq-glass-edge);
@@ -252,6 +256,7 @@
   font-weight: 700;
   font-size: 0.9375rem;
   letter-spacing: -0.01em;
+  line-height: 1;
   cursor: pointer;
 }
 
@@ -296,8 +301,16 @@
   display: block;
   font-size: 0.875rem;
   font-weight: 600;
+  line-height: 1.3;
   color: var(--pq-ink);
   margin-bottom: 0.4rem;
+}
+
+.pq-label:has(svg) {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  line-height: 1;
 }
 
 .pq-input,
@@ -313,6 +326,7 @@
   color: var(--pq-ink);
   font-size: 1rem;
   font-weight: 500;
+  line-height: 1.25;
   outline: none;
   transition: border-color 160ms var(--pq-ease), background 160ms var(--pq-ease), box-shadow 160ms var(--pq-ease);
 }
@@ -361,6 +375,7 @@
   font-weight: 700;
   font-size: 0.9375rem;
   letter-spacing: -0.01em;
+  line-height: 1;
   border: 1px solid transparent;
   cursor: pointer;
   transition: transform 160ms var(--pq-ease), background 160ms var(--pq-ease), box-shadow 160ms var(--pq-ease), opacity 160ms var(--pq-ease);
@@ -445,6 +460,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  line-height: 0;
   border-radius: 999px;
   background: color-mix(in srgb, #ffffff 70%, transparent);
   border: 1px solid var(--pq-glass-line);
@@ -484,6 +500,7 @@
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.02em;
+  line-height: 1;
   border: 1px solid transparent;
 }
 
@@ -509,6 +526,33 @@
   background: color-mix(in srgb, var(--pq-mark-blue) 12%, white);
   color: var(--pq-mark-blue-deep);
   border-color: color-mix(in srgb, var(--pq-mark-blue) 22%, white);
+}
+
+.pq-btn svg,
+.pq-btn-primary svg,
+.pq-btn-secondary svg,
+.pq-btn-ghost svg,
+.pq-btn-danger svg,
+.pq-btn-warn svg,
+.pq-btn-live svg,
+.pq-tab svg,
+.pq-chip svg,
+.pq-side-link svg,
+.pq-icon-btn svg,
+.pq-dock-item svg,
+.pq-note svg,
+.pq-field-icon svg,
+.pq-field-toggle svg,
+.pq-stat-label svg,
+.pq-label svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.pq-chip svg,
+.pq-stat-label svg {
+  width: 0.75rem;
+  height: 0.75rem;
 }
 
 .pq-num {
@@ -689,12 +733,41 @@
   gap: 0.35rem;
   color: var(--pq-ink-faint);
   pointer-events: none;
+  line-height: 1;
+}
+
+svg.pq-field-icon {
+  inset-block: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.pq-field-toggle {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--pq-ink-faint);
+  cursor: pointer;
+}
+
+.pq-field-toggle:hover {
+  color: var(--pq-ink);
 }
 
 .pq-dock-item {
   display: flex;
   align-items: center;
   justify-content: center;
+  line-height: 1;
   min-height: 44px;
   min-width: 44px;
   flex: 1 1 0;
@@ -759,6 +832,7 @@
   color: var(--pq-ink-soft);
   font-weight: 600;
   font-size: 0.9rem;
+  line-height: 1;
   transition: background 160ms var(--pq-ease), color 160ms var(--pq-ease), box-shadow 160ms var(--pq-ease);
 }
 
@@ -833,6 +907,13 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--pq-ink-soft);
+}
+
+.pq-stat-label:has(svg) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  line-height: 1;
 }
 
 .pq-stat-value {
