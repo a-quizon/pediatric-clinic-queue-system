@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
 import ReservationPatientNames from "../common/ReservationPatientNames";
 import { PqSpinner } from "../parent/pqUi";
+import useResolvedLateLimit from "../../hooks/useResolvedLateLimit";
 
 function WalkInChip({ reservation }) {
   if (reservation?.source !== "walk_in") return null;
@@ -46,6 +47,7 @@ export default function QueueControlCenter() {
   const activeSchedule = useMemo(() => {
     return schedules.find(s => s.status === 'published' && (s.queueStatus === 'active' || s.queueStatus === 'paused' || s.queueStatus === 'closed'));
   }, [schedules]);
+  const lateLimit = useResolvedLateLimit(activeSchedule);
 
   const activeScheduleId = activeSchedule?.id;
 
@@ -227,7 +229,7 @@ export default function QueueControlCenter() {
                 {new Date(activeSchedule.clinicDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </span>
               <span className="pq-chip pq-chip-info">
-                Late Limit: <strong className="ml-0.5">{activeSchedule.lateLimit || 3} penalties</strong>
+                Late Limit: <strong className="ml-0.5">{lateLimit} penalties</strong>
               </span>
             </div>
           </div>

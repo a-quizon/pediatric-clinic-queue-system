@@ -52,9 +52,9 @@ The core tenet of the Queue Engine is clinical isolation:
 
 ## 6. Penalty Rules
 1. **Trigger**: If the next eligible patient is not present when called, the Secretary applies a penalty.
-2. **Queue Shifting**: A penalized patient's `sortTimestamp` is recalculated to move them backward in the active queue by the Admin-configured **Penalty Move-Back** count (`systemConfiguration/queue/penaltyMoveBack`, range 0–10), or to the very end if fewer patients remain behind them.
+2. **Queue Shifting**: A penalized patient's `sortTimestamp` is recalculated to move them backward in the active queue by that branch’s **Penalty Move-Back** count (`systemConfiguration/{branchId}/penaltyMoveBack`, range 0–10), or to the very end if fewer patients remain behind them.
 3. **Zero Move-Back Forfeit**: Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent. The Secretary's penalty action immediately transitions the reservation to `forfeited` instead of shifting position.
-4. **Late Limits**: If a patient reaches the branch's defined `lateLimit` (usually 3 penalties), their status transitions to a terminal `forfeited` state and they are removed from the active queue.
+4. **Late Limits**: If a patient reaches the schedule’s saved `lateLimit` (legacy schedules) or the branch’s `systemConfiguration/{branchId}/lateLimit` (new schedules; default 3 penalties), their status transitions to a terminal `forfeited` state and they are removed from the active queue.
 5. **Constraint**: Applying a penalty triggers a queue recalculation, but it **never bypasses the Active Consultation Rule**.
 
 ---

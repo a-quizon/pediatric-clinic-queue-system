@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Users, UserCheck, Clock, CheckCircle, Activity, PlayCircle, AlertTriangle, Monitor } from "lucide-react";
 import { subscribeToScheduleReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder, cancelReservation } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
-import { subscribeToQueueConfiguration } from "../../services/systemConfigurationService";
+import { subscribeToQueueConfiguration, resolveLateLimitForSchedule } from "../../services/systemConfigurationService";
 import { computeReservationState, QUEUE_STATES, sortActiveQueue } from "../../services/queueEngine";
 import { useAuth } from "../../hooks/useAuth";
 import { get, ref } from "firebase/database";
@@ -66,7 +66,7 @@ export default function ManageQueue({ hideHeader = false }) {
       setSchedulesLoaded(true);
     });
 
-    const unsubConfig = subscribeToQueueConfiguration((config) => {
+    const unsubConfig = subscribeToQueueConfiguration(user?.assignedBranchId, (config) => {
       setPenaltyMoveBack(config.penaltyMoveBack);
     });
 
@@ -74,7 +74,7 @@ export default function ManageQueue({ hideHeader = false }) {
       unsubSchedules();
       unsubConfig();
     };
-  }, []);
+  }, [user?.assignedBranchId]);
 
   // Find active schedule started by the Doctor for the secretary's assigned branch
   const activeStartedSchedule = Object.values(schedules).find(s =>
@@ -213,7 +213,7 @@ export default function ManageQueue({ hideHeader = false }) {
       const schedule = schedules[res.scheduleId] || {};
       await penalizeReservation(res.id, schedule, reservations, penaltyMoveBack);
       const newPenaltyCount = (res.penaltyCount || 0) + 1;
-      const lateLimit = Number(schedule.lateLimit) || 3;
+      const lateLimit = await resolveLateLimitForSchedule(schedule);
       if (penaltyMoveBack === 0 || newPenaltyCount >= lateLimit) {
         toast.error(
           penaltyMoveBack === 0

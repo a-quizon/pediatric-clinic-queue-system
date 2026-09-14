@@ -5,6 +5,11 @@ import { recalculateEntireQueue, enrichReservationsWithState } from "./queueEngi
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { getScheduleById } from "./scheduleService";
 import { buildPatientInfoPayload } from "../utils/reservationPatients";
+import {
+  getQueueConfiguration,
+  resolveLateLimitForSchedule,
+  resolveScheduleBranchId,
+} from "./systemConfigurationService";
 
 const generateReservationCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -427,8 +432,13 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
   const val = snap.val();
   
   const currentPenaltyCount = (val.penaltyCount || 0) + 1;
-  const lateLimit = Number(schedule?.lateLimit) || 3;
-  const moveBack = Number.isInteger(penaltyMoveBack) ? penaltyMoveBack : 2;
+  const lateLimit = await resolveLateLimitForSchedule(schedule);
+  let moveBack = Number.isInteger(penaltyMoveBack) ? penaltyMoveBack : null;
+  if (moveBack === null) {
+    const branchId = await resolveScheduleBranchId(schedule);
+    const queueConfig = await getQueueConfiguration(branchId);
+    moveBack = queueConfig.penaltyMoveBack;
+  }
   const forfeitOnZeroMoveBack = moveBack === 0;
 
   if (forfeitOnZeroMoveBack || currentPenaltyCount >= lateLimit) {

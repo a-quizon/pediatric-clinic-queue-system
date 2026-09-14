@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { Home, QrCode, Users, User, CalendarDays } from "lucide-react";
+import { Home, QrCode, Users, User, CalendarDays, ChevronLeft } from "lucide-react";
 import { PqBrand } from "../parent/pqUi";
 
 export default function SecretaryLayout() {
@@ -21,6 +21,9 @@ export default function SecretaryLayout() {
     }
     if (path.startsWith("/secretary/profile")) {
       return { title: "Profile" };
+    }
+    if (path.startsWith("/secretary/settings")) {
+      return { title: "System Configuration", backTo: "/secretary/profile" };
     }
 
     return { title: "Dashboard" };
@@ -70,9 +73,19 @@ export default function SecretaryLayout() {
         <div className="pq-header-wrap">
           <header className="pq-header-pill">
             <div className="flex items-center gap-3 min-w-0">
-              <span className="md:hidden flex-shrink-0">
-                <PqBrand size={32} wordmark={false} />
-              </span>
+              {headerInfo.backTo ? (
+                <NavLink
+                  to={headerInfo.backTo}
+                  className="pq-icon-btn shrink-0"
+                  aria-label="Back to profile"
+                >
+                  <ChevronLeft className="w-5 h-5" aria-hidden="true" />
+                </NavLink>
+              ) : (
+                <span className="md:hidden flex-shrink-0">
+                  <PqBrand size={32} wordmark={false} />
+                </span>
+              )}
               <h1 className="text-lg sm:text-xl font-extrabold tracking-tight truncate">
                 {headerInfo.title}
               </h1>

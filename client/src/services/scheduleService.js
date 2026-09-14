@@ -16,11 +16,10 @@ export const createSchedule = async ( scheduleData ) => {
   }
 
   const scheduleRef = push(ref(database, "schedules"));
+  const payload = { ...scheduleData };
+  delete payload.lateLimit;
 
-  await set(scheduleRef, {
-    ...scheduleData,
-    lateLimit: Number(scheduleData.lateLimit) || 3
-  });
+  await set(scheduleRef, payload);
 
   return scheduleRef.key;
 };
@@ -73,7 +72,9 @@ export const updateSchedule = async ( scheduleId, updatedData ) => {
       }
     }
   }
-  await update(ref(database,`schedules/${scheduleId}`), updatedData);
+  const payload = { ...updatedData };
+  delete payload.lateLimit;
+  await update(ref(database,`schedules/${scheduleId}`), payload);
 };
 
 export const deleteSchedule = async (scheduleId) => {

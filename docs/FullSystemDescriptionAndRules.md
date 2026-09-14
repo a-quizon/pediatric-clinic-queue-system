@@ -143,11 +143,12 @@ State model: `AuthContext` + Firebase `onValue` listeners. No Redux / Zustand / 
 | `/secretary/validate` | QR scan or 6-char code check-in |
 | `/secretary/queue` | Manage Queue: remind check-in, penalize, send to doctor |
 | `/secretary/profile` | Profile + **Walk-in Patient** entry |
+| `/secretary/settings` | Per-branch System Configuration (Penalty Move-Back, Late Limit, SMS templates) |
 | `/secretary/monitor` | Full-screen Queue Monitor (outside main layout) |
 
 #### Workflow A — Create and open a clinic day
 
-1. Secretary or Doctor creates a **draft** schedule (Secretary: **their assigned branch**; Doctor: any branch) (date, opening/closing times within branch hours, `slotCapacity`, `lateLimit` default 3).
+1. Secretary or Doctor creates a **draft** schedule (Secretary: **their assigned branch**; Doctor: any branch) (date, opening/closing times within branch hours, `slotCapacity`). Late Limit is **not** entered on the form — new schedules use `systemConfiguration/{branchId}/lateLimit`.
 2. Publishes schedule → `status: published`, `queueStatus: not_started`; parents can book; **SCHEDULE_AVAILABLE** notifications fire.
 3. When floor opens, secretary **starts queue** → `queueStatus: active`; **QUEUE_STARTED** push/SMS to parents with active reservations on that schedule.
 
@@ -206,7 +207,6 @@ Secretary or Doctor **starts** the queue; doctor **controls** the live session a
 | `/admin/users` | Create / edit / activate / deactivate / delete staff & parents |
 | `/admin/branches` | Branch name, address, weekly clinic hours |
 | `/admin/activity` | Audit logs + admin report charts |
-| `/admin/settings` | Queue `penaltyMoveBack`; SMS near-turn count + message templates |
 | `/admin/profile` | Profile |
 
 #### Staff creation rules (important)
@@ -231,7 +231,7 @@ Secretary or Doctor **starts** the queue; doctor **controls** the live session a
 | `clinicDate` | `YYYY-MM-DD` |
 | `openingTime` / `closingTime` | Must fit branch weekly hours |
 | `slotCapacity` | Max concurrent **active** reservations |
-| `lateLimit` | Penalties before forfeit (default **3**) |
+| `lateLimit` | Optional legacy field. New schedules omit it and use the branch System Configuration Late Limit. |
 | `status` | `draft` → `published` → `completed` |
 | `queueStatus` | `not_started` → `active` → `paused` / `closed` → `completed` |
 
@@ -349,8 +349,8 @@ Parameters:
 
 | Setting | Where | Default | Effect |
 |---------|--------|---------|--------|
-| `penaltyMoveBack` | `systemConfiguration/queue` (Admin) | **2** (range 0–10) | How many places to shift back |
-| `lateLimit` | Per schedule | **3** | Penalties until forfeit |
+| `penaltyMoveBack` | `systemConfiguration/{branchId}` (Secretary) | **2** (range 0–10) | How many places to shift back |
+| `lateLimit` | Saved on legacy schedules; else branch `systemConfiguration/{branchId}/lateLimit` | **3** | Penalties until forfeit |
 
 Behavior of `penalizeReservation`:
 
@@ -473,21 +473,22 @@ OTP storage (`smsOtps/{phoneKey}`):
 
 ---
 
-### 4.4 Configurable by Admin vs fixed/hardcoded
+### 4.4 Configurable by Secretary (per branch) vs fixed/hardcoded
 
-**Admin-configurable** (`/admin/settings` → `systemConfiguration`):
+**Secretary-configurable** (`/secretary/settings` → `systemConfiguration/{branchId}`):
 
 | Key | Node | Range / notes |
 |-----|------|----------------|
-| `penaltyMoveBack` | `systemConfiguration/queue` | 0–10; default 2; **0 = auto-forfeit on any penalty** |
-| `nearingTurnAheadCount` | `systemConfiguration/sms` | 1–10; default 3 |
-| `templateSlotReserved` | `systemConfiguration/sms` | Admin text + placeholders |
-| `templateQueueStarted` | `systemConfiguration/sms` | Admin text + placeholders |
-| `templateNearingTurn` | `systemConfiguration/sms` | Admin text + placeholders |
+| `penaltyMoveBack` | `systemConfiguration/{branchId}` | 0–10; default 2; **0 = auto-forfeit on any penalty** |
+| `lateLimit` | `systemConfiguration/{branchId}` | 1–10; default 3; new schedules only (legacy schedules keep saved `lateLimit`) |
+| `nearingTurnAheadCount` | `systemConfiguration/{branchId}/sms` | 1–10; default 3 |
+| `templateSlotReserved` | `systemConfiguration/{branchId}/sms` | Secretary text + placeholders |
+| `templateQueueStarted` | `systemConfiguration/{branchId}/sms` | Secretary text + placeholders |
+| `templateNearingTurn` | `systemConfiguration/{branchId}/sms` | Secretary text + placeholders |
 
-Readable by admin/doctor/secretary; SMS config also readable by parents (for client-side near-turn threshold sync). **Writable by Admin only.**
+Secretary may read/write **only their assigned branch**. Doctors may read any branch (schedule display). Parents may read the `sms` child (near-turn threshold). Admin may read/write all branches. TextBee API key stays in server/Functions env (global).
 
-**Fixed / not Admin-editable:**
+**Fixed / not Secretary-editable:**
 
 - Which events send SMS (only SLOT_RESERVED, QUEUE_STARTED, NEARING_TURN + OTP purposes)
 - OTP message wording and TTL/attempt limits
@@ -541,8 +542,7 @@ Priority when delivering: **role restriction** → **dedupe** → **DB write** �
 | `reservations/{reservationId}` | Tickets / patients / queue fields / penalties |
 | `notifications/{parentId}/{id}` | Parent Notification Center |
 | `auditLogs/{logId}` | Immutable staff/admin actions |
-| `systemConfiguration/queue` | `penaltyMoveBack` |
-| `systemConfiguration/sms` | Near-turn + SMS templates |
+| `systemConfiguration/{branchId}` | Penalty Move-Back, Late Limit, SMS templates (per branch) |
 | `smsOtps/{phoneKey}` | Hashed OTPs (server only) |
 | `phoneVerifications/{phoneKey}` | Short-lived phone proofs (server only) |
 
@@ -562,8 +562,8 @@ From `database.rules.json`:
 | `schedules` | Authenticated | Active secretary / doctor |
 | `reservations` | Authenticated | Active parent / doctor / secretary |
 | `auditLogs` | Admin | Admin / doctor / secretary |
-| `systemConfiguration/queue` | Admin, doctor, secretary | Admin |
-| `systemConfiguration/sms` | + parents | Admin |
+| `systemConfiguration/{branchId}` | Admin, doctor; secretary own branch | Admin; secretary own branch |
+| `systemConfiguration/{branchId}/sms` | + parents | (same write as parent node) |
 | `smsOtps`, `phoneVerifications` | **denied** | **denied** (Admin SDK only) |
 
 App-level isolation still matters: secretaries filter by `assignedBranch`; role routes block cross-role UI access.
@@ -624,7 +624,7 @@ Keep these in mind when designing features so you do not “fix” the wrong lay
 | Reservation + walk-in + penalize | `client/src/services/reservationService.js` |
 | Queue math | `client/src/services/queueEngine.js`, `queueEligibilityService.js` |
 | Schedules / queue session | `client/src/services/scheduleService.js` |
-| Admin SMS/queue settings | `client/src/services/systemConfigurationService.js`, `pages/admin/SystemSettings.jsx` |
+| Secretary SMS/queue/late-limit settings | `client/src/services/systemConfigurationService.js`, `pages/secretary/SystemSettings.jsx` |
 | Parent dashboard modes | `client/src/pages/parent/Dashboard.jsx` |
 | SMS gateway | `server/services/smsService.js` |
 | OTP | `server/services/otpService.js`, `server/routes/smsAuth.js` |

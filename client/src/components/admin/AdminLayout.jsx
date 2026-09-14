@@ -22,9 +22,6 @@ export default function AdminLayout() {
     if (path.startsWith("/admin/activity")) {
       return { desktop: "System Activity", mobile: "System Activity" };
     }
-    if (path.startsWith("/admin/settings")) {
-      return { desktop: "System Configuration", mobile: "System Configuration", backTo: "/admin/profile" };
-    }
     if (path.startsWith("/admin/profile")) {
       return { desktop: "Profile", mobile: "Profile" };
     }

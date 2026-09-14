@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { User, Mail, MapPin, Phone, UserPlus } from "lucide-react";
+import { User, Mail, MapPin, Phone, UserPlus, Settings, ChevronRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import LogoutButton from "../../components/common/LogoutButton";
 import WalkInPatientModal from "../../components/secretary/WalkInPatientModal";
 
 export default function Profile() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isWalkInOpen, setIsWalkInOpen] = useState(false);
 
   if (!user) return null;
@@ -48,6 +50,26 @@ export default function Profile() {
         >
           <UserPlus className="w-5 h-5" aria-hidden="true" />
           Walk-in Patient
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate("/secretary/settings")}
+          className="pq-glass w-full p-5 flex items-center justify-between text-left"
+        >
+          <div className="flex items-center min-w-0">
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 mr-4"
+              style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 14%, white)", color: "var(--pq-mark-blue-deep)" }}
+            >
+              <Settings className="w-6 h-6" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <span className="font-extrabold tracking-tight block">System Configuration</span>
+              <span className="pq-muted text-sm">Penalty, late limit, and SMS rules for this branch</span>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 pq-faint shrink-0" aria-hidden="true" />
         </button>
       </div>
 

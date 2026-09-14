@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import { Calendar, Clock, MapPin, Users, CheckCircle2, AlertCircle, Activity, Lock } from 'lucide-react';
+import useResolvedLateLimit from '../../hooks/useResolvedLateLimit';
 
 export default function ScheduleCard({ 
   schedule, 
@@ -20,6 +21,7 @@ export default function ScheduleCard({
   clinicAddress,
   queueControlLabel = "Open Queue Control",
 }) {
+  const lateLimit = useResolvedLateLimit(schedule);
 
   let localStatus = 'unknown';
   if (schedule.status === 'draft') localStatus = 'draft';
@@ -92,7 +94,7 @@ export default function ScheduleCard({
             </div>
             <div className="flex items-center text-sm">
               <Clock className="w-4 h-4 mr-2 pq-faint" aria-hidden="true" />
-              <span className="pq-muted">Late Limit: <span className="font-extrabold" style={{ color: "var(--pq-ink)" }}>{schedule.lateLimit || 3}</span></span>
+              <span className="pq-muted">Late Limit: <span className="font-extrabold" style={{ color: "var(--pq-ink)" }}>{lateLimit}</span></span>
             </div>
           </>
         )}
@@ -121,7 +123,7 @@ export default function ScheduleCard({
               </div>
               <div className="flex items-center">
                 <Clock className="w-3.5 h-3.5 mr-1" style={{ color: "var(--pq-alert)" }} aria-hidden="true" />
-                <span className="text-xs pq-muted">Late Limit: <span className="font-extrabold" style={{ color: "var(--pq-ink)" }}>{schedule.lateLimit || 3}</span></span>
+                <span className="text-xs pq-muted">Late Limit: <span className="font-extrabold" style={{ color: "var(--pq-ink)" }}>{lateLimit}</span></span>
               </div>
             </div>
           </>

@@ -2,8 +2,10 @@
 import { X, MapPin, CalendarDays, Clock, Users, Activity, CheckCircle2, User } from 'lucide-react';
 import { ACTIVE_RESERVATION_STATUSES } from '../../services/reservationService';
 import { formatBranchLabel } from '../../utils/stringUtils';
+import useResolvedLateLimit from '../../hooks/useResolvedLateLimit';
 
 export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reservations = [] }) {
+  const lateLimit = useResolvedLateLimit(isOpen ? schedule : null);
   if (!isOpen || !schedule) return null;
 
   const formatTime = (time) => {
@@ -118,7 +120,7 @@ export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reserv
               </div>
               <div className="flex flex-col">
                 <span className="pq-stat-label">Late Limit</span>
-                <span className="font-extrabold">{schedule.lateLimit || 3} penalties</span>
+                <span className="font-extrabold">{lateLimit} penalties</span>
               </div>
             </div>
           </div>

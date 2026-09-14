@@ -7,6 +7,7 @@ import { evaluatePositionEvents } from '../../services/positionEventEngine';
 import { cleanupNonParentNotifications } from '../../services/notificationCenterService';
 import {
   subscribeToSmsConfiguration,
+  resolveScheduleBranchId,
   DEFAULT_NEARING_TURN_AHEAD,
 } from '../../services/systemConfigurationService';
 
@@ -31,6 +32,34 @@ export default function NotificationObserver() {
   const prevMyReservationsRef = useRef({});
   const prevPatientsAheadRef = useRef({});
   const nearingTurnAheadCountRef = useRef(DEFAULT_NEARING_TURN_AHEAD);
+  const smsUnsubRef = useRef(() => {});
+  const smsBranchIdRef = useRef(null);
+  const smsResolveTokenRef = useRef(0);
+  const activeParentScheduleIdRef = useRef(null);
+
+  const bindSmsForSchedule = (schedule) => {
+    const token = ++smsResolveTokenRef.current;
+    resolveScheduleBranchId(schedule).then((branchId) => {
+      if (token !== smsResolveTokenRef.current) return;
+      if (branchId === smsBranchIdRef.current) return;
+      smsUnsubRef.current();
+      smsBranchIdRef.current = branchId || null;
+      if (!branchId) {
+        nearingTurnAheadCountRef.current = DEFAULT_NEARING_TURN_AHEAD;
+        smsUnsubRef.current = () => {};
+        return;
+      }
+      smsUnsubRef.current = subscribeToSmsConfiguration(branchId, (config) => {
+        nearingTurnAheadCountRef.current = config.nearingTurnAheadCount;
+      });
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      smsUnsubRef.current();
+    };
+  }, []);
 
   useEffect(() => {
     if (!user || role !== 'parent') return;
@@ -42,6 +71,10 @@ export default function NotificationObserver() {
       if (isInitialSchedulesLoad.current) {
         prevSchedulesRef.current = { ...currentSchedules };
         isInitialSchedulesLoad.current = false;
+        const activeSchedId = activeParentScheduleIdRef.current;
+        if (activeSchedId && currentSchedules[activeSchedId]) {
+          bindSmsForSchedule({ id: activeSchedId, ...currentSchedules[activeSchedId] });
+        }
         return;
       }
 
@@ -123,6 +156,10 @@ export default function NotificationObserver() {
       });
 
       prevSchedulesRef.current = { ...currentSchedules };
+      const activeSchedId = activeParentScheduleIdRef.current;
+      if (activeSchedId && currentSchedules[activeSchedId]) {
+        bindSmsForSchedule({ id: activeSchedId, ...currentSchedules[activeSchedId] });
+      }
     });
 
     return () => unsubSchedules();
@@ -132,10 +169,6 @@ export default function NotificationObserver() {
 
   useEffect(() => {
     if (!user || role !== 'parent') return;
-
-    const unsubSmsConfig = subscribeToSmsConfiguration((config) => {
-      nearingTurnAheadCountRef.current = config.nearingTurnAheadCount;
-    });
 
     let unsubSchedule = () => {};
     let activeScheduleId = null;
@@ -222,7 +255,12 @@ export default function NotificationObserver() {
       if (newScheduleId !== activeScheduleId) {
         unsubSchedule();
         activeScheduleId = newScheduleId;
-        
+        activeParentScheduleIdRef.current = newScheduleId;
+        const activeSchedule = newScheduleId
+          ? { id: newScheduleId, ...(prevSchedulesRef.current[newScheduleId] || {}) }
+          : null;
+        bindSmsForSchedule(activeSchedule);
+
         if (newScheduleId) {
           isInitialScheduleLoad.current = true;
           unsubSchedule = subscribeToScheduleReservations(newScheduleId, (scheduleData) => {
@@ -242,7 +280,6 @@ export default function NotificationObserver() {
     });
 
     return () => {
-      unsubSmsConfig();
       unsubParent();
       unsubSchedule();
     };

@@ -30,6 +30,7 @@ import SecretaryQueueMonitor from "../pages/secretary/QueueMonitor";
 import SecretarySchedules from "../pages/secretary/Schedules";
 
 import SecretaryProfile from "../pages/secretary/Profile";
+import SecretarySystemSettings from "../pages/secretary/SystemSettings";
 // Doctor Layout and Pages
 import DoctorLayout from "../components/doctor/Layout";
 import DoctorHome from "../pages/doctor/Home";
@@ -44,7 +45,6 @@ import AdminDashboard from "../pages/admin/Dashboard";
 import AdminUserManagement from "../pages/admin/UserManagement";
 import AdminBranchManagement from "../pages/admin/BranchManagement";
 import AdminActivity from "../pages/admin/Activity";
-import AdminSystemSettings from "../pages/admin/SystemSettings";
 import AdminProfile from "../pages/admin/Profile";
 
 import OnboardingRoute from "./OnboardingRoute";
@@ -87,8 +87,8 @@ export default function AppRoutes() {
           <Route path="schedules" element={<SecretarySchedules />} />
           <Route path="validate" element={<SecretaryValidateReservation />} />
           <Route path="queue" element={<SecretaryManageQueue />} />
-
           <Route path="profile" element={<SecretaryProfile />} />
+          <Route path="settings" element={<SecretarySystemSettings />} />
         </Route>
         
         {/* Doctor Routes */}
@@ -107,7 +107,7 @@ export default function AppRoutes() {
           <Route path="users" element={<AdminUserManagement />} />
           <Route path="branches" element={<AdminBranchManagement />} />
           <Route path="activity" element={<AdminActivity />} />
-          <Route path="settings" element={<AdminSystemSettings />} />
+          <Route path="settings" element={<Navigate to="/admin/profile" replace />} />
           <Route path="profile" element={<AdminProfile />} />
         </Route>
 

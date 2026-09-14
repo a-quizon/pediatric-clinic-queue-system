@@ -123,12 +123,64 @@ function parseSmsConfig(data) {
   };
 }
 
-async function getSmsConfiguration() {
+const LEGACY_GLOBAL_KEYS = new Set(["queue", "sms"]);
+
+function normalizeBranchName(name) {
+  return String(name || "")
+    .trim()
+    .replace(/\s+branch$/i, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+async function resolveConfigBranchId(branchIdOrName) {
+  if (!branchIdOrName || LEGACY_GLOBAL_KEYS.has(branchIdOrName)) return null;
   try {
-    const snap = await db().ref("systemConfiguration/sms").once("value");
-    return parseSmsConfig(snap.exists() ? snap.val() : null);
+    const byId = await db().ref(`branchConfigurations/${branchIdOrName}`).once("value");
+    if (byId.exists()) return branchIdOrName;
+    const all = await db().ref("branchConfigurations").once("value");
+    if (!all.exists()) return null;
+    const needle = normalizeBranchName(branchIdOrName);
+    for (const [id, value] of Object.entries(all.val() || {})) {
+      if (id === branchIdOrName || normalizeBranchName(value?.name) === needle) {
+        return id;
+      }
+    }
   } catch (err) {
-    console.error("[functions/sms] failed to load systemConfiguration/sms:", err.message);
+    console.error("[functions/sms] failed to resolve branch id:", err.message);
+  }
+  return null;
+}
+
+async function getLegacySmsConfiguration() {
+  const snap = await db().ref("systemConfiguration/sms").once("value");
+  return parseSmsConfig(snap.exists() ? snap.val() : null);
+}
+
+async function getSmsConfiguration(branchIdOrName) {
+  try {
+    const branchId = await resolveConfigBranchId(branchIdOrName);
+    if (!branchId) {
+      return getLegacySmsConfiguration();
+    }
+
+    const snap = await db().ref(`systemConfiguration/${branchId}/sms`).once("value");
+    if (snap.exists()) {
+      return parseSmsConfig(snap.val());
+    }
+
+    const parsed = await getLegacySmsConfiguration();
+    try {
+      await db().ref(`systemConfiguration/${branchId}/sms`).update({
+        ...parsed,
+        updatedAt: Date.now(),
+      });
+    } catch (seedErr) {
+      console.error("[functions/sms] failed to seed branch SMS config:", seedErr.message);
+    }
+    return parsed;
+  } catch (err) {
+    console.error("[functions/sms] failed to load SMS configuration:", err.message);
     return parseSmsConfig(null);
   }
 }
@@ -194,7 +246,7 @@ async function buildTemplateVars(eventId, context = {}, config) {
 }
 
 async function buildSmsMessage(eventId, context = {}) {
-  const config = await getSmsConfiguration();
+  const config = await getSmsConfiguration(context.configBranchId || context.branchId);
   const vars = await buildTemplateVars(eventId, context, config);
 
   let template = null;
@@ -256,7 +308,8 @@ async function enrichSmsContext(eventId, context = {}) {
       enriched.closingTime = enriched.closingTime || schedule.closingTime;
       enriched.doctorId = enriched.doctorId || schedule.doctorId;
       enriched.branchName = enriched.branchName || schedule.branch;
-      enriched.branchId = enriched.branchId || schedule.branch;
+      enriched.configBranchId = enriched.configBranchId || schedule.branchId || null;
+      enriched.branchId = schedule.branchId || enriched.branchId || schedule.branch;
     }
   }
 

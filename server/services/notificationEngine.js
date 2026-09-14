@@ -428,7 +428,7 @@ async function getAllParentIds() {
 async function evaluatePositionEvents(schedule, reservations) {
   if (!schedule || !["active", "paused", "closed"].includes(schedule.queueStatus)) return;
 
-  const smsConfig = await getSmsConfiguration();
+  const smsConfig = await getSmsConfiguration(schedule.branchId || schedule.branch);
   const nearingTurnAheadCount = smsConfig.nearingTurnAheadCount;
 
   const candidates = reservations.filter(
@@ -462,7 +462,7 @@ async function evaluatePositionEvents(schedule, reservations) {
       });
     }
 
-    // Exact patients-ahead match from systemConfiguration/sms; dedupeKey ensures one SMS even if queue pauses
+        // Exact patients-ahead match from this branch's SMS configuration; dedupeKey ensures one SMS even if queue pauses
     if (aheadOfYou === nearingTurnAheadCount) {
       await deliverNotification("NEARING_TURN", {
         parentId: reservation.parentId,

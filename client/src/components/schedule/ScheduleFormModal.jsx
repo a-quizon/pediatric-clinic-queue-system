@@ -15,7 +15,6 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
     openingTime: "",
     closingTime: "",
     slotCapacity: "",
-    lateLimit: "3",
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -59,7 +58,6 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
           openingTime: schedule.openingTime || "",
           closingTime: schedule.closingTime || "",
           slotCapacity: schedule.slotCapacity || "",
-          lateLimit: schedule.lateLimit !== undefined ? String(schedule.lateLimit) : "3",
         });
       } else {
         const lockedBranch = resolveLockedBranchName(branches);
@@ -233,7 +231,6 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
         openingTime: formData.openingTime,
         closingTime: formData.closingTime,
         slotCapacity: Number(formData.slotCapacity),
-        lateLimit: Number(formData.lateLimit) || 3,
       };
 
       if (mode === "create") {
@@ -346,22 +343,6 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
                 onChange={handleChange}
                 required
                 min="1"
-                disabled={loading}
-                className="pq-input"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="lateLimit" className="pq-label">Late Limit (Max Penalties Before Removal)</label>
-              <input
-                type="number"
-                id="lateLimit"
-                name="lateLimit"
-                value={formData.lateLimit}
-                onChange={handleChange}
-                required
-                min="1"
-                max="10"
                 disabled={loading}
                 className="pq-input"
               />

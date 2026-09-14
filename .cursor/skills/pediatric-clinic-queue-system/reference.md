@@ -46,7 +46,8 @@ Default branches: **Angeles**, **Magalang**.
 {
   branch, clinicDate,              // "YYYY-MM-DD"
   openingTime, closingTime,
-  slotCapacity, lateLimit,         // default lateLimit: 3
+  slotCapacity,                    // lateLimit is optional (legacy schedules only)
+
   status: "draft" | "published" | "completed",
   queueStatus: "not_started" | "active" | "paused" | "closed" | "completed",
   queueStartedAt, publishedAt, completedAt,
@@ -84,22 +85,23 @@ Default branches: **Angeles**, **Magalang**.
 { action, category, description, actorId, actorRole, timestamp, targetType, targetId, branchId }
 ```
 
-### `systemConfiguration/queue`
-```js
-{ penaltyMoveBack: 2 }   // 0–10; Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent.
-```
-
-### `systemConfiguration/sms`
+### `systemConfiguration/{branchId}`
 ```js
 {
-  nearingTurnAheadCount: 3,          // 1–10; exact patients-ahead that fires NEARING_TURN SMS/push/toast
-  templateSlotReserved: "...",       // placeholders: {date} {timeRange} {queueNumber} {doctor} {branch}
-  templateQueueStarted: "...",       // placeholders: {branch} {date}
-  templateNearingTurn: "...",        // placeholders: {count} {queueNumber} {branch}; default shorter clinic copy
+  penaltyMoveBack: 2,              // 0–10; 0 = immediate forfeit on penalty
+  lateLimit: 3,                    // 1–10; used by NEW schedules (legacy schedules keep their own lateLimit)
+  sms: {
+    nearingTurnAheadCount: 3,      // 1–10; exact patients-ahead that fires NEARING_TURN SMS/push/toast
+    templateSlotReserved: "...",   // placeholders: {date} {timeRange} {queueNumber} {doctor} {branch}
+    templateQueueStarted: "...",   // placeholders: {branch} {date}
+    templateNearingTurn: "...",    // placeholders: {count} {queueNumber} {branch}
+    updatedAt: 0
+  },
   updatedAt: 0
 }
 ```
-Defaults apply when the node is missing so existing clinics keep prior behavior until Admin saves SMS settings.
+Each branch (Angeles, Magalang, …) has an independent node keyed by `branchConfigurations` push id. Secretary writes only `assignedBranchId`. TextBee API key stays in env (global). Legacy `systemConfiguration/queue` and `systemConfiguration/sms` are read-only seed sources.
+
 ## RTDB Security Rules Summary
 
 | Node | Read | Write |
@@ -110,8 +112,8 @@ Defaults apply when the node is missing so existing clinics keep prior behavior 
 | `schedules` | All auth | Secretary or doctor (create/publish/start and queue control; active) |
 | `reservations` | All auth | Parent, doctor, secretary (active) |
 | `auditLogs` | Admin | Admin, doctor, secretary |
-| `systemConfiguration/queue` | Admin, doctor, secretary | Admin |
-| `systemConfiguration/sms` | Admin, doctor, secretary, parent | Admin |
+| `systemConfiguration/{branchId}` | Admin, doctor; secretary own branch | Admin; secretary own branch |
+| `systemConfiguration/{branchId}/sms` | + parents | (same write as parent node) |
 
 Rules file: `database.rules.json` (repo root).
 
@@ -134,7 +136,7 @@ Listeners: `server/services/pushListeners.js` watches `reservations` and `schedu
 
 ### SMS (textbee.dev)
 - Utility: `server/services/smsService.js` (mirrored in `client/functions/smsService.js`)
-- Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`), `QUEUE_STARTED`, `NEARING_TURN` (patients-ahead from `systemConfiguration/sms`, default 3; once per reservation via `dedupeKey` + `smsDispatchedAt`; Admin-editable templates).
+- Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`), `QUEUE_STARTED`, `NEARING_TURN` (patients-ahead from `systemConfiguration/{branchId}/sms`, default 3; once per reservation via `dedupeKey` + `smsDispatchedAt`; Secretary-editable per branch). TextBee credentials remain env-global.
 - OTP store: `smsOtps/{phoneKey}` — bcrypt-hashed code, 5-minute `expiresAt`; client R/W denied in rules
 
 ## Cloud Functions (`client/functions/index.js`)
