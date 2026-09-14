@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, CheckCircle2, User, Users, MapPin, Activity, Clock } from "lucide-react";
-import { ref, onValue } from "firebase/database";
+import { NavLink } from "react-router-dom";
+import { CalendarDays, MapPin, Users, User, Activity, Clock } from "lucide-react";
+import { ref, onValue, query, limitToLast } from "firebase/database";
 import { database } from "../../firebase/database";
+import { PqSpinner } from "../../components/parent/pqUi";
 
-// Helper utilities for date/time
+const PREVIEW_LOG_COUNT = 8;
+const PREVIEW_BRANCH_COUNT = 4;
+
 const formatTime = (timeStr) => {
   if (!timeStr) return "";
   const [hours, minutes] = timeStr.split(":");
@@ -22,12 +26,92 @@ const formatDate = (dateStr) => {
   });
 };
 
+const formatFeedTime = (timestamp) => {
+  if (!timestamp) return "Unknown";
+  const d = new Date(timestamp);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  if (sameDay) {
+    return new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    }).format(d);
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true
+  }).format(d);
+};
+
 const getTodayStr = () => {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+const pickRelevantSchedule = (publishedList, todayStr) => {
+  const currentlyOperating = publishedList.filter((s) =>
+    ["active", "paused", "closed"].includes(s.queueStatus)
+  );
+
+  if (currentlyOperating.length > 0) {
+    currentlyOperating.sort((a, b) => {
+      const statePriority = { active: 1, paused: 2, closed: 3 };
+      const pA = statePriority[a.queueStatus] || 99;
+      const pB = statePriority[b.queueStatus] || 99;
+      if (pA !== pB) return pA - pB;
+      const dateA = new Date(a.clinicDate).getTime();
+      const dateB = new Date(b.clinicDate).getTime();
+      if (dateA !== dateB) return dateA - dateB;
+      return (a.openingTime || "").localeCompare(b.openingTime || "");
+    });
+    return currentlyOperating[0];
+  }
+
+  const todaySchedules = publishedList.filter((s) => s.clinicDate === todayStr);
+  if (todaySchedules.length > 0) {
+    todaySchedules.sort((a, b) => (a.openingTime || "").localeCompare(b.openingTime || ""));
+    return todaySchedules[0];
+  }
+
+  const upcomingSchedules = publishedList.filter((s) => s.clinicDate > todayStr);
+  if (upcomingSchedules.length > 0) {
+    upcomingSchedules.sort((a, b) => {
+      const dateA = new Date(a.clinicDate).getTime();
+      const dateB = new Date(b.clinicDate).getTime();
+      if (dateA !== dateB) return dateA - dateB;
+      return (a.openingTime || "").localeCompare(b.openingTime || "");
+    });
+    return upcomingSchedules[0];
+  }
+
+  return null;
+};
+
+const operationLabel = (schedule) => {
+  if (!schedule) return null;
+  if (schedule.queueStatus === "active") return "Queue Active";
+  if (schedule.queueStatus === "paused") return "Queue Paused";
+  if (schedule.queueStatus === "closed") return "Queue Closed";
+  return "Schedule Published";
+};
+
+const formatOperation = (schedule, branchName) => {
+  if (!schedule) {
+    return { branchName, state: null, date: "", timeStr: "" };
+  }
+  return {
+    branchName: branchName || schedule.branch || "Unknown Branch",
+    state: operationLabel(schedule),
+    date: formatDate(schedule.clinicDate),
+    timeStr: `${formatTime(schedule.openingTime)} – ${formatTime(schedule.closingTime)}`,
+  };
 };
 
 export default function Dashboard() {
@@ -38,11 +122,14 @@ export default function Dashboard() {
     activeStaff: 0,
     branches: 0,
   });
-  
-  const [currentOperation, setCurrentOperation] = useState(null);
+  const [branchList, setBranchList] = useState([]);
+  const [branchOperations, setBranchOperations] = useState([]);
+
+  const [recentLogs, setRecentLogs] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState(null);
 
   useEffect(() => {
-    // Refs
     const usersRef = ref(database, "users");
     const schedulesRef = ref(database, "schedules");
     const branchesRef = ref(database, "branchConfigurations");
@@ -54,94 +141,41 @@ export default function Dashboard() {
     let usersLoaded = false;
     let schedulesLoaded = false;
     let branchesLoaded = false;
-    
+
     const computeStats = () => {
       if (!usersLoaded || !schedulesLoaded || !branchesLoaded) return;
-      
+
       const usersList = Object.values(usersData || {});
       const schedulesList = Object.values(schedulesData || {});
-      
-      // 1. Registered Parents
-      const registeredParents = usersList.filter(u => u.role === "parent").length;
-      
-      // 2. Active Staff
-      const activeStaff = usersList.filter(u => 
+
+      const registeredParents = usersList.filter((u) => u.role === "parent").length;
+
+      const activeStaff = usersList.filter((u) =>
         (u.role === "doctor" || u.role === "secretary") && u.status === "active"
       ).length;
 
-      // 3. Clinic Branches
-      const branches = Object.keys(branchesData || {}).length;
+      const mappedBranches = Object.entries(branchesData || {}).map(([id, value]) => ({
+        id,
+        ...(value || {}),
+      }));
+      mappedBranches.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
+      setBranchList(mappedBranches);
       setStats({
         registeredParents,
         activeStaff,
-        branches,
+        branches: mappedBranches.length,
       });
 
-      // --- Current Clinic Operation Logic ---
       const todayStr = getTodayStr();
-      const publishedList = schedulesList.filter(s => s.status === "published");
-      
-      let relevantSchedule = null;
-      let operationState = "";
+      const publishedList = schedulesList.filter((s) => s.status === "published");
 
-      // Priority 1: Currently Operating
-      const currentlyOperating = publishedList.filter(s => 
-        ["active", "paused", "closed"].includes(s.queueStatus)
+      setBranchOperations(
+        mappedBranches.map((branch) => {
+          const forBranch = publishedList.filter((s) => s.branch === branch.name);
+          return formatOperation(pickRelevantSchedule(forBranch, todayStr), branch.name);
+        })
       );
-      
-      if (currentlyOperating.length > 0) {
-        // Deterministic fallback if multiple are active
-        currentlyOperating.sort((a, b) => {
-          const statePriority = { "active": 1, "paused": 2, "closed": 3 };
-          const pA = statePriority[a.queueStatus] || 99;
-          const pB = statePriority[b.queueStatus] || 99;
-          if (pA !== pB) return pA - pB;
-          const dateA = new Date(a.clinicDate).getTime();
-          const dateB = new Date(b.clinicDate).getTime();
-          if (dateA !== dateB) return dateA - dateB;
-          return (a.openingTime || "").localeCompare(b.openingTime || "");
-        });
-        
-        relevantSchedule = currentlyOperating[0];
-        if (relevantSchedule.queueStatus === "active") operationState = "Queue Active";
-        else if (relevantSchedule.queueStatus === "paused") operationState = "Queue Paused";
-        else if (relevantSchedule.queueStatus === "closed") operationState = "Queue Closed";
-      } 
-      else {
-        // Priority 2: Next Schedule Today
-        const todaySchedules = publishedList.filter(s => s.clinicDate === todayStr);
-        if (todaySchedules.length > 0) {
-          todaySchedules.sort((a, b) => (a.openingTime || "").localeCompare(b.openingTime || ""));
-          relevantSchedule = todaySchedules[0];
-          operationState = "Schedule Published";
-        } 
-        else {
-          // Priority 3: Earliest Upcoming Schedule
-          const upcomingSchedules = publishedList.filter(s => s.clinicDate > todayStr);
-          if (upcomingSchedules.length > 0) {
-            upcomingSchedules.sort((a, b) => {
-              const dateA = new Date(a.clinicDate).getTime();
-              const dateB = new Date(b.clinicDate).getTime();
-              if (dateA !== dateB) return dateA - dateB;
-              return (a.openingTime || "").localeCompare(b.openingTime || "");
-            });
-            relevantSchedule = upcomingSchedules[0];
-            operationState = "Schedule Published";
-          }
-        }
-      }
-
-      if (relevantSchedule) {
-        setCurrentOperation({
-          branchName: relevantSchedule.branch || "Unknown Branch",
-          state: operationState,
-          date: formatDate(relevantSchedule.clinicDate),
-          timeStr: `${formatTime(relevantSchedule.openingTime)} – ${formatTime(relevantSchedule.closingTime)}`
-        });
-      } else {
-        setCurrentOperation(null);
-      }
 
       setLoading(false);
     };
@@ -178,90 +212,209 @@ export default function Dashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    const auditRef = query(ref(database, "auditLogs"), limitToLast(PREVIEW_LOG_COUNT));
+    const unsubscribe = onValue(auditRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const logsList = Object.keys(data).map((key) => ({
+          id: key,
+          ...data[key]
+        }));
+        logsList.sort((a, b) => b.timestamp - a.timestamp);
+        setRecentLogs(logsList.slice(0, PREVIEW_LOG_COUNT));
+      } else {
+        setRecentLogs([]);
+      }
+      setActivityError(null);
+      setActivityLoading(false);
+    }, (err) => {
+      console.error("Failed to load recent activity", err);
+      setActivityError("Couldn't load recent activity.");
+      setActivityLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const statCards = [
-    { title: "Registered Parents", value: stats.registeredParents, icon: User, color: "text-blue-600", bg: "bg-blue-50" },
-    { title: "Active Staff", value: stats.activeStaff, icon: Users, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { title: "Clinic Branches", value: stats.branches, icon: MapPin, color: "text-indigo-600", bg: "bg-indigo-50" },
+    { title: "Registered Parents", value: stats.registeredParents, icon: User, tone: "info" },
+    { title: "Active Staff", value: stats.activeStaff, icon: Users, tone: "default" },
+    { title: "Clinic Branches", value: stats.branches, icon: MapPin, tone: "default" },
   ];
 
+  const statClass = (tone) => {
+    if (tone === "live") return "pq-stat pq-stat-live";
+    if (tone === "info") return "pq-stat pq-stat-info";
+    return "pq-stat";
+  };
+
+  const previewBranches = branchList.slice(0, PREVIEW_BRANCH_COUNT);
+  const extraBranchCount = Math.max(0, branchList.length - previewBranches.length);
+
+  if (loading && !error) {
+    return (
+      <div className="pq-glass p-10">
+        <PqSpinner label="Loading dashboard" />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12">
+    <div className="space-y-6 pb-8">
       {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100 flex items-center gap-3">
-           <Activity className="w-5 h-5 shrink-0" />
-           <p className="font-medium text-sm">{error}</p>
+        <div className="pq-note pq-note-alert flex items-center gap-3">
+          <Activity className="w-5 h-5 shrink-0" aria-hidden="true" />
+          <p className="font-medium text-sm">{error}</p>
         </div>
       )}
-      
-      {/* System Overview */}
-      <div>
-        <h2 className="text-xl font-bold text-gray-800 mb-4">System Overview</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {statCards.map((stat, index) => (
-            <div key={index} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`p-2.5 rounded-xl ${stat.bg}`}>
-                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                </div>
-              </div>
-              <div>
-                <h3 className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">{stat.title}</h3>
-                {loading ? (
-                  <div className="h-7 w-12 bg-gray-200 rounded animate-pulse"></div>
-                ) : (
-                  <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
-                )}
-              </div>
+
+      <section className="pq-glass p-5">
+        <h2 className="text-lg font-extrabold tracking-tight mb-4">System Overview</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {statCards.map((stat) => (
+            <div key={stat.title} className={statClass(stat.tone)}>
+              <span className="pq-stat-label flex items-center gap-1">
+                <stat.icon className="w-3.5 h-3.5" aria-hidden="true" />
+                {stat.title}
+              </span>
+              <span className="pq-stat-value">{stat.value}</span>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Current Clinic Operation */}
-      <div>
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Current Clinic Operation</h2>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 lg:p-8">
-          {loading ? (
-            <div className="animate-pulse space-y-4">
-              <div className="h-6 w-1/4 bg-gray-200 rounded"></div>
-              <div className="h-8 w-1/3 bg-gray-200 rounded"></div>
-              <div className="h-4 w-1/2 bg-gray-200 rounded"></div>
-            </div>
-          ) : currentOperation ? (
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div>
-                <div className="flex items-center text-gray-500 mb-2">
-                  <MapPin className="w-4 h-4 mr-1.5" />
-                  <span className="font-medium">{currentOperation.branchName}</span>
-                </div>
-                <h3 className="text-3xl font-bold text-gray-800 tracking-tight">
-                  {currentOperation.state}
-                </h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section className="pq-glass p-6 lg:p-8">
+          <h2 className="text-lg font-extrabold tracking-tight mb-5">Current Clinic Operation</h2>
+          {branchOperations.length === 0 ? (
+            <div className="text-center py-8">
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ background: "color-mix(in srgb, #ffffff 55%, transparent)", color: "var(--pq-ink-faint)" }}
+              >
+                <Activity className="w-8 h-8" aria-hidden="true" />
               </div>
-              <div className="flex flex-col gap-2 md:items-end">
-                <div className="flex items-center text-gray-700 bg-gray-50 px-4 py-2 rounded-lg font-medium">
-                  <CalendarDays className="w-4 h-4 mr-2 text-blue-600" />
-                  {currentOperation.date}
-                </div>
-                <div className="flex items-center text-gray-700 bg-gray-50 px-4 py-2 rounded-lg font-medium">
-                  <Clock className="w-4 h-4 mr-2 text-emerald-600" />
-                  {currentOperation.timeStr}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Activity className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">No Active Clinic Session</h3>
-              <p className="text-gray-500 max-w-md mx-auto">
-                There is currently no published clinic schedule waiting to run or currently running.
+              <h3 className="text-xl font-extrabold tracking-tight mb-2">No branches yet</h3>
+              <p className="pq-muted max-w-md mx-auto">
+                Add a branch to see clinic sessions here.
               </p>
             </div>
+          ) : (
+            <div className="space-y-2">
+              {branchOperations.map((operation) => (
+                <div
+                  key={operation.branchName}
+                  className="pq-row items-start sm:items-center flex-col sm:flex-row"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {operation.state === "Queue Active" ? (
+                        <span className="pq-pip" aria-hidden="true" />
+                      ) : (
+                        <MapPin className="w-4 h-4 pq-faint shrink-0" aria-hidden="true" />
+                      )}
+                      <p className="font-extrabold tracking-tight truncate">{operation.branchName}</p>
+                    </div>
+                    <p className="text-sm font-semibold mt-1">
+                      {operation.state || "No published session"}
+                    </p>
+                  </div>
+                  {operation.state ? (
+                    <div className="text-sm font-medium pq-muted shrink-0">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="w-4 h-4" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
+                        {operation.date}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Clock className="w-4 h-4" style={{ color: "var(--pq-live)" }} aria-hidden="true" />
+                        {operation.timeStr}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
           )}
-        </div>
+        </section>
+
+        <section className="pq-glass p-6 lg:p-8 flex flex-col">
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <h2 className="text-lg font-extrabold tracking-tight">Clinic Branches</h2>
+            <NavLink to="/admin/branches" className="pq-btn-ghost shrink-0" aria-label="Manage clinic branches">
+              Manage
+            </NavLink>
+          </div>
+
+          {previewBranches.length === 0 ? (
+            <div className="pq-row flex-col items-center text-center min-h-0 py-8 flex-1 justify-center">
+              <MapPin className="w-8 h-8 pq-faint mb-3" aria-hidden="true" />
+              <p className="font-extrabold tracking-tight">No branches yet</p>
+              <p className="text-sm pq-muted mt-1">Add a branch to start clinic operations.</p>
+            </div>
+          ) : (
+            <div className="space-y-2 flex-1">
+              {previewBranches.map((branch) => (
+                <div key={branch.id} className="pq-row">
+                  <div className="min-w-0">
+                    <p className="font-extrabold tracking-tight truncate">{branch.name || "Unnamed branch"}</p>
+                    <p className="text-sm pq-muted truncate">
+                      {branch.clinicAddress || "No clinic address provided."}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {extraBranchCount > 0 ? (
+                <p className="text-sm pq-muted font-medium pt-1">
+                  +{extraBranchCount} more {extraBranchCount === 1 ? "branch" : "branches"}
+                </p>
+              ) : null}
+            </div>
+          )}
+        </section>
       </div>
+
+      <section className="pq-glass p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h2 className="text-lg font-extrabold tracking-tight">Recent Activity</h2>
+          <NavLink to="/admin/activity" className="pq-btn-secondary shrink-0" aria-label="View all activity">
+            View all
+          </NavLink>
+        </div>
+
+        {activityError ? (
+          <div className="pq-note pq-note-alert">
+            <p className="font-medium text-sm">{activityError}</p>
+          </div>
+        ) : activityLoading ? (
+          <PqSpinner label="Loading recent activity" />
+        ) : recentLogs.length === 0 ? (
+          <div className="pq-row flex-col items-center text-center min-h-0 py-10">
+            <Activity className="w-8 h-8 pq-faint mb-3" aria-hidden="true" />
+            <p className="font-extrabold tracking-tight">No activity yet</p>
+            <p className="text-sm pq-muted mt-1 max-w-sm">
+              Staff and admin actions will appear here as they happen.
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {recentLogs.map((log) => (
+              <li key={log.id} className="pq-row items-start">
+                <div className="min-w-0">
+                  <p className="text-xs font-extrabold pq-muted uppercase tracking-wider mb-0.5">
+                    {formatFeedTime(log.timestamp)}
+                  </p>
+                  <p className="text-sm font-medium break-words">{log.description}</p>
+                  <p className="text-xs pq-muted mt-1 font-medium truncate">
+                    {log.actorName}
+                    {log.actorRole ? ` · ${log.actorRole}` : ""}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

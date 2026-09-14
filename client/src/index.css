@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* PlusQueue parent + doctor + secretary + auth — admin stays outside .pq-shell */
+/* PlusQueue parent + doctor + secretary + admin + auth */
 .pq-shell {
   --pq-ink: #16344a;
   --pq-ink-soft: #3a5c6e;
@@ -136,6 +136,52 @@
   box-shadow: 0 8px 24px -16px rgba(22, 52, 74, 0.35), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
 }
 
+.pq-drawer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--pq-ink) 42%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms var(--pq-ease);
+}
+
+.pq-drawer-scrim-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pq-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 41;
+  width: min(18rem, 86vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--pq-glass-nav);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border-right: 1px solid var(--pq-glass-edge);
+  box-shadow: 8px 0 28px -16px rgba(22, 52, 74, 0.4);
+  transform: translate3d(-100%, 0, 0);
+  transition: transform 220ms var(--pq-ease);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pq-drawer-open {
+  transform: translate3d(0, 0, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pq-drawer,
+  .pq-drawer-scrim {
+    transition: none;
+  }
+}
+
 .pq-capsule,
 .pq-dock,
 .pq-header-pill {
@@ -178,6 +224,46 @@
   border: 1px solid var(--pq-glass-edge);
   box-shadow: var(--pq-shadow);
   border-radius: var(--pq-radius);
+}
+
+.pq-tablist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.25rem;
+  background: color-mix(in srgb, #ffffff 82%, var(--pq-paper));
+  border: 1px solid var(--pq-glass-edge);
+  border-radius: var(--pq-radius-sm);
+}
+
+.pq-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--pq-radius-sm) - 0.1rem);
+  background: transparent;
+  color: var(--pq-ink-soft);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+}
+
+.pq-tab:hover {
+  color: var(--pq-ink);
+  background: color-mix(in srgb, #ffffff 70%, transparent);
+}
+
+.pq-tab[aria-selected="true"] {
+  background: color-mix(in srgb, var(--pq-mark-blue) 12%, white);
+  color: var(--pq-mark-blue-deep);
+  font-weight: 800;
 }
 
 .pq-filter-stick {
@@ -371,6 +457,13 @@
   color: var(--pq-mark-blue-deep);
 }
 
+@media (min-width: 768px) {
+  .pq-icon-btn.pq-mobile-nav-toggle,
+  .pq-mobile-nav-root {
+    display: none;
+  }
+}
+
 .pq-link {
   color: var(--pq-mark-blue-deep);
   font-weight: 700;
@@ -490,6 +583,16 @@
   border-radius: 0.9rem;
   background: color-mix(in srgb, #ffffff 55%, transparent);
   border: 1px solid var(--pq-glass-line);
+}
+
+.pq-shell a.pq-row,
+.pq-shell a.pq-stat {
+  color: inherit;
+  text-decoration: none;
+}
+
+.pq-shell a.pq-row:hover {
+  background: color-mix(in srgb, #ffffff 78%, transparent);
 }
 
 .pq-row-you {
@@ -839,6 +942,13 @@
   color: var(--pq-ink);
 }
 
+.pq-table thead.pq-table-head-sticky th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: color-mix(in srgb, #ffffff 92%, #e4f3f4);
+}
+
 .pq-switch {
   position: relative;
   display: inline-flex;
@@ -891,6 +1001,7 @@
   .pq-glass-modal,
   .pq-glass-window,
   .pq-glass-nav,
+  .pq-drawer,
   .pq-dock,
   .pq-header-pill,
   .pq-capsule {

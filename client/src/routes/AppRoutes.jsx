@@ -45,7 +45,6 @@ import AdminDashboard from "../pages/admin/Dashboard";
 import AdminUserManagement from "../pages/admin/UserManagement";
 import AdminBranchManagement from "../pages/admin/BranchManagement";
 import AdminActivity from "../pages/admin/Activity";
-import AdminProfile from "../pages/admin/Profile";
 
 import OnboardingRoute from "./OnboardingRoute";
 import RoleRoute from "./RoleRoute";
@@ -107,8 +106,8 @@ export default function AppRoutes() {
           <Route path="users" element={<AdminUserManagement />} />
           <Route path="branches" element={<AdminBranchManagement />} />
           <Route path="activity" element={<AdminActivity />} />
-          <Route path="settings" element={<Navigate to="/admin/profile" replace />} />
-          <Route path="profile" element={<AdminProfile />} />
+          <Route path="settings" element={<Navigate to="/admin" replace />} />
+          <Route path="profile" element={<Navigate to="/admin" replace />} />
         </Route>
 
         {/* Fallback Catch-All Route */}

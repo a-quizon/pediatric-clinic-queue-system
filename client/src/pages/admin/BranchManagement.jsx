@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { getBranchConfigurations, checkBranchInUse, deleteBranch } from '../../services/branchConfigurationService';
-import BranchConfiguration from '../../components/branch/BranchConfiguration';
+import React, { useState, useEffect } from "react";
+import { getBranchConfigurations, checkBranchInUse, deleteBranch } from "../../services/branchConfigurationService";
+import BranchConfiguration from "../../components/branch/BranchConfiguration";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import MessageModal from "../../components/common/MessageModal";
-import { MapPin, Plus, Edit2, Trash2, Clock } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { MapPin, Edit2, Trash2, AlertCircle, Plus } from "lucide-react";
+import { PqSpinner } from "../../components/parent/pqUi";
+import toast from "react-hot-toast";
 
 export default function BranchManagement() {
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+  const [error, setError] = useState(null);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState('add');
+  const [modalMode, setModalMode] = useState("add");
   const [selectedBranch, setSelectedBranch] = useState(null);
 
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, branchId: null, title: "", message: "" });
@@ -20,10 +22,12 @@ export default function BranchManagement() {
 
   const fetchBranches = async () => {
     try {
+      setError(null);
       const data = await getBranchConfigurations();
       setBranches(data);
-    } catch (error) {
-      console.error("Error fetching branches:", error);
+    } catch (err) {
+      console.error("Error fetching branches:", err);
+      setError("Failed to load branches. You may not have permission, or there is a network issue.");
     } finally {
       setLoading(false);
     }
@@ -33,18 +37,18 @@ export default function BranchManagement() {
     fetchBranches();
 
     const handleOpenAddEvent = () => handleOpenAdd();
-    window.addEventListener('openAddBranchModal', handleOpenAddEvent);
-    return () => window.removeEventListener('openAddBranchModal', handleOpenAddEvent);
+    window.addEventListener("openAddBranchModal", handleOpenAddEvent);
+    return () => window.removeEventListener("openAddBranchModal", handleOpenAddEvent);
   }, []);
 
   const handleOpenAdd = () => {
-    setModalMode('add');
+    setModalMode("add");
     setSelectedBranch(null);
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (branch) => {
-    setModalMode('edit');
+    setModalMode("edit");
     setSelectedBranch(branch);
     setIsModalOpen(true);
   };
@@ -57,11 +61,10 @@ export default function BranchManagement() {
     fetchBranches();
   };
 
-  const handleDeleteClick = async (branch, e) => {
-    e.stopPropagation();
+  const handleDeleteClick = async (branch) => {
     try {
       const { hasPublishedSchedules, hasActiveReservations } = await checkBranchInUse(branch.name);
-      
+
       if (hasPublishedSchedules || hasActiveReservations) {
         setMessageModal({
           isOpen: true,
@@ -71,7 +74,7 @@ export default function BranchManagement() {
         });
         return;
       }
-      
+
       setConfirmModal({
         isOpen: true,
         branchId: branch.id,
@@ -90,102 +93,112 @@ export default function BranchManagement() {
     try {
       await deleteBranch(confirmModal.branchId);
       await fetchBranches();
-      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      setConfirmModal((prev) => ({ ...prev, isOpen: false }));
       toast.success("Branch deleted successfully.");
     } catch (err) {
       console.error(err);
       toast.error("Failed to delete branch.");
-      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      setConfirmModal((prev) => ({ ...prev, isOpen: false }));
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const formatTime = (time) => {
-    if (!time) return '';
-    const [hours, minutes] = time.split(':');
-    const h = parseInt(hours, 10);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const formattedH = h % 12 || 12;
-    return `${formattedH}:${minutes} ${ampm}`;
-  };
-
-  const daysOfWeek = [
-    { key: 'monday', label: 'Mon' },
-    { key: 'tuesday', label: 'Tue' },
-    { key: 'wednesday', label: 'Wed' },
-    { key: 'thursday', label: 'Thu' },
-    { key: 'friday', label: 'Fri' },
-    { key: 'saturday', label: 'Sat' },
-    { key: 'sunday', label: 'Sun' },
-  ];
-
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="pq-glass p-10">
+        <PqSpinner label="Loading branches" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6 pb-6 relative">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {branches.map(branch => (
-          <div 
-            key={branch.id} 
-            className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-100 transition-all p-5 flex flex-col cursor-pointer"
-            onClick={() => handleOpenEdit(branch)}
+      {error ? (
+        <div className="pq-glass p-10 text-center">
+          <div
+            className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4"
+            style={{ background: "var(--pq-alert-wash)", color: "var(--pq-alert)" }}
           >
-            <div className="flex justify-between items-start mb-2">
-              <h3 className="text-xl font-bold text-gray-800 flex items-center">
-                <MapPin className="w-6 h-6 mr-2 text-blue-500 bg-blue-50 p-1 rounded-lg shrink-0" />
-                <span className="truncate">{branch.name}</span>
-              </h3>
-            </div>
-            
-            <div className="flex-1 mb-4">
-              {branch.clinicAddress ? (
-                <p className="text-sm text-gray-500 line-clamp-3 leading-relaxed whitespace-pre-line pl-8">
-                  {branch.clinicAddress}
-                </p>
-              ) : (
-                <p className="text-sm text-gray-400 italic pl-8">
-                  No clinic address provided.
-                </p>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-2 pt-2 border-t border-gray-50 mt-auto">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenEdit(branch);
-                }}
-                className="flex-1 py-2 bg-blue-50 text-blue-600 text-sm font-semibold rounded-xl hover:bg-blue-100 transition-colors flex items-center justify-center"
-              >
-                <Edit2 className="w-4 h-4 mr-1.5" />
-                Edit
-              </button>
-              <button 
-                onClick={(e) => handleDeleteClick(branch, e)}
-                className="flex-1 py-2 bg-red-50 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center"
-              >
-                <Trash2 className="w-4 h-4 mr-1.5" />
-                Delete
-              </button>
-            </div>
+            <AlertCircle className="w-8 h-8" aria-hidden="true" />
           </div>
-        ))}
-
-        {branches.length === 0 && (
-          <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-gray-300">
-            <p className="text-gray-500 mb-2">No branches found.</p>
+          <h3 className="text-lg font-extrabold tracking-tight mb-2">Couldn't load branches</h3>
+          <p className="pq-muted text-sm max-w-sm mx-auto mb-4">{error}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              fetchBranches();
+            }}
+            className="pq-btn-primary"
+          >
+            Try again
+          </button>
+        </div>
+      ) : branches.length === 0 ? (
+        <div className="pq-glass p-12 text-center">
+          <div
+            className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4"
+            style={{ background: "color-mix(in srgb, #ffffff 55%, transparent)", color: "var(--pq-ink-faint)" }}
+          >
+            <MapPin className="w-8 h-8" aria-hidden="true" />
           </div>
-        )}
-      </div>
+          <p className="font-extrabold tracking-tight mb-1">No branches found.</p>
+          <p className="pq-muted text-sm mb-4">Add a branch to start clinic operations.</p>
+          <button type="button" onClick={handleOpenAdd} className="pq-btn-primary">
+            <Plus className="w-5 h-5" aria-hidden="true" />
+            Add Branch
+          </button>
+        </div>
+      ) : (
+        <section className="pq-glass p-4 sm:p-5">
+          <div className="space-y-3">
+            {branches.map((branch) => (
+              <article key={branch.id} className="pq-row items-start sm:items-center flex-col sm:flex-row">
+                <div className="flex items-start gap-3 min-w-0 flex-1 w-full">
+                  <div
+                    className="w-10 h-10 rounded-[0.9rem] flex items-center justify-center shrink-0"
+                    style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 14%, white)", color: "var(--pq-mark-blue-deep)" }}
+                  >
+                    <MapPin className="w-5 h-5" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-lg font-extrabold tracking-tight truncate">{branch.name}</h3>
+                    {branch.clinicAddress ? (
+                      <p className="text-sm pq-muted leading-relaxed whitespace-pre-line mt-1">
+                        {branch.clinicAddress}
+                      </p>
+                    ) : (
+                      <p className="text-sm pq-faint italic mt-1">No clinic address provided.</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenEdit(branch)}
+                    className="pq-btn-secondary flex-1 sm:flex-none"
+                  >
+                    <Edit2 className="w-4 h-4" aria-hidden="true" />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteClick(branch)}
+                    className="pq-btn-ghost flex-1 sm:flex-none"
+                    style={{ color: "var(--pq-alert)" }}
+                  >
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />
+                    Delete
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
-      <BranchConfiguration 
+      <BranchConfiguration
         isOpen={isModalOpen}
         mode={modalMode}
         branch={selectedBranch}
@@ -201,7 +214,7 @@ export default function BranchManagement() {
         confirmText="Delete"
         cancelText="Cancel"
         onConfirm={executeDelete}
-        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
         isLoading={isProcessing}
         isDestructive={true}
       />
@@ -211,7 +224,7 @@ export default function BranchManagement() {
         type={messageModal.type}
         title={messageModal.title}
         message={messageModal.message}
-        onClose={() => setMessageModal(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => setMessageModal((prev) => ({ ...prev, isOpen: false }))}
       />
     </div>
   );

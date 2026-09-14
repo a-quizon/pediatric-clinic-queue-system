@@ -9,8 +9,8 @@ import { formatToE164 } from "../../utils/phoneUtils";
 
 export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   const [step, setStep] = useState(1);
-  const [role, setRole] = useState(null); // 'doctor' or 'secretary'
-  
+  const [role, setRole] = useState(null);
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -65,10 +65,10 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
     const { name, value } = e.target;
     if (name === "phone") {
       const sanitized = value.replace(/\D/g, "");
-      setFormData(prev => ({ ...prev, [name]: sanitized }));
+      setFormData((prev) => ({ ...prev, [name]: sanitized }));
       return;
     }
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleContinue = () => {
@@ -84,7 +84,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
     if (!name.trim()) return "Name is required.";
     if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email)) return "A valid email is required.";
     if (!phone.trim() || phone.length !== 10) return "Phone number must be exactly 10 digits.";
-    
+
     if (!password) return "Password is required.";
     if (!isPasswordValid) return "Password does not meet requirements.";
     if (password !== confirmPassword) return "Passwords do not match.";
@@ -108,7 +108,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
 
     setLoading(true);
     try {
-      const selectedBranch = branches.find(b => b.name === formData.assignedBranch);
+      const selectedBranch = branches.find((b) => b.name === formData.assignedBranch);
       await createStaffAccount({
         role,
         name: formatName(formData.name),
@@ -118,14 +118,14 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
         assignedBranch: role === "secretary" ? (selectedBranch?.name || formData.assignedBranch) : null,
         assignedBranchId: role === "secretary" ? (selectedBranch?.id || null) : null
       });
-      
+
       toast.success(`${role.charAt(0).toUpperCase() + role.slice(1)} account created successfully!`);
       resetState();
-      onSuccess(); // Close and refresh
+      onSuccess();
     } catch (error) {
       console.error("Create Staff Error:", error);
       let errMsg = error.message;
-      if (error.code === 'auth/email-already-in-use') {
+      if (error.code === "auth/email-already-in-use") {
         errMsg = "The email address is already in use by another account.";
       }
       toast.error(errMsg || "An error occurred while creating the account.");
@@ -135,125 +135,126 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-        
-        {/* Header */}
-        <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-white">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-              <UserPlus className="w-5 h-5" />
+    <div className="pq-modal-scrim z-50">
+      <div className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="add-staff-title">
+        <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-10 h-10 rounded-[0.9rem] flex items-center justify-center shrink-0"
+              style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 14%, white)", color: "var(--pq-mark-blue-deep)" }}
+            >
+              <UserPlus className="w-5 h-5" aria-hidden="true" />
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-800">
+            <div className="min-w-0">
+              <h2 id="add-staff-title" className="text-lg font-extrabold tracking-tight">
                 {step === 1 ? "Add Staff" : `Create ${role.charAt(0).toUpperCase() + role.slice(1)}`}
               </h2>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <p className="text-xs font-semibold pq-muted uppercase tracking-wider">
                 {step === 1 ? "Step 1 of 2" : "Step 2 of 2"}
               </p>
             </div>
           </div>
-          <button 
+          <button
+            type="button"
             onClick={handleClose}
             disabled={loading}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-2 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="pq-icon-btn"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content */}
         <div className="p-6 overflow-y-auto">
           {step === 1 ? (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600 font-medium mb-2">Select the role for the new staff member:</p>
-              
+            <div className="space-y-3">
+              <p className="text-sm pq-muted font-medium mb-2">Select the role for the new staff member:</p>
+
               <button
+                type="button"
                 onClick={() => setRole("doctor")}
-                className={`w-full flex items-center p-4 rounded-xl border-2 transition-all text-left ${
-                  role === "doctor" 
-                    ? "border-blue-600 bg-blue-50" 
-                    : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
-                }`}
+                className={`w-full text-left ${role === "doctor" ? "pq-row pq-row-you" : "pq-row"}`}
               >
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 mr-4 ${
-                  role === "doctor" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-500"
-                }`}>
-                  <Stethoscope className="w-6 h-6" />
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 mr-4"
+                  style={role === "doctor"
+                    ? { background: "var(--pq-mark-blue)", color: "#fff" }
+                    : { background: "color-mix(in srgb, #ffffff 55%, transparent)", color: "var(--pq-ink-faint)" }}
+                >
+                  <Stethoscope className="w-6 h-6" aria-hidden="true" />
                 </div>
                 <div>
-                  <h3 className={`font-bold ${role === "doctor" ? "text-blue-900" : "text-gray-800"}`}>Doctor</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">Manages clinic schedules, consultations, and queue status.</p>
+                  <h3 className="font-extrabold tracking-tight">Doctor</h3>
+                  <p className="text-xs pq-muted mt-0.5">Manages clinic schedules, consultations, and queue status.</p>
                 </div>
               </button>
 
               <button
+                type="button"
                 onClick={() => setRole("secretary")}
-                className={`w-full flex items-center p-4 rounded-xl border-2 transition-all text-left ${
-                  role === "secretary" 
-                    ? "border-blue-600 bg-blue-50" 
-                    : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"
-                }`}
+                className={`w-full text-left ${role === "secretary" ? "pq-row pq-row-you" : "pq-row"}`}
               >
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 mr-4 ${
-                  role === "secretary" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-500"
-                }`}>
-                  <UserCog className="w-6 h-6" />
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 mr-4"
+                  style={role === "secretary"
+                    ? { background: "var(--pq-mark-blue)", color: "#fff" }
+                    : { background: "color-mix(in srgb, #ffffff 55%, transparent)", color: "var(--pq-ink-faint)" }}
+                >
+                  <UserCog className="w-6 h-6" aria-hidden="true" />
                 </div>
                 <div>
-                  <h3 className={`font-bold ${role === "secretary" ? "text-blue-900" : "text-gray-800"}`}>Secretary</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">Validates reservations, manages the waiting queue, and assists patients.</p>
+                  <h3 className="font-extrabold tracking-tight">Secretary</h3>
+                  <p className="text-xs pq-muted mt-0.5">Validates reservations, manages the waiting queue, and assists patients.</p>
                 </div>
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} id="staff-form" className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
+                <label htmlFor="staff-name" className="pq-label">Full Name <span style={{ color: "var(--pq-alert)" }}>*</span></label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <UserPlus className="h-5 w-5 text-gray-400" />
-                  </div>
+                  <UserPlus className="pq-field-icon w-5 h-5" aria-hidden="true" />
                   <input
+                    id="staff-name"
                     type="text"
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
                     required
                     disabled={loading}
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                    className="pq-input pl-10"
                     placeholder="Enter full name"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address <span className="text-red-500">*</span></label>
+                <label htmlFor="staff-email" className="pq-label">Email Address <span style={{ color: "var(--pq-alert)" }}>*</span></label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
-                  </div>
+                  <Mail className="pq-field-icon w-5 h-5" aria-hidden="true" />
                   <input
+                    id="staff-email"
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
                     required
                     disabled={loading}
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                    className="pq-input pl-10"
                     placeholder="Enter email address"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Phone Number <span className="text-red-500">*</span></label>
+                <label htmlFor="staff-phone" className="pq-label">Phone Number <span style={{ color: "var(--pq-alert)" }}>*</span></label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-gray-400" />
-                    <span className="ml-2 text-gray-500 font-medium text-sm">+63</span>
+                  <div className="pq-field-icon">
+                    <Phone className="h-5 w-5" aria-hidden="true" />
+                    <span className="pq-muted font-medium text-sm">+63</span>
                   </div>
                   <input
+                    id="staff-phone"
                     type="tel"
                     name="phone"
                     maxLength={10}
@@ -261,7 +262,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                     onChange={handleChange}
                     required
                     disabled={loading}
-                    className="w-full pl-[4.5rem] pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                    className="pq-input pl-20"
                     placeholder="9123456789"
                   />
                 </div>
@@ -269,21 +270,20 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
 
               {role === "secretary" && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Assigned Branch <span className="text-red-500">*</span></label>
+                  <label htmlFor="staff-branch" className="pq-label">Assigned Branch <span style={{ color: "var(--pq-alert)" }}>*</span></label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                      <MapPin className="h-5 w-5 text-gray-400" />
-                    </div>
+                    <MapPin className="pq-field-icon w-5 h-5" aria-hidden="true" />
                     <select
+                      id="staff-branch"
                       name="assignedBranch"
                       value={formData.assignedBranch}
                       onChange={handleChange}
                       required
                       disabled={loading}
-                      className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none appearance-none"
+                      className="pq-input pl-10 appearance-none"
                     >
                       <option value="" disabled>Select assigned branch</option>
-                      {branches.map(b => (
+                      {branches.map((b) => (
                         <option key={b.id} value={b.name}>{b.name}</option>
                       ))}
                     </select>
@@ -293,72 +293,60 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Password <span className="text-red-500">*</span></label>
+                  <label htmlFor="staff-password" className="pq-label">Password <span style={{ color: "var(--pq-alert)" }}>*</span></label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                      <Lock className="h-4 w-4 text-gray-400" />
-                    </div>
+                    <Lock className="pq-field-icon w-4 h-4" aria-hidden="true" />
                     <input
+                      id="staff-password"
                       type={showPassword ? "text" : "password"}
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
                       required
                       disabled={loading}
-                      className={`w-full pl-9 pr-10 py-2.5 bg-gray-50 border rounded-xl focus:outline-none transition-colors text-sm ${
-                        passwordInvalid 
-                          ? 'border-red-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:bg-white' 
-                          : 'border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white'
-                      }`}
+                      className={`pq-input pl-10 pr-10 text-sm ${passwordInvalid ? "pq-input-error" : ""}`}
                       placeholder="Min 12 chars"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                   {passwordInvalid && passwordErrors.length > 0 && (
-                    <p className="text-[10px] text-red-500 font-semibold pt-1">
-                      {passwordErrors[0]}
-                    </p>
+                    <p className="pq-error-text pt-1">{passwordErrors[0]}</p>
                   )}
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Confirm Password <span className="text-red-500">*</span></label>
+                  <label htmlFor="staff-confirm-password" className="pq-label">Confirm Password <span style={{ color: "var(--pq-alert)" }}>*</span></label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                      <Lock className="h-4 w-4 text-gray-400" />
-                    </div>
+                    <Lock className="pq-field-icon w-4 h-4" aria-hidden="true" />
                     <input
+                      id="staff-confirm-password"
                       type={showConfirmPassword ? "text" : "password"}
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       required
                       disabled={loading}
-                      className={`w-full pl-9 pr-10 py-2.5 bg-gray-50 border rounded-xl focus:outline-none transition-colors text-sm ${
-                        confirmInvalid 
-                          ? 'border-red-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 focus:bg-white' 
-                          : 'border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white'
-                      }`}
+                      className={`pq-input pl-10 pr-10 text-sm ${confirmInvalid ? "pq-input-error" : ""}`}
                       placeholder="Confirm"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint"
+                      aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                     >
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                   {confirmInvalid && (
-                    <p className="text-[10px] text-red-500 font-semibold pt-1">
-                      Passwords do not match.
-                    </p>
+                    <p className="pq-error-text pt-1">Passwords do not match.</p>
                   )}
                 </div>
               </div>
@@ -366,47 +354,38 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end mt-auto">
+        <div className="p-5 flex gap-3 justify-end mt-auto" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
           {step === 2 && (
-            <button 
+            <button
               type="button"
               onClick={() => setStep(1)}
               disabled={loading}
-              className="px-5 py-2.5 text-gray-600 font-semibold bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="pq-btn-secondary"
             >
               Back
             </button>
           )}
-          
+
           {step === 1 ? (
-            <button 
+            <button
               type="button"
               onClick={handleContinue}
               disabled={!role}
-              className="px-5 py-2.5 text-white font-bold bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              className="pq-btn-primary"
             >
               Continue
             </button>
           ) : (
-            <button 
+            <button
               type="submit"
               form="staff-form"
               disabled={loading || !isPasswordFormValid || isChecking}
-              className={`px-5 py-2.5 text-white font-bold rounded-xl transition-colors flex items-center ${
-                loading || !isPasswordFormValid || isChecking ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-              }`}
+              className="pq-btn-primary"
             >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating...
-                </>
-              ) : "Create Account"}
+              {loading ? "Creating..." : "Create Account"}
             </button>
           )}
         </div>
-
       </div>
     </div>
   );

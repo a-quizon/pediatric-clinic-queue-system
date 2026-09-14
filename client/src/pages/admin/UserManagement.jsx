@@ -1,20 +1,37 @@
 import React, { useState, useEffect } from "react";
-import { Search, Filter, Shield, Stethoscope, UserCog, User, MapPin, Mail, Phone, Trash2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Search, Filter, Shield, Stethoscope, UserCog, User, MapPin, Mail, Phone, Trash2, AlertCircle } from "lucide-react";
 import { ref, onValue } from "firebase/database";
 import { database } from "../../firebase/database";
 import UserDetailsModal from "../../components/admin/UserDetailsModal";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import { deleteUserAccount } from "../../services/adminService";
 import { useAuth } from "../../hooks/useAuth";
+import { PqSpinner } from "../../components/parent/pqUi";
 import toast from "react-hot-toast";
+
+const roleChip = (role) => {
+  if (role === "doctor") return "pq-chip pq-chip-info";
+  if (role === "secretary") return "pq-chip pq-chip-wait";
+  if (role === "admin") return "pq-chip pq-chip-info";
+  return "pq-chip";
+};
+
+const statusChip = (status) => (
+  status === "active" ? "pq-chip pq-chip-live" : "pq-chip pq-chip-alert"
+);
 
 export default function UserManagement() {
   const { user: currentUser } = useAuth();
+  const [searchParams] = useSearchParams();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState(() => {
+    const role = searchParams.get("role");
+    return role === "parent" || role === "doctor" || role === "secretary" || role === "staff" ? role : "all";
+  });
   const [statusFilter, setStatusFilter] = useState("all");
 
   const [selectedUser, setSelectedUser] = useState(null);
@@ -24,21 +41,21 @@ export default function UserManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const USERS_PER_PAGE = 10;
 
-
   const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    const usersRef = ref(database, 'users');
+    const usersRef = ref(database, "users");
     const unsubscribe = onValue(usersRef, (snapshot) => {
       if (snapshot.exists()) {
         const usersData = snapshot.val();
-        const usersList = Object.keys(usersData).map(key => ({
+        const usersList = Object.keys(usersData).map((key) => ({
           id: key,
           ...usersData[key]
-        })).filter(user => user.role !== 'admin' && user.id !== 'admin' && user.isDeleted !== true);
-        
+        })).filter((user) => user.role !== "admin" && user.id !== "admin" && user.isDeleted !== true);
+
         setUsers(usersList);
       } else {
         setUsers([]);
@@ -54,15 +71,13 @@ export default function UserManagement() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [reloadKey]);
 
-  // Safely synchronize selected user when users array changes without causing infinite render loops
-  // Uses functional state update to remove selectedUser from dependency array, preventing recursive triggers
   useEffect(() => {
     if (isDetailsModalOpen) {
-      setSelectedUser(prevSelected => {
+      setSelectedUser((prevSelected) => {
         if (!prevSelected) return prevSelected;
-        const updatedSelectedUser = users.find(u => u.id === prevSelected.id);
+        const updatedSelectedUser = users.find((u) => u.id === prevSelected.id);
         if (updatedSelectedUser && JSON.stringify(updatedSelectedUser) !== JSON.stringify(prevSelected)) {
           return updatedSelectedUser;
         }
@@ -72,29 +87,22 @@ export default function UserManagement() {
   }, [users, isDetailsModalOpen]);
 
   const getRoleIcon = (role) => {
-    switch(role) {
-      case 'doctor': return <Stethoscope className="w-4 h-4 mr-1.5" />;
-      case 'secretary': return <UserCog className="w-4 h-4 mr-1.5" />;
-      case 'admin': return <Shield className="w-4 h-4 mr-1.5" />;
-      default: return <User className="w-4 h-4 mr-1.5" />;
+    switch (role) {
+      case "doctor": return <Stethoscope className="w-4 h-4" aria-hidden="true" />;
+      case "secretary": return <UserCog className="w-4 h-4" aria-hidden="true" />;
+      case "admin": return <Shield className="w-4 h-4" aria-hidden="true" />;
+      default: return <User className="w-4 h-4" aria-hidden="true" />;
     }
   };
 
-  const getRoleColor = (role) => {
-    switch(role) {
-      case 'doctor': return "bg-purple-50 text-purple-700 border-purple-200";
-      case 'secretary': return "bg-amber-50 text-amber-700 border-amber-200";
-      case 'admin': return "bg-blue-50 text-blue-700 border-blue-200";
-      default: return "bg-gray-50 text-gray-700 border-gray-200";
-    }
-  };
-
-  const filteredUsers = users.filter(user => {
+  const filteredUsers = users.filter((user) => {
     const term = searchQuery.toLowerCase();
-    const matchesSearch = (user.name && user.name.toLowerCase().includes(term)) || 
+    const matchesSearch = (user.name && user.name.toLowerCase().includes(term)) ||
                           (user.email && user.email.toLowerCase().includes(term));
-    
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
+
+    const matchesRole = roleFilter === "all"
+      || (roleFilter === "staff" && (user.role === "doctor" || user.role === "secretary"))
+      || user.role === roleFilter;
     const matchesStatus = statusFilter === "all" || user.status === statusFilter;
 
     return matchesSearch && matchesRole && matchesStatus;
@@ -103,6 +111,13 @@ export default function UserManagement() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, roleFilter, statusFilter]);
+
+  useEffect(() => {
+    const role = searchParams.get("role");
+    if (role === "parent" || role === "doctor" || role === "secretary" || role === "staff") {
+      setRoleFilter(role);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
@@ -156,172 +171,198 @@ export default function UserManagement() {
 
   return (
     <div className="space-y-4 pb-4 md:pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
-      {/* Sticky Search & Filters Toolbar */}
-      <div className="sticky top-[64px] z-20 bg-gray-50/95 backdrop-blur-md pb-2 pt-2 -mx-4 px-4 md:-mx-8 md:px-8 lg:-mx-10 lg:px-10 -mt-2 sm:-mt-4">
-        <div className="bg-white p-3 sm:p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search by name or email..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-800"
-            />
-          </div>
-          
-          <div className="flex gap-3">
-            <div className="relative flex-1 md:flex-none">
-              <select 
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="w-full appearance-none pl-10 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-700 font-medium cursor-pointer"
-              >
-                <option value="all">All Roles</option>
-                <option value="doctor">Doctor</option>
-                <option value="secretary">Secretary</option>
-                <option value="parent">Parent</option>
-              </select>
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            </div>
+      <div className="pq-filter-bar p-3 sm:p-4 flex flex-col md:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="pq-field-icon w-5 h-5" aria-hidden="true" />
+          <label htmlFor="user-search" className="sr-only">Search by name or email</label>
+          <input
+            id="user-search"
+            type="text"
+            placeholder="Search by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pq-input pl-10"
+          />
+        </div>
 
-            <div className="relative flex-1 md:flex-none">
-              <select 
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full appearance-none px-4 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors text-gray-700 font-medium cursor-pointer"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
+        <div className="flex gap-3">
+          <div className="relative flex-1 md:flex-none">
+            <Filter className="pq-field-icon w-4 h-4" aria-hidden="true" />
+            <label htmlFor="user-role-filter" className="sr-only">Filter by role</label>
+            <select
+              id="user-role-filter"
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="pq-input pl-10 appearance-none cursor-pointer min-w-[10rem]"
+            >
+              <option value="all">All Roles</option>
+              <option value="staff">Staff</option>
+              <option value="doctor">Doctor</option>
+              <option value="secretary">Secretary</option>
+              <option value="parent">Parent</option>
+            </select>
+          </div>
+
+          <div className="relative flex-1 md:flex-none">
+            <label htmlFor="user-status-filter" className="sr-only">Filter by status</label>
+            <select
+              id="user-status-filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="pq-input appearance-none cursor-pointer min-w-[9rem]"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[300px] md:flex-1 md:flex md:flex-col md:min-h-0">
+      <div className="pq-glass overflow-hidden min-h-[300px] md:flex-1 md:flex md:flex-col md:min-h-0">
         {loading ? (
-          <div className="flex justify-center items-center h-48 md:flex-1">
-             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
+          <PqSpinner label="Loading users" />
         ) : error ? (
           <div className="flex flex-col justify-center items-center h-48 md:flex-1 text-center p-6">
-            <div className="bg-red-50 text-red-600 p-4 rounded-full mb-4">
-              <Shield className="w-8 h-8" />
+            <div
+              className="p-4 rounded-full mb-4"
+              style={{ background: "var(--pq-alert-wash)", color: "var(--pq-alert)" }}
+            >
+              <AlertCircle className="w-8 h-8" aria-hidden="true" />
             </div>
-            <h3 className="text-lg font-bold text-gray-800 mb-2">Access Denied</h3>
-            <p className="text-gray-600">{error}</p>
+            <h3 className="text-lg font-extrabold tracking-tight mb-2">Couldn't load users</h3>
+            <p className="pq-muted mb-4">{error}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setLoading(true);
+                setError(null);
+                setReloadKey((k) => k + 1);
+              }}
+              className="pq-btn-primary"
+            >
+              Try again
+            </button>
           </div>
         ) : filteredUsers.length > 0 ? (
           <>
-            {/* Mobile Card Layout */}
-            <div className="block md:hidden divide-y divide-gray-100 overflow-y-auto">
+            <div className="block md:hidden overflow-y-auto">
               {displayedUsers.map((user) => (
-                <div 
+                <div
                   key={user.id}
-                  onClick={() => openUserDetails(user)}
-                  className="p-5 hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer group flex flex-col gap-3"
+                  className="p-5"
+                  style={{ borderTop: "1px solid var(--pq-glass-line)" }}
                 >
                   <div className="flex justify-between items-start gap-2">
-                    <div>
-                      <h3 className="font-bold text-gray-800 text-base group-hover:text-blue-600 transition-colors">{user.name || 'Unnamed'}</h3>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wide ${getRoleColor(user.role)}`}>
+                    <button
+                      type="button"
+                      onClick={() => openUserDetails(user)}
+                      aria-label={`View details for ${user.name || "user"}`}
+                      className="min-w-0 text-left flex-1"
+                    >
+                      <h3 className="font-extrabold tracking-tight text-base">{user.name || "Unnamed"}</h3>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <span className={`${roleChip(user.role)} capitalize`}>
                           {getRoleIcon(user.role)}
                           {user.role}
                         </span>
-                        <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide border ${
-                          user.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
-                        }`}>
-                          {user.status || 'unknown'}
+                        <span className={`${statusChip(user.status)} capitalize`}>
+                          {user.status || "unknown"}
                         </span>
                       </div>
-                    </div>
-                    {user.role === 'secretary' && user.assignedBranch && (
-                      <span className="inline-flex items-center text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded-lg border border-gray-200 whitespace-nowrap">
-                        <MapPin className="w-3 h-3 mr-1 text-gray-400" />
+                      <div className="pq-row mt-3" style={{ display: "grid", gap: "0.5rem", minHeight: 0 }}>
+                        <div className="flex items-center gap-2 pq-muted truncate">
+                          <Mail className="w-4 h-4 shrink-0 pq-faint" aria-hidden="true" />
+                          <span className="truncate">{user.email}</span>
+                        </div>
+                        <div className="flex items-center gap-2 pq-muted">
+                          <Phone className="w-4 h-4 shrink-0 pq-faint" aria-hidden="true" />
+                          <span>{user.phone || "No phone"}</span>
+                        </div>
+                      </div>
+                    </button>
+                    {user.role === "secretary" && user.assignedBranch && (
+                      <span className="pq-chip shrink-0">
+                        <MapPin className="w-3 h-3" aria-hidden="true" />
                         {user.assignedBranch}
                       </span>
                     )}
-                  </div>
-                  
-                  <div className="grid grid-cols-1 gap-2 text-sm mt-1 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
-                    <div className="flex items-center gap-2 text-gray-600 truncate">
-                      <Mail className="w-4 h-4 shrink-0 text-gray-400" />
-                      <span className="truncate">{user.email}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Phone className="w-4 h-4 shrink-0 text-gray-400" />
-                      <span>{user.phone || 'No phone'}</span>
-                    </div>
                   </div>
 
                   <button
                     type="button"
                     onClick={(e) => requestDeleteUser(e, user)}
-                    className="self-end inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs font-bold hover:bg-red-100 transition-colors"
+                    className="pq-btn-ghost mt-3 ml-auto text-sm"
+                    style={{ color: "var(--pq-alert)" }}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />
                     Delete
                   </button>
                 </div>
               ))}
             </div>
 
-            {/* Desktop Table Layout */}
             <div className="hidden md:block overflow-x-auto md:flex-1 md:overflow-y-auto relative">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 z-10 bg-gray-50">
-                  <tr className="border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-bold">
-                    <th className="p-4 pl-6">Name & Email</th>
-                    <th className="p-4">Role</th>
-                    <th className="p-4">Branch</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 pr-6 text-right">Actions</th>
+              <table className="pq-table">
+                <thead className="pq-table-head-sticky">
+                  <tr>
+                    <th className="pl-6">Name & Email</th>
+                    <th>Role</th>
+                    <th>Branch</th>
+                    <th>Status</th>
+                    <th className="pr-6 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody>
                   {displayedUsers.map((user) => (
-                    <tr 
-                      key={user.id} 
+                    <tr
+                      key={user.id}
                       onClick={() => openUserDetails(user)}
-                      className="hover:bg-gray-50/80 transition-colors cursor-pointer group"
+                      className="cursor-pointer"
                     >
-                      <td className="p-4 pl-6 min-w-[200px]">
-                        <div className="font-bold text-gray-800 group-hover:text-blue-600 transition-colors">{user.name || 'Unnamed'}</div>
-                        <div className="text-sm text-gray-500 mt-0.5">{user.email}</div>
+                      <td className="pl-6 min-w-[200px]">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openUserDetails(user);
+                          }}
+                          aria-label={`View details for ${user.name || "user"}`}
+                          className="text-left min-h-11"
+                        >
+                          <div className="font-extrabold tracking-tight">{user.name || "Unnamed"}</div>
+                          <div className="text-sm pq-muted mt-0.5 font-medium">{user.email}</div>
+                        </button>
                       </td>
-                      <td className="p-4 min-w-[120px]">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${getRoleColor(user.role)} capitalize`}>
+                      <td className="min-w-[120px]">
+                        <span className={`${roleChip(user.role)} capitalize`}>
                           {getRoleIcon(user.role)}
                           {user.role}
                         </span>
                       </td>
-                      <td className="p-4 min-w-[120px]">
-                        {user.role === 'secretary' && user.assignedBranch ? (
-                          <span className="inline-flex items-center text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200">
-                            <MapPin className="w-3.5 h-3.5 mr-1 text-gray-400" />
+                      <td className="min-w-[120px]">
+                        {user.role === "secretary" && user.assignedBranch ? (
+                          <span className="pq-chip">
+                            <MapPin className="w-3.5 h-3.5" aria-hidden="true" />
                             {user.assignedBranch}
                           </span>
                         ) : (
-                          <span className="text-gray-400 text-sm italic">--</span>
+                          <span className="pq-faint text-sm italic font-medium">--</span>
                         )}
                       </td>
-                      <td className="p-4 min-w-[100px]">
-                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold capitalize ${
-                          user.status === 'active' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
-                        }`}>
-                          {user.status || 'unknown'}
+                      <td className="min-w-[100px]">
+                        <span className={`${statusChip(user.status)} capitalize`}>
+                          {user.status || "unknown"}
                         </span>
                       </td>
-                      <td className="p-4 pr-6 text-right">
+                      <td className="pr-6 text-right">
                         <button
                           type="button"
                           onClick={(e) => requestDeleteUser(e, user)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs font-bold hover:bg-red-100 transition-colors"
+                          className="pq-btn-ghost text-sm"
+                          style={{ color: "var(--pq-alert)" }}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
                           Delete
                         </button>
                       </td>
@@ -331,41 +372,44 @@ export default function UserManagement() {
               </table>
             </div>
 
-            {/* Pagination Controls */}
             {filteredUsers.length > USERS_PER_PAGE && (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-3 sm:py-4 border-t border-gray-100 bg-gray-50/50 gap-3 sm:gap-4 md:flex-none z-10">
-                <div className="text-sm text-gray-500 font-medium text-center sm:text-left">
+              <div
+                className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-3 sm:py-4 gap-3 sm:gap-4 md:flex-none z-10"
+                style={{ borderTop: "1px solid var(--pq-glass-line)" }}
+              >
+                <div className="text-sm pq-muted font-medium text-center sm:text-left">
                   Showing {(currentPage - 1) * USERS_PER_PAGE + 1}–{Math.min(currentPage * USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length} users
                 </div>
                 <div className="flex items-center justify-center gap-2">
-                  <button 
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="pq-btn-secondary"
                   >
                     Previous
                   </button>
-                  
+
                   <div className="hidden sm:flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                       <button
                         key={page}
+                        type="button"
                         onClick={() => setCurrentPage(page)}
-                        className={`w-8 h-8 flex items-center justify-center rounded-lg border text-sm font-medium transition-colors ${
-                          currentPage === page 
-                            ? 'bg-blue-600 text-white border-blue-600' 
-                            : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50'
-                        }`}
+                        className={currentPage === page ? "pq-btn-primary min-w-11 px-0" : "pq-btn-secondary min-w-11 px-0"}
+                        aria-label={`Page ${page}`}
+                        aria-current={currentPage === page ? "page" : undefined}
                       >
                         {page}
                       </button>
                     ))}
                   </div>
 
-                  <button 
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="pq-btn-secondary"
                   >
                     Next
                   </button>
@@ -374,15 +418,16 @@ export default function UserManagement() {
             )}
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center p-12 text-center text-gray-500 md:flex-1">
-             <User className="w-12 h-12 text-gray-300 mb-3" />
-             <p className="font-semibold text-gray-600">No users found matching your filters.</p>
-             <button 
-               onClick={() => { setSearchQuery(""); setRoleFilter("all"); setStatusFilter("all"); }}
-               className="mt-4 text-sm text-blue-600 font-medium hover:underline"
-             >
-               Clear Filters
-             </button>
+          <div className="flex flex-col items-center justify-center p-12 text-center md:flex-1">
+            <User className="w-12 h-12 pq-faint mb-3" aria-hidden="true" />
+            <p className="font-extrabold tracking-tight">No users found matching your filters.</p>
+            <button
+              type="button"
+              onClick={() => { setSearchQuery(""); setRoleFilter("all"); setStatusFilter("all"); }}
+              className="pq-btn-ghost mt-4"
+            >
+              Clear Filters
+            </button>
           </div>
         )}
       </div>

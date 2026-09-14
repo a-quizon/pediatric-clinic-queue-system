@@ -1,41 +1,48 @@
-import React, { useState } from "react";
+import { useState, useCallback } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { Home, Users, MapPin, Activity as ActivityIcon, User, Shield, Plus } from "lucide-react";
-import PageHeader from "../common/PageHeader";
+import { Home, Users, MapPin, Plus, ChevronLeft, LogOut } from "lucide-react";
+import { PqBrand } from "../parent/pqUi";
 import AddStaffModal from "./AddStaffModal";
+import ConfirmationModal from "../common/ConfirmationModal";
+import MobileNavDrawer, { MobileNavToggle } from "../common/MobileNavDrawer";
+import { useLogout } from "../../hooks/useLogout";
 
 export default function AdminLayout() {
   const location = useLocation();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setIsMenuOpen(false), []);
+  const {
+    isLogoutModalOpen,
+    isLoggingOut,
+    openLogoutModal,
+    closeLogoutModal,
+    handleLogout,
+  } = useLogout();
 
   const getHeaderInfo = () => {
     const path = location.pathname;
     if (path === "/admin" || path === "/admin/") {
-      return { desktop: "Dashboard", mobile: "Home" };
+      return { title: "Home" };
     }
     if (path.startsWith("/admin/users")) {
-      return { desktop: "Users", mobile: "Users", showAddStaff: true };
+      return { title: "Users", showAddStaff: true };
     }
     if (path.startsWith("/admin/branches")) {
-      return { desktop: "Branches", mobile: "Branches", showAddBranch: true, backTo: "/admin/profile" };
+      return { title: "Branches", showAddBranch: true };
     }
     if (path.startsWith("/admin/activity")) {
-      return { desktop: "System Activity", mobile: "System Activity" };
+      return { title: "System Activity", backTo: "/admin" };
     }
-    if (path.startsWith("/admin/profile")) {
-      return { desktop: "Profile", mobile: "Profile" };
-    }
-    return { desktop: "Dashboard", mobile: "Home" };
+    return { title: "Home" };
   };
 
   const headerInfo = getHeaderInfo();
 
   const navItems = [
-    { name: "Dashboard", path: "/admin", icon: Home },
-    { name: "User Management", mobileName: "Users", path: "/admin/users", icon: Users },
-    { name: "Branch Management", mobileName: "Branches", path: "/admin/branches", icon: MapPin },
-    { name: "System Activity", path: "/admin/activity", icon: ActivityIcon },
-    { name: "Profile", path: "/admin/profile", icon: User },
+    { name: "Home", path: "/admin", icon: Home },
+    { name: "Users", path: "/admin/users", icon: Users },
+    { name: "Branches", path: "/admin/branches", icon: MapPin },
   ];
 
   const isActive = (path) => {
@@ -45,115 +52,130 @@ export default function AdminLayout() {
     return location.pathname.startsWith(path);
   };
 
+  const onLogoutClick = () => {
+    closeMenu();
+    openLogoutModal();
+  };
+
+  const renderNavLinks = () =>
+    navItems.map((item) => {
+      const active = isActive(item.path);
+      return (
+        <NavLink
+          key={item.name}
+          to={item.path}
+          end={item.path === "/admin"}
+          aria-current={active ? "page" : undefined}
+          className={`pq-side-link ${active ? "pq-side-link-active" : ""}`}
+        >
+          <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+          <span>{item.name}</span>
+        </NavLink>
+      );
+    });
+
+  const renderLogout = () => (
+    <button type="button" onClick={onLogoutClick} className="pq-btn-danger w-full">
+      <LogOut className="w-5 h-5" aria-hidden="true" />
+      Log Out
+    </button>
+  );
+
   return (
-    <div className="flex h-screen bg-white md:bg-gray-50 md:flex-row flex-col font-sans overflow-hidden">
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-100 z-20">
-        <div className="p-6 flex items-center border-b border-gray-50">
-          <Shield className="w-6 h-6 text-blue-600 mr-3" />
-          <h1 className="text-lg font-bold text-gray-800">Admin Portal</h1>
+    <div className="pq-shell flex h-screen md:flex-row flex-col overflow-hidden">
+      <aside className="hidden md:flex flex-col w-64 pq-glass-nav z-20 flex-shrink-0 rounded-none border-y-0 border-l-0">
+        <div className="p-6 flex items-center" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <PqBrand size={36} />
         </div>
-        <nav className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              className={() =>
-                `flex items-center px-4 py-3 rounded-xl transition-colors duration-200 ${
-                  isActive(item.path)
-                    ? "bg-blue-50 text-blue-600 font-semibold"
-                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium"
-                }`
-              }
-            >
-              {() => (
-                <>
-                  <item.icon 
-                    className={`w-5 h-5 mr-3 ${
-                      isActive(item.path) ? "text-blue-600" : "text-gray-400"
-                    }`} 
-                  />
-                  <span className="text-[14px]">
-                    {item.name}
-                  </span>
-                </>
-              )}
-            </NavLink>
-          ))}
+        <nav className="flex-1 py-6 px-4 space-y-1.5 overflow-y-auto" aria-label="Admin">
+          {renderNavLinks()}
         </nav>
+        <div className="p-4" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+          {renderLogout()}
+        </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-24 bg-gray-50 h-full relative flex flex-col">
-        <PageHeader 
-          desktopTitle={headerInfo.desktop} 
-          mobileTitle={headerInfo.mobile}
-          icon={Shield}
-          backTo={headerInfo.backTo}
-          action={
-            headerInfo.showAddStaff ? (
-              <button 
-                onClick={() => setIsAddModalOpen(true)}
-                className="px-4 py-2 sm:px-5 sm:py-2 bg-blue-600 text-white font-bold rounded-xl shadow-sm hover:bg-blue-700 hover:shadow transition-all flex items-center shrink-0 text-sm sm:text-base"
-              >
-                <Plus className="w-5 h-5 mr-1.5 sm:mr-2" />
-                <span className="hidden sm:inline">Add Staff</span>
-                <span className="sm:hidden">Add</span>
-              </button>
-            ) : headerInfo.showAddBranch ? (
-              <button 
-                onClick={() => window.dispatchEvent(new CustomEvent('openAddBranchModal'))}
-                className="px-4 py-2 sm:px-5 sm:py-2 bg-blue-600 text-white font-bold rounded-xl shadow-sm hover:bg-blue-700 hover:shadow transition-all flex items-center shrink-0 text-sm sm:text-base"
-              >
-                <Plus className="w-5 h-5 mr-1.5 sm:mr-2" />
-                <span className="hidden sm:inline">Add Branch</span>
-                <span className="sm:hidden">Add</span>
-              </button>
-            ) : null
-          }
-        />
+      <main className="flex-1 overflow-y-auto w-full h-full relative flex flex-col bg-transparent">
+        <div className="pq-header-wrap">
+          <header className="pq-header-pill">
+            <div className="flex items-center gap-3 min-w-0">
+              <MobileNavToggle
+                open={isMenuOpen}
+                onToggle={() => setIsMenuOpen((open) => !open)}
+                controlsId="admin-mobile-menu"
+              />
+              {headerInfo.backTo ? (
+                <NavLink
+                  to={headerInfo.backTo}
+                  className="pq-icon-btn shrink-0"
+                  aria-label="Back to Home"
+                >
+                  <ChevronLeft className="w-5 h-5" aria-hidden="true" />
+                </NavLink>
+              ) : null}
+              <h1 className="text-lg sm:text-xl font-extrabold tracking-tight truncate">
+                {headerInfo.title}
+              </h1>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {headerInfo.showAddStaff ? (
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="pq-btn-primary"
+                >
+                  <Plus className="w-5 h-5" aria-hidden="true" />
+                  <span className="hidden sm:inline">Add Staff</span>
+                  <span className="sm:hidden">Add</span>
+                </button>
+              ) : null}
+              {headerInfo.showAddBranch ? (
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent("openAddBranchModal"))}
+                  className="pq-btn-primary"
+                >
+                  <Plus className="w-5 h-5" aria-hidden="true" />
+                  <span className="hidden sm:inline">Add Branch</span>
+                  <span className="sm:hidden">Add</span>
+                </button>
+              ) : null}
+            </div>
+          </header>
+        </div>
 
-        <div className="p-4 md:p-8 lg:p-10 max-w-5xl mx-auto flex-1 w-full">
+        <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-5xl mx-auto w-full flex-1">
           <Outlet />
         </div>
 
-        <AddStaffModal 
-          isOpen={isAddModalOpen} 
-          onClose={() => setIsAddModalOpen(false)} 
-          onSuccess={() => setIsAddModalOpen(false)} 
+        <AddStaffModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSuccess={() => setIsAddModalOpen(false)}
+        />
+
+        <ConfirmationModal
+          isOpen={isLogoutModalOpen}
+          onClose={closeLogoutModal}
+          onConfirm={handleLogout}
+          title="Log Out"
+          message="Are you sure you want to logout?"
+          confirmText="Log Out"
+          cancelText="Cancel"
+          isLoading={isLoggingOut}
+          isDestructive={true}
         />
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-40 pb-safe">
-        <div className="flex justify-around items-center h-16 px-1">
-          {navItems.filter(item => item.name !== "Branch Management").map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              className="flex flex-col items-center justify-center w-full h-full space-y-1"
-            >
-              {() => {
-                const active = isActive(item.path);
-                return (
-                  <>
-                    <item.icon 
-                      className={`w-[22px] h-[22px] transition-colors ${
-                        active ? "text-blue-600" : "text-gray-400"
-                      }`} 
-                    />
-                    <span className={`text-[10px] transition-colors ${
-                      active ? "text-blue-600 font-semibold" : "text-gray-500 font-medium"
-                    }`}>
-                      {item.mobileName || item.name}
-                    </span>
-                  </>
-                );
-              }}
-            </NavLink>
-          ))}
-        </div>
-      </nav>
+      <MobileNavDrawer
+        id="admin-mobile-menu"
+        open={isMenuOpen}
+        onClose={closeMenu}
+        label="Admin"
+        footer={renderLogout()}
+      >
+        {renderNavLinks()}
+      </MobileNavDrawer>
     </div>
   );
 }
