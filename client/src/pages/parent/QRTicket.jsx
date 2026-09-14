@@ -96,7 +96,7 @@ export default function QRTicket() {
         width: 340,
         margin: 2,
         color: {
-          dark: '#1e3a8a', // blue-900
+          dark: '#16344A',
           light: '#ffffff'
         }
       })
@@ -207,23 +207,24 @@ export default function QRTicket() {
     <div className="space-y-6 pb-8 relative">
       {loading ? (
         <div className="flex justify-center items-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="pq-spinner" />
         </div>
       ) : activeReservation && schedule ? (
         <div className="max-w-md mx-auto animate-in fade-in slide-in-from-bottom-4">
           
           {/* THE DIGITAL RESERVATION CARD */}
-          <div className="bg-white rounded-3xl border border-gray-200/80 shadow-xl overflow-hidden relative">
+          <div className="pq-glass overflow-hidden relative">
             
             {/* Warning Strip if Patient Info Required */}
             {isIncomplete && (
-              <div className="bg-amber-50 border-b border-amber-200 px-5 py-3 flex items-center justify-between">
-                <div className="flex items-center text-amber-800 text-xs font-bold">
-                  <AlertCircle className="w-4 h-4 mr-2 text-amber-600 shrink-0" /> Patient Information Required
+              <div className="pq-note pq-note-wait px-5 py-3 flex items-center justify-between rounded-none">
+                <div className="flex items-center text-xs font-bold">
+                  <AlertCircle className="w-4 h-4 mr-2 shrink-0" /> Patient Information Required
                 </div>
                 <button 
                   onClick={handleOpenPatientInfo}
-                  className="text-xs font-extrabold text-amber-900 bg-amber-200/70 hover:bg-amber-200 px-3 py-1 rounded-lg transition-colors focus:outline-none"
+                  className="text-xs font-extrabold px-3 py-1 rounded-lg min-h-[32px]"
+                  style={{ background: "color-mix(in srgb, var(--pq-wait) 18%, white)", color: "var(--pq-wait)" }}
                 >
                   Complete Now
                 </button>
@@ -231,32 +232,32 @@ export default function QRTicket() {
             )}
 
             {/* Section 1: Reservation Header Banner */}
-            <div className="p-6 sm:p-7 bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 text-white relative">
+            <div className="p-6 sm:p-7 relative" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 16%, transparent)" }}>
               <div className="flex justify-between items-start">
                 <div>
-                  <span className="text-[11px] font-black uppercase tracking-widest text-blue-200 block mb-0.5">My Reservation</span>
-                  <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+                  <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
                     Queue #{permanentQueueNumber || "-"}
                   </h2>
+                  <p className="text-[11px] font-bold pq-muted mt-1">My Reservation</p>
                 </div>
                 <ReservationStatusBadge status={activeReservation.status} className="shadow-2xs" />
               </div>
 
-              <div className="mt-5 pt-5 border-t border-white/15 grid grid-cols-2 gap-3 text-xs">
+              <div className="mt-5 pt-5 grid grid-cols-2 gap-3 text-xs" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
                 <div>
-                  <div className="text-blue-200 font-semibold mb-0.5">Clinic Branch</div>
+                  <div className="pq-muted font-semibold mb-0.5">Clinic Branch</div>
                   <div className="flex flex-col">
-                    <div className="font-bold text-white text-sm flex items-center truncate">
-                      <MapPin className="w-3.5 h-3.5 mr-1.5 text-blue-300 shrink-0" /> {schedule.branch}
+                    <div className="font-bold text-sm flex items-center truncate">
+                      <MapPin className="w-3.5 h-3.5 mr-1.5 shrink-0" style={{ color: "var(--pq-mark-blue)" }} /> {schedule.branch}
                     </div>
-                    <div className="text-[10px] text-blue-200/90 mt-1 whitespace-pre-line leading-snug max-w-[150px]">
+                    <div className="text-[10px] pq-muted mt-1 whitespace-pre-line leading-snug max-w-[150px]">
                       {branches.find(b => b.name === schedule.branch)?.clinicAddress || "No clinic address provided."}
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-blue-200 font-semibold mb-0.5">Date & Time</div>
-                  <div className="font-bold text-white text-sm">
+                  <div className="pq-muted font-semibold mb-0.5">Date & Time</div>
+                  <div className="font-bold text-sm">
                     {new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} • {formatTime(schedule.openingTime)}
                   </div>
                 </div>
@@ -264,67 +265,66 @@ export default function QRTicket() {
             </div>
 
             {/* Section 2: Boarding Pass Cutout Divider */}
-            <div className="relative bg-white flex items-center justify-between px-2 py-3">
-              <div className="w-6 h-6 bg-gray-50 rounded-full -ml-5 border-r border-gray-200/80 shadow-inner"></div>
-              <div className="flex-1 border-t-2 border-dashed border-gray-200 mx-2"></div>
-              <div className="w-6 h-6 bg-gray-50 rounded-full -mr-5 border-l border-gray-200/80 shadow-inner"></div>
+            <div className="relative flex items-center justify-between px-2 py-3">
+              <div className="w-6 h-6 rounded-full -ml-5" style={{ background: "var(--pq-paper)" }}></div>
+              <div className="flex-1 border-t border-dashed mx-2" style={{ borderColor: "var(--pq-glass-line)" }}></div>
+              <div className="w-6 h-6 rounded-full -mr-5" style={{ background: "var(--pq-paper)" }}></div>
             </div>
 
             {/* Section 3: Arrival Pass (Before Check-in) vs Arrival Confirmation (After Check-in) */}
             {!isValidated ? (
               isExpired ? (
-                <div className="px-6 sm:px-8 py-8 text-center flex flex-col items-center bg-white">
-                  <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4 text-red-500 border border-red-100 shadow-sm">
+                <div className="px-6 sm:px-8 py-8 text-center flex flex-col items-center">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: "var(--pq-alert-wash)", color: "var(--pq-alert)" }}>
                     <AlertCircle className="w-8 h-8" />
                   </div>
-                  <h3 className="text-lg font-black text-gray-800 mb-1.5">Validation Window Expired</h3>
-                  <p className="text-xs sm:text-sm font-medium text-gray-500 max-w-xs leading-relaxed mb-6">
+                  <h3 className="text-lg font-extrabold mb-1.5">Validation Window Expired</h3>
+                  <p className="text-xs sm:text-sm font-medium pq-muted max-w-xs leading-relaxed mb-6">
                     You were unable to validate within the allowed time. Your queue reservation has expired.
                   </p>
                   <button
                     onClick={() => navigate("/parent/reserve")}
-                    className="py-2.5 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-sm"
+                    className="pq-btn-primary"
                   >
                     Reserve Another Slot
                   </button>
                 </div>
               ) : (
-                <div className="px-6 sm:px-8 py-4 text-center flex flex-col items-center bg-white">
-                  {/* Guidance Information */}
-                  <div className="bg-blue-50/90 border border-blue-200 rounded-2xl p-3.5 mb-4 w-full text-center shadow-2xs">
-                    <div className="text-xs font-bold text-blue-900 mb-0.5">Clinic Check-In QR Pass</div>
-                    <div className="text-[11px] text-blue-800 font-medium">
+                <div className="px-6 sm:px-8 py-4 text-center flex flex-col items-center">
+                  <div className="pq-note pq-note-info mb-4 w-full text-center">
+                    <div className="text-xs font-bold mb-0.5">Clinic Check-In QR Pass</div>
+                    <div className="text-[11px] font-medium">
                       Present this QR Code to the Secretary when you arrive at the clinic.
                     </div>
                   </div>
 
-                  <div className="bg-white p-3 rounded-3xl border border-gray-100 shadow-sm mb-4 w-52 h-52 sm:w-56 sm:h-56 flex items-center justify-center relative group">
+                  <div className="pq-row mb-4 w-52 h-52 sm:w-56 sm:h-56 flex items-center justify-center">
                     {qrImageUrl ? (
                       <img src={qrImageUrl} alt="QR Arrival Pass" className="w-full h-full object-contain" />
                     ) : (
-                      <div className="flex flex-col items-center justify-center text-gray-400 text-xs">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
+                      <div className="flex flex-col items-center justify-center pq-muted text-xs">
+                        <span className="pq-spinner mb-2" />
                         Generating QR...
                       </div>
                     )}
                   </div>
 
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Reservation Code</span>
-                  <div className="text-3xl font-black text-gray-800 tracking-wider mt-0.5 font-mono">
+                  <span className="text-[11px] font-bold pq-muted">Reservation Code</span>
+                  <div className="text-3xl font-extrabold tracking-wider mt-0.5 font-mono">
                     {activeReservation.reservationCode || "------"}
                   </div>
 
                   <div className="flex flex-col items-center justify-center gap-2.5 mt-4 w-full">
                     <button 
                       onClick={() => setIsQrModalOpen(true)}
-                      className="w-full py-2.5 px-4 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl text-xs sm:text-sm transition-all shadow-2xs flex items-center justify-center focus:outline-none"
+                      className="pq-btn-secondary w-full text-xs sm:text-sm"
                     >
                       <Maximize2 className="w-4 h-4 mr-2" /> Expand QR Code
                     </button>
                     {activeReservation.status !== "checked_in" && activeReservation.status !== "in_consultation" && activeReservation.status !== "with_doctor" && (
                       <button
                         onClick={() => setIsCancelConfirmOpen(true)}
-                        className="w-full py-2.5 px-4 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center focus:outline-none"
+                        className="pq-btn-danger w-full text-xs sm:text-sm"
                       >
                         <XCircle className="w-4 h-4 mr-1.5" /> Cancel Reservation
                       </button>
@@ -333,13 +333,13 @@ export default function QRTicket() {
                 </div>
               )
             ) : (
-              <div className="px-6 sm:px-8 py-5 bg-white text-center">
-                <div className="bg-green-50 rounded-2xl p-6 border border-green-200 text-center flex flex-col items-center justify-center my-1 shadow-2xs">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-3 shadow-xs">
+              <div className="px-6 sm:px-8 py-5 text-center">
+                <div className="pq-note pq-note-ok rounded-2xl p-6 text-center flex flex-col items-center justify-center my-1">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ background: "color-mix(in srgb, var(--pq-live) 16%, white)", color: "var(--pq-live)" }}>
                     <CheckCircle2 className="w-6 h-6" />
                   </div>
-                  <h3 className="text-base sm:text-lg font-black text-green-900 mb-1">Arrival Confirmed</h3>
-                  <p className="text-xs sm:text-sm font-semibold text-green-800/90 max-w-xs leading-relaxed">
+                  <h3 className="text-base sm:text-lg font-extrabold mb-1">Arrival Confirmed</h3>
+                  <p className="text-xs sm:text-sm font-semibold max-w-xs leading-relaxed">
                     Your arrival has been successfully verified. Please wait for your queue number to be called.
                   </p>
                 </div>
@@ -347,35 +347,35 @@ export default function QRTicket() {
             )}
 
             {/* Section 4: Boarding Pass Cutout Divider */}
-            <div className="relative bg-white flex items-center justify-between px-2 py-3">
-              <div className="w-6 h-6 bg-gray-50 rounded-full -ml-5 border-r border-gray-200/80 shadow-inner"></div>
-              <div className="flex-1 border-t-2 border-dashed border-gray-200 mx-2"></div>
-              <div className="w-6 h-6 bg-gray-50 rounded-full -mr-5 border-l border-gray-200/80 shadow-inner"></div>
+            <div className="relative flex items-center justify-between px-2 py-3">
+              <div className="w-6 h-6 rounded-full -ml-5" style={{ background: "var(--pq-paper)" }}></div>
+              <div className="flex-1 border-t border-dashed mx-2" style={{ borderColor: "var(--pq-glass-line)" }}></div>
+              <div className="w-6 h-6 rounded-full -mr-5" style={{ background: "var(--pq-paper)" }}></div>
             </div>
 
             {/* Section 7: Patient Information */}
-            <div className="px-6 sm:px-8 pb-7 pt-3 bg-white text-left">
+            <div className="px-6 sm:px-8 pb-7 pt-3 text-left">
               <div className="flex justify-between items-center mb-3">
-                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center">
-                  <User className="w-3.5 h-3.5 mr-1.5 text-blue-500" /> Patient Information
+                <h3 className="text-xs font-bold pq-muted flex items-center">
+                  <User className="w-3.5 h-3.5 mr-1.5" style={{ color: "var(--pq-mark-blue)" }} /> Patient Information
                 </h3>
                 {isIncomplete && (
-                  <button onClick={handleOpenPatientInfo} className="text-[11px] font-bold text-blue-600 hover:underline">
+                  <button onClick={handleOpenPatientInfo} className="pq-link text-[11px]">
                     Edit Info
                   </button>
                 )}
               </div>
-              <div className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100 space-y-3 text-xs sm:text-sm">
+              <div className="pq-row flex-col items-stretch p-4 space-y-3 text-xs sm:text-sm">
                 {getReservationChildren(activeReservation).length > 0 ? (
                   getReservationChildren(activeReservation).map((child, index) => (
                     <div key={child.childId || index} className="grid grid-cols-2 gap-y-1 gap-x-4">
                       <div>
-                        <span className="text-gray-400 font-semibold block text-[11px]">Child Name</span>
-                        <span className="font-bold text-gray-800 truncate block mt-0.5">{child.childName || "N/A"}</span>
+                        <span className="pq-muted font-semibold block text-[11px]">Child Name</span>
+                        <span className="font-bold truncate block mt-0.5">{child.childName || "N/A"}</span>
                       </div>
                       <div>
-                        <span className="text-gray-400 font-semibold block text-[11px]">Age & Sex</span>
-                        <span className="font-bold text-gray-800 block mt-0.5">
+                        <span className="pq-muted font-semibold block text-[11px]">Age & Sex</span>
+                        <span className="font-bold block mt-0.5">
                           {child.age ? `${child.age} • ${child.sex || "N/A"}` : "N/A"}
                         </span>
                       </div>
@@ -384,18 +384,18 @@ export default function QRTicket() {
                 ) : (
                   <div className="grid grid-cols-2 gap-y-1 gap-x-4">
                     <div>
-                      <span className="text-gray-400 font-semibold block text-[11px]">Child Name</span>
-                      <span className="font-bold text-gray-800 truncate block mt-0.5">N/A</span>
+                      <span className="pq-muted font-semibold block text-[11px]">Child Name</span>
+                      <span className="font-bold truncate block mt-0.5">N/A</span>
                     </div>
                     <div>
-                      <span className="text-gray-400 font-semibold block text-[11px]">Age & Sex</span>
-                      <span className="font-bold text-gray-800 block mt-0.5">N/A</span>
+                      <span className="pq-muted font-semibold block text-[11px]">Age & Sex</span>
+                      <span className="font-bold block mt-0.5">N/A</span>
                     </div>
                   </div>
                 )}
-                <div className="pt-2 border-t border-gray-200/60">
-                  <span className="text-gray-400 font-semibold block text-[11px] mb-1">Reason for Visit</span>
-                  <span className="font-semibold text-gray-700 block bg-white p-2.5 rounded-xl border border-gray-100 text-xs">
+                <div className="pt-2" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+                  <span className="pq-muted font-semibold block text-[11px] mb-1">Reason for Visit</span>
+                  <span className="font-semibold block p-2.5 rounded-xl text-xs" style={{ background: "color-mix(in srgb, #ffffff 55%, transparent)", border: "1px solid var(--pq-glass-line)" }}>
                     {activeReservation.concern || "Regular checkup / consultation"}
                   </span>
                 </div>
@@ -408,17 +408,17 @@ export default function QRTicket() {
       ) : (
         /* Empty State */
         <div className="flex flex-col items-center justify-center min-h-[60vh] w-full">
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-10 sm:p-14 text-center max-w-md mx-auto animate-in fade-in w-full">
-            <div className="mx-auto w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-6 shadow-2xs">
+          <div className="pq-glass p-10 sm:p-14 text-center max-w-md mx-auto w-full">
+            <div className="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
               <TicketIcon className="w-10 h-10" />
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-gray-800 mb-2">Reservation Not Found</h2>
-            <p className="text-gray-500 text-sm max-w-xs mx-auto mb-8 leading-relaxed">
+            <h2 className="text-xl sm:text-2xl font-extrabold mb-2">Reservation Not Found</h2>
+            <p className="pq-muted text-sm max-w-xs mx-auto mb-8 leading-relaxed">
               This reservation was not found or has been removed.
             </p>
             <button
               onClick={() => navigate("/parent/reservations")}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center justify-center text-sm sm:text-base focus:outline-none"
+              className="pq-btn-primary w-full"
             >
               Back to My Reservations
             </button>
@@ -428,44 +428,45 @@ export default function QRTicket() {
 
       {/* FULLSCREEN QR MODAL (Only when NOT validated) */}
       {isQrModalOpen && activeReservation && !isValidated && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+        <div className="pq-modal-scrim flex-col">
           <button 
             onClick={() => setIsQrModalOpen(false)}
-            className="absolute top-6 right-6 sm:top-8 sm:right-8 w-12 h-12 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-colors focus:outline-none z-50"
+            className="pq-icon-btn absolute top-6 right-6 sm:top-8 sm:right-8 z-50"
             title="Close"
+            aria-label="Close"
           >
             <X className="w-6 h-6" />
           </button>
 
-          <div className="w-full max-w-sm bg-white rounded-3xl p-6 sm:p-8 text-center shadow-2xl flex flex-col items-center justify-center animate-in zoom-in-95 duration-200">
-            <div className="w-full border-b border-gray-100 pb-4 mb-5">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Arrival Check-in Pass</span>
-              <h2 className="text-3xl font-black text-blue-600">
+          <div className="pq-glass-modal w-full max-w-sm p-6 sm:p-8 text-center flex flex-col items-center justify-center">
+            <div className="w-full pb-4 mb-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+              <h2 className="text-3xl font-extrabold" style={{ color: "var(--pq-mark-blue-deep)" }}>
                 Queue #{permanentQueueNumber || "-"}
               </h2>
-              <p className="text-sm font-bold text-gray-700 mt-1 truncate">
+              <p className="text-[11px] font-bold pq-muted mt-1">Arrival Check-in Pass</p>
+              <p className="text-sm font-bold mt-1 truncate">
                 {getReservationChildDisplayName(activeReservation, "Patient")}
               </p>
             </div>
 
             {/* Large QR Code */}
-            <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-inner mb-6 w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center">
+            <div className="pq-row mb-6 w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center">
               {qrImageUrl ? (
                 <img src={qrImageUrl} alt="Full Screen QR" className="w-full h-full object-contain" />
               ) : (
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="pq-spinner" />
               )}
             </div>
 
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Reservation Code</span>
-            <div className="text-3xl font-black text-gray-800 tracking-wider mt-0.5 mb-6 font-mono">
+            <span className="text-xs font-bold pq-muted block">Reservation Code</span>
+            <div className="text-3xl font-extrabold tracking-wider mt-0.5 mb-6 font-mono">
               {activeReservation.reservationCode || "------"}
             </div>
 
             <a
               href={qrImageUrl}
               download={`reservation-${activeReservation.reservationCode || 'pass'}.png`}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2.5 text-base focus:outline-none"
+              className="pq-btn-primary w-full"
             >
               <Download className="w-5 h-5" /> Download QR
             </a>
@@ -487,14 +488,14 @@ export default function QRTicket() {
 
       {/* Complete Patient Info Modal */}
       {isPatientInfoModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-xl overflow-hidden flex flex-col max-h-[90vh] border border-gray-100 animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+        <div className="pq-modal-scrim">
+          <div className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center px-6 py-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <div>
-                <h2 className="text-lg font-bold text-gray-800">Complete Information</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Please provide patient details to proceed</p>
+                <h2 className="text-lg font-bold">Complete Information</h2>
+                <p className="text-xs pq-muted mt-0.5">Please provide patient details to proceed</p>
               </div>
-              <button onClick={() => setIsPatientInfoModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-full hover:bg-gray-100 focus:outline-none">
+              <button onClick={() => setIsPatientInfoModalOpen(false)} className="pq-icon-btn" aria-label="Close">
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
@@ -508,34 +509,34 @@ export default function QRTicket() {
                 />
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Concern / Reason for Visit</label>
+                  <label className="pq-label">Concern / Reason for Visit</label>
                   <textarea 
                     value={formData.concern}
                     onChange={e => setFormData(prev => ({ ...prev, concern: e.target.value }))}
                     placeholder="Optional: briefly describe the symptoms or reason for visit"
                     rows={3}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200/80 rounded-2xl text-sm font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none"
+                    className="pq-input resize-none"
                   ></textarea>
                 </div>
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/80 flex gap-3 justify-end">
+            <div className="px-6 py-4 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button 
                 onClick={() => setIsPatientInfoModalOpen(false)}
                 disabled={isSubmitting}
-                className="w-full sm:w-auto px-5 py-2.5 text-gray-600 font-bold bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm focus:outline-none"
+                className="pq-btn-secondary w-full sm:w-auto text-sm"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleSubmitPatientInfo}
                 disabled={isSubmitting || !isChildProfileValid(formData)}
-                className="w-full sm:w-auto px-6 py-2.5 text-white font-bold bg-blue-600 hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed text-sm shadow-2xs focus:outline-none"
+                className="pq-btn-primary w-full sm:w-auto text-sm"
               >
                 {isSubmitting ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <span className="pq-spinner" />
                     Saving...
                   </>
                 ) : "Save Information"}

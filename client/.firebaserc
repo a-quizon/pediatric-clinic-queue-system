@@ -3,6 +3,14 @@
     "default": "pediatric-clinic-queue-system",
     "staging": "pediatric-clinic-queue-testing"
   },
-  "targets": {},
+  "targets": {
+    "pediatric-clinic-queue-testing": {
+      "hosting": {
+        "plusqueue": [
+          "plus-queue"
+        ]
+      }
+    }
+  },
   "etags": {}
 }

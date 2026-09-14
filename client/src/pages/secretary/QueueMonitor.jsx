@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { Users, AlertTriangle, Monitor, Clock, Maximize, Minimize, ChevronDown } from "lucide-react";
+﻿import React, { useState, useEffect } from "react";
+import { Users, AlertTriangle, Monitor, Clock, Maximize, Minimize } from "lucide-react";
+import { PqBrand, PqSpinner } from "../../components/parent/pqUi";
 import { useAuth } from "../../hooks/useAuth";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { subscribeToScheduleReservations } from "../../services/reservationService";
@@ -84,19 +85,18 @@ export default function QueueMonitor() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mb-4"></div>
-        <p className="text-white text-xl font-bold animate-pulse">Loading Live Queue...</p>
+      <div className="pq-shell min-h-screen flex flex-col items-center justify-center">
+        <PqSpinner label="Loading live queue" />
       </div>
     );
   }
 
   if (!activeSchedule) {
     return (
-      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-8 text-center text-white">
-        <Monitor className="w-24 h-24 text-gray-700 mb-6" />
-        <h1 className="text-5xl font-black mb-4">No Active Queue</h1>
-        <p className="text-2xl text-gray-400 max-w-2xl">
+      <div className="pq-shell min-h-screen flex flex-col items-center justify-center p-8 text-center">
+        <Monitor className="w-24 h-24 pq-faint mb-6" aria-hidden="true" />
+        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-4">No Active Queue</h1>
+        <p className="text-xl pq-muted max-w-2xl">
           There is currently no active clinic queue running for {user?.assignedBranch || "your branch"}.
         </p>
       </div>
@@ -122,14 +122,14 @@ export default function QueueMonitor() {
   const getStatusBanner = () => {
     if (isClosed) {
       return (
-        <div className="bg-red-600 text-white py-3 px-6 w-full text-center font-black tracking-widest text-2xl uppercase shadow-lg">
+        <div className="py-3 px-6 w-full text-center font-extrabold tracking-widest text-2xl uppercase" style={{ background: "var(--pq-alert)", color: "#fff" }}>
           Queue Closed
         </div>
       );
     }
     if (isPaused) {
       return (
-        <div className="bg-amber-500 text-white py-3 px-6 w-full text-center font-black tracking-widest text-2xl uppercase shadow-lg">
+        <div className="py-3 px-6 w-full text-center font-extrabold tracking-widest text-2xl uppercase" style={{ background: "var(--pq-wait)", color: "#fff" }}>
           Queue Paused
         </div>
       );
@@ -138,55 +138,63 @@ export default function QueueMonitor() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans overflow-hidden select-none">
+    <div className="pq-shell min-h-screen flex flex-col overflow-hidden select-none">
       {getStatusBanner()}
       
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-8 py-6 flex justify-between items-center shadow-sm">
-        <div>
-          <h1 className="text-4xl font-black text-gray-900 uppercase tracking-tight">
+      <header className="pq-glass-nav px-6 sm:px-8 py-5 flex justify-between items-center rounded-none border-x-0 border-t-0">
+        <div className="min-w-0">
+          <PqBrand size={40} />
+          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mt-2 truncate">
             {user?.assignedBranch || "Pediatric Clinic"}
           </h1>
-          <p className="text-xl text-gray-500 font-bold tracking-wide mt-1">Live Queue Monitor</p>
+          <p className="text-lg sm:text-xl pq-muted font-semibold mt-1">Live Queue Monitor</p>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4 bg-gray-100 px-6 py-3 rounded-2xl border border-gray-200 shadow-inner">
-            <Clock className="w-8 h-8 text-blue-600" />
-            <span className="text-3xl font-bold text-gray-800 tracking-wider font-mono">
+        <div className="flex items-center gap-4 sm:gap-6">
+          <div className="pq-row gap-4 px-5 py-3 min-h-0">
+            <Clock className="w-7 h-7" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
+            <span className="text-2xl sm:text-3xl font-extrabold tracking-wider pq-num">
               {formatCurrentTime()}
             </span>
           </div>
           <button 
+            type="button"
             onClick={toggleFullscreen}
-            className="p-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl border border-gray-200 shadow-sm transition-all active:scale-95 flex-shrink-0"
+            className="pq-icon-btn"
+            style={{ width: 56, height: 56 }}
             title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
           >
             {isFullscreen ? <Minimize className="w-8 h-8" /> : <Maximize className="w-8 h-8" />}
           </button>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col lg:flex-row p-8 gap-8 overflow-hidden">
-        
-        {/* Left/Main Column: Now Serving */}
-        <div className="flex-[3] flex flex-col h-full bg-white rounded-3xl border border-gray-200 shadow-lg overflow-hidden relative">
-          <div className="bg-blue-600 text-white p-6 text-center shadow-md z-10">
-            <h2 className="text-4xl font-black uppercase tracking-widest flex justify-center items-center gap-4">
-              <Users className="w-10 h-10" />
+      <main className="flex-1 flex flex-col lg:flex-row p-6 sm:p-8 gap-6 overflow-hidden">
+        <section className="flex-[3] flex flex-col h-full pq-glass overflow-hidden">
+          <div className="pq-now mx-0 rounded-none" style={{ borderRadius: 0, border: "none", borderBottom: "1px solid color-mix(in srgb, var(--pq-live) 18%, white)" }}>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-3" style={{ color: "var(--pq-live)" }}>
+              <span className="pq-pip" />
               Now Serving
             </h2>
           </div>
           
-          <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gradient-to-b from-blue-50 to-white relative">
+          <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-8">
             {inConsultationPatients.length > 0 ? (
-              <div className="flex flex-wrap justify-center gap-12 w-full max-h-full overflow-y-auto">
+              <div className="flex flex-wrap justify-center gap-8 w-full max-h-full overflow-y-auto">
                 {inConsultationPatients.map(res => (
-                  <div key={res.id} className="flex flex-col items-center animate-in zoom-in duration-500">
-                    <div className="bg-white border-8 border-blue-600 rounded-[3rem] w-[28rem] h-[28rem] flex flex-col items-center justify-center shadow-2xl relative overflow-hidden">
-                       <div className="absolute inset-0 bg-blue-600 opacity-5"></div>
-                       <span className="text-3xl uppercase font-black text-blue-600 opacity-80 mb-4 tracking-widest">Queue Number</span>
-                       <span className="text-[12rem] font-black text-gray-900 leading-none">
+                  <div key={res.id} className="flex flex-col items-center">
+                    <div
+                      className="flex flex-col items-center justify-center"
+                      style={{
+                        width: "min(28rem, 86vw)",
+                        height: "min(28rem, 70vw)",
+                        borderRadius: "2rem",
+                        background: "color-mix(in srgb, #ffffff 82%, transparent)",
+                        border: "1px solid color-mix(in srgb, var(--pq-live) 28%, white)",
+                      }}
+                    >
+                       <span className="text-xl sm:text-2xl uppercase font-extrabold tracking-widest mb-4" style={{ color: "var(--pq-live)" }}>Queue Number</span>
+                       <span className="pq-num leading-none" style={{ fontSize: "clamp(5rem, 18vw, 12rem)", color: "var(--pq-ink)" }}>
                          {res.queueNumber || res.queuePosition}
                        </span>
                     </div>
@@ -194,63 +202,58 @@ export default function QueueMonitor() {
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center opacity-60">
-                <Users className="w-48 h-48 text-gray-300 mb-8" />
-                <p className="text-5xl font-black text-gray-400 tracking-wide">Doctor is Available</p>
-                <p className="text-2xl text-gray-400 mt-4 font-bold">Waiting for the next patient</p>
+              <div className="flex flex-col items-center">
+                <Users className="w-24 h-24 sm:w-32 sm:h-32 pq-faint mb-6" aria-hidden="true" />
+                <p className="text-3xl sm:text-5xl font-extrabold tracking-tight pq-muted">Doctor is Available</p>
+                <p className="text-xl sm:text-2xl pq-faint mt-4 font-semibold">Waiting for the next patient</p>
               </div>
             )}
           </div>
-        </div>
+        </section>
 
-        {/* Right Column: Next in Queue */}
-        <div className="flex-[2] flex flex-col bg-white rounded-3xl border border-gray-200 shadow-lg overflow-hidden h-full">
-          <div className="bg-gray-800 text-white p-6 text-center shadow-md z-10">
-            <h2 className="text-3xl font-black uppercase tracking-widest">
+        <section className="flex-[2] flex flex-col pq-glass overflow-hidden h-full">
+          <div className="p-5 text-center" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Next In Queue
             </h2>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {waitingQueue.length > 0 ? (
-              <div className="flex flex-col gap-4">
-                {waitingQueue.slice(0, 10).map((res, index) => (
+              waitingQueue.slice(0, 10).map((res, index) => (
                   <div 
                     key={res.id} 
-                    className={`flex items-center justify-between p-6 rounded-2xl border-2 transition-all ${
-                      index === 0 
-                        ? "bg-white border-blue-400 shadow-md transform scale-[1.02]" 
-                        : "bg-white border-gray-200 shadow-sm"
-                    }`}
+                    className={`pq-row ${index === 0 ? "pq-row-you" : ""}`}
+                    style={index === 0 ? { minHeight: "4.5rem" } : undefined}
                   >
-                    <div className="flex items-center gap-6 pl-4">
+                    <div className="flex items-center gap-4 pl-1">
+                      <div className={`pq-queue-plate ${index === 0 ? "pq-queue-plate-next" : ""}`} style={{ width: index === 0 ? "4rem" : "3rem", height: index === 0 ? "4rem" : "3rem", fontSize: index === 0 ? "1.5rem" : "1.125rem" }}>
+                        {res.queueNumber || res.queuePosition}
+                      </div>
                       <div className="flex flex-col">
                          {index === 0 && (
-                           <span className="text-blue-600 font-black text-xl uppercase tracking-widest animate-pulse mb-1">
+                           <span className="font-extrabold text-sm uppercase tracking-widest" style={{ color: "var(--pq-mark-blue-deep)" }}>
                              Up Next
                            </span>
                          )}
-                         <span className="text-4xl sm:text-5xl font-black text-gray-800 uppercase">
+                         <span className={`font-extrabold tracking-tight ${index === 0 ? "text-2xl sm:text-4xl" : "text-xl sm:text-2xl"}`}>
                            Queue #{res.queueNumber || res.queuePosition}
                          </span>
                       </div>
                     </div>
                   </div>
-                ))}
-                {waitingQueue.length > 10 && (
-                  <div className="flex justify-center p-4 mt-2">
-                    <ChevronDown className="w-14 h-14 text-gray-400 animate-bounce" />
-                  </div>
-                )}
-              </div>
+              ))
             ) : (
-              <div className="h-full flex flex-col items-center justify-center opacity-60">
-                <AlertTriangle className="w-24 h-24 text-gray-300 mb-6" />
-                <p className="text-3xl font-black text-gray-400 text-center">No Patients Waiting</p>
+              <div className="h-full flex flex-col items-center justify-center">
+                <AlertTriangle className="w-16 h-16 pq-faint mb-4" aria-hidden="true" />
+                <p className="text-2xl font-extrabold pq-muted text-center">No Patients Waiting</p>
               </div>
             )}
+            {waitingQueue.length > 10 && (
+              <p className="text-center text-sm font-extrabold pq-muted py-2">+ {waitingQueue.length - 10} more waiting</p>
+            )}
           </div>
-        </div>
+        </section>
       </main>
     </div>
   );

@@ -231,10 +231,10 @@ export default function ScheduleManagement({
   const paginatedSchedules = filteredSchedules.slice(startIndex, startIndex + PAGE_SIZE);
 
   return (
-    <div className="w-full pb-20 pt-4">
+    <div className="w-full pb-20 pt-2">
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 pq-faint" aria-hidden="true" />
           <input
             type="text"
             placeholder="Search branch, date, or status..."
@@ -243,18 +243,20 @@ export default function ScheduleManagement({
               setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all shadow-sm"
+            className="pq-input pl-10"
+            aria-label="Search schedules"
           />
         </div>
         <div className="relative min-w-[200px]">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 pq-faint pointer-events-none" aria-hidden="true" />
           <select
             value={currentFilter}
             onChange={(e) => {
               setCurrentFilter(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all shadow-sm appearance-none font-medium text-gray-700 cursor-pointer"
+            className="pq-input pl-10 appearance-none cursor-pointer"
+            aria-label="Filter by status"
           >
             <option value="All">All Statuses</option>
             <option value="Draft">Draft</option>
@@ -265,16 +267,16 @@ export default function ScheduleManagement({
       </div>
 
       {isAnyQueueActive && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 flex items-start text-sm font-medium mb-6 animate-in fade-in">
+        <div className="pq-note pq-note-wait mb-6">
           <p>You already have an active clinic queue. End the current queue before starting another.</p>
         </div>
       )}
 
       {filteredSchedules.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center mt-4">
-          <CalendarX className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800 mb-2">No schedules found</h3>
-          <p className="text-gray-500">Try adjusting your filters or create a new schedule.</p>
+        <div className="pq-glass p-12 text-center mt-4">
+          <CalendarX className="w-16 h-16 pq-faint mx-auto mb-4" aria-hidden="true" />
+          <h3 className="text-xl font-extrabold tracking-tight mb-2">No schedules found</h3>
+          <p className="pq-muted">Try adjusting your filters or create a new schedule.</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -304,15 +306,16 @@ export default function ScheduleManagement({
           </div>
 
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 gap-4 md:flex-none z-10 rounded-b-xl">
-              <div className="text-sm text-gray-500 font-medium text-center sm:text-left">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between px-2 py-4 gap-4">
+              <div className="text-sm pq-muted font-medium text-center sm:text-left">
                 Showing {startIndex + 1}–{Math.min(validCurrentPage * PAGE_SIZE, filteredSchedules.length)} of {filteredSchedules.length} schedules
               </div>
               <div className="flex items-center justify-center gap-2">
                 <button
+                  type="button"
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={validCurrentPage === 1}
-                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="pq-btn-secondary"
                 >
                   Previous
                 </button>
@@ -320,13 +323,12 @@ export default function ScheduleManagement({
                 <div className="hidden sm:flex items-center gap-1">
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                     <button
+                      type="button"
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg border text-sm font-medium transition-colors ${
-                        validCurrentPage === page
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "border-gray-200 text-gray-600 bg-white hover:bg-gray-50"
-                      }`}
+                      className={validCurrentPage === page ? "pq-btn-primary" : "pq-btn-secondary"}
+                      style={{ width: 44, height: 44, padding: 0 }}
+                      aria-current={validCurrentPage === page ? "page" : undefined}
                     >
                       {page}
                     </button>
@@ -334,9 +336,10 @@ export default function ScheduleManagement({
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={validCurrentPage === totalPages}
-                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="pq-btn-secondary"
                 >
                   Next
                 </button>
@@ -347,9 +350,12 @@ export default function ScheduleManagement({
       )}
 
       <button
+        type="button"
         onClick={handleOpenCreateModal}
-        className="fixed bottom-24 right-6 md:bottom-8 md:right-8 w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 hover:scale-105 transition-all z-30"
+        className="pq-btn-primary fixed bottom-24 right-6 md:bottom-8 md:right-8 z-30"
+        style={{ width: 56, height: 56, padding: 0, borderRadius: 999 }}
         title="Add Schedule"
+        aria-label="Add Schedule"
       >
         <Plus className="w-6 h-6" />
       </button>

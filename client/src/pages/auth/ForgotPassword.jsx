@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { auth } from "../../firebase/auth";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { Activity, Mail, ArrowRight } from "lucide-react";
+import { Mail, ArrowRight } from "lucide-react";
 import toast from "react-hot-toast";
+import { PqAuthShell, PqBrand } from "../../components/parent/pqUi";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -37,38 +38,33 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 font-sans">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-        {/* Header Section */}
-        <div className="pt-10 pb-6 px-8 text-center border-b border-gray-50">
-          <div className="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-blue-100">
-            <Activity className="w-8 h-8" />
+    <PqAuthShell>
+      <div className="pq-glass-window overflow-hidden">
+        <div className="pt-10 pb-6 px-8 text-center" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <div className="flex justify-center mb-5">
+            <PqBrand size={72} stacked />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Reset Password</h1>
-          <p className="text-gray-500 font-medium mt-2 text-sm">Enter your email to receive a reset link</p>
+          <h1 className="text-2xl font-extrabold tracking-tight">Reset Password</h1>
+          <p className="pq-muted mt-2 text-sm">Enter your email to receive a reset link</p>
         </div>
 
-        {/* Form Section */}
         <div className="p-8">
           {isSuccess ? (
             <div className="text-center">
-              <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-xl text-sm font-medium border border-green-100">
+              <div className="pq-note pq-note-ok mb-6">
                 A password reset link has been sent to {email}. Please check your inbox.
               </div>
-              <Link
-                to="/"
-                className="w-full flex items-center justify-center py-3.5 px-4 bg-blue-600 text-white font-bold rounded-xl shadow-sm transition-all hover:bg-blue-700 hover:shadow mt-4"
-              >
+              <Link to="/" className="pq-btn-primary w-full">
                 Return to Login
               </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
+                <label htmlFor="email" className="pq-label">Email Address</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
+                  <div className="pq-field-icon">
+                    <Mail className="h-5 w-5" />
                   </div>
                   <input
                     type="email"
@@ -77,7 +73,7 @@ export default function ForgotPassword() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={loading}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                    className="pq-input pl-11"
                     placeholder="Enter your email"
                   />
                 </div>
@@ -86,25 +82,23 @@ export default function ForgotPassword() {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full flex items-center justify-center py-3.5 px-4 bg-blue-600 text-white font-bold rounded-xl shadow-sm transition-all mt-2 ${
-                  loading ? "opacity-70 cursor-not-allowed" : "hover:bg-blue-700 hover:shadow"
-                }`}
+                className="pq-btn-primary w-full mt-2"
               >
                 {loading ? 'Sending...' : 'Send Reset Link'}
-                {!loading && <ArrowRight className="w-5 h-5 ml-2" />}
+                {!loading && <ArrowRight className="w-5 h-5" />}
               </button>
             </form>
           )}
 
           {!isSuccess && (
             <div className="mt-8 text-center">
-              <Link to="/" className="text-blue-600 font-semibold hover:underline transition-all text-sm">
+              <Link to="/" className="pq-link text-sm">
                 Back to Login
               </Link>
             </div>
           )}
         </div>
       </div>
-    </div>
+    </PqAuthShell>
   );
 }

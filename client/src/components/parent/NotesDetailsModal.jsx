@@ -6,25 +6,24 @@ export default function NotesDetailsModal({ isOpen, onClose, reservation, schedu
   if (!isOpen || !reservation || !schedule) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-        <div className="flex justify-between items-center p-5 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center">
-            <Activity className="w-5 h-5 text-blue-600 mr-2" />
+    <div className="pq-modal-scrim">
+      <div className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <h2 className="text-lg font-bold flex items-center">
+            <Activity className="w-5 h-5 mr-2" style={{ color: "var(--pq-mark-blue)" }} />
             Consultation Details
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-50">
+          <button onClick={onClose} className="pq-icon-btn" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
         
         <div className="p-6 overflow-y-auto space-y-6">
-          {/* Patient Header */}
           <div>
-            <div className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Patient</div>
-            <div className="text-xl font-bold text-gray-800">{getReservationChildDisplayName(reservation)}</div>
+            <div className="text-xs pq-muted font-bold mb-1">Patient</div>
+            <div className="text-xl font-bold">{getReservationChildDisplayName(reservation)}</div>
             {getReservationChildren(reservation).length > 0 && (
-              <div className="text-sm text-gray-500 mt-1">
+              <div className="text-sm pq-muted mt-1">
                 {getReservationChildren(reservation)
                   .map((child) => [child.age, child.sex].filter(Boolean).join(" • "))
                   .filter(Boolean)
@@ -33,38 +32,36 @@ export default function NotesDetailsModal({ isOpen, onClose, reservation, schedu
             )}
           </div>
 
-          {/* Details Grid */}
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
+          <div className="pq-row flex-col items-stretch p-4 space-y-3">
             <div className="flex items-center text-sm">
-              <MapPin className="w-4 h-4 text-gray-400 mr-2" />
-              <span className="text-gray-500 w-24">Branch:</span>
-              <span className="font-bold text-gray-800">{schedule.branch || "Unknown"}</span>
+              <MapPin className="w-4 h-4 pq-faint mr-2" />
+              <span className="pq-muted w-24">Branch:</span>
+              <span className="font-bold">{schedule.branch || "Unknown"}</span>
             </div>
             <div className="flex items-center text-sm">
-              <CalendarDays className="w-4 h-4 text-gray-400 mr-2" />
-              <span className="text-gray-500 w-24">Date:</span>
-              <span className="font-bold text-gray-800">
+              <CalendarDays className="w-4 h-4 pq-faint mr-2" />
+              <span className="pq-muted w-24">Date:</span>
+              <span className="font-bold">
                 {schedule.clinicDate ? new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "N/A"}
               </span>
             </div>
           </div>
 
-          {/* Doctor Notes */}
-          <div className="bg-blue-50/50 rounded-xl p-5 border border-blue-100">
-            <h3 className="font-bold text-blue-800 mb-3 flex items-center text-sm uppercase tracking-wider">
-              <FileText className="w-4 h-4 text-blue-600 mr-2" />
+          <div className="pq-note pq-note-info">
+            <h3 className="font-bold mb-3 flex items-center text-sm">
+              <FileText className="w-4 h-4 mr-2" />
               Doctor's Notes
             </h3>
-            <div className="bg-white rounded-lg p-4 border border-blue-100 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed shadow-sm min-h-[100px]">
-              {reservation.doctorNotes || <span className="text-gray-400 italic">No notes provided for this consultation.</span>}
+            <div className="pq-row p-4 text-sm whitespace-pre-wrap leading-relaxed min-h-[100px]">
+              {reservation.doctorNotes || <span className="pq-faint italic">No notes provided for this consultation.</span>}
             </div>
           </div>
         </div>
 
-        <div className="p-5 border-t border-gray-100 bg-gray-50 flex gap-3 justify-end">
+        <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
           <button 
             onClick={onClose}
-            className="w-full py-2.5 text-blue-600 font-bold bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-colors shadow-sm"
+            className="pq-btn-secondary w-full"
           >
             Close
           </button>

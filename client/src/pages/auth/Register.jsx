@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { registerUser } from "../../services/authService";
 import { sendSmsOtp, verifySmsOtp } from "../../services/smsAuthService";
-import { Activity, Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff, KeyRound, CheckCircle2 } from "lucide-react";
+import { Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff, KeyRound, CheckCircle2 } from "lucide-react";
+import { PqAuthShell, PqBrand } from "../../components/parent/pqUi";
+import OnboardingStepper from "../../components/auth/OnboardingStepper";
 import toast from "react-hot-toast";
 import { mapAuthError } from "../../utils/authErrors";
 import { usePasswordValidation } from "../../utils/passwordUtils";
@@ -204,23 +206,34 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 font-sans py-8">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="pt-8 pb-6 px-8 text-center border-b border-gray-50">
-          <div className="mx-auto w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-blue-100">
-            <Activity className="w-7 h-7" />
+    <PqAuthShell>
+      <div className="pq-glass-window overflow-hidden">
+        <div className="pt-8 pb-6 px-8 text-center" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <div className="flex justify-center mb-4">
+            <PqBrand size={72} stacked />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Create Account</h1>
-          <p className="text-gray-500 font-medium mt-1 text-sm">Verify your phone, then confirm your email</p>
+          <h1 className="text-2xl font-extrabold tracking-tight">Create Account</h1>
+          <p className="pq-muted mt-1 text-sm">Verify your phone, then confirm your email</p>
+          <div className="mt-5">
+            <OnboardingStepper
+              currentStep={phoneVerified ? 2 : 1}
+              steps={[
+                { id: 1, label: "Verify Phone" },
+                { id: 2, label: "Account" },
+              ]}
+            />
+          </div>
         </div>
 
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-4" id="register-form">
+            {!phoneVerified && (
+            <>
             <div>
-              <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name</label>
+              <label htmlFor="name" className="pq-label">Full Name</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
+                <div className="pq-field-icon">
+                  <User className="h-5 w-5" />
                 </div>
                 <input
                   type="text"
@@ -230,18 +243,18 @@ export default function Register() {
                   onChange={handleChange}
                   required
                   disabled={loading}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                  className="pq-input pl-11"
                   placeholder="John Doe"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="number" className="block text-sm font-semibold text-gray-700 mb-1.5">Phone Number</label>
+              <label htmlFor="number" className="pq-label">Phone Number</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Phone className="h-5 w-5 text-gray-400" />
-                  <span className="ml-2 text-gray-500 font-medium">+63</span>
+                <div className="pq-field-icon gap-2">
+                  <Phone className="h-5 w-5" />
+                  <span className="pq-muted font-medium">+63</span>
                 </div>
                 <input
                   type="tel"
@@ -253,21 +266,21 @@ export default function Register() {
                   required
                   disabled={loading || phoneVerified}
                   autoComplete="tel-national"
-                  className="w-full pl-20 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                  className="pq-input pl-20"
                   placeholder="9123456789"
                 />
                 {phoneVerified && (
-                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500" />
+                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "var(--pq-live)" }} />
                 )}
               </div>
             </div>
 
             <div>
-              <label htmlFor="otp" className="block text-sm font-semibold text-gray-700 mb-1.5">Verification Code</label>
+              <label htmlFor="otp" className="pq-label">Verification Code</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <KeyRound className="h-5 w-5 text-gray-400" />
+                  <div className="pq-field-icon">
+                    <KeyRound className="h-5 w-5" />
                   </div>
                   <input
                     ref={otpInputRef}
@@ -282,7 +295,7 @@ export default function Register() {
                     autoComplete="one-time-code"
                     autoCorrect="off"
                     spellCheck={false}
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none tracking-widest"
+                    className="pq-input pl-11 tracking-widest"
                     placeholder="6-digit code"
                   />
                 </div>
@@ -297,12 +310,10 @@ export default function Register() {
                     (!otpSent && cooldownLeft > 0) ||
                     (otpSent && formData.otp.length !== 6)
                   }
-                  className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                  className={`shrink-0 min-h-[44px] px-4 rounded-[0.95rem] text-sm font-bold ${
                     phoneVerified
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default"
-                      : otpBusy || formData.number.length !== 10 || (!otpSent && cooldownLeft > 0) || (otpSent && formData.otp.length !== 6)
-                        ? "bg-blue-300 text-white cursor-not-allowed"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
+                      ? "pq-note-ok cursor-default"
+                      : "pq-btn-primary"
                   }`}
                 >
                   {otpButtonLabel()}
@@ -310,9 +321,9 @@ export default function Register() {
               </div>
               <div className="mt-1.5 min-h-[1.25rem]">
                 {phoneVerified ? (
-                  <p className="text-xs font-semibold text-emerald-600">Phone verified. You can continue registration.</p>
+                  <p className="pq-ok-text">Phone verified. You can continue registration.</p>
                 ) : cooldownLeft > 0 ? (
-                  <p className="text-xs font-semibold text-gray-500">
+                  <p className="text-xs font-semibold pq-muted">
                     Resend code in {formatOtpCountdown(cooldownLeft)}
                   </p>
                 ) : otpSent ? (
@@ -320,21 +331,36 @@ export default function Register() {
                     type="button"
                     onClick={handleSendCode}
                     disabled={otpBusy || loading}
-                    className="text-xs font-semibold text-blue-600 hover:underline"
+                    className="pq-link text-xs"
                   >
                     Resend code
                   </button>
                 ) : (
-                  <p className="text-xs text-gray-400">Verify your phone before creating an account.</p>
+                  <p className="text-xs pq-faint">Verify your phone before creating an account.</p>
                 )}
               </div>
             </div>
+            </>
+            )}
+
+            {phoneVerified && (
+            <>
+            <div className="pq-note pq-note-ok text-sm">
+              Phone verified. Continue with your email and password.
+              <button
+                type="button"
+                onClick={resetPhoneVerification}
+                className="pq-link text-xs block mt-1"
+              >
+                Use a different number
+              </button>
+            </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
+              <label htmlFor="email" className="pq-label">Email Address</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                <div className="pq-field-icon">
+                  <Mail className="h-5 w-5" />
                 </div>
                 <input
                   type="email"
@@ -344,18 +370,18 @@ export default function Register() {
                   onChange={handleChange}
                   required
                   disabled={loading}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-800 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-colors outline-none"
+                  className="pq-input pl-11"
                   placeholder="Enter your email"
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-1">Email verification comes after phone verification.</p>
+              <p className="text-xs pq-faint mt-1">Email verification comes after phone verification.</p>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
+              <label htmlFor="password" className="pq-label">Password</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+                <div className="pq-field-icon">
+                  <Lock className="h-5 w-5" />
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
@@ -365,33 +391,30 @@ export default function Register() {
                   onChange={handleChange}
                   required
                   disabled={loading}
-                  className={`w-full pl-10 pr-10 py-2.5 bg-gray-50 border text-gray-800 rounded-xl focus:outline-none transition-colors ${
-                    passwordInvalid
-                      ? 'border-red-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
-                      : 'border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white'
-                  }`}
+                  className={`pq-input pl-11 pr-11 ${passwordInvalid ? "pq-input-error" : ""}`}
                   placeholder="Create a password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint min-w-[44px] justify-end"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
               {passwordInvalid && passwordErrors.length > 0 && (
-                <p className="text-xs text-red-500 font-semibold px-1 pt-1.5">
+                <p className="pq-error-text px-1 pt-1.5">
                   {passwordErrors[0]}
                 </p>
               )}
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-1.5">Confirm Password</label>
+              <label htmlFor="confirmPassword" className="pq-label">Confirm Password</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+                <div className="pq-field-icon">
+                  <Lock className="h-5 w-5" />
                 </div>
                 <input
                   type={showConfirmPassword ? "text" : "password"}
@@ -401,23 +424,20 @@ export default function Register() {
                   onChange={handleChange}
                   required
                   disabled={loading}
-                  className={`w-full pl-10 pr-10 py-2.5 bg-gray-50 border text-gray-800 rounded-xl focus:outline-none transition-colors ${
-                    confirmInvalid
-                      ? 'border-red-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
-                      : 'border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white'
-                  }`}
+                  className={`pq-input pl-11 pr-11 ${confirmInvalid ? "pq-input-error" : ""}`}
                   placeholder="Confirm your password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint min-w-[44px] justify-end"
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                 >
                   {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
               {confirmInvalid && (
-                <p className="text-xs text-red-500 font-semibold px-1 pt-1.5">
+                <p className="pq-error-text px-1 pt-1.5">
                   Passwords do not match.
                 </p>
               )}
@@ -427,30 +447,30 @@ export default function Register() {
               type="submit"
               id="register-submit-btn"
               disabled={loading || !isFormValid || isChecking}
-              className={`w-full flex items-center justify-center py-3.5 px-4 font-bold rounded-xl shadow-sm transition-all mt-4 ${
-                loading || !isFormValid || isChecking ? "bg-blue-400 text-white cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow"
-              }`}
+              className="pq-btn-primary w-full mt-4"
             >
-              {loading ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Creating Account...
-                </div>
-              ) : 'Register'}
-              {!loading && <ArrowRight className="w-5 h-5 ml-2" />}
+              {loading ? "Creating Account..." : "Register"}
+              {!loading && <ArrowRight className="w-5 h-5" />}
             </button>
+            {!isFormValid && (
+              <p className="text-xs pq-muted text-center">
+                Enter email and matching passwords to create your account.
+              </p>
+            )}
+            </>
+            )}
           </form>
 
           <div className="mt-8 text-center">
-            <p className="text-gray-500 text-sm">
+            <p className="pq-muted text-sm">
               Already have an account?{' '}
-              <Link to="/" className="text-blue-600 font-semibold hover:underline transition-all">
+              <Link to="/" className="pq-link">
                 Back to Login
               </Link>
             </p>
           </div>
         </div>
       </div>
-    </div>
+    </PqAuthShell>
   );
 }

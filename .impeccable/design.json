@@ -1,0 +1,393 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-13T18:20:00.000Z",
+  "title": "Design System: PlusQueue Parent",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Deep Teal Ink",
+        "canonical": "#16344a",
+        "tonalRamp": ["#07141d", "#0c2230", "#16344a", "#2a4d64", "#4a6d82", "#7a96a6", "#b4c5ce", "#e7eef1"]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Soft Ink",
+        "canonical": "#3a5c6e",
+        "tonalRamp": ["#122028", "#1d3340", "#3a5c6e", "#527486", "#6f8d9d", "#97b0bc", "#c5d2d8", "#e8eef1"]
+      },
+      "ink-faint": {
+        "role": "neutral",
+        "displayName": "Faint Ink",
+        "canonical": "#5a7a88",
+        "tonalRamp": ["#1a2a30", "#2c4450", "#5a7a88", "#6f8d9a", "#8aa6b1", "#adc2ca", "#d0dce1", "#eef3f5"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#e4f3f4",
+        "tonalRamp": ["#3d5c5e", "#5e8688", "#8ab0b2", "#b4d4d6", "#c9e4e6", "#e4f3f4", "#f0f9f9", "#f8fcfc"]
+      },
+      "wash-aqua": {
+        "role": "neutral",
+        "displayName": "Aqua Wash",
+        "canonical": "#c8e8ee",
+        "tonalRamp": ["#2a4d54", "#45747c", "#6fa0a8", "#9ac8d0", "#c8e8ee", "#d7f0f4", "#e8f7f9", "#f5fcfd"]
+      },
+      "wash-peach": {
+        "role": "neutral",
+        "displayName": "Peach Wash",
+        "canonical": "#f8ddd6",
+        "tonalRamp": ["#5a3a34", "#865850", "#b8887c", "#d4b0a6", "#f8ddd6", "#fae8e3", "#fcf2ef", "#fef9f7"]
+      },
+      "wash-gold": {
+        "role": "neutral",
+        "displayName": "Gold Wash",
+        "canonical": "#f6ecc0",
+        "tonalRamp": ["#5a4e22", "#86763a", "#b4a45e", "#d4c888", "#f6ecc0", "#f8f2d4", "#fbf8e8", "#fdfcf4"]
+      },
+      "canvas-aqua": {
+        "role": "neutral",
+        "displayName": "Canvas Aqua",
+        "canonical": "#eaf7f8",
+        "tonalRamp": ["#3a585a", "#5e8284", "#8eb0b2", "#bcd6d8", "#eaf7f8", "#f0fafb", "#f6fcfc", "#fbfdfe"]
+      },
+      "canvas-peach": {
+        "role": "neutral",
+        "displayName": "Canvas Peach",
+        "canonical": "#f3ece4",
+        "tonalRamp": ["#4a433c", "#70665c", "#9a9084", "#c4b8ac", "#f3ece4", "#f7f3ee", "#faf8f5", "#fdfcfb"]
+      },
+      "canvas-mist": {
+        "role": "neutral",
+        "displayName": "Canvas Mist",
+        "canonical": "#e7f2f4",
+        "tonalRamp": ["#3a5054", "#5e787c", "#8aa4a8", "#b8d0d4", "#e7f2f4", "#eef6f8", "#f5fafb", "#fafcfd"]
+      },
+      "mark-blue": {
+        "role": "primary",
+        "displayName": "Mark Blue",
+        "canonical": "#2f6fdb",
+        "tonalRamp": ["#10275a", "#1a3d8a", "#2f6fdb", "#4a86e6", "#6ea0ee", "#9cc0f5", "#c8ddfa", "#eaf2fd"]
+      },
+      "mark-blue-deep": {
+        "role": "primary",
+        "displayName": "Mark Blue Deep",
+        "canonical": "#1e4ea8",
+        "tonalRamp": ["#0b2048", "#14357a", "#1e4ea8", "#3666c2", "#5a86d6", "#8aace6", "#c0d4f2", "#e6eefb"]
+      },
+      "mark-coral": {
+        "role": "secondary",
+        "displayName": "Coral",
+        "canonical": "#d45374",
+        "tonalRamp": ["#4a1524", "#7a243c", "#d45374", "#e06c8a", "#ea8aa3", "#f2b0c0", "#f8d4dc", "#fceef1"]
+      },
+      "mark-coral-bright": {
+        "role": "secondary",
+        "displayName": "Coral Bright",
+        "canonical": "#ee7a96",
+        "tonalRamp": ["#4e1c2a", "#84344c", "#c85a76", "#ee7a96", "#f296ac", "#f6b6c4", "#fad6de", "#fdf0f3"]
+      },
+      "mark-gold": {
+        "role": "tertiary",
+        "displayName": "Gold",
+        "canonical": "#c79212",
+        "tonalRamp": ["#3d2c06", "#6a4e0c", "#c79212", "#d8a828", "#e4bc52", "#eed48a", "#f6e8bc", "#fbf6e6"]
+      },
+      "mark-gold-bright": {
+        "role": "tertiary",
+        "displayName": "Gold Bright",
+        "canonical": "#f0c53a",
+        "tonalRamp": ["#4a3a0c", "#7a6014", "#c49a20", "#f0c53a", "#f4d466", "#f8e294", "#fbf0c4", "#fdf8e8"]
+      },
+      "live": {
+        "role": "primary",
+        "displayName": "Live Green",
+        "canonical": "#0f7a5a",
+        "tonalRamp": ["#05281e", "#0a4a36", "#0f7a5a", "#2a9474", "#54b094", "#86cbb4", "#bce4d6", "#e6f6f0"]
+      },
+      "live-wash": {
+        "role": "neutral",
+        "displayName": "Live Wash",
+        "canonical": "#d8f3ea",
+        "tonalRamp": ["#2a4e42", "#4a7a68", "#76a898", "#a8d0c2", "#d8f3ea", "#e4f7f1", "#f0faf6", "#f8fcfa"]
+      },
+      "alert": {
+        "role": "primary",
+        "displayName": "Alert",
+        "canonical": "#b4232c",
+        "tonalRamp": ["#3c0c10", "#6e141a", "#b4232c", "#c83c44", "#d8666c", "#e69aa0", "#f2cdd0", "#faeeef"]
+      },
+      "alert-wash": {
+        "role": "neutral",
+        "displayName": "Alert Wash",
+        "canonical": "#fde8e8",
+        "tonalRamp": ["#5a3030", "#865050", "#b88080", "#d8b0b0", "#fde8e8", "#fef0f0", "#fef6f6", "#fffbfb"]
+      },
+      "alert-deep": {
+        "role": "primary",
+        "displayName": "Alert Deep",
+        "canonical": "#8f1c24",
+        "tonalRamp": ["#30080c", "#5c1018", "#8f1c24", "#a8343c", "#c05c62", "#d89094", "#ecc8ca", "#f8ecec"]
+      },
+      "wait": {
+        "role": "tertiary",
+        "displayName": "Wait Amber",
+        "canonical": "#9a5b12",
+        "tonalRamp": ["#301c06", "#5c360a", "#9a5b12", "#b47428", "#c89450", "#dcb882", "#eed8b8", "#f8eee0"]
+      },
+      "wait-wash": {
+        "role": "neutral",
+        "displayName": "Wait Wash",
+        "canonical": "#f8e7c8",
+        "tonalRamp": ["#4a3e24", "#76643c", "#a49064", "#d0bc90", "#f8e7c8", "#faf0d8", "#fcf6ea", "#fefbf4"]
+      },
+      "glass": {
+        "role": "neutral",
+        "displayName": "Glass",
+        "canonical": "color-mix(in srgb, #ffffff 78%, transparent)",
+        "tonalRamp": ["#9aa6aa", "#b4bdc0", "#cdd4d6", "#e2e7e8", "#f0f3f4", "#f7f9f9", "#fbfcfc", "#ffffff"]
+      },
+      "glass-strong": {
+        "role": "neutral",
+        "displayName": "Glass Strong",
+        "canonical": "color-mix(in srgb, #ffffff 88%, #d4eef2 12%)",
+        "tonalRamp": ["#8aa0a4", "#a8bdc0", "#c4d6d8", "#dce8ea", "#eef5f6", "#f4f9fa", "#f9fcfc", "#ffffff"]
+      },
+      "glass-edge": {
+        "role": "neutral",
+        "displayName": "Glass Edge",
+        "canonical": "rgba(255, 255, 255, 0.82)",
+        "tonalRamp": ["#b8b8b8", "#cccccc", "#dddddd", "#e8e8e8", "#f2f2f2", "#f7f7f7", "#fcfcfc", "#ffffff"]
+      },
+      "glass-line": {
+        "role": "neutral",
+        "displayName": "Glass Line",
+        "canonical": "rgba(22, 52, 74, 0.1)",
+        "tonalRamp": ["#16344a", "#3a5c6e", "#6a8490", "#9aadb4", "#c4d0d4", "#dde4e6", "#eef2f3", "#f7f9fa"]
+      },
+      "glass-nav": {
+        "role": "neutral",
+        "displayName": "Glass Nav",
+        "canonical": "color-mix(in srgb, #ffffff 86%, #d4eef2 14%)",
+        "tonalRamp": ["#7a969a", "#9ab4b8", "#bcd0d4", "#d8e6e8", "#eaf3f4", "#f2f8f9", "#f8fbfc", "#ffffff"]
+      },
+      "glass-modal": {
+        "role": "neutral",
+        "displayName": "Glass Modal",
+        "canonical": "color-mix(in srgb, #ffffff 86%, transparent)",
+        "tonalRamp": ["#9aa2a4", "#b4bbbc", "#cdd2d3", "#e2e5e6", "#f0f2f2", "#f6f7f7", "#fbfbfb", "#ffffff"]
+      },
+      "glass-fallback": {
+        "role": "neutral",
+        "displayName": "Glass Fallback",
+        "canonical": "#f7fbfb",
+        "tonalRamp": ["#3a4a4a", "#5e7272", "#8aa0a0", "#bcd0d0", "#e4eeee", "#f7fbfb", "#fafdfd", "#fdffff"]
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "White",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#6e6e6e", "#8a8a8a", "#a8a8a8", "#c4c4c4", "#dcdcdc", "#ededed", "#f7f7f7", "#ffffff"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Permanent queue number and patients-ahead count." },
+      "headline": { "displayName": "Headline", "purpose": "Auth titles and sticky page titles." },
+      "title": { "displayName": "Title", "purpose": "PlusQueue wordmark beside the official mark." },
+      "body": { "displayName": "Body", "purpose": "Fields, supporting copy, reservation detail." },
+      "label": { "displayName": "Label", "purpose": "Field labels, chips, nav keys, and button type." }
+    },
+    "shadows": [
+      {
+        "name": "pane-frost",
+        "value": "0 12px 28px -14px rgba(22, 52, 74, 0.28), 0 1px 0 rgba(255, 255, 255, 0.85) inset",
+        "purpose": "Default laminated glass pane."
+      },
+      {
+        "name": "nav-frost",
+        "value": "0 8px 24px -16px rgba(22, 52, 74, 0.35), 0 1px 0 rgba(255, 255, 255, 0.9) inset",
+        "purpose": "Sticky header, sidebar, and phone footer."
+      },
+      {
+        "name": "mark-glow",
+        "value": "0 8px 18px -10px rgba(47, 111, 219, 0.7)",
+        "purpose": "Primary button glow."
+      },
+      {
+        "name": "side-glow",
+        "value": "0 8px 16px -10px rgba(47, 111, 219, 0.8)",
+        "purpose": "Active desktop side link."
+      },
+      {
+        "name": "focus-halo",
+        "value": "0 0 0 3px color-mix(in srgb, #2f6fdb 22%, transparent)",
+        "purpose": "Focused field ring."
+      },
+      {
+        "name": "focus-halo-alert",
+        "value": "0 0 0 3px color-mix(in srgb, #b4232c 20%, transparent)",
+        "purpose": "Focused error field ring."
+      },
+      {
+        "name": "pip-halo",
+        "value": "0 0 0 4px color-mix(in srgb, #ee7a96 35%, transparent)",
+        "purpose": "Now-serving coral pip."
+      },
+      {
+        "name": "knob",
+        "value": "0 1px 4px rgba(22, 52, 74, 0.25)",
+        "purpose": "Switch knob."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Default easing for controls, nav, switch, and pip."
+      },
+      {
+        "name": "duration-control",
+        "value": "160ms",
+        "purpose": "Buttons, fields, nav, and switch."
+      },
+      {
+        "name": "spin",
+        "value": "700ms linear infinite",
+        "purpose": "Loading spinner."
+      },
+      {
+        "name": "pip-hold",
+        "value": "1.6s cubic-bezier(0.22, 1, 0.36, 1) infinite",
+        "purpose": "Now-serving pip breath."
+      },
+      {
+        "name": "press-scale",
+        "value": "scale(0.98)",
+        "purpose": "Active primary, secondary, and icon buttons."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid mark-blue next action.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Reserve a slot</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; min-height: 44px; padding: 0.65rem 1.15rem; border-radius: 0.95rem; font-family: Lexend, \"Segoe UI\", sans-serif; font-weight: 700; font-size: 0.9375rem; letter-spacing: -0.01em; border: 1px solid transparent; background: #2f6fdb; color: #fff; box-shadow: 0 8px 18px -10px rgba(47, 111, 219, 0.7); cursor: pointer; transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), background 160ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn-primary:hover { background: #1e4ea8; } .ds-btn-primary:focus-visible { outline: 3px solid #2f6fdb; outline-offset: 2px; } .ds-btn-primary:active { transform: scale(0.98); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Frosted cancel and companion actions.",
+      "html": "<button class=\"ds-btn-secondary\" type=\"button\">Cancel</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0.65rem 1.15rem; border-radius: 0.95rem; font-family: Lexend, \"Segoe UI\", sans-serif; font-weight: 700; font-size: 0.9375rem; letter-spacing: -0.01em; background: color-mix(in srgb, #ffffff 70%, transparent); color: #16344a; border: 1px solid rgba(22, 52, 74, 0.1); cursor: pointer; transition: background 160ms cubic-bezier(0.22, 1, 0.36, 1), transform 160ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn-secondary:hover { background: #fff; } .ds-btn-secondary:focus-visible { outline: 3px solid #2f6fdb; outline-offset: 2px; } .ds-btn-secondary:active { transform: scale(0.98); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Text-only mark-blue-deep action.",
+      "html": "<button class=\"ds-btn-ghost\" type=\"button\">Forgot password?</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0.65rem 1.15rem; border-radius: 0.95rem; font-family: Lexend, \"Segoe UI\", sans-serif; font-weight: 700; font-size: 0.9375rem; letter-spacing: -0.01em; background: transparent; color: #1e4ea8; border: 1px solid transparent; cursor: pointer; transition: background 160ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn-ghost:hover { background: color-mix(in srgb, #2f6fdb 10%, transparent); } .ds-btn-ghost:focus-visible { outline: 3px solid #2f6fdb; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Frosted field with mark-blue caret and halo.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-label\">Email or Phone Number</span><input class=\"ds-input\" type=\"text\" placeholder=\"parent@email.com\" /></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; font-family: Lexend, \"Segoe UI\", sans-serif; } .ds-label { display: block; font-size: 0.875rem; font-weight: 600; color: #16344a; margin-bottom: 0.4rem; } .ds-input { width: 100%; min-height: 44px; padding: 0.7rem 0.95rem; background: color-mix(in srgb, #ffffff 72%, transparent); border: 1px solid rgba(22, 52, 74, 0.1); border-radius: 0.95rem; color: #16344a; font-family: inherit; font-size: 1rem; font-weight: 500; caret-color: #2f6fdb; outline: none; transition: border-color 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1), background 160ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-input::placeholder { color: #3a5c6e; opacity: 1; } .ds-input:hover { background: #fff; } .ds-input:focus, .ds-input:focus-visible { background: #fff; border-color: #2f6fdb; box-shadow: 0 0 0 3px color-mix(in srgb, #2f6fdb 22%, transparent); outline: none; }"
+    },
+    {
+      "name": "Live Chip",
+      "kind": "chip",
+      "refersTo": "chip-live",
+      "description": "Now-serving and completed status pill.",
+      "html": "<span class=\"ds-chip-live\">WITH DOCTOR<span class=\"ds-pip\" aria-hidden=\"true\"></span></span>",
+      "css": ".ds-chip-live { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 28px; padding: 0.2rem 0.7rem; border-radius: 999px; font-family: Lexend, \"Segoe UI\", sans-serif; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.02em; background: #d8f3ea; color: #0f7a5a; border: 1px solid color-mix(in srgb, #0f7a5a 22%, white); } .ds-pip { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: #d45374; box-shadow: 0 0 0 4px color-mix(in srgb, #ee7a96 35%, transparent); animation: ds-hold 1.6s cubic-bezier(0.22, 1, 0.36, 1) infinite; } @keyframes ds-hold { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.55; transform: scale(0.86); } } @media (prefers-reduced-motion: reduce) { .ds-pip { animation: none; } }"
+    },
+    {
+      "name": "Glass Pane",
+      "kind": "card",
+      "refersTo": "glass-pane",
+      "description": "One laminated frost pane over the daylight wash.",
+      "html": "<article class=\"ds-glass\"><p class=\"ds-glass-title\">Velasquez Pediatric Clinic</p><p class=\"ds-glass-meta\">Angeles · Today</p></article>",
+      "css": ".ds-glass { background: color-mix(in srgb, #ffffff 78%, transparent); backdrop-filter: blur(18px) saturate(1.35); -webkit-backdrop-filter: blur(18px) saturate(1.35); border: 1px solid rgba(255, 255, 255, 0.82); box-shadow: 0 12px 28px -14px rgba(22, 52, 74, 0.28), 0 1px 0 rgba(255, 255, 255, 0.85) inset; border-radius: 1.35rem; padding: 1rem; font-family: Lexend, \"Segoe UI\", sans-serif; color: #16344a; } .ds-glass-title { margin: 0; font-size: 0.875rem; font-weight: 700; } .ds-glass-meta { margin: 0.25rem 0 0; font-size: 0.75rem; font-weight: 600; color: #1e4ea8; }"
+    },
+    {
+      "name": "Ticket Split",
+      "kind": "custom",
+      "refersTo": "ticket-num",
+      "description": "Permanent number and people ahead inside one pane.",
+      "html": "<div class=\"ds-ticket\"><div class=\"ds-ticket-num\"><div class=\"ds-ticket-label\">My Queue Number</div><div class=\"ds-num\">14</div></div><div class=\"ds-ticket-ahead\"><div class=\"ds-ticket-label ds-ticket-label-wait\">Patients Ahead</div><div class=\"ds-num\">3</div></div></div>",
+      "css": ".ds-ticket { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; font-family: Lexend, \"Segoe UI\", sans-serif; } .ds-ticket-num, .ds-ticket-ahead { padding: 1.15rem 1rem 1.25rem; text-align: center; } .ds-ticket-num { background: color-mix(in srgb, #2f6fdb 14%, transparent); border-right: 1px solid rgba(22, 52, 74, 0.1); } .ds-ticket-ahead { background: color-mix(in srgb, #f0c53a 16%, transparent); } .ds-ticket-label { font-size: 11px; font-weight: 700; color: #1e4ea8; margin-bottom: 0.25rem; } .ds-ticket-label-wait { color: #9a5b12; } .ds-num { font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: -0.04em; line-height: 0.9; font-size: 3rem; color: #1e4ea8; } .ds-ticket-ahead .ds-num { color: #16344a; }"
+    },
+    {
+      "name": "Now Serving",
+      "kind": "custom",
+      "refersTo": "now-serving",
+      "description": "Live wash strip with coral pip.",
+      "html": "<div class=\"ds-now\"><div><div class=\"ds-now-title\">Now Serving</div><div class=\"ds-now-num\">Queue #11</div></div><span class=\"ds-chip-live\">IN PROGRESS<span class=\"ds-pip\" aria-hidden=\"true\"></span></span></div>",
+      "css": ".ds-now { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; border-radius: 1.1rem; background: #d8f3ea; border: 1px solid color-mix(in srgb, #0f7a5a 18%, white); font-family: Lexend, \"Segoe UI\", sans-serif; color: #16344a; } .ds-now-title { font-size: 0.875rem; font-weight: 700; } .ds-now-num { font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: -0.04em; line-height: 0.9; font-size: 1.5rem; margin-top: 0.15rem; } .ds-now .ds-chip-live { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 28px; padding: 0.2rem 0.7rem; border-radius: 999px; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.02em; background: #d8f3ea; color: #0f7a5a; border: 1px solid color-mix(in srgb, #0f7a5a 22%, white); } .ds-now .ds-pip { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: #d45374; box-shadow: 0 0 0 4px color-mix(in srgb, #ee7a96 35%, transparent); }"
+    },
+    {
+      "name": "Wait Key",
+      "kind": "chip",
+      "refersTo": "wait-key",
+      "description": "Non-wrapping waiting chip; coral marks you.",
+      "html": "<div class=\"ds-wait-row\"><div class=\"ds-wait-key\"><div class=\"ds-wait-num\">12</div><div class=\"ds-wait-cap\">In Queue</div></div><div class=\"ds-wait-key ds-wait-key-you\"><div class=\"ds-wait-num\">14</div><div class=\"ds-wait-cap\">You</div></div><div class=\"ds-wait-key\"><div class=\"ds-wait-num\">15</div><div class=\"ds-wait-cap\">In Queue</div></div></div>",
+      "css": ".ds-wait-row { display: flex; gap: 0.5rem; overflow-x: auto; padding: 0.15rem 0 0.4rem; scrollbar-width: none; font-family: Lexend, \"Segoe UI\", sans-serif; } .ds-wait-row::-webkit-scrollbar { display: none; } .ds-wait-key { flex: 0 0 auto; min-width: 3.25rem; min-height: 44px; padding: 0.45rem 0.7rem; border-radius: 0.85rem; background: color-mix(in srgb, #ffffff 58%, transparent); border: 1px solid rgba(22, 52, 74, 0.1); text-align: center; color: #16344a; } .ds-wait-key-you { background: color-mix(in srgb, #ee7a96 22%, white); border-color: color-mix(in srgb, #d45374 35%, white); } .ds-wait-num { font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: -0.04em; line-height: 0.9; font-size: 1.125rem; } .ds-wait-cap { font-size: 10px; font-weight: 600; margin-top: 0.15rem; }"
+    },
+    {
+      "name": "Phone Nav",
+      "kind": "nav",
+      "refersTo": "glass-nav",
+      "description": "Four-key frost footer.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-nav-item-active\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z\"/></svg>Home</a><a class=\"ds-nav-item\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><rect x=\"4\" y=\"5\" width=\"16\" height=\"16\" rx=\"2\"/><path d=\"M8 3v4M16 3v4M4 11h16\"/></svg>Reserve</a><a class=\"ds-nav-item\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M4 8h16v11H4z\"/><path d=\"M8 8V6a4 4 0 0 1 8 0v2\"/></svg>My Reservations</a><a class=\"ds-nav-item\" href=\"#\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"8\" r=\"3\"/><path d=\"M5 19c0-3.3 3.1-6 7-6s7 2.7 7 6\"/></svg>Profile</a></nav>",
+      "css": ".ds-nav { display: flex; justify-content: space-around; align-items: center; height: 64px; padding: 0 0.25rem; background: color-mix(in srgb, #ffffff 86%, #d4eef2 14%); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); border: 1px solid rgba(255, 255, 255, 0.82); box-shadow: 0 8px 24px -16px rgba(22, 52, 74, 0.35), 0 1px 0 rgba(255, 255, 255, 0.9) inset; font-family: Lexend, \"Segoe UI\", sans-serif; } .ds-nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem; min-height: 44px; width: 100%; color: #5a7a88; font-size: 0.65rem; font-weight: 600; text-decoration: none; transition: color 160ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-nav-item:hover { color: #1e4ea8; } .ds-nav-item:focus-visible { outline: 3px solid #2f6fdb; outline-offset: 2px; } .ds-nav-item-active { color: #1e4ea8; font-weight: 800; } .ds-nav-item-active svg { color: #2f6fdb; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Daylight Waiting-Room Window",
+    "overview": "This system applies only to parent surfaces and shared auth screens mounted under `.pq-shell`; staff dashboards must not inherit this palette or font. PlusQueue’s parent world is a frost pane onto a live clinic waiting room: a daylight aqua-to-peach canvas, one laminated glass layer, and a ticket that stays in view. It is not a SaaS dashboard, not charcoal instrumentation, and not a drum-machine board.\n\nPersonality is calm, sunlit, and operational. Density stays phone-first. The official PlusQueue mark (stylized plus/cross with parent/child hands, served from `/brand/plusqueue-logo.png`) is the window badge. Lexend carries deep teal ink across every label. WCAG 2.2 AA is the accessibility floor.",
+    "keyCharacteristics": [
+      "Scoped to `.pq-shell` on parent routes and shared auth only",
+      "Fixed daylight wash (aqua, peach, gold) behind one frost layer",
+      "Lexend extra-bold tabular ticket numbers in deep teal ink",
+      "Official PlusQueue PNG as the identity mark",
+      "Inset rows and wait keys inside a pane — never a second glass stack",
+      "Solid mark-blue primary actions; coral-gold pip on now-serving"
+    ],
+    "rules": [
+      { "name": "The Scoped Shell Rule", "body": "These colors exist only as custom properties on `.pq-shell`. Do not hoist them to `:root` or paint secretary, doctor, or admin chrome with this palette.", "section": "colors" },
+      { "name": "The Mark-Blue Action Rule", "body": "The one next action is a solid mark-blue fill. Coral, gold, and live green are signals, not competing CTAs.", "section": "colors" },
+      { "name": "The Ticket Number Rule", "body": "Queue identity is extra-bold tabular Lexend. Do not switch ticket numerals to a display serif, monospace novelty, or system UI face.", "section": "typography" },
+      { "name": "The Phone-First Window Rule", "body": "Compose for one ticket window on a phone wash. Widen the chrome at `md`; do not turn the ticket into a multi-widget dashboard.", "section": "elevation" },
+      { "name": "The One Frost Layer Rule", "body": "A pane is one blur. Rows, ticket halves, wait keys, and notes are inset fills inside that pane — never a second `backdrop-filter` stack.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do mount parent and shared auth on `.pq-shell` so the wash, Lexend, and tokens stay local.",
+      "Do keep one frost pane and put ticket halves, now-serving, wait keys, and rows inside it as insets.",
+      "Do use the official PlusQueue PNG as the window badge and the word “PlusQueue” as the wordmark.",
+      "Do make the one next action a solid mark-blue control at 44px minimum.",
+      "Do keep waiting chips in a single horizontal, non-wrapping row.",
+      "Do honor the 3px mark-blue focus ring (2px offset) and `prefers-reduced-motion`."
+    ],
+    "donts": [
+      "Don't apply this palette, Lexend stack, or glass language to staff, doctor, or admin dashboards.",
+      "Don't stack a second frosted glass card inside a pane.",
+      "Don't replace the daylight wash with charcoal, drum-machine black, or SaaS gray.",
+      "Don't substitute a generic clinic logo or invent a second wordmark.",
+      "Don't outline or ghost the primary next action.",
+      "Don't wrap wait keys onto a second line or give each key its own glass blur."
+    ]
+  }
+}

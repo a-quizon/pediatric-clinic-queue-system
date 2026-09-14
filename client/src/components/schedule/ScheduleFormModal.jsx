@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { createSchedule, updateSchedule, scheduleExists, validateScheduleClosingTime } from '../../services/scheduleService';
 import { getBranchConfigurations, getClinicHours } from '../../services/branchConfigurationService';
 import { useAuth } from '../../hooks/useAuth';
@@ -255,34 +255,34 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="pq-modal-scrim z-50">
+      <div className="pq-glass-modal w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="schedule-form-title">
         
-        {/* sticky header for title and close btn */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-white">
-          <h2 className="text-xl font-bold text-gray-800">
+        <div className="flex items-center justify-between p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <h2 id="schedule-form-title" className="text-xl font-extrabold tracking-tight">
             {mode === "create" ? "Create Schedule" : "Edit Schedule"}
           </h2>
           <button 
+            type="button"
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            className="pq-icon-btn"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* scrollable body ng schedule form */}
         <div className="p-5 overflow-y-auto flex-1">
 
           {mode === "edit" && schedule?.status === "published" && (
-            <div className="mb-5 p-4 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-sm font-medium">
+            <div className="mb-5 pq-note pq-note-wait">
               <strong>Notice:</strong> Branch and Clinic Date can no longer be changed after publication.
             </div>
           )}
 
           <form id="schedule-form" onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="branch" className="block text-sm font-semibold text-gray-700 mb-1.5">Branch</label>
+              <label htmlFor="branch" className="pq-label">Branch</label>
               <select
                 id="branch"
                 name="branch"
@@ -290,7 +290,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
                 onChange={handleChange}
                 required
                 disabled={loading || lockBranch || (mode === "edit" && schedule?.status === "published")}
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 disabled:bg-gray-100 text-gray-800"
+                className="pq-input"
               >
                 <option value="">Select Branch</option>
                 {(lockBranch
@@ -305,14 +305,14 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
                 ))}
               </select>
               {formData.branch && (
-                <p className="mt-2 text-sm text-gray-500 bg-gray-50 p-2.5 rounded-lg border border-gray-100 whitespace-pre-line leading-relaxed">
+                <p className="mt-2 text-sm pq-muted pq-row block min-h-0 whitespace-pre-line leading-relaxed">
                   {branches.find(b => branchesMatch(b.name, formData.branch))?.clinicAddress || "No clinic address provided."}
                 </p>
               )}
             </div>
 
             <div>
-              <label htmlFor="clinicDate" className="block text-sm font-semibold text-gray-700 mb-1.5">Clinic Date</label>
+              <label htmlFor="clinicDate" className="pq-label">Clinic Date</label>
               <input
                 type="date"
                 min={minSelectableDate}
@@ -322,14 +322,14 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
                 onChange={handleChange}
                 required
                 disabled={loading || (mode === "edit" && schedule?.status === "published")}
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 disabled:bg-gray-100 text-gray-800"
+                className="pq-input"
               />
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Clinic Hours</label>
-              <div className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-gray-600 flex items-center font-medium">
-                <Clock className="w-4 h-4 mr-2" />
+              <label className="pq-label">Clinic Hours</label>
+              <div className="pq-input opacity-80 flex items-center">
+                <Clock className="w-4 h-4 mr-2" aria-hidden="true" />
                 {formData.openingTime && formData.closingTime 
                   ? `${formatTime(formData.openingTime)} - ${formatTime(formData.closingTime)}` 
                   : "Select branch and date to view hours"}
@@ -337,7 +337,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
             </div>
 
             <div>
-              <label htmlFor="slotCapacity" className="block text-sm font-semibold text-gray-700 mb-1.5">Slot Capacity (Patients)</label>
+              <label htmlFor="slotCapacity" className="pq-label">Slot Capacity (Patients)</label>
               <input
                 type="number"
                 id="slotCapacity"
@@ -347,12 +347,12 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
                 required
                 min="1"
                 disabled={loading}
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 text-gray-800"
+                className="pq-input"
               />
             </div>
 
             <div>
-              <label htmlFor="lateLimit" className="block text-sm font-semibold text-gray-700 mb-1.5">Late Limit (Max Penalties Before Removal)</label>
+              <label htmlFor="lateLimit" className="pq-label">Late Limit (Max Penalties Before Removal)</label>
               <input
                 type="number"
                 id="lateLimit"
@@ -363,19 +363,18 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
                 min="1"
                 max="10"
                 disabled={loading}
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-colors disabled:opacity-60 text-gray-800"
+                className="pq-input"
               />
             </div>
           </form>
         </div>
 
-        {/* sticky footer para sa cancel and submit buttons */}
-        <div className="p-5 border-t border-gray-100 bg-gray-50 shrink-0 flex items-center justify-end gap-3">
+        <div className="p-5 shrink-0 flex items-center justify-end gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-5 py-2.5 text-gray-600 font-semibold rounded-xl hover:bg-gray-200 transition-colors disabled:opacity-50"
+            className="pq-btn-secondary"
           >
             Cancel
           </button>
@@ -383,11 +382,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
             type="submit"
             form="schedule-form"
             disabled={loading || !formData.openingTime || !formData.closingTime}
-            className={`px-6 py-2.5 font-bold rounded-xl shadow-sm transition-all ${
-              loading || !formData.openingTime || !formData.closingTime
-                ? "bg-blue-400 text-white opacity-70 cursor-not-allowed" 
-                : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow"
-            }`}
+            className="pq-btn-primary"
           >
             {loading ? (mode === "create" ? "Creating..." : "Updating...") : (mode === "create" ? "Create Schedule" : "Update Schedule")}
           </button>

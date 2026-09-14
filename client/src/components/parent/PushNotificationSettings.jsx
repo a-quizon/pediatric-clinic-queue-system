@@ -21,15 +21,9 @@ function ToggleSwitch({ checked, disabled, onChange, label }) {
       aria-label={label}
       disabled={disabled}
       onClick={onChange}
-      className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed ${
-        checked ? "bg-blue-600" : "bg-gray-200"
-      }`}
+      className={`pq-switch ${checked ? "" : ""}`}
     >
-      <span
-        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
-          checked ? "translate-x-6" : "translate-x-1"
-        }`}
-      />
+      <span className="pq-switch-knob" />
     </button>
   );
 }
@@ -127,8 +121,8 @@ export default function PushNotificationSettings({ variant = "settings" }) {
   if (osStatus === "loading") {
     if (variant === "dashboard") return null;
     return (
-      <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs flex justify-center items-center">
-        <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+      <div className="pq-glass p-5 flex justify-center items-center">
+        <Loader2 className="w-5 h-5 pq-faint animate-spin" />
       </div>
     );
   }
@@ -138,14 +132,14 @@ export default function PushNotificationSettings({ variant = "settings" }) {
     if (!checkPushSupport()) return null;
 
     return (
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-4">
+      <div className="pq-glass p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-start sm:items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-xl text-white shrink-0 shadow-sm">
+          <div className="p-2 rounded-xl text-white shrink-0" style={{ background: "var(--pq-mark-blue)" }}>
             <Bell className="w-5 h-5" />
           </div>
           <div>
-            <h4 className="font-bold text-blue-900 text-sm">Stay updated on your queue</h4>
-            <p className="text-xs text-blue-700 mt-0.5 pr-2">
+            <h4 className="font-bold text-sm">Stay updated on your queue</h4>
+            <p className="text-xs pq-muted mt-0.5 pr-2">
               Get notified when you are almost next, when it is your turn, or when your reservation changes.
             </p>
           </div>
@@ -153,7 +147,7 @@ export default function PushNotificationSettings({ variant = "settings" }) {
         <button
           onClick={handleDeviceToggle}
           disabled={isUpdatingDevice}
-          className="w-full sm:w-auto shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="pq-btn-primary w-full sm:w-auto shrink-0"
         >
           {isUpdatingDevice && <Loader2 className="w-4 h-4 animate-spin" />}
           {isUpdatingDevice ? "Enabling..." : "Enable Notifications"}
@@ -175,15 +169,15 @@ export default function PushNotificationSettings({ variant = "settings" }) {
         : "Allow device notifications to get alerts when the app is in the background.";
 
   return (
-    <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-xs space-y-5">
-      <p className="text-sm text-gray-500">
+    <div className="pq-glass p-5 sm:p-6 space-y-5">
+      <p className="text-sm pq-muted">
         Choose how you want to receive clinic and queue updates.
       </p>
 
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="font-extrabold text-gray-800">In-app notifications</p>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <p className="font-extrabold">In-app notifications</p>
+          <p className="text-sm pq-muted mt-0.5">
             Show toast alerts while you are using the app. Your notification history is always saved.
           </p>
         </div>
@@ -195,15 +189,15 @@ export default function PushNotificationSettings({ variant = "settings" }) {
         />
       </div>
 
-      <div className="border-t border-gray-100" />
+      <div style={{ borderTop: "1px solid var(--pq-glass-line)" }} />
 
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="font-extrabold text-gray-800">Device-level push notifications</p>
-          <p className="text-sm text-gray-500 mt-0.5">{deviceHelper}</p>
+          <p className="font-extrabold">Device-level push notifications</p>
+          <p className="text-sm pq-muted mt-0.5">{deviceHelper}</p>
         </div>
         {isUpdatingDevice ? (
-          <Loader2 className="w-5 h-5 text-gray-400 animate-spin flex-shrink-0 mt-1" />
+          <Loader2 className="w-5 h-5 pq-faint animate-spin flex-shrink-0 mt-1" />
         ) : (
           <ToggleSwitch
             checked={deviceEnabled && osGranted}
@@ -215,7 +209,7 @@ export default function PushNotificationSettings({ variant = "settings" }) {
       </div>
 
       {osGranted && !deviceEnabled && supported && (
-        <div className="flex items-start gap-2 text-xs text-gray-500 bg-gray-50 rounded-2xl p-3">
+        <div className="flex items-start gap-2 text-xs pq-note pq-note-info">
           <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <p>
             System permission is still allowed. Turning this off stops alerts from this app; revoke permission in device settings if you want to block them system-wide.

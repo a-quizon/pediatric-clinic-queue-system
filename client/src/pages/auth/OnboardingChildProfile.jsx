@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { Baby, ArrowRight, LogOut } from "lucide-react";
+import { PqAuthShell, PqSpinner } from "../../components/parent/pqUi";
 import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
 import { auth } from "../../firebase/auth";
@@ -53,9 +54,9 @@ export default function OnboardingChildProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
+      <PqAuthShell>
+        <PqSpinner />
+      </PqAuthShell>
     );
   }
 
@@ -69,21 +70,21 @@ export default function OnboardingChildProfile() {
 
   if (user?.role !== "parent" || user.onboardingComplete !== false) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
+      <PqAuthShell>
+        <PqSpinner />
+      </PqAuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 font-sans py-8">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden p-8">
+    <PqAuthShell>
+      <div className="pq-glass-window overflow-hidden p-8">
         <OnboardingStepper currentStep={2} />
-        <div className="mx-auto w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-indigo-100">
+        <div className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-6" style={{ background: "color-mix(in srgb, var(--pq-mark-coral) 14%, white)", color: "var(--pq-mark-coral)" }}>
           <Baby className="w-8 h-8" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-800 tracking-tight mb-2 text-center">Add Your Child</h1>
-        <p className="text-gray-500 text-sm mb-6 text-center">
+        <h1 className="text-2xl font-extrabold tracking-tight mb-2 text-center">Add Your Child</h1>
+        <p className="pq-muted text-sm mb-6 text-center">
           Create at least one child profile to finish setup and access the parent portal.
         </p>
 
@@ -92,18 +93,12 @@ export default function OnboardingChildProfile() {
           <button
             type="submit"
             disabled={isSaving || !isChildProfileValid(formValue)}
-            className={`w-full flex items-center justify-center py-3.5 px-4 font-bold rounded-xl shadow-sm transition-all ${
-              isSaving || !isChildProfileValid(formValue)
-                ? "bg-blue-400 text-white cursor-not-allowed"
-                : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow"
-            }`}
+            className="pq-btn-primary w-full"
           >
-            {isSaving ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-            ) : (
+            {isSaving ? "Saving..." : (
               <>
                 Continue
-                <ArrowRight className="w-5 h-5 ml-2" />
+                <ArrowRight className="w-5 h-5" />
               </>
             )}
           </button>
@@ -111,12 +106,13 @@ export default function OnboardingChildProfile() {
 
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center py-3 px-4 text-red-600 font-semibold hover:bg-red-50 rounded-xl transition-colors mt-4"
+          className="w-full flex items-center justify-center py-3 px-4 font-semibold rounded-[0.95rem] min-h-[44px] mt-4"
+          style={{ color: "var(--pq-alert)" }}
         >
           <LogOut className="w-5 h-5 mr-2" />
           Back to Login
         </button>
       </div>
-    </div>
+    </PqAuthShell>
   );
 }

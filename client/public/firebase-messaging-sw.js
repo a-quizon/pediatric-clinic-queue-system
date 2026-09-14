@@ -32,7 +32,7 @@ self.addEventListener("push", (event) => {
 
     await self.registration.showNotification(payload.title || payload.data?.title || "Pediatric Clinic", {
       body: payload.body || payload.data?.body || "",
-      icon: payload.icon || "/favicon.svg",
+      icon: payload.icon || "/brand/plusqueue-logo.png",
       tag: payload.tag || payload.type || "clinic-notification",
       data: { url: payload.url || "/parent/notifications" },
     });

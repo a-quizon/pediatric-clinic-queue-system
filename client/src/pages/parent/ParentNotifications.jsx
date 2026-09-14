@@ -89,13 +89,13 @@ export default function ParentNotifications() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         {notifications.length > 0 && unreadCount > 0 ? (
           <a
             href="#"
             onClick={handleMarkAllAsRead}
-            className="text-sm font-semibold text-blue-600 hover:underline transition-all"
+            className="pq-link text-sm"
           >
             Mark all as read
           </a>
@@ -104,7 +104,7 @@ export default function ParentNotifications() {
         )}
         <Link
           to="/parent/profile/notification-settings"
-          className="text-sm font-semibold text-blue-600 hover:underline transition-all"
+          className="pq-link text-sm"
         >
           Notification Settings
         </Link>
@@ -112,15 +112,15 @@ export default function ParentNotifications() {
 
       {loading ? (
         <div className="flex justify-center items-center py-16">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <span className="pq-spinner" />
         </div>
       ) : notifications.length === 0 ? (
-        <div className="bg-white rounded-3xl p-10 text-center border border-gray-100 shadow-xs">
-          <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="pq-glass p-10 text-center">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
             <Bell className="w-7 h-7" />
           </div>
-          <h3 className="text-lg font-bold text-gray-800">No Notifications Yet</h3>
-          <p className="text-sm text-gray-500 max-w-sm mx-auto mt-1">
+          <h3 className="text-lg font-bold">No Notifications Yet</h3>
+          <p className="text-sm pq-muted max-w-sm mx-auto mt-1">
             You're all caught up! Real-time alerts about your queue turn, schedule publications, and clinic updates will appear here.
           </p>
         </div>
@@ -129,38 +129,32 @@ export default function ParentNotifications() {
           {notifications.map((n) => (
             <div
               key={n.id}
-              className={`rounded-2xl p-4 sm:p-5 border transition-all duration-200 shadow-xs flex flex-col sm:flex-row sm:items-start justify-between gap-4 ${
-                !n.read
-                  ? 'border-blue-200 bg-blue-50/30'
-                  : 'bg-gray-50 border-gray-100 opacity-70 hover:border-gray-200'
+              className={`pq-glass p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4 ${
+                !n.read ? "" : "opacity-75"
               }`}
             >
               <div className="flex items-start gap-3.5">
-                <div className="mt-0.5 p-2 bg-gray-50 rounded-xl">
+                <div className="mt-0.5 p-2 rounded-xl" style={{ background: "color-mix(in srgb, #ffffff 55%, transparent)" }}>
                   {getNotificationIcon(n)}
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-extrabold text-gray-900 text-base">
+                    <h4 className="font-extrabold text-base">
                       {n.title}
                     </h4>
                     {!n.read ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">
-                        Unread
-                      </span>
+                      <span className="pq-chip pq-chip-info">Unread</span>
                     ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
-                        Read
-                      </span>
+                      <span className="pq-chip" style={{ background: "color-mix(in srgb, var(--pq-ink) 8%, white)", color: "var(--pq-ink-soft)" }}>Read</span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-700 mt-1 leading-relaxed">
+                  <p className="text-sm mt-1 leading-relaxed pq-muted">
                     {n.body || n.message}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium sm:self-start self-end flex-shrink-0">
+              <div className="flex items-center gap-1.5 text-xs pq-faint font-medium sm:self-start self-end flex-shrink-0">
                 <Clock className="w-3.5 h-3.5" />
                 <span>{formatRelativeTime(n.createdAt)}</span>
               </div>

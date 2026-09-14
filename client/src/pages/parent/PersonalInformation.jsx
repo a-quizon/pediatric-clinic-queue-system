@@ -287,53 +287,53 @@ export default function PersonalInformation() {
 
   return (
     <div className="space-y-6 pb-8 max-w-2xl mx-auto mt-2">
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-xs p-6 sm:p-8 animate-in fade-in slide-in-from-bottom-4">
+      <div className="pq-glass p-6 sm:p-8">
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium">
+          <div className="pq-note pq-note-alert mb-6">
             {error}
           </div>
         )}
 
         <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700 ml-1">Full Name</label>
+          <div>
+            <label className="pq-label">Full Name</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-gray-400" />
+              <div className="pq-field-icon">
+                <User className="h-5 w-5" />
               </div>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-gray-800 font-medium"
+                className="pq-input pl-11"
                 placeholder="Enter your full name"
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700 ml-1">Email Address</label>
+          <div>
+            <label className="pq-label">Email Address</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-gray-400" />
+              <div className="pq-field-icon">
+                <Mail className="h-5 w-5" />
               </div>
               <input
                 type="email"
                 value={user?.email || ""}
                 disabled
-                className="w-full pl-11 pr-4 py-3 bg-gray-100 border border-gray-200 rounded-2xl text-gray-500 font-medium cursor-not-allowed outline-none"
+                className="pq-input pl-11"
               />
             </div>
-            <p className="text-xs text-gray-400 ml-1 mt-1">Email address cannot be changed.</p>
+            <p className="text-xs pq-muted mt-1">Email address cannot be changed.</p>
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-700 ml-1">Phone Number</label>
+          <div>
+            <label className="pq-label">Phone Number</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Phone className="h-5 w-5 text-gray-400" />
-                <span className="ml-2 text-gray-500 font-medium">+63</span>
+              <div className="pq-field-icon">
+                <Phone className="h-5 w-5" />
+                <span className="ml-1 font-medium">+63</span>
               </div>
               <input
                 type="tel"
@@ -349,22 +349,22 @@ export default function PersonalInformation() {
                   }
                 }}
                 disabled={phoneVerified && phoneChanged}
-                className="w-full pl-20 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-gray-800 font-medium"
+                className="pq-input pl-20 pr-10"
                 placeholder="9XXXXXXXXX"
               />
               {phoneVerified && phoneChanged && (
-                <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500" />
+                <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "var(--pq-live)" }} />
               )}
             </div>
           </div>
 
           {(phoneChanged || cooldownLeft > 0) && (
-            <div className="space-y-2">
-              <label className="block text-sm font-bold text-gray-700 ml-1">Verification Code</label>
+            <div>
+              <label className="pq-label">Verification Code</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <KeyRound className="h-5 w-5 text-gray-400" />
+                  <div className="pq-field-icon">
+                    <KeyRound className="h-5 w-5" />
                   </div>
                   <input
                     ref={otpInputRef}
@@ -375,7 +375,7 @@ export default function PersonalInformation() {
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     disabled={phoneVerified || !otpSent || isSaving || !phoneChanged}
                     autoComplete="one-time-code"
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-gray-800 font-medium tracking-widest"
+                    className="pq-input pl-11 tracking-widest"
                     placeholder="6-digit code"
                   />
                 </div>
@@ -391,24 +391,22 @@ export default function PersonalInformation() {
                     (!otpSent && cooldownLeft > 0) ||
                     (otpSent && otp.length !== 6)
                   }
-                  className={`shrink-0 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                  className={`shrink-0 ${
                     phoneVerified
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default"
-                      : otpBusy || !phoneChanged || phone.length !== 10 || (!otpSent && cooldownLeft > 0) || (otpSent && otp.length !== 6)
-                        ? "bg-blue-300 text-white cursor-not-allowed"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
+                      ? "pq-chip pq-chip-live min-h-[44px] px-4 cursor-default"
+                      : "pq-btn-primary"
                   }`}
                 >
                   {otpButtonLabel()}
                 </button>
               </div>
-              <div className="min-h-[1.25rem]">
+              <div className="min-h-[1.25rem] mt-1">
                 {phoneVerified ? (
-                  <p className="text-xs font-semibold text-emerald-600 ml-1">
+                  <p className="pq-ok-text">
                     New phone verified. You can save your changes.
                   </p>
                 ) : cooldownLeft > 0 ? (
-                  <p className="text-xs font-semibold text-gray-500 ml-1">
+                  <p className="text-xs font-semibold pq-muted">
                     Resend code in {formatOtpCountdown(cooldownLeft)}
                   </p>
                 ) : otpSent ? (
@@ -416,12 +414,12 @@ export default function PersonalInformation() {
                     type="button"
                     onClick={handleSendCode}
                     disabled={otpBusy || isSaving || !phoneChanged}
-                    className="text-xs font-semibold text-blue-600 hover:underline ml-1"
+                    className="pq-link text-xs"
                   >
                     Resend code
                   </button>
                 ) : (
-                  <p className="text-xs text-gray-400 ml-1">
+                  <p className="text-xs pq-muted">
                     Verify the new number before saving.
                   </p>
                 )}
@@ -429,14 +427,14 @@ export default function PersonalInformation() {
             </div>
           )}
 
-          <div className="pt-6 flex flex-col items-center gap-3 border-t border-gray-50 mt-6">
+          <div className="pt-6 flex flex-col items-center gap-3 mt-6" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
             <button
               onClick={handleSave}
               disabled={isSaving || (phoneChanged && !phoneVerified)}
-              className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm focus:outline-none min-w-[200px]"
+              className="pq-btn-primary w-full sm:w-auto min-w-[200px]"
             >
               {isSaving ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <span className="pq-spinner" />
               ) : (
                 <>
                   <Save className="w-5 h-5" />
@@ -452,7 +450,7 @@ export default function PersonalInformation() {
                 setConfirmPassword("");
                 setPasswordModalOpen(true);
               }}
-              className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors mt-2"
+              className="pq-link text-sm mt-2"
             >
               Change Password
             </button>
@@ -460,16 +458,16 @@ export default function PersonalInformation() {
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl border border-red-100 shadow-xs p-6 sm:p-8">
-        <h3 className="text-lg font-extrabold text-gray-800">Account actions</h3>
-        <p className="text-sm text-gray-500 mt-1 mb-5">
+      <div className="pq-glass p-6 sm:p-8" style={{ borderColor: "color-mix(in srgb, var(--pq-alert) 28%, white)" }}>
+        <h3 className="text-lg font-extrabold">Account actions</h3>
+        <p className="text-sm pq-muted mt-1 mb-5">
           Pause your account or permanently delete your login. Clinic history is kept for analytics.
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             type="button"
             onClick={() => setDeactivateOpen(true)}
-            className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors"
+            className="pq-btn-secondary flex-1"
           >
             Deactivate Account
           </button>
@@ -479,7 +477,7 @@ export default function PersonalInformation() {
               setDeleteError("");
               setDeleteOpen(true);
             }}
-            className="flex-1 px-6 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-sm"
+            className="pq-btn-danger flex-1"
           >
             Delete Account
           </button>
@@ -504,7 +502,8 @@ export default function PersonalInformation() {
 
       {passwordModalOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4 sm:p-6"
+          className="pq-modal-scrim"
+          style={{ zIndex: 60 }}
           onClick={(e) => {
             if (e.target === e.currentTarget && !isChangingPassword) {
               setPasswordModalOpen(false);
@@ -512,108 +511,101 @@ export default function PersonalInformation() {
           }}
         >
           <div
-            className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden flex flex-col transform transition-all animate-in fade-in zoom-in-95 duration-200"
+            className="pq-glass-modal w-full max-w-md overflow-hidden flex flex-col"
             role="dialog"
             aria-modal="true"
           >
             <div className="p-6">
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-full shrink-0 bg-purple-50">
-                  <Shield className="w-6 h-6 text-purple-600" />
+                <div className="p-3 rounded-full shrink-0" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
+                  <Shield className="w-6 h-6" />
                 </div>
 
                 <div className="flex-1 mt-1">
-                  <h2 className="text-xl font-bold text-gray-800">Change Password</h2>
-                  <p className="mt-1 text-gray-600 text-sm">Update your account security.</p>
+                  <h2 className="text-xl font-bold">Change Password</h2>
+                  <p className="mt-1 pq-muted text-sm">Update your account security.</p>
                 </div>
               </div>
 
               <div className="mt-6 space-y-4">
                 {passwordError && (
-                  <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm font-medium">
+                  <div className="pq-note pq-note-alert">
                     {passwordError}
                   </div>
                 )}
 
-                <div className="space-y-1">
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Key className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <input
-                      type={showCurrentPassword ? "text" : "password"}
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none text-gray-800 text-sm"
-                      placeholder="Current Password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
-                    >
-                      {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+                <div className="relative">
+                  <div className="pq-field-icon">
+                    <Key className="h-4 w-4" />
                   </div>
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="pq-input pl-10 pr-11 text-sm"
+                    placeholder="Current Password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint min-w-[44px] justify-end"
+                    aria-label={showCurrentPassword ? "Hide current password" : "Show current password"}
+                  >
+                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
 
-                <div className="space-y-1">
+                <div>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-4 w-4 text-gray-400" />
+                    <div className="pq-field-icon">
+                      <Lock className="h-4 w-4" />
                     </div>
                     <input
                       type={showNewPassword ? "text" : "password"}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className={`w-full pl-9 pr-10 py-2.5 bg-gray-50 border rounded-xl focus:outline-none transition-all text-gray-800 text-sm ${
-                        passwordInvalid
-                          ? 'border-red-300 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
-                          : 'border-gray-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'
-                      }`}
+                      className={`pq-input pl-10 pr-11 text-sm ${passwordInvalid ? "pq-input-error" : ""}`}
                       placeholder="New Password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint min-w-[44px] justify-end"
+                      aria-label={showNewPassword ? "Hide new password" : "Show new password"}
                     >
                       {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                   {passwordInvalid && passwordErrors.length > 0 && (
-                    <p className="text-xs text-red-500 font-semibold px-1 pt-1.5">
+                    <p className="pq-error-text px-1 pt-1.5">
                       {passwordErrors[0]}
                     </p>
                   )}
                 </div>
 
-                <div className="space-y-1">
+                <div>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-4 w-4 text-gray-400" />
+                    <div className="pq-field-icon">
+                      <Lock className="h-4 w-4" />
                     </div>
                     <input
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className={`w-full pl-9 pr-10 py-2.5 bg-gray-50 border rounded-xl focus:outline-none transition-all text-gray-800 text-sm ${
-                        confirmInvalid
-                          ? 'border-red-300 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
-                          : 'border-gray-200 focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20'
-                      }`}
+                      className={`pq-input pl-10 pr-11 text-sm ${confirmInvalid ? "pq-input-error" : ""}`}
                       placeholder="Confirm New Password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint min-w-[44px] justify-end"
+                      aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                     >
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                   {confirmInvalid && (
-                    <p className="text-xs text-red-500 font-semibold px-1 pt-1.5">
+                    <p className="pq-error-text px-1 pt-1.5">
                       Passwords do not match.
                     </p>
                   )}
@@ -621,23 +613,21 @@ export default function PersonalInformation() {
               </div>
             </div>
 
-            <div className="p-5 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 rounded-b-3xl">
+            <div className="p-5 flex justify-end gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button
                 onClick={() => setPasswordModalOpen(false)}
                 disabled={isChangingPassword}
-                className="px-5 py-2 text-gray-600 font-bold hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50 text-sm"
+                className="pq-btn-secondary text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handlePasswordSave}
                 disabled={isChangingPassword || !isPasswordFormValid || isChecking}
-                className={`px-5 py-2 font-bold rounded-xl shadow-sm transition-colors flex justify-center items-center text-white text-sm min-w-[120px] ${
-                  isChangingPassword || !isPasswordFormValid || isChecking ? 'bg-purple-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'
-                }`}
+                className="pq-btn-primary text-sm min-w-[120px]"
               >
                 {isChangingPassword ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span className="pq-spinner" />
                 ) : (
                   "Update"
                 )}

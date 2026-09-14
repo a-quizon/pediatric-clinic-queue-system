@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import { QrCode, CheckCircle, X, CameraOff, AlertCircle, AlertTriangle, StopCircle, PlayCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { Html5Qrcode } from "html5-qrcode";
@@ -9,6 +9,43 @@ import { getReservationChildDisplayName, getReservationChildren } from "../../ut
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 
 const CODE_LENGTH = 6;
+
+function ValidateResultModal({
+  open,
+  icon: Icon,
+  title,
+  children,
+  actionLabel,
+  onClose,
+  actionClass = "pq-btn-primary",
+  iconTone = "info",
+}) {
+  if (!open) return null;
+
+  const iconStyle =
+    iconTone === "alert"
+      ? { background: "var(--pq-alert-wash)", color: "var(--pq-alert)" }
+      : iconTone === "wait"
+        ? { background: "var(--pq-wait-wash)", color: "var(--pq-wait)" }
+        : iconTone === "live"
+          ? { background: "var(--pq-live-wash)", color: "var(--pq-live)" }
+          : { background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue)" };
+
+  return (
+    <div className="pq-modal-scrim z-50">
+      <div className="pq-glass-modal w-full max-w-sm overflow-hidden text-center p-8" role="dialog" aria-modal="true" aria-labelledby="validate-result-title">
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={iconStyle}>
+          <Icon className="w-8 h-8" aria-hidden="true" />
+        </div>
+        <h2 id="validate-result-title" className="text-xl font-extrabold tracking-tight mb-2">{title}</h2>
+        <div className="pq-muted mb-6">{children}</div>
+        <button type="button" onClick={onClose} className={`${actionClass} w-full`}>
+          {actionLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function ValidateReservation() {
   const { user } = useAuth();
@@ -276,18 +313,23 @@ export default function ValidateReservation() {
 
   return (
     <div className="space-y-6 max-w-lg mx-auto pb-8 relative">
-      <div className="bg-white rounded-2xl p-5 md:p-6 border border-gray-100 shadow-sm flex flex-col items-center text-center">
-        <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-3 text-blue-600">
-          <QrCode className="w-7 h-7" />
+      <section className="pq-glass p-5 md:p-6 flex flex-col items-center text-center">
+        <div
+          className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
+          style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue)" }}
+        >
+          <QrCode className="w-7 h-7" aria-hidden="true" />
         </div>
-        <h2 className="text-xl font-bold text-gray-800 mb-1">Scan to Check In</h2>
-        <p className="text-gray-500 text-sm mb-4">
+        <h2 className="text-xl font-extrabold tracking-tight mb-1">Scan to Check In</h2>
+        <p className="pq-muted text-sm mb-4">
           Point the camera at the patient&apos;s QR code, or type the code below.
         </p>
 
         {cameras.length > 1 && (
           <div className="w-full mb-3">
+            <label htmlFor="camera-select" className="sr-only">Camera</label>
             <select
+              id="camera-select"
               value={selectedCameraId}
               onChange={async (e) => {
                 const nextId = e.target.value;
@@ -295,7 +337,7 @@ export default function ValidateReservation() {
                 setSelectedCameraId(nextId);
                 await startScanner(nextId);
               }}
-              className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm text-gray-700"
+              className="pq-input"
             >
               {cameras.map((camera) => (
                 <option key={camera.id} value={camera.id}>
@@ -306,45 +348,42 @@ export default function ValidateReservation() {
           </div>
         )}
 
-        <div className="w-full relative min-h-[280px] bg-black rounded-xl border-2 border-gray-200 overflow-hidden flex flex-col items-center justify-center mb-4">
+        <div className="w-full relative min-h-[280px] overflow-hidden flex flex-col items-center justify-center mb-4" style={{ background: "var(--pq-ink)", borderRadius: "var(--pq-radius-sm)", border: "1px solid var(--pq-glass-line)" }}>
           <div id="reader" className="w-full h-full object-cover" />
           {!isScanning && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 text-gray-400 px-4">
-              <CameraOff className="w-12 h-12 mb-3 opacity-50" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-4" style={{ background: "color-mix(in srgb, #ffffff 88%, var(--pq-paper))", color: "var(--pq-ink-faint)" }}>
+              <CameraOff className="w-12 h-12 mb-3 opacity-50" aria-hidden="true" />
               <p className="font-medium text-sm text-center">
-                {cameraError || (isLoading ? "Processing…" : "Starting camera…")}
+                {cameraError || (isLoading ? "Processingâ€¦" : "Starting cameraâ€¦")}
               </p>
             </div>
           )}
           {isLoading && isScanning && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <div className="w-10 h-10 border-3 border-white border-t-transparent rounded-full animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--pq-ink) 40%, transparent)" }}>
+              <span className="pq-spinner" style={{ borderColor: "rgba(255,255,255,0.35)", borderTopColor: "#fff" }} aria-hidden="true" />
             </div>
           )}
         </div>
 
         {isScanning ? (
-          <button
-            onClick={stopScanner}
-            className="w-full py-3 px-4 bg-red-50 text-red-600 border border-red-100 rounded-xl font-medium hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
-          >
-            <StopCircle className="w-5 h-5" />
+          <button type="button" onClick={stopScanner} className="pq-btn-danger w-full">
+            <StopCircle className="w-5 h-5" aria-hidden="true" />
             <span>Stop Camera</span>
           </button>
         ) : (
           <button
+            type="button"
             onClick={() => startScanner(selectedCameraId)}
             disabled={isLoading || !selectedCameraId}
-            className="w-full py-3 px-4 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+            className="pq-btn-primary w-full"
           >
-            <PlayCircle className="w-5 h-5" />
+            <PlayCircle className="w-5 h-5" aria-hidden="true" />
             <span>Start Camera</span>
           </button>
         )}
 
-        {/* Manual entry — auto-submits at CODE_LENGTH */}
-        <div className="w-full mt-6 pt-5 border-t border-gray-100 text-left">
-          <label htmlFor="reservationCode" className="block text-sm font-semibold text-gray-700 mb-2">
+        <div className="w-full mt-6 pt-5 text-left" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+          <label htmlFor="reservationCode" className="pq-label">
             Or enter code manually
           </label>
           <div className="relative">
@@ -362,202 +401,142 @@ export default function ValidateReservation() {
               }
               maxLength={CODE_LENGTH}
               disabled={isLoading}
-              className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-center font-mono text-xl tracking-[0.35em] uppercase disabled:opacity-60"
+              className="pq-input text-center font-mono text-xl tracking-[0.35em] uppercase"
             />
             {isLoading && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                <span className="pq-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} aria-hidden="true" />
               </div>
             )}
           </div>
-          <p className="mt-2 text-xs text-gray-400 text-center">
+          <p className="mt-2 text-xs pq-faint text-center">
             Validates automatically when all {CODE_LENGTH} characters are entered
           </p>
         </div>
-      </div>
+      </section>
 
-      {showPausedModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
-            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Queue Paused</h2>
-            <p className="text-gray-500 mb-6">
-              The clinic queue is currently paused. Please wait for the doctor to resume the session before validating reservations.
-            </p>
-            <button
-              onClick={closeAllModals}
-              className="w-full py-3 font-bold rounded-xl text-amber-700 bg-amber-50 hover:bg-amber-100 transition-all"
-            >
-              Acknowledge
-            </button>
-          </div>
-        </div>
-      )}
+      <ValidateResultModal
+        open={showPausedModal}
+        icon={AlertCircle}
+        iconTone="wait"
+        title="Queue Paused"
+        actionLabel="Acknowledge"
+        actionClass="pq-btn-warn"
+        onClose={closeAllModals}
+      >
+        The clinic queue is currently paused. Please wait for the doctor to resume the session before validating reservations.
+      </ValidateResultModal>
 
-      {showEndedModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
-            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <X className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Queue Closed</h2>
-            <p className="text-gray-500 mb-6">Today&apos;s clinic session has already ended. Reservations can no longer be validated.</p>
-            <button
-              onClick={closeAllModals}
-              className="w-full py-3 font-bold rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      <ValidateResultModal
+        open={showEndedModal}
+        icon={X}
+        iconTone="alert"
+        title="Queue Closed"
+        actionLabel="Close"
+        actionClass="pq-btn-secondary"
+        onClose={closeAllModals}
+      >
+        Today&apos;s clinic session has already ended. Reservations can no longer be validated.
+      </ValidateResultModal>
 
       {showSuccessModal && validatedDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
-            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8" />
+        <div className="pq-modal-scrim z-50">
+          <div className="pq-glass-modal w-full max-w-sm overflow-hidden text-center p-8" role="dialog" aria-modal="true" aria-labelledby="checkin-success-title">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "var(--pq-live-wash)", color: "var(--pq-live)" }}>
+              <CheckCircle className="w-8 h-8" aria-hidden="true" />
             </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-6">Patient Checked In Successfully</h2>
-            <div className="text-left space-y-3 mb-6 bg-gray-50 p-4 rounded-xl">
+            <h2 id="checkin-success-title" className="text-xl font-extrabold tracking-tight mb-6">Patient Checked In Successfully</h2>
+            <div className="text-left space-y-3 mb-6 pq-row block min-h-0">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Child Name</span>
-                <span className="font-bold text-gray-800">
+                <span className="text-sm pq-muted">Child Name</span>
+                <span className="font-extrabold">
                   {getReservationChildDisplayName(validatedDetails.reservation)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Queue Number</span>
-                <span className="font-bold text-gray-800">
+                <span className="text-sm pq-muted">Queue Number</span>
+                <span className="font-extrabold pq-num">
                   #{validatedDetails.reservation.queuePosition ?? validatedDetails.reservation.queueNumber}
                 </span>
               </div>
             </div>
-            <button
-              onClick={closeAllModals}
-              className="w-full py-3 font-bold rounded-xl text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all"
-            >
+            <button type="button" onClick={closeAllModals} className="pq-btn-primary w-full">
               OK
             </button>
           </div>
         </div>
       )}
 
-      {showInvalidModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
-            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Invalid Code</h2>
-            <p className="text-gray-500 mb-6">Unable to find a valid reservation.</p>
-            <button
-              onClick={closeAllModals}
-              className="w-full py-3 font-bold rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
+      <ValidateResultModal
+        open={showInvalidModal}
+        icon={AlertTriangle}
+        iconTone="alert"
+        title="Invalid Code"
+        actionLabel="OK"
+        actionClass="pq-btn-secondary"
+        onClose={closeAllModals}
+      >
+        Unable to find a valid reservation.
+      </ValidateResultModal>
 
-      {showExpiredModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
-            <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-200">
-              <AlertCircle className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-black text-gray-800 mb-2">Validation Window Expired</h2>
-            <p className="text-sm text-gray-500 mb-6 font-medium">
-              This reservation expired because check-in did not occur within the allowed validation window.
-            </p>
-            <button
-              onClick={closeAllModals}
-              className="w-full py-3 font-bold rounded-xl text-white bg-red-600 hover:bg-red-700 transition-all shadow-sm"
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
+      <ValidateResultModal
+        open={showExpiredModal}
+        icon={AlertCircle}
+        iconTone="alert"
+        title="Validation Window Expired"
+        actionLabel="OK"
+        actionClass="pq-btn-danger"
+        onClose={closeAllModals}
+      >
+        This reservation expired because check-in did not occur within the allowed validation window.
+      </ValidateResultModal>
 
-      {showCheckedInModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
-            <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Already Checked In</h2>
-            <p className="text-gray-500 mb-6">This reservation has already been checked in.</p>
-            <button
-              onClick={closeAllModals}
-              className="w-full py-3 font-bold rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
+      <ValidateResultModal
+        open={showCheckedInModal}
+        icon={CheckCircle}
+        iconTone="info"
+        title="Already Checked In"
+        actionLabel="OK"
+        actionClass="pq-btn-secondary"
+        onClose={closeAllModals}
+      >
+        This reservation has already been checked in.
+      </ValidateResultModal>
 
-      {showInConsultationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
-            <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Patient Currently In Consultation</h2>
-            <p className="text-gray-500 mb-6">This patient is already with the doctor.</p>
-            <button
-              onClick={closeAllModals}
-              className="w-full py-3 font-bold rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
+      <ValidateResultModal
+        open={showInConsultationModal}
+        icon={AlertCircle}
+        iconTone="info"
+        title="Patient Currently In Consultation"
+        actionLabel="OK"
+        actionClass="pq-btn-secondary"
+        onClose={closeAllModals}
+      >
+        This patient is already with the doctor.
+      </ValidateResultModal>
 
-      {showNotStartedModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
-            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Clinic Queue Not Started</h2>
-            <p className="text-gray-500 mb-6">
-              This clinic queue has not started yet. Start today&apos;s queue from Schedules before validating reservations.
-            </p>
-            <button
-              onClick={closeAllModals}
-              className="w-full py-3 font-bold rounded-xl text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      <ValidateResultModal
+        open={showNotStartedModal}
+        icon={AlertCircle}
+        iconTone="wait"
+        title="Clinic Queue Not Started"
+        actionLabel="Close"
+        onClose={closeAllModals}
+      >
+        This clinic queue has not started yet. Start today&apos;s queue from Schedules before validating reservations.
+      </ValidateResultModal>
 
-      {showWaitingForWindowModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-center p-8">
-            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">Validation Window Not Open Yet</h2>
-            <p className="text-gray-500 mb-6">
-              This patient is still waiting for their validation window to open. They should wait until their turn approaches before checking in.
-            </p>
-            <button
-              onClick={closeAllModals}
-              className="w-full py-3 font-bold rounded-xl text-white bg-amber-600 hover:bg-amber-700 shadow-sm transition-all"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      <ValidateResultModal
+        open={showWaitingForWindowModal}
+        icon={AlertCircle}
+        iconTone="wait"
+        title="Validation Window Not Open Yet"
+        actionLabel="Close"
+        actionClass="pq-btn-warn"
+        onClose={closeAllModals}
+      >
+        This patient is still waiting for their validation window to open. They should wait until their turn approaches before checking in.
+      </ValidateResultModal>
     </div>
   );
 }
