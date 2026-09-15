@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
+import { useTourPreview } from "../../hooks/useTourPreview";
 import {
   clearTourStepProgress,
   getCompletedTourSteps,
@@ -15,13 +16,41 @@ import {
   shouldRunParentTour,
 } from "./parentTourSteps";
 
+function waitForPaint() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+}
+
+function waitForPreview() {
+  return waitForPaint().then(
+    () => new Promise((resolve) => window.setTimeout(resolve, 50))
+  );
+}
+
+function nextGlobalStep(stepId) {
+  const index = TOUR_STEPS.findIndex((step) => step.id === stepId);
+  return index >= 0 ? TOUR_STEPS[index + 1] || null : null;
+}
+
 export default function ParentTourController() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, role, updateContextUser } = useAuth();
+  const { setCurrentStepId, clearPreview } = useTourPreview();
   const driverRef = useRef(null);
   const programmaticRef = useRef(false);
   const tourPending = shouldRunParentTour(user, role, pathname);
+
+  useEffect(() => {
+    if (!tourPending) {
+      clearPreview();
+      return undefined;
+    }
+    const remaining = getRemainingStepsForPath(pathname);
+    if (remaining[0]) setCurrentStepId(remaining[0].id);
+    return undefined;
+  }, [pathname, tourPending, setCurrentStepId, clearPreview]);
 
   useEffect(() => {
     if (!tourPending) return undefined;
@@ -32,6 +61,7 @@ export default function ParentTourController() {
 
     const finishTour = () => {
       const uid = user?.uid;
+      clearPreview();
       clearTourStepProgress();
       updateContextUser({ hasCompletedTour: true });
       if (uid) {
@@ -58,8 +88,12 @@ export default function ParentTourController() {
           return;
         }
 
-        const ready = remaining.filter((step) => findVisibleTourTarget(step.targets));
-        const stepsToDrive = ready.length > 0 ? ready : remaining;
+        setCurrentStepId(remaining[0].id);
+        await waitForPreview();
+
+        const hasVisible = remaining.some((step) => findVisibleTourTarget(step.targets));
+        if (!hasVisible) return;
+        const stepsToDrive = remaining;
         const lastStep = stepsToDrive[stepsToDrive.length - 1];
         const unfinished = TOUR_STEPS.filter((step) => !getCompletedTourSteps().includes(step.id));
         const lastUnfinished = unfinished[unfinished.length - 1];
@@ -80,7 +114,7 @@ export default function ParentTourController() {
         instance = driver({
           steps: stepsToDrive.map((step) => ({
             element: () => findVisibleTourTarget(step.targets),
-            disableActiveInteraction: false,
+            disableActiveInteraction: Boolean(step.disableActiveInteraction),
             skipMissingElement: true,
             waitForElement: 2500,
             popover: {
@@ -114,17 +148,28 @@ export default function ParentTourController() {
             skip.addEventListener("click", finishAsSkip);
             popover.footer.insertBefore(skip, popover.footer.firstChild);
           },
+          onHighlightStarted: (_el, _step, { driver: d }) => {
+            const idx = d.getActiveIndex() ?? 0;
+            const current = stepsToDrive[idx];
+            if (current) setCurrentStepId(current.id);
+          },
           onNextClick: (_el, _step, { driver: d }) => {
             const idx = d.getActiveIndex() ?? 0;
             const current = stepsToDrive[idx];
             if (current) markTourStepComplete(current.id);
 
             if (!d.isLastStep()) {
-              d.moveNext();
+              const next = stepsToDrive[idx + 1];
+              if (next) setCurrentStepId(next.id);
+              waitForPreview().then(() => {
+                if (!cancelled) d.moveNext();
+              });
               return;
             }
 
             if (current?.onNextNavigate) {
+              const upcoming = nextGlobalStep(current.id);
+              if (upcoming) setCurrentStepId(upcoming.id);
               destroyProgrammatically();
               navigate(current.onNextNavigate);
               return;
@@ -134,6 +179,14 @@ export default function ParentTourController() {
             if (areAllTourStepsComplete()) {
               finishTour();
             }
+          },
+          onPrevClick: (_el, _step, { driver: d }) => {
+            const idx = d.getActiveIndex() ?? 0;
+            const prev = stepsToDrive[idx - 1];
+            if (prev) setCurrentStepId(prev.id);
+            waitForPreview().then(() => {
+              if (!cancelled) d.movePrevious();
+            });
           },
           onCloseClick: finishAsSkip,
           onDestroyStarted: (_el, _step, { driver: d }) => {
@@ -175,7 +228,7 @@ export default function ParentTourController() {
       observer?.disconnect();
       destroyProgrammatically();
     };
-  }, [pathname, tourPending, navigate, user?.uid, updateContextUser]);
+  }, [pathname, tourPending, navigate, user?.uid, updateContextUser, setCurrentStepId, clearPreview]);
 
   return null;
 }

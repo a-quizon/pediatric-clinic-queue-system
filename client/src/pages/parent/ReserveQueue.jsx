@@ -23,10 +23,14 @@ import ChildProfileForm, {
   isChildProfileValid
 } from "../../components/parent/ChildProfileForm";
 import { formatBranchLabel, branchesMatch } from "../../utils/stringUtils";
+import { useTourSample } from "../../hooks/useTourPreview";
+import { TourSampleSchedulesBlock } from "../../components/onboarding/TourSampleViews";
 
 export default function ReserveQueue() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const showSampleSchedules = useTourSample(["reserve-schedule", "reserve-form"]);
+  const showSampleForm = useTourSample("reserve-form");
   
   const [schedules, setSchedules] = useState([]);
   const [parentReservationsList, setParentReservationsList] = useState([]);
@@ -307,6 +311,14 @@ export default function ReserveQueue() {
     setGeneratedQueuePosition(null);
     setActiveReservationId(null);
   };
+
+  if (showSampleSchedules) {
+    return (
+      <div className="space-y-6 pb-6 relative">
+        <TourSampleSchedulesBlock showForm={showSampleForm} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-6 relative">

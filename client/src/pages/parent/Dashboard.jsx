@@ -12,9 +12,12 @@ import { computeReservationState, computeAheadOfYou, QUEUE_STATES } from "../../
 import PushNotificationSettings from "../../components/parent/PushNotificationSettings";
 import { getReservationChildDisplayName } from "../../utils/reservationPatients";
 import { formatBranchLabel, branchesMatch } from "../../utils/stringUtils";
+import { useTourSample } from "../../hooks/useTourPreview";
+import { TourSampleQueueMonitor } from "../../components/onboarding/TourSampleViews";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const showSampleQueue = useTourSample("parent-queue-monitor");
   const [loading, setLoading] = useState(true);
   const [schedules, setSchedules] = useState({});
   const [parentReservations, setParentReservations] = useState([]);
@@ -222,6 +225,15 @@ export default function Dashboard() {
 
   if (loading) {
     return <PqSpinner />;
+  }
+
+  if (showSampleQueue && !activeReservation) {
+    return (
+      <div className="space-y-5 pb-6 relative max-w-lg mx-auto">
+        <PushNotificationSettings variant="dashboard" />
+        <TourSampleQueueMonitor />
+      </div>
+    );
   }
 
   const waitingKeys = activeLine.filter((r) => !["in_consultation", "with_doctor"].includes(r.status));
