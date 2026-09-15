@@ -248,6 +248,7 @@ function eventsFromReservationChange(before, after) {
       branchId,
       queueNumber: after.queueNumber ?? after.originalQueueNumber ?? after.queuePosition,
       queuePosition: after.queueOrder ?? after.queuePosition,
+      penaltyCount: currPenalty,
       dedupeKey: `penalized_${id}_${currPenalty}`,
     });
   }
@@ -432,11 +433,12 @@ async function getAllParentIds() {
     .map(([uid]) => uid);
 }
 
-async function evaluatePositionEvents(schedule, reservations) {
+async function evaluatePositionEvents(schedule, reservations, options = {}) {
   if (!schedule || !["active", "paused", "closed"].includes(schedule.queueStatus)) return;
 
   const smsConfig = await getSmsConfiguration(schedule.branchId || schedule.branch);
   const nearingTurnAheadCount = smsConfig.nearingTurnAheadCount;
+  const sendNearTurnSms = options.sendNearTurnSms === true;
 
   const candidates = reservations.filter(
     (r) =>
@@ -469,9 +471,11 @@ async function evaluatePositionEvents(schedule, reservations) {
       });
     }
 
-    // First time at or below this branch's patients-ahead threshold; reservation flag locks send-once
+    // Near Turn SMS only at queue start, and only for parents still approaching (not already first).
     if (
+      sendNearTurnSms &&
       Number.isFinite(aheadOfYou) &&
+      aheadOfYou > 0 &&
       aheadOfYou <= nearingTurnAheadCount &&
       !reservation.nearTurnSmsSent
     ) {
@@ -535,8 +539,10 @@ async function handleScheduleChange(before, after) {
     await deliverNotification(event.eventId, event);
   }
 
+  const queueJustStarted =
+    (before?.queueStatus === "not_started" || !before?.queueStatus) && after.queueStatus === "active";
   if (reservations.length) {
-    await evaluatePositionEvents(after, reservations);
+    await evaluatePositionEvents(after, reservations, { sendNearTurnSms: queueJustStarted });
   }
 }
 

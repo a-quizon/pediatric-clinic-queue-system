@@ -302,14 +302,23 @@ async function buildSmsMessage(eventId, context = {}) {
   return message || null;
 }
 
+async function claimTransactionValue(flagRef, value) {
+  const result = await flagRef.transaction((current) => {
+    if (current) return;
+    return value;
+  });
+  return Boolean(result.committed && result.snapshot.val() === value);
+}
+
 async function claimSmsDispatch(parentId, notificationId) {
-  if (!parentId || !notificationId) return true;
+  if (!parentId || !notificationId) return false;
+  const token = Date.now();
   const flagRef = getDb().ref(`notifications/${parentId}/${notificationId}/smsDispatchedAt`);
   const result = await flagRef.transaction((current) => {
     if (current) return;
-    return Date.now();
+    return token;
   });
-  return Boolean(result.committed && result.snapshot.exists());
+  return Boolean(result.committed && Number(result.snapshot.val()) === token);
 }
 
 /**
@@ -318,12 +327,23 @@ async function claimSmsDispatch(parentId, notificationId) {
  */
 async function claimNearTurnSms(reservationId) {
   if (!reservationId) return false;
-  const flagRef = getDb().ref(`reservations/${reservationId}/nearTurnSmsSent`);
-  const result = await flagRef.transaction((current) => {
-    if (current) return;
-    return true;
-  });
-  return Boolean(result.committed && result.snapshot.val() === true);
+  return claimTransactionValue(getDb().ref(`reservations/${reservationId}/nearTurnSmsSent`), true);
+}
+
+/** Confirmed-reservation SMS once per ticket. */
+async function claimSlotReservedSms(reservationId) {
+  if (!reservationId) return false;
+  return claimTransactionValue(getDb().ref(`reservations/${reservationId}/slotReservedSmsSent`), true);
+}
+
+/** Late/moved SMS once per penalty increment. */
+async function claimPenalizedSms(reservationId, penaltyCount) {
+  const count = Number(penaltyCount);
+  if (!reservationId || !Number.isInteger(count) || count < 1) return false;
+  return claimTransactionValue(
+    getDb().ref(`reservations/${reservationId}/penaltySmsSent/${count}`),
+    true
+  );
 }
 
 /**
@@ -334,14 +354,6 @@ async function deliverSmsForNotification(eventId, context = {}, notificationId) 
     return { success: false, skipped: true, reason: "not_sms_event" };
   }
 
-  const safeId = notificationId ? sanitizeKey(notificationId) : null;
-  if (safeId && context.parentId) {
-    const claimed = await claimSmsDispatch(context.parentId, safeId);
-    if (!claimed) {
-      return { success: true, skipped: true, reason: "already_dispatched" };
-    }
-  }
-
   const phone = context.phone || (await getParentPhone(context.parentId));
   if (!phone) {
     return { success: false, skipped: true, reason: "no_phone" };
@@ -350,6 +362,26 @@ async function deliverSmsForNotification(eventId, context = {}, notificationId) 
   const message = await buildSmsMessage(eventId, context);
   if (!message) {
     return { success: false, skipped: true, reason: "no_message" };
+  }
+
+  if (eventId === "SLOT_RESERVED") {
+    const claimed = await claimSlotReservedSms(context.reservationId);
+    if (!claimed) {
+      return { success: true, skipped: true, reason: "already_dispatched" };
+    }
+  } else if (eventId === "PENALIZED") {
+    const claimed = await claimPenalizedSms(context.reservationId, context.penaltyCount);
+    if (!claimed) {
+      return { success: true, skipped: true, reason: "already_dispatched" };
+    }
+  }
+
+  const safeId = notificationId ? sanitizeKey(notificationId) : null;
+  if (safeId && context.parentId) {
+    const claimed = await claimSmsDispatch(context.parentId, safeId);
+    if (!claimed) {
+      return { success: true, skipped: true, reason: "already_dispatched" };
+    }
   }
 
   return sendSms(phone, message);
@@ -396,6 +428,9 @@ async function enrichSmsContext(eventId, context = {}) {
       if (enriched.minutes == null && reservation.penaltyTimerExpiresAt) {
         const remainingMs = Number(reservation.penaltyTimerExpiresAt) - Date.now();
         enriched.minutes = Math.max(1, Math.ceil(remainingMs / 60000));
+      }
+      if (enriched.penaltyCount == null && reservation.penaltyCount != null) {
+        enriched.penaltyCount = reservation.penaltyCount;
       }
     }
   }
@@ -445,4 +480,6 @@ module.exports = {
   buildNearingTurnPushMessage,
   computeAheadOfYouForSms: computeAheadOfYou,
   claimNearTurnSms,
+  claimSlotReservedSms,
+  claimPenalizedSms,
 };

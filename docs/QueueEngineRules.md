@@ -36,8 +36,8 @@ Queue ordering is dynamic and calculates relative turn order based on the follow
 
 ## 4. Check-in Rules
 1. **Unverified Status**: All reservations start as `reserved` (or `waiting`).
-2. **Arrival Verification**: The Secretary must scan the parent's QR code or manually verify their Reservation Code to mark them as `checked_in`.
-3. **Queue Presence**: A patient being `checked_in` signifies they are physically at the clinic, making them eligible to be sent to the doctor.
+2. **Arrival Verification**: The Secretary must scan the parent's QR code or manually verify their Reservation Code to mark them as `checked_in`. This remains allowed while the queue is **paused**.
+3. **Queue Presence**: A patient being `checked_in` signifies they are physically at the clinic, making them eligible to be sent to the doctor once the doctor’s consultation flow is running (pause does not block check-in).
 
 ---
 
@@ -91,7 +91,7 @@ The Secretary manages schedules and the flow of the physical clinic:
 ## 9. Doctor Rules
 The Doctor controls the consultation room and live queue session controls:
 * **Schedule Lifecycle**: Creates drafts, publishes schedules for any branch, and starts the queue (`queueStatus: active`). Same validation and record shape as Secretary.
-* **Queue Control**: Pauses, resumes, or closes the live queue during an active clinic session.
+* **Queue Control**: Pauses, resumes, or closes the live queue during an active clinic session. Pause stops consultation progression (complete consult); it does not block Secretary QR/code check-in.
 * **Consultation**: Receives the patient (status shifts to `in_consultation` / `with_doctor`).
 * **Complete Consultation**: Ends the session, shifting the patient to `consultation_completed`. This crucially frees the Consultation Room, unlocking the Secretary's ability to send the next patient.
 * **Complete Schedule**: Ends the entire clinic session when appropriate from Queue Control.

@@ -63,6 +63,8 @@ Default branches: **Angeles**, **Magalang**.
   queueNumber, originalQueueNumber, queuePosition,
   queueOrder, aheadOfYou, queueState, sortTimestamp,
   nearTurnSmsSent,                 // true after Near Turn SMS claimed for this ticket; unset on new reservations
+  slotReservedSmsSent,             // true after Confirmed Reservation SMS claimed
+  penaltySmsSent: { [count]: true }, // late/moved SMS claimed per penaltyCount
   status: "reserved" | "waiting" | "checked_in" | "with_doctor" |
           "in_consultation" | "consultation_completed" | "cancelled" |
           "forfeited" | "expired" | ...,
@@ -95,7 +97,7 @@ Default branches: **Angeles**, **Magalang**.
   penaltyGraceMinutes: 2,          // 0–5; wait after becoming current-turn before Penalize
   penaltyTimerMinutes: 15,         // 5–30; check-in deadline after first penalty
   sms: {
-    nearingTurnAheadCount: 3,      // 1–10; first time aheadOfYou <= this count fires NEARING_TURN SMS (once per reservation)
+    nearingTurnAheadCount: 3,      // 1–10; at queue start, 0 < aheadOfYou <= this count fires NEARING_TURN SMS (once per reservation)
     templateSlotReserved: "...",   // placeholders: {date} {timeRange} {queueNumber} {doctor} {branch}
     templateSlotReservedActiveQueue: "...", // live queue booking: {queueNumber} {queuePosition}
     templateQueueStarted: "...",   // placeholders: {branch} {date}
@@ -143,7 +145,7 @@ Listeners: `server/services/pushListeners.js` watches `reservations` and `schedu
 
 ### SMS (textbee.dev)
 - Utility: `server/services/smsService.js` (mirrored in `client/functions/smsService.js`)
-- Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`), `QUEUE_STARTED`, `NEARING_TURN` (patients-ahead from `systemConfiguration/{branchId}/sms`, default 3; SMS once per reservation via `reservations/{id}/nearTurnSmsSent` transaction + `dedupeKey` / `smsDispatchedAt`; Secretary-editable per branch). TextBee credentials remain env-global.
+- Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`; once via `slotReservedSmsSent`), `QUEUE_STARTED`, `NEARING_TURN` (at **queue start only**; patients-ahead from `systemConfiguration/{branchId}/sms`, default 3; fires when `0 < aheadOfYou <=` count; SMS once per reservation via `reservations/{id}/nearTurnSmsSent` transaction + `dedupeKey` / `smsDispatchedAt`; Secretary-editable per branch), `PENALIZED` (once per increment via `penaltySmsSent/{count}`), `FORFEITED`. TextBee credentials remain env-global.
 - OTP store: `smsOtps/{phoneKey}` — bcrypt-hashed code, 5-minute `expiresAt`; client R/W denied in rules
 
 ## Cloud Functions (`client/functions/index.js`)

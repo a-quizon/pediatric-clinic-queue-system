@@ -63,7 +63,8 @@ A reservation follows a strict linear progression, with early exits for cancella
 ## 6. Check-in Rules
 * **Responsibility**: Only the Secretary can check in a patient.
 * **Validation Method**: The Secretary scans the parent's generated QR Code, or manually enters the 6-character `reservationCode`.
-* **Verification**: The system looks up the code. If valid and matching an active reservation for today, the status is updated to `checked_in`.
+* **Verification**: The system looks up the code. If valid and matching an active reservation, the status is updated to `checked_in`.
+* **Queue paused**: Secretary may still scan/validate. Pause only stops the doctor’s consultation flow; a checked-in parent waits until the queue is resumed before being sent to the doctor / starting consult.
 * **Requirement**: A patient MUST be `checked_in` before they can be sent to the Doctor.
 
 ---

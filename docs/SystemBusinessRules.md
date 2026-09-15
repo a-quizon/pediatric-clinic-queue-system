@@ -101,7 +101,7 @@ User Management ensures role-based access control.
 ## 11. Notification Workflow
 Notifications provide real-time transparency, reducing physical clinic congestion.
 * **Reservation Confirmation**: SMS (+ Notification Center) when a parent successfully reserves a slot, including date, clinic hours, queue number, doctor, and branch.
-* **Queue Updates**: Pings parents proactively the first time they are at or below their branch’s near-turn threshold (`NEARING_TURN` SMS once per reservation via `nearTurnSmsSent`; default 3 patients ahead via `systemConfiguration/{branchId}/sms`), when their dynamic state shifts to "Almost Next" or "You're Next", or when the Secretary requests they approach the desk.
+* **Queue Updates**: When the queue starts, parents who are approaching but not already first (`0 < aheadOfYou <=` the branch Near Turn threshold; default 3 via `systemConfiguration/{branchId}/sms`) get `NEARING_TURN` SMS once (`nearTurnSmsSent`). Later line movement does not re-send it. Also pings when state shifts to "Almost Next" or "You're Next", or when the Secretary requests they approach the desk.
 * **Consultation Updates**: Confirms when they enter and exit the consultation room.
 * **Penalty Updates**: Alerts parents if they are penalized for absence (including SMS that the countdown has started) or permanently forfeited for not checking in on time.
 * **Schedule Updates**: Informs parents when a new schedule becomes available, when the queue starts/pauses/closes, and when the session ends. Queue start also sends SMS via textbee.dev.

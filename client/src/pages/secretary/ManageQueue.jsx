@@ -41,6 +41,7 @@ export default function ManageQueue({ hideHeader = false }) {
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const forfeitingRef = useRef(new Set());
+  const penalizeLockRef = useRef(false);
 
   const closeContactModal = () => {
     if (isCancelling) return;
@@ -229,6 +230,8 @@ export default function ManageQueue({ hideHeader = false }) {
   };
 
   const handlePenalize = async (res) => {
+    if (!res?.id || penalizeLockRef.current || actionLoading) return;
+    penalizeLockRef.current = true;
     try {
       setActionLoading(res.id);
       const schedule = schedules[res.scheduleId] || {};
@@ -241,6 +244,7 @@ export default function ManageQueue({ hideHeader = false }) {
     } catch (err) {
       toast.error("Failed to apply penalty");
     } finally {
+      penalizeLockRef.current = false;
       setActionLoading(null);
     }
   };
@@ -509,11 +513,6 @@ export default function ManageQueue({ hideHeader = false }) {
                       />
                     </h3>
                     {isWalkInReservation(res) && renderWalkInBadge()}
-                    {res.penaltyCount > 0 && (
-                      <span className="pq-chip pq-chip-wait shrink-0">
-                        Late ({res.penaltyCount})
-                      </span>
-                    )}
                     {timerRemainingMs > 0 && (
                       <span className="pq-chip pq-chip-alert shrink-0">
                         Forfeit in {formatRemainingTime(timerRemainingMs)}

@@ -58,7 +58,6 @@ export default function ValidateReservation() {
   const [showCheckedInModal, setShowCheckedInModal] = useState(false);
   const [showInConsultationModal, setShowInConsultationModal] = useState(false);
   const [showNotStartedModal, setShowNotStartedModal] = useState(false);
-  const [showPausedModal, setShowPausedModal] = useState(false);
   const [showEndedModal, setShowEndedModal] = useState(false);
   const [showWaitingForWindowModal, setShowWaitingForWindowModal] = useState(false);
 
@@ -81,7 +80,6 @@ export default function ValidateReservation() {
     showCheckedInModal ||
     showInConsultationModal ||
     showNotStartedModal ||
-    showPausedModal ||
     showEndedModal ||
     showWaitingForWindowModal;
 
@@ -123,11 +121,6 @@ export default function ValidateReservation() {
 
     if (schedule && schedule.queueStatus === "not_started") {
       setShowNotStartedModal(true);
-      return;
-    }
-
-    if (schedule && schedule.queueStatus === "paused") {
-      setShowPausedModal(true);
       return;
     }
 
@@ -299,7 +292,6 @@ export default function ValidateReservation() {
     setShowCheckedInModal(false);
     setShowInConsultationModal(false);
     setShowNotStartedModal(false);
-    setShowPausedModal(false);
     setShowEndedModal(false);
     setShowWaitingForWindowModal(false);
     setValidatedDetails(null);
@@ -414,18 +406,6 @@ export default function ValidateReservation() {
           </p>
         </div>
       </section>
-
-      <ValidateResultModal
-        open={showPausedModal}
-        icon={AlertCircle}
-        iconTone="wait"
-        title="Queue Paused"
-        actionLabel="Acknowledge"
-        actionClass="pq-btn-warn"
-        onClose={closeAllModals}
-      >
-        The clinic queue is currently paused. Please wait for the doctor to resume the session before validating reservations.
-      </ValidateResultModal>
 
       <ValidateResultModal
         open={showEndedModal}

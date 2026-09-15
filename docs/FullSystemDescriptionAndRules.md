@@ -309,7 +309,7 @@ Reservations are **never physically deleted**. Terminal records remain for histo
 
 1. **not_started** — schedule published; booking allowed; floor not open.
 2. **active** — secretary starts queue; parents notified; floor operations enabled.
-3. **paused** — doctor pauses; progression halted at session level.
+3. **paused** — doctor pauses consultation progression (complete consult / call next). Secretary QR/code check-in still works; the parent is marked `checked_in` and waits until the queue is resumed.
 4. **closed** — doctor closes queue to further floor flow / booking constraints as implemented.
 5. **completed** — clinic session finished.
 
@@ -326,6 +326,7 @@ Reservations are **never physically deleted**. Terminal records remain for histo
 - Secretary only.
 - QR or 6-character code.
 - Status → `checked_in`; patient becomes eligible for Send to Doctor.
+- Allowed while the queue is **paused**. Pause only stops the doctor’s consultation flow; it does not block desk validation.
 
 #### Consultation lock (hard invariant)
 
@@ -434,15 +435,17 @@ Only **five** clinic SMS event types exist:
 |-------|----------------------|-----------|--------------|
 | **SLOT_RESERVED** (Confirmed Reservation) | Reservation `patientInfoCompleted` transitions to **true** (parent **Save Information**). **Not** on bare `createReservation`. Walk-ins set this true at create but have no `parentId` → **no SMS**. If the schedule queue is already live (`active` / `paused` / `closed`), use the active-queue template instead. | That parent’s phone | `templateSlotReserved` or `templateSlotReservedActiveQueue` |
 | **QUEUE_STARTED** | Schedule `queueStatus` first becomes **`active`** | Each parent with an **active** reservation on that schedule | `templateQueueStarted` |
-| **NEARING_TURN** | After queue recalculation, first time reservation’s `aheadOfYou` **is at or below** `nearingTurnAheadCount` (default **3**). Locked by `reservations/{id}/nearTurnSmsSent`. | That parent | `templateNearingTurn` |
+| **NEARING_TURN** | **Only when the queue first starts.** Tickets with `aheadOfYou` **greater than 0 and at or below** `nearingTurnAheadCount` (default **3**). Already-first (`aheadOfYou === 0`) does not send. Locked by `reservations/{id}/nearTurnSmsSent`. Not sent on later recalculation, penalties, or resume. | That parent | `templateNearingTurn` |
 | **PENALIZED** | `penaltyCount` increases and status is not `forfeited` | That parent | `templatePenalized` |
 | **FORFEITED** | Reservation status becomes **`forfeited`** | That parent | `templateForfeited` |
 
 **Deduplication:**
 
 - Notification records use stable `dedupeKey`s (e.g. `nearing_turn_${reservationId}`).
-- SMS send is marked with `smsDispatchedAt` (same pattern as `pushDispatchedAt`) so pause/resume cannot re-spam.
-- `NEARING_TURN` is also locked on the reservation itself (`nearTurnSmsSent: true`, claimed with an RTDB transaction) so lingering at or below the threshold cannot re-send.
+- SMS send is marked with `smsDispatchedAt` (same pattern as `pushDispatchedAt`) so pause/resume cannot re-spam. The transaction succeeds only for the caller that wrote that timestamp.
+- `SLOT_RESERVED` is locked on the reservation (`slotReservedSmsSent`) so dual dispatchers cannot send two confirmation texts.
+- `NEARING_TURN` is evaluated **only at queue start**, then locked on the reservation (`nearTurnSmsSent: true`, claimed with an RTDB transaction). The flag is **not** set when the parent is already first (`aheadOfYou === 0`).
+- `PENALIZED` is locked per increment (`penaltySmsSent/{penaltyCount}`) so queue recalculation writes after Penalize cannot re-send that event’s SMS.
 
 **Placeholders allowed in Secretary templates:** `{count}`, `{queueNumber}`, `{queuePosition}`, `{minutes}`, `{branch}`, `{date}`, `{timeRange}`, `{doctor}`  
 **Max template length:** 320 characters.
@@ -532,7 +535,7 @@ Staff (secretary/doctor/admin): **local toasts only**; no Notification Center; c
 | `SLOT_RESERVED` | Patient info saved (`patientInfoCompleted`) |
 | `QUEUE_STARTED` / `QUEUE_PAUSED` / `QUEUE_RESUMED` / `QUEUE_CLOSED` | Queue session transitions |
 | `CLINIC_SESSION_ENDED` | Schedule/session completed |
-| `NEARING_TURN` | First time `aheadOfYou <=` configured count; `nearTurnSmsSent` on the reservation |
+| `NEARING_TURN` | At queue start only, if `0 < aheadOfYou <=` configured count; `nearTurnSmsSent` on the reservation |
 | `ALMOST_NEXT` / `YOU_ARE_NEXT` | Queue engine positions #2 / #1 in active pipeline |
 | `CHECK_IN_REQUESTED` | Secretary requests check-in |
 | `QR_VERIFIED` | Check-in validated |
@@ -603,7 +606,7 @@ App-level isolation still matters: secretaries filter by `assignedBranch`; role 
 2. Secretary or Doctor drafts & **publishes** a schedule → parents notified schedule available.
 3. Parents **reserve** → receive ticket numbers → **Save Information** → confirmation SMS/push.
 4. Secretary or Doctor **starts queue** → QUEUE_STARTED SMS/push.
-5. As line advances, parents hit **NEARING_TURN** (SMS once), then Almost Next / You’re Next (push/in-app).
+5. When the queue **starts**, parents who are approaching (`0 < aheadOfYou <=` Near Turn count) get **NEARING_TURN** SMS once. The parent already first in line does not. Later Almost Next / You’re Next stay push/in-app as the line advances.
 6. Parent arrives → secretary **checks in** via QR/code.
 7. Secretary **sends** checked-in #1 to doctor (if room free).
 8. Doctor **completes** consultation → lock opens → next patient.

@@ -46,6 +46,7 @@ export default function ReserveQueue() {
   const [generatedQueuePosition, setGeneratedQueuePosition] = useState(null);
   const [activeReservationId, setActiveReservationId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   const [savedChildren, setSavedChildren] = useState([]);
   const [selectedChildIds, setSelectedChildIds] = useState([]);
@@ -284,9 +285,10 @@ export default function ReserveQueue() {
   };
 
   const handleSubmitPatientInfo = async () => {
-    if (!activeReservationId) return;
+    if (!activeReservationId || submittingRef.current) return;
     const selected = savedChildren.filter((child) => selectedChildIds.includes(child.id));
     if (selected.length === 0) return;
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
       await updatePatientInfo(activeReservationId, buildPatientInfoPayload(selected, concern));
@@ -301,6 +303,7 @@ export default function ReserveQueue() {
         message: 'Could not save patient information. Please try again.'
       });
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
