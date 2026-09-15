@@ -85,7 +85,7 @@ export default function MyReservation() {
   };
 
   return (
-    <div className="space-y-5 pb-8 relative">
+    <div className="space-y-5 pb-8 relative" data-tour="reservation-list">
       <p className="pq-muted text-sm">
           View your active clinic reservations, check-in arrival passes, and real-time queue status.
       </p>

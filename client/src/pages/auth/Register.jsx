@@ -249,6 +249,7 @@ export default function Register() {
               </div>
             </div>
 
+            <div className="space-y-4">
             <div>
               <label htmlFor="number" className="pq-label">Phone Number</label>
               <div className="relative">
@@ -339,6 +340,7 @@ export default function Register() {
                   <p className="text-xs pq-faint">Verify your phone before creating an account.</p>
                 )}
               </div>
+            </div>
             </div>
             </>
             )}

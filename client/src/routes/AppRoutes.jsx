@@ -51,12 +51,16 @@ import RoleRoute from "./RoleRoute";
 import NativeNotificationBridge from "../components/common/NativeNotificationBridge";
 import OnboardingChildProfile from "../pages/auth/OnboardingChildProfile";
 import SmsTester from "../pages/dev/SmsTester";
+import SplashGate from "../components/onboarding/SplashGate";
+import ParentTourController from "../components/onboarding/ParentTourController";
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
-      <NativeNotificationBridge />
-      <Routes>
+      <SplashGate>
+        <NativeNotificationBridge />
+        <ParentTourController />
+        <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/sms-tester" element={<SmsTester />} />
         <Route path="/register" element={<Register />} />
@@ -113,6 +117,7 @@ export default function AppRoutes() {
         {/* Fallback Catch-All Route */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </SplashGate>
     </BrowserRouter>
   );
 }

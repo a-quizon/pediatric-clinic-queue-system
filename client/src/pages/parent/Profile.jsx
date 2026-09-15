@@ -15,24 +15,28 @@ export default function Profile() {
       description: "View and edit your account information.",
       icon: User,
       path: "/parent/profile/personal-info",
+      tour: "profile-account",
     },
     {
       title: "Notification Settings",
       description: "Manage in-app alerts and device push notifications.",
       icon: Bell,
       path: "/parent/profile/notification-settings",
+      tour: "profile-notifications",
     },
     {
       title: "Child Profiles",
       description: "Add and manage children for reservations.",
       icon: Baby,
       path: "/parent/profile/children",
+      tour: "profile-children",
     },
     {
       title: "Reservation History",
       description: "View completed, cancelled, and forfeited reservations.",
       icon: History,
       path: "/parent/profile/history",
+      tour: "profile-history",
     }
   ];
 
@@ -53,6 +57,7 @@ export default function Profile() {
           <Link
             to={item.path}
             key={item.path}
+            data-tour={item.tour}
             className="flex items-center justify-between gap-3 p-5 min-h-[72px] transition-colors"
             style={{ borderTop: index === 0 ? "none" : "1px solid var(--pq-glass-line)" }}
           >

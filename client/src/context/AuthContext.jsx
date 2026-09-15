@@ -99,6 +99,11 @@ export function AuthProvider({ children }) {
                                 updates.onboardingComplete = true;
                                 needsUpdate = true;
                             }
+                            if (userData.role === "parent" && typeof userData.hasCompletedTour !== "boolean") {
+                                userData.hasCompletedTour = userData.onboardingComplete !== false;
+                                updates.hasCompletedTour = userData.hasCompletedTour;
+                                needsUpdate = true;
+                            }
                             
                             if (needsUpdate) {
                                 // Background save, no need to await so it doesn't block login

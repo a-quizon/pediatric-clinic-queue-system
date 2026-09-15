@@ -103,6 +103,7 @@ export const completeParentRegistration = async (user) => {
     role: "parent",
     status: "active",
     onboardingComplete: false,
+    hasCompletedTour: false,
     inAppNotificationsEnabled: true,
     createdAt: now,
     updatedAt: now

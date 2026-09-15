@@ -234,7 +234,7 @@ export default function Dashboard() {
 
       {activeReservation && schedule ? (
         <div className="space-y-4">
-          <section className="pq-glass overflow-hidden">
+          <section className="pq-glass overflow-hidden" data-tour="parent-queue-monitor">
             <div className="p-4 flex justify-between items-start gap-3">
               <div className="flex items-start gap-3 min-w-0">
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
@@ -355,7 +355,7 @@ export default function Dashboard() {
           </p>
         </div>
       ) : (
-        <section className="pq-glass overflow-hidden">
+        <section className="pq-glass overflow-hidden" data-tour="parent-queue-monitor">
           <div className="px-6 sm:px-8 py-5">
             <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">Today&apos;s Clinic Status</h2>
             <p className="text-[11px] font-semibold pq-muted mt-0.5">Public Status</p>
@@ -392,7 +392,7 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
-            <Link to="/parent/reserve" className="pq-btn-primary w-full">
+            <Link to="/parent/reserve" className="pq-btn-primary w-full" data-tour="parent-book-cta">
               <CalendarPlus className="w-4 h-4" />
               Make Reservation
             </Link>

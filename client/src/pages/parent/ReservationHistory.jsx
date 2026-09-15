@@ -92,13 +92,15 @@ export default function ReservationHistory() {
   };
 
   return (
-    <div className="space-y-5 pb-8 relative">
+    <div className="space-y-5 pb-8 relative" data-tour="reservation-history">
       <div className="pq-filter-bar pq-filter-stick p-4 sm:p-5">
         <div className="flex sm:flex-wrap gap-2 sm:gap-2.5 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide w-full -mx-4 px-4 sm:mx-0 sm:px-0">
           {["All", "Completed", "Cancelled", "Forfeited", "With Notes"].map(filter => (
             <button
               key={filter}
+              type="button"
               onClick={() => setActiveFilter(filter)}
+              data-tour={filter === "With Notes" ? "history-notes-filter" : undefined}
               className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap flex-shrink-0 min-h-[44px] ${
                 activeFilter === filter 
                   ? 'pq-btn-primary' 
