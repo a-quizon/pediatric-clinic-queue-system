@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { registerUser } from "../../services/authService";
 import { sendSmsOtp, verifySmsOtp } from "../../services/smsAuthService";
+import { auth } from "../../firebase/auth";
 import { Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff, KeyRound, CheckCircle2 } from "lucide-react";
 import { PqAuthShell, PqBrand } from "../../components/parent/pqUi";
 import OnboardingStepper from "../../components/auth/OnboardingStepper";
@@ -185,12 +186,12 @@ export default function Register() {
           phoneVerificationId: verificationId,
         }
       );
-      navigate('/verify-email');
+      navigate('/verify-email', { replace: true });
     } catch (err) {
       console.error('Registration failed:', err);
       if (err.code === 'auth/verification-email-failed') {
         toast.error('Account created, but verification email failed to send. You can resend it later.');
-        navigate('/verify-email');
+        navigate('/verify-email', { replace: true });
       } else {
         toast.error(mapAuthError(err.code) || err.message);
       }
@@ -205,6 +206,11 @@ export default function Register() {
     return "Verify";
   };
 
+  const pendingEmailVerification = auth.currentUser && !auth.currentUser.emailVerified;
+  if (pendingEmailVerification) {
+    return <Navigate to="/verify-email" replace />;
+  }
+
   return (
     <PqAuthShell>
       <div className="pq-glass-window overflow-hidden">
@@ -212,7 +218,7 @@ export default function Register() {
           <div className="flex justify-center mb-4">
             <PqBrand size={72} stacked />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Create Account</h1>
+          <h1 className={`tracking-tight ${phoneVerified ? "text-2xl font-extrabold" : "text-xl font-bold"}`}>Create Account</h1>
           <p className="pq-muted mt-1 text-sm">Verify your phone, then confirm your email</p>
           <div className="mt-5">
             <OnboardingStepper
@@ -324,7 +330,7 @@ export default function Register() {
                 {phoneVerified ? (
                   <p className="pq-ok-text">Phone verified. You can continue registration.</p>
                 ) : cooldownLeft > 0 ? (
-                  <p className="text-xs font-semibold pq-muted">
+                  <p className="text-xs font-medium pq-muted">
                     Resend code in {formatOtpCountdown(cooldownLeft)}
                   </p>
                 ) : otpSent ? (

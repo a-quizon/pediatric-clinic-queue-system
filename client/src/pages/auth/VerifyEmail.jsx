@@ -114,7 +114,7 @@ export default function VerifyEmail() {
     }
   };
 
-  if (loading) {
+  if (loading && !user && !auth.currentUser) {
     return (
       <PqAuthShell>
         <PqSpinner />
@@ -130,14 +130,14 @@ export default function VerifyEmail() {
           <Mail className="w-8 h-8" />
         </div>
         
-        <h1 className="text-2xl font-extrabold tracking-tight mb-2">Check Your Email</h1>
+        <h1 className="text-xl font-bold tracking-tight mb-2">Check Your Email</h1>
         
-        <p className="pq-muted text-sm mb-6">
+        <p className="pq-muted text-sm font-medium mb-6">
           We've sent a verification link to:<br />
-          <span className="font-semibold inline-block mt-2 mb-3 px-3 py-1 rounded-lg" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 10%, white)", color: "var(--pq-ink)" }}>{user?.email || auth.currentUser?.email}</span><br />
+          <span className="font-medium inline-block mt-2 mb-3 px-3 py-1 rounded-lg" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 10%, white)", color: "var(--pq-ink)" }}>{user?.email || auth.currentUser?.email}</span><br />
           You'll need to verify your email before you can access your account.<br /><br />
           <span className="font-medium">Can't find the verification email?</span><br />
-          Please check your <span className="font-bold px-2 py-0.5 rounded" style={{ color: "var(--pq-alert)", background: "var(--pq-alert-wash)" }}>Spam or Junk folder</span>. If it's still not there, you can resend the verification email below.
+          Please check your <span className="font-semibold px-2 py-0.5 rounded" style={{ color: "var(--pq-alert)", background: "var(--pq-alert-wash)" }}>Spam or Junk folder</span>. If it's still not there, you can resend the verification email below.
         </p>
         
         <div className="space-y-3">

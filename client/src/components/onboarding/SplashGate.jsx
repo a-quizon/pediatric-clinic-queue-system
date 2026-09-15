@@ -8,6 +8,7 @@ const SPLASH_REDUCED_MS = 400;
 export default function SplashGate({ children }) {
   const { loading } = useAuth();
   const [minElapsed, setMinElapsed] = useState(false);
+  const [hasBooted, setHasBooted] = useState(false);
 
   useEffect(() => {
     const reduced =
@@ -20,7 +21,15 @@ export default function SplashGate({ children }) {
     return () => window.clearTimeout(id);
   }, []);
 
-  if (!minElapsed || loading) {
+  useEffect(() => {
+    if (minElapsed && !loading) {
+      setHasBooted(true);
+    }
+  }, [minElapsed, loading]);
+
+  // Only splash on first boot. Later auth loading (login/register) must not
+  // unmount the current route — that remounts /register and flashes the phone step.
+  if (!hasBooted) {
     return <SplashScreen />;
   }
 
