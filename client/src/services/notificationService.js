@@ -118,7 +118,7 @@ const NOTIFICATION_CONFIG = {
   [NOTIFICATION_EVENTS.FORFEITED]: {
     type: 'error',
     title: 'Reservation Forfeited',
-    message: "Your reservation has been forfeited after exceeding the clinic's late arrival limit.",
+    message: "Your reservation has been forfeited because you did not check in on time.",
     duration: 8000,
   },
   [NOTIFICATION_EVENTS.CHECK_IN_REQUESTED]: {

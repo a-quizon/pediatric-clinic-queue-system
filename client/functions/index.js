@@ -64,6 +64,26 @@ exports.onScheduleWrite = rtdb
   });
 
 /**
+ * Auto-forfeit reservations whose late penalty timer has expired.
+ */
+exports.expirePenaltyTimers = functions
+  .region("asia-southeast1")
+  .pubsub.schedule("every 1 minutes")
+  .timeZone("Asia/Manila")
+  .onRun(async () => {
+    const { expirePenaltyTimers } = require("./expirePenaltyTimers");
+    try {
+      const result = await expirePenaltyTimers();
+      if (result.forfeited) {
+        console.log(`expirePenaltyTimers forfeited ${result.forfeited} reservation(s)`);
+      }
+    } catch (err) {
+      console.error("expirePenaltyTimers failed:", err);
+    }
+    return null;
+  });
+
+/**
  * Admin-only account deletion (Firebase Auth + RTDB profile).
  */
 exports.deleteUserAccount = functions.region("asia-southeast1").https.onCall(async (data, context) => {

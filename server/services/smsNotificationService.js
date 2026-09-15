@@ -10,6 +10,8 @@ const SMS_NOTIFICATION_EVENTS = new Set([
   "SLOT_RESERVED",
   "QUEUE_STARTED",
   "NEARING_TURN",
+  "PENALIZED",
+  "FORFEITED",
 ]);
 
 const MIN_NEARING_TURN_AHEAD = 1;
@@ -28,6 +30,8 @@ const LEGACY_MERGED_QUEUE_STARTED_TEMPLATE =
 const ALLOWED_PLACEHOLDERS = new Set([
   "count",
   "queueNumber",
+  "queuePosition",
+  "minutes",
   "branch",
   "date",
   "timeRange",
@@ -48,6 +52,12 @@ const DEFAULT_SMS_TEMPLATES = {
     "Please monitor your place in line and be ready when we notify you that your turn is near.",
   templateNearingTurn:
     "Only {count} patients ahead (Queue #{queueNumber}). Please head to the clinic now.",
+  templateSlotReservedActiveQueue:
+    "You reserved a slot on an active Queue. Queue Number: {queueNumber}. Queue Position: {queuePosition}. Please monitor your queue.",
+  templatePenalized:
+    "You were marked late and moved back in line (Queue #{queueNumber}, position {queuePosition}). Please validate your QR at {branch} within {minutes} minutes or this reservation will be forfeited.",
+  templateForfeited:
+    "Your reservation (Queue #{queueNumber}) at {branch} on {date} was forfeited because you did not check in on time. You may still book a new slot on the same schedule if slots are available.",
 };
 
 function sanitizeKey(value) {
@@ -120,6 +130,18 @@ function parseSmsConfig(data) {
     templateNearingTurn: sanitizeTemplate(
       data?.templateNearingTurn,
       DEFAULT_SMS_TEMPLATES.templateNearingTurn
+    ),
+    templateSlotReservedActiveQueue: sanitizeTemplate(
+      data?.templateSlotReservedActiveQueue,
+      DEFAULT_SMS_TEMPLATES.templateSlotReservedActiveQueue
+    ),
+    templatePenalized: sanitizeTemplate(
+      data?.templatePenalized,
+      DEFAULT_SMS_TEMPLATES.templatePenalized
+    ),
+    templateForfeited: sanitizeTemplate(
+      data?.templateForfeited,
+      DEFAULT_SMS_TEMPLATES.templateForfeited
     ),
   };
 }
@@ -231,6 +253,12 @@ async function buildTemplateVars(eventId, context = {}, config) {
     context.queueNumber != null && context.queueNumber !== ""
       ? context.queueNumber
       : "—";
+  const queuePosition =
+    context.queuePosition != null && context.queuePosition !== ""
+      ? context.queuePosition
+      : queueNumber;
+  const minutes =
+    context.minutes != null && context.minutes !== "" ? context.minutes : "15";
   const count =
     context.nearingTurnAheadCount != null
       ? sanitizeAheadCount(context.nearingTurnAheadCount)
@@ -239,6 +267,8 @@ async function buildTemplateVars(eventId, context = {}, config) {
   return {
     count,
     queueNumber,
+    queuePosition,
+    minutes,
     branch: eventId === "SLOT_RESERVED" ? branch.replace(/^the /, "") || "clinic" : branch,
     date: dateLabel,
     timeRange,
@@ -251,12 +281,19 @@ async function buildSmsMessage(eventId, context = {}) {
   const vars = await buildTemplateVars(eventId, context, config);
 
   let template = null;
+  const liveQueue = ["active", "paused", "closed"].includes(context.queueStatus);
   if (eventId === "QUEUE_STARTED") {
     template = config.templateQueueStarted;
   } else if (eventId === "NEARING_TURN") {
     template = config.templateNearingTurn;
   } else if (eventId === "SLOT_RESERVED") {
-    template = config.templateSlotReserved;
+    template = liveQueue
+      ? config.templateSlotReservedActiveQueue
+      : config.templateSlotReserved;
+  } else if (eventId === "PENALIZED") {
+    template = config.templatePenalized;
+  } else if (eventId === "FORFEITED") {
+    template = config.templateForfeited;
   } else {
     return context.customMessage || null;
   }
@@ -326,7 +363,7 @@ async function enrichSmsContext(eventId, context = {}) {
   if (!context.scheduleId && !context.entityId && !context.reservationId) return enriched;
 
   const scheduleId = context.scheduleId || context.entityId;
-  if (scheduleId && (!enriched.clinicDate || !enriched.openingTime || !enriched.doctorId)) {
+  if (scheduleId && (!enriched.clinicDate || !enriched.openingTime || !enriched.doctorId || !enriched.queueStatus)) {
     const snap = await getDb().ref(`schedules/${scheduleId}`).once("value");
     if (snap.exists()) {
       const schedule = snap.val() || {};
@@ -337,6 +374,7 @@ async function enrichSmsContext(eventId, context = {}) {
       enriched.branchName = enriched.branchName || schedule.branch;
       enriched.configBranchId = enriched.configBranchId || schedule.branchId || null;
       enriched.branchId = schedule.branchId || enriched.branchId || schedule.branch;
+      enriched.queueStatus = enriched.queueStatus || schedule.queueStatus;
     }
   }
 
@@ -344,12 +382,21 @@ async function enrichSmsContext(eventId, context = {}) {
     enriched.doctorName = await resolveDoctorName(enriched.doctorId);
   }
 
-  if (context.reservationId && (enriched.queueNumber == null || enriched.queueNumber === "")) {
+  if (context.reservationId) {
     const resSnap = await getDb().ref(`reservations/${context.reservationId}`).once("value");
     if (resSnap.exists()) {
       const reservation = resSnap.val() || {};
-      enriched.queueNumber =
-        reservation.queueNumber ?? reservation.originalQueueNumber ?? reservation.queuePosition;
+      if (enriched.queueNumber == null || enriched.queueNumber === "") {
+        enriched.queueNumber =
+          reservation.queueNumber ?? reservation.originalQueueNumber ?? reservation.queuePosition;
+      }
+      if (enriched.queuePosition == null || enriched.queuePosition === "") {
+        enriched.queuePosition = reservation.queueOrder ?? reservation.queuePosition ?? enriched.queueNumber;
+      }
+      if (enriched.minutes == null && reservation.penaltyTimerExpiresAt) {
+        const remainingMs = Number(reservation.penaltyTimerExpiresAt) - Date.now();
+        enriched.minutes = Math.max(1, Math.ceil(remainingMs / 60000));
+      }
     }
   }
 

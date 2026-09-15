@@ -1,6 +1,5 @@
 import React from 'react';
 import { Calendar, Clock, MapPin, CalendarCheck, PlayCircle } from 'lucide-react';
-import useResolvedLateLimit from '../../hooks/useResolvedLateLimit';
 
 export default function ScheduleConfirmModal({
   isOpen,
@@ -14,7 +13,6 @@ export default function ScheduleConfirmModal({
   loading = false,
   icon: Icon = CalendarCheck,
 }) {
-  const lateLimit = useResolvedLateLimit(schedule);
   if (!isOpen || !schedule) return null;
 
   const formatDate = (dateStr) => {
@@ -71,13 +69,9 @@ export default function ScheduleConfirmModal({
                 <span className="pq-muted">Day</span>
                 <span className="font-extrabold">{formatDay(schedule.clinicDate)}</span>
               </div>
-              <div className="flex justify-between items-center pb-2" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+              <div className="flex justify-between items-center pt-1">
                 <span className="pq-muted flex items-center"><Clock className="w-4 h-4 mr-2 pq-faint" aria-hidden="true"/> Clinic Time</span>
                 <span className="font-extrabold">{formatTime(schedule.openingTime)} – {formatTime(schedule.closingTime)}</span>
-              </div>
-              <div className="flex justify-between items-center pt-1">
-                <span className="pq-muted flex items-center"><Clock className="w-4 h-4 mr-2" style={{ color: "var(--pq-alert)" }} aria-hidden="true"/> Late Limit</span>
-                <span className="font-extrabold">{lateLimit} penalties</span>
               </div>
             </div>
           </div>

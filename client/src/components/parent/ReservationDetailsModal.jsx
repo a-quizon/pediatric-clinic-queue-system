@@ -107,7 +107,7 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
               <div className="pq-note pq-note-alert text-xs">
                 <div className="font-bold mb-0.5">Reason:</div>
                 <div className="font-medium">
-                  {reservation.forfeitureReason || "Exceeded the clinic's late arrival limit."}
+                  {reservation.forfeitureReason || "Did not check in on time."}
                 </div>
               </div>
             </div>

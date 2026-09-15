@@ -108,7 +108,7 @@ const NOTIFICATION_CONFIG = {
   FORFEITED: {
     type: "error",
     title: "Reservation Forfeited",
-    message: "Your reservation has been forfeited after exceeding the clinic's late arrival limit.",
+    message: "Your reservation has been forfeited because you did not check in on time.",
     url: "/parent/notifications",
   },
   CHECK_IN_REQUESTED: {
@@ -224,6 +224,7 @@ function eventsFromReservationChange(before, after) {
       scheduleId: after.scheduleId || null,
       branchId,
       queueNumber: after.queueNumber ?? after.originalQueueNumber ?? after.queuePosition,
+      queuePosition: after.queueOrder ?? after.queuePosition,
       dedupeKey: `slot_reserved_${id}`,
     });
   }
@@ -243,7 +244,10 @@ function eventsFromReservationChange(before, after) {
       eventId: "PENALIZED",
       parentId: after.parentId,
       reservationId: id,
+      scheduleId: after.scheduleId || null,
       branchId,
+      queueNumber: after.queueNumber ?? after.originalQueueNumber ?? after.queuePosition,
+      queuePosition: after.queueOrder ?? after.queuePosition,
       dedupeKey: `penalized_${id}_${currPenalty}`,
     });
   }
@@ -278,7 +282,9 @@ function eventsFromReservationChange(before, after) {
         eventId: "FORFEITED",
         parentId: after.parentId,
         reservationId: id,
+        scheduleId: after.scheduleId || null,
         branchId,
+        queueNumber: after.queueNumber ?? after.originalQueueNumber ?? after.queuePosition,
         dedupeKey: `forfeited_${id}`,
       });
     }

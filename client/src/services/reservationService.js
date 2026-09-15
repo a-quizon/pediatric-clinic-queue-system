@@ -1,5 +1,5 @@
 import { database } from "../firebase/database";
-import { ref, push, set, get, onValue, update, query, orderByChild, equalTo, serverTimestamp } from "firebase/database";
+import { ref, push, set, get, onValue, update, query, orderByChild, equalTo, serverTimestamp, runTransaction } from "firebase/database";
 import { recalculateRollingValidation } from "./rollingValidationService";
 import { recalculateEntireQueue, enrichReservationsWithState } from "./queueEngine";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
@@ -7,9 +7,12 @@ import { getScheduleById } from "./scheduleService";
 import { buildPatientInfoPayload } from "../utils/reservationPatients";
 import {
   getQueueConfiguration,
-  resolveLateLimitForSchedule,
   resolveScheduleBranchId,
 } from "./systemConfigurationService";
+import {
+  UNCHECKED_WAITING_STATUSES,
+  PENALTY_TIMER_FORFEIT_REASON,
+} from "../utils/penaltyTimer";
 
 const generateReservationCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -370,7 +373,11 @@ export const checkInReservation = async (reservationId, secretaryUid) => {
     checkedIn: true,
     checkedInAt: Date.now(),
     checkedInBy: secretaryUid,
-    status: "checked_in"
+    status: "checked_in",
+    penaltyTimerExpiresAt: null,
+    penaltyTimerStartedAt: null,
+    becameCurrentTurnAt: null,
+    penaltyTimerClearedAt: Date.now(),
   });
   if (scheduleId) {
     await recalculateRollingValidation(scheduleId);
@@ -426,46 +433,48 @@ export const updatePatientInfo = async (reservationId, patientInfo) => {
   });
 };
 
+const applyForfeitFields = (current, { forfeitureReason, penaltyCount, now }) => ({
+  ...current,
+  status: "forfeited",
+  forfeitureReason,
+  penaltyCount: penaltyCount ?? current.penaltyCount ?? 0,
+  forfeitedAt: now,
+  penalizedAt: now,
+  queueState: "FORFEITED",
+  penaltyTimerExpiresAt: null,
+  penaltyTimerStartedAt: null,
+  becameCurrentTurnAt: null,
+});
+
 export const penalizeReservation = async (reservationId, schedule, allScheduleReservations = [], penaltyMoveBack) => {
   const snap = await get(ref(database, `reservations/${reservationId}`));
   if (!snap.exists()) return;
   const val = snap.val();
-  
+
   const currentPenaltyCount = (val.penaltyCount || 0) + 1;
-  const lateLimit = await resolveLateLimitForSchedule(schedule);
-  let moveBack = Number.isInteger(penaltyMoveBack) ? penaltyMoveBack : null;
-  if (moveBack === null) {
-    const branchId = await resolveScheduleBranchId(schedule);
-    const queueConfig = await getQueueConfiguration(branchId);
-    moveBack = queueConfig.penaltyMoveBack;
-  }
+  const branchId = await resolveScheduleBranchId(schedule);
+  const queueConfig = await getQueueConfiguration(branchId);
+  const moveBack = Number.isInteger(penaltyMoveBack) ? penaltyMoveBack : queueConfig.penaltyMoveBack;
+  const timerMinutes = queueConfig.penaltyTimerMinutes;
+  const now = Date.now();
   const forfeitOnZeroMoveBack = moveBack === 0;
 
-  if (forfeitOnZeroMoveBack || currentPenaltyCount >= lateLimit) {
-    const forfeitureReason = forfeitOnZeroMoveBack
-      ? "Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent."
-      : "Exceeded the clinic's late arrival limit.";
-
-    await update(ref(database, `reservations/${reservationId}`), {
-      status: "forfeited",
-      forfeitureReason,
+  if (forfeitOnZeroMoveBack) {
+    await update(ref(database, `reservations/${reservationId}`), applyForfeitFields(val, {
+      forfeitureReason: "Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent.",
       penaltyCount: currentPenaltyCount,
-      forfeitedAt: Date.now(),
-      penalizedAt: Date.now()
-    });
+      now,
+    }));
 
     logAuditEvent({
       action: AUDIT_ACTIONS.PATIENT_FORFEITED,
       category: AUDIT_CATEGORIES.QUEUE_INTERVENTION,
-      description: forfeitOnZeroMoveBack
-        ? `Forfeited Queue #${val.queueNumber} because Penalty Move-Back is 0`
-        : `Forfeited Queue #${val.queueNumber} after reaching the penalty limit`,
+      description: `Forfeited Queue #${val.queueNumber} because Penalty Move-Back is 0`,
       targetType: "reservation",
       targetId: reservationId,
       branchId: schedule?.branch
     });
   } else {
-    // Move behind waiting patients by the configured move-back count
     const activePipeline = allScheduleReservations
       .filter(r => r.scheduleId === val.scheduleId && ["reserved", "checked_in", "waiting", "validation_open", "waiting_for_window"].includes(r.status))
       .sort((a, b) => {
@@ -475,7 +484,7 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
       });
 
     const index = activePipeline.findIndex(r => r.id === reservationId);
-    let newSortTimestamp = Date.now();
+    let newSortTimestamp = now;
 
     if (index >= 0 && activePipeline.length > 1) {
       const targetBehindIndex = Math.min(activePipeline.length - 1, index + moveBack);
@@ -491,22 +500,85 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
       }
     }
 
+    const pipelineAfterMove = activePipeline.map((r) =>
+      r.id === reservationId ? { ...r, sortTimestamp: newSortTimestamp } : r
+    ).sort((a, b) => {
+      const timeA = a.sortTimestamp || a.createdAt || 0;
+      const timeB = b.sortTimestamp || b.createdAt || 0;
+      return timeA - timeB;
+    });
+    const newOrderIndex = pipelineAfterMove.findIndex((r) => r.id === reservationId);
+    const newQueuePosition = newOrderIndex >= 0 ? newOrderIndex + 1 : (val.queueOrder || val.queuePosition || 1);
+
+    const existingExpiry = Number(val.penaltyTimerExpiresAt) || 0;
+    const keepFirstExpiry = existingExpiry > now;
+    const penaltyTimerStartedAt = keepFirstExpiry ? (val.penaltyTimerStartedAt || now) : now;
+    const penaltyTimerExpiresAt = keepFirstExpiry
+      ? existingExpiry
+      : now + timerMinutes * 60 * 1000;
+
     await update(ref(database, `reservations/${reservationId}`), {
       penaltyCount: currentPenaltyCount,
       sortTimestamp: newSortTimestamp,
-      lastPenalizedAt: Date.now()
+      lastPenalizedAt: now,
+      queueOrder: newQueuePosition,
+      queuePosition: newQueuePosition,
+      penaltyTimerStartedAt,
+      penaltyTimerExpiresAt,
+      becameCurrentTurnAt: null,
     });
 
     logAuditEvent({
       action: AUDIT_ACTIONS.PATIENT_PENALIZED,
       category: AUDIT_CATEGORIES.QUEUE_INTERVENTION,
-      description: `Penalized Queue #${val.queueNumber} (penalty ${currentPenaltyCount} of ${lateLimit})`,
+      description: `Penalized Queue #${val.queueNumber} and started/kept late timer (expires ${new Date(penaltyTimerExpiresAt).toLocaleTimeString()})`,
       targetType: "reservation",
       targetId: reservationId,
       branchId: schedule?.branch
     });
   }
   await recalculateEntireQueue(val.scheduleId);
+};
+
+/**
+ * Auto-forfeit a reservation whose penalty timer has expired. Idempotent via transaction.
+ * @returns {Promise<boolean>} true when this caller applied the forfeit
+ */
+export const forfeitReservationIfTimerExpired = async (reservationId) => {
+  if (!reservationId) return false;
+  const resRef = ref(database, `reservations/${reservationId}`);
+  const now = Date.now();
+
+  const result = await runTransaction(resRef, (current) => {
+    if (!current) return;
+    if (!UNCHECKED_WAITING_STATUSES.includes(current.status)) return;
+    const expiresAt = Number(current.penaltyTimerExpiresAt) || 0;
+    if (!expiresAt || expiresAt > Date.now()) return;
+    return applyForfeitFields(current, {
+      forfeitureReason: PENALTY_TIMER_FORFEIT_REASON,
+      penaltyCount: current.penaltyCount,
+      now,
+    });
+  });
+
+  if (!result.committed || !result.snapshot.exists()) return false;
+  const after = result.snapshot.val();
+  if (after.status !== "forfeited") return false;
+
+  if (after.scheduleId) {
+    await recalculateEntireQueue(after.scheduleId);
+  }
+
+  logAuditEvent({
+    action: AUDIT_ACTIONS.PATIENT_FORFEITED,
+    category: AUDIT_CATEGORIES.QUEUE_INTERVENTION,
+    description: `Forfeited Queue #${after.queueNumber} because the late penalty timer expired`,
+    targetType: "reservation",
+    targetId: reservationId,
+    branchId: after.branchId || after.branch || null,
+  });
+
+  return true;
 };
 
 export const requestCheckInReminder = async (reservationId) => {

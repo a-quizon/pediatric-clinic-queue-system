@@ -20,7 +20,7 @@ The Queue Engine emits the following states (`QUEUE_STATES`) to parent dashboard
 | **ALMOST_NEXT** | Patient is #2 in the active waiting queue. | Queue index === 1 during active consultation pipeline. |
 | **WITH_DOCTOR** | Patient is actively inside the consultation room. | Secretary sends patient to Doctor. |
 | **COMPLETED** | Consultation is finished. | Doctor clicks "Complete Consultation". |
-| **FORFEITED** | Patient was removed from the queue due to absence. | Late limit (penalties) reached, or Penalty Move-Back is 0. |
+| **FORFEITED** | Patient was removed from the queue due to absence. | Penalty timer expired without check-in, or Penalty Move-Back is 0. |
 | **CANCELLED** | Patient manually cancelled their reservation. | Parent clicks "Cancel Reservation". |
 
 ---
@@ -51,10 +51,10 @@ The core tenet of the Queue Engine is clinical isolation:
 ---
 
 ## 6. Penalty Rules
-1. **Trigger**: If the next eligible patient is not present when called, the Secretary applies a penalty.
-2. **Queue Shifting**: A penalized patient's `sortTimestamp` is recalculated to move them backward in the active queue by that branch’s **Penalty Move-Back** count (`systemConfiguration/{branchId}/penaltyMoveBack`, range 0–10), or to the very end if fewer patients remain behind them.
-3. **Zero Move-Back Forfeit**: Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent. The Secretary's penalty action immediately transitions the reservation to `forfeited` instead of shifting position.
-4. **Late Limits**: If a patient reaches the schedule’s saved `lateLimit` (legacy schedules) or the branch’s `systemConfiguration/{branchId}/lateLimit` (new schedules; default 3 penalties), their status transitions to a terminal `forfeited` state and they are removed from the active queue.
+1. **Trigger**: Penalize is available on the first unchecked waiting patient only after that patient has been current-turn for the branch **Penalty Grace Period** (`systemConfiguration/{branchId}/penaltyGraceMinutes`, default 2, range 0–5). `becameCurrentTurnAt` is stamped by queue recalculation when the queue is live.
+2. **Queue Shifting**: A penalized patient's `sortTimestamp` is recalculated to move them backward in the active queue by that branch’s **Penalty Move-Back** count (`systemConfiguration/{branchId}/penaltyMoveBack`, range 0–10), or to the very end if fewer patients remain behind them. There is no cap on how many times a parent can be moved back.
+3. **Zero Move-Back Forfeit**: Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent. The Secretary's penalty action immediately transitions the reservation to `forfeited` instead of shifting position or starting a timer.
+4. **Penalty Timer**: When Move-Back is greater than 0, Penalize also starts a countdown (`penaltyTimerStartedAt` / `penaltyTimerExpiresAt`) using **Penalty Timer** minutes (`systemConfiguration/{branchId}/penaltyTimerMinutes`, default 15, range 5–30). Later penalties **keep the first expiry**. If the parent validates QR/code before expiry, the timer is cleared and they stay in queue at the new position. If the timer expires without check-in, the reservation is automatically `forfeited` (Cloud Function every minute, plus secretary desk fallback).
 5. **Constraint**: Applying a penalty triggers a queue recalculation, but it **never bypasses the Active Consultation Rule**.
 
 ---
@@ -63,6 +63,7 @@ The core tenet of the Queue Engine is clinical isolation:
 The `recalculateEntireQueue` function executes whenever a mutation occurs in the queue ecosystem:
 * New Reservation
 * Penalty Applied
+* Penalty timer expiry / forfeiture
 * Cancellation
 * Check-In
 * Consultation Start
@@ -81,7 +82,7 @@ The `recalculateEntireQueue` function executes whenever a mutation occurs in the
 The Secretary manages schedules and the flow of the physical clinic:
 * **Schedule Lifecycle**: Creates drafts, publishes schedules for their assigned branch, and starts the queue (`queueStatus: active`). The Doctor role has the same create/publish/start actions across all branches.
 * **Check In**: Verifies arrivals via QR scan or 6-character code.
-* **Penalize**: Applies penalties to absent patients who are #1 in the unchecked waiting queue.
+* **Penalize**: Applies penalties to absent patients who are #1 in the unchecked waiting queue, after the grace period has elapsed.
 * **Send to Doctor**: Promotes a `checked_in` patient to `with_doctor` **ONLY IF** there are zero active consultations.
 * **Remind Check-In**: Pings the next eligible patient to proceed to the desk.
 
@@ -134,8 +135,8 @@ The Queue Engine evaluates state eligibility in strict descending priority:
    * *A patient must be `checked_in` to be sent to the doctor.*
 4. **Queue Position Rule**
    * *Only the #1 sorted patient in the waiting queue is eligible for promotion or penalty.*
-5. **Penalty Limit Rule**
-   * *Penalty application must check `lateLimit` before simply shifting position.*
+5. **Penalty Timer Rule**
+   * *Penalty Move-Back 0 forfeits immediately. Otherwise Penalize moves the parent back and starts (or keeps) the first penalty timer; expiry without check-in forfeits.*
    * *Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent.*
 6. **Queue Recalculation Rule (Lowest)**
    * *Recalculations update UI and numbers, but always respect the blocking rules above.*

@@ -46,7 +46,7 @@ Default branches: **Angeles**, **Magalang**.
 {
   branch, clinicDate,              // "YYYY-MM-DD"
   openingTime, closingTime,
-  slotCapacity,                    // lateLimit is optional (legacy schedules only)
+  slotCapacity,                    // lateLimit on old schedules is ignored
 
   status: "draft" | "published" | "completed",
   queueStatus: "not_started" | "active" | "paused" | "closed" | "completed",
@@ -72,7 +72,9 @@ Default branches: **Angeles**, **Magalang**.
   ],
   doctorNotes,
   checkedIn, createdAt, reservationCreatedAt,
-  penaltyCount, lateCount
+  penaltyCount, lastPenalizedAt,
+  becameCurrentTurnAt,             // ms; first unchecked waiting ticket while queue is live
+  penaltyTimerStartedAt, penaltyTimerExpiresAt, penaltyTimerClearedAt,
 }
 ```
 
@@ -90,12 +92,16 @@ Default branches: **Angeles**, **Magalang**.
 ```js
 {
   penaltyMoveBack: 2,              // 0–10; 0 = immediate forfeit on penalty
-  lateLimit: 3,                    // 1–10; used by NEW schedules (legacy schedules keep their own lateLimit)
+  penaltyGraceMinutes: 2,          // 0–5; wait after becoming current-turn before Penalize
+  penaltyTimerMinutes: 15,         // 5–30; check-in deadline after first penalty
   sms: {
     nearingTurnAheadCount: 3,      // 1–10; first time aheadOfYou <= this count fires NEARING_TURN SMS (once per reservation)
     templateSlotReserved: "...",   // placeholders: {date} {timeRange} {queueNumber} {doctor} {branch}
+    templateSlotReservedActiveQueue: "...", // live queue booking: {queueNumber} {queuePosition}
     templateQueueStarted: "...",   // placeholders: {branch} {date}
     templateNearingTurn: "...",    // placeholders: {count} {queueNumber} {branch}
+    templatePenalized: "...",      // placeholders: {queueNumber} {queuePosition} {branch} {minutes}
+    templateForfeited: "...",      // placeholders: {queueNumber} {branch} {date}
     updatedAt: 0
   },
   updatedAt: 0
@@ -216,4 +222,4 @@ TEXTBEE_API_KEY=
 4. Secretary scans QR / enters code → `checkInReservation()` → `checked_in`
 5. Secretary sends to doctor → `sendToDoctor()` → `with_doctor` (blocked if consultation active)
 6. Doctor completes → `completeConsultation()` → releases slot, unlocks queue
-7. Penalties → `penalizeReservation()` shifts `sortTimestamp`, may forfeit at `lateLimit`
+7. Penalties → `penalizeReservation()` shifts `sortTimestamp`, starts/keeps first penalty timer; expiry or move-back 0 forfeits

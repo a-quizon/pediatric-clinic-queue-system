@@ -14,7 +14,7 @@ The Notification System keeps users informed of real-time clinic events and queu
 - **Notification Storage**: Persisted in the Firebase Realtime Database exclusively under `notifications/${parentId}`.
 - **Push Subscriptions**: Native Web Push subscriptions (endpoint + `p256dh`/`auth` keys) are stored under `users/${uid}/pushSubscriptions/{hash}` together with `notificationPermission`.
 - **Push Notification Flow**: Clinic events are observed server-side (Express RTDB listeners and Cloud Functions `onWrite`). The server writes the Notification Center record and dispatches a Web Push payload with the `web-push` library and VAPID keys. The root service worker (`/sw.js`) receives the `push` event and calls `self.registration.showNotification`. Clicking a notification opens `/parent/notifications` (or a context-specific URL).
-- **SMS Channel (textbee.dev)**: For `SLOT_RESERVED`, `QUEUE_STARTED`, and `NEARING_TURN`, the same server/Functions dispatcher also sends an SMS via the textbee REST API (`TEXTBEE_API_KEY`, global env — not per-branch). `SLOT_RESERVED` SMS fires when the parent finalizes patient info (`patientInfoCompleted` → true / Save Information), not on bare reservation create. `QUEUE_STARTED` is sent once per parent with an active reservation on that schedule (branch + date). Duplicate SMS is prevented with `smsDispatchedAt` on the notification record (same pattern as `pushDispatchedAt`). `NEARING_TURN` SMS fires the first time `aheadOfYou <=` that branch’s `nearingTurnAheadCount`, then is locked by `reservations/{reservationId}/nearTurnSmsSent` (transaction claim) so later position updates cannot re-send. A stable `dedupeKey` of `nearing_turn_${reservationId}` remains a second notification-layer lock. SMS message templates and the near-turn patients-ahead threshold are Secretary-configurable per branch under `systemConfiguration/{branchId}/sms` (defaults: count `3`, seeded templates). Push/toast near-turn copy stays system-managed but uses the same configured count.
+- **SMS Channel (textbee.dev)**: For `SLOT_RESERVED`, `QUEUE_STARTED`, `NEARING_TURN`, `PENALIZED`, and `FORFEITED`, the same server/Functions dispatcher also sends an SMS via the textbee REST API (`TEXTBEE_API_KEY`, global env — not per-branch). `SLOT_RESERVED` SMS fires when the parent finalizes patient info (`patientInfoCompleted` → true / Save Information), not on bare reservation create. If that schedule’s queue is already `active` / `paused` / `closed`, the **Active Queue Reservation** template is used instead of the normal confirmed-reservation template. `QUEUE_STARTED` is sent once per parent with an active reservation on that schedule (branch + date). Duplicate SMS is prevented with `smsDispatchedAt` on the notification record (same pattern as `pushDispatchedAt`). `NEARING_TURN` SMS fires the first time `aheadOfYou <=` that branch’s `nearingTurnAheadCount`, then is locked by `reservations/{reservationId}/nearTurnSmsSent` (transaction claim) so later position updates cannot re-send. A stable `dedupeKey` of `nearing_turn_${reservationId}` remains a second notification-layer lock. `PENALIZED` SMS fires on each secretary penalty that does not instantly forfeit. `FORFEITED` SMS fires when status becomes `forfeited` (timer expiry or move-back 0). SMS message templates and the near-turn patients-ahead threshold are Secretary-configurable per branch under `systemConfiguration/{branchId}/sms` (defaults: count `3`, seeded templates). Push/toast near-turn copy stays system-managed but uses the same configured count.
 
 ---
 
@@ -37,8 +37,8 @@ The system uses strict `NOTIFICATION_EVENTS` as the single source of truth for t
 | **QR_VERIFIED** | Arrival confirmed. | Secretary validates QR code. | Specific Parent |
 | **CONSULTATION_STARTED**| Patient is inside the room. | Secretary clicks "Send to Doctor" | Specific Parent |
 | **CONSULTATION_COMPLETED**| Visit is finished. | Doctor clicks "Complete Consultation" | Specific Parent |
-| **PENALIZED** | Patient was moved backward in line. | Secretary applies penalty. | Specific Parent |
-| **FORFEITED** | Patient exceeded late limit. | Secretary applies final penalty. | Specific Parent |
+| **PENALIZED** | Patient was moved backward in line; late timer started or kept. | Secretary applies penalty. | Specific Parent |
+| **FORFEITED** | Patient did not check in before the late timer expired, or Move-Back is 0. | Secretary Penalize or timer auto-expiry. | Specific Parent |
 
 ---
 
@@ -159,4 +159,6 @@ When modifying the Notification System, developers must verify the following con
 - [ ] ✓ Role filtering correctly blocks Doctors, Secretaries, and Admins from receiving persistent notifications.
 - [ ] ✓ `NEARING_TURN` threshold and SMS templates come from `systemConfiguration/{branchId}/sms` (defaults when missing); push/toast near-turn text stays count-synced only.
 - [ ] ✓ `NEARING_TURN` SMS sends once per reservation (`reservations/{id}/nearTurnSmsSent`) the first time `aheadOfYou <=` that branch’s count.
+- [ ] ✓ `PENALIZED` and `FORFEITED` send SMS in addition to Notification Center / push.
+- [ ] ✓ Booking after the queue has started uses the Active Queue Reservation SMS template, not the pre-start confirmed-reservation template.
 - [ ] ✓ Local deduplication prevents multiple identical toasts/DB entries firing at the same time.

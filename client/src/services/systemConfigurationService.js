@@ -7,9 +7,13 @@ const MAX_PENALTY_MOVE_BACK = 10;
 const MIN_PENALTY_MOVE_BACK = 0;
 const DEFAULT_PENALTY_MOVE_BACK = 2;
 
-export const MIN_LATE_LIMIT = 1;
-export const MAX_LATE_LIMIT = 10;
-export const DEFAULT_LATE_LIMIT = 3;
+export const MIN_PENALTY_TIMER_MINUTES = 5;
+export const MAX_PENALTY_TIMER_MINUTES = 30;
+export const DEFAULT_PENALTY_TIMER_MINUTES = 15;
+
+export const MIN_PENALTY_GRACE_MINUTES = 0;
+export const MAX_PENALTY_GRACE_MINUTES = 5;
+export const DEFAULT_PENALTY_GRACE_MINUTES = 2;
 
 export const MIN_NEARING_TURN_AHEAD = 1;
 export const MAX_NEARING_TURN_AHEAD = 10;
@@ -21,6 +25,8 @@ const LEGACY_GLOBAL_KEYS = new Set(["queue", "sms"]);
 export const SMS_TEMPLATE_PLACEHOLDERS = [
   "count",
   "queueNumber",
+  "queuePosition",
+  "minutes",
   "branch",
   "date",
   "timeRange",
@@ -41,6 +47,12 @@ export const DEFAULT_SMS_TEMPLATES = {
     "Please monitor your place in line and be ready when we notify you that your turn is near.",
   templateNearingTurn:
     "Only {count} patients ahead (Queue #{queueNumber}). Please head to the clinic now.",
+  templateSlotReservedActiveQueue:
+    "You reserved a slot on an active Queue. Queue Number: {queueNumber}. Queue Position: {queuePosition}. Please monitor your queue.",
+  templatePenalized:
+    "You were marked late and moved back in line (Queue #{queueNumber}, position {queuePosition}). Please validate your QR at {branch} within {minutes} minutes or this reservation will be forfeited.",
+  templateForfeited:
+    "Your reservation (Queue #{queueNumber}) at {branch} on {date} was forfeited because you did not check in on time. You may still book a new slot on the same schedule if slots are available.",
 };
 
 /** Previous merged Queue Started template — migrate RTDB copies back to the simple default. */
@@ -84,38 +96,56 @@ export const validatePenaltyMoveBack = (value) => {
   return { valid: true, value: parsed };
 };
 
-/**
- * Validates the per-branch late limit (max penalties before forfeit).
- */
-export const validateLateLimit = (value) => {
+const validateBoundedInteger = (value, { min, max, emptyLabel, noun }) => {
   if (value === null || value === undefined || value === "") {
-    return { valid: false, error: "Late Limit cannot be empty" };
+    return { valid: false, error: `${emptyLabel} cannot be empty` };
   }
 
   const parsed = Number(value);
   if (!Number.isInteger(parsed)) {
-    return { valid: false, error: "Late Limit must be a whole number" };
+    return { valid: false, error: `${noun} must be a whole number` };
   }
 
-  if (parsed < MIN_LATE_LIMIT) {
-    return { valid: false, error: `Late Limit must be at least ${MIN_LATE_LIMIT}` };
+  if (parsed < min) {
+    return { valid: false, error: `${noun} must be at least ${min}` };
   }
 
-  if (parsed > MAX_LATE_LIMIT) {
-    return { valid: false, error: `Late Limit cannot exceed ${MAX_LATE_LIMIT}` };
+  if (parsed > max) {
+    return { valid: false, error: `${noun} cannot exceed ${max}` };
   }
 
   return { valid: true, value: parsed };
 };
+
+export const validatePenaltyTimerMinutes = (value) =>
+  validateBoundedInteger(value, {
+    min: MIN_PENALTY_TIMER_MINUTES,
+    max: MAX_PENALTY_TIMER_MINUTES,
+    emptyLabel: "Penalty timer",
+    noun: "Penalty timer",
+  });
+
+export const validatePenaltyGraceMinutes = (value) =>
+  validateBoundedInteger(value, {
+    min: MIN_PENALTY_GRACE_MINUTES,
+    max: MAX_PENALTY_GRACE_MINUTES,
+    emptyLabel: "Penalty grace period",
+    noun: "Penalty grace period",
+  });
 
 const parsePenaltyMoveBack = (value) => {
   const validation = validatePenaltyMoveBack(value);
   return validation.valid ? validation.value : DEFAULT_PENALTY_MOVE_BACK;
 };
 
-const parseLateLimitValue = (value) => {
-  const validation = validateLateLimit(value);
-  return validation.valid ? validation.value : DEFAULT_LATE_LIMIT;
+const parsePenaltyTimerMinutes = (value) => {
+  const validation = validatePenaltyTimerMinutes(value);
+  return validation.valid ? validation.value : DEFAULT_PENALTY_TIMER_MINUTES;
+};
+
+const parsePenaltyGraceMinutes = (value) => {
+  const validation = validatePenaltyGraceMinutes(value);
+  return validation.valid ? validation.value : DEFAULT_PENALTY_GRACE_MINUTES;
 };
 
 /**
@@ -123,16 +153,9 @@ const parseLateLimitValue = (value) => {
  */
 const parseQueueConfig = (data) => ({
   penaltyMoveBack: parsePenaltyMoveBack(data?.penaltyMoveBack),
+  penaltyTimerMinutes: parsePenaltyTimerMinutes(data?.penaltyTimerMinutes),
+  penaltyGraceMinutes: parsePenaltyGraceMinutes(data?.penaltyGraceMinutes),
 });
-
-/**
- * True when an existing schedule still carries its own saved lateLimit.
- * New schedules omit the field and read live from the branch config.
- */
-export const hasOwnScheduleLateLimit = (schedule) => {
-  const parsed = Number(schedule?.lateLimit);
-  return Number.isFinite(parsed) && parsed >= MIN_LATE_LIMIT;
-};
 
 /**
  * Validates near-turn patients-ahead count.
@@ -221,6 +244,18 @@ export const validateSmsConfiguration = (input = {}) => {
   const near = validateSmsTemplate(input.templateNearingTurn, "Near Turn message");
   if (!near.valid) return near;
 
+  const activeSlot = validateSmsTemplate(
+    input.templateSlotReservedActiveQueue,
+    "Active Queue Reservation message"
+  );
+  if (!activeSlot.valid) return activeSlot;
+
+  const penalized = validateSmsTemplate(input.templatePenalized, "Penalty message");
+  if (!penalized.valid) return penalized;
+
+  const forfeited = validateSmsTemplate(input.templateForfeited, "Forfeiture message");
+  if (!forfeited.valid) return forfeited;
+
   return {
     valid: true,
     value: {
@@ -228,6 +263,9 @@ export const validateSmsConfiguration = (input = {}) => {
       templateSlotReserved: slot.value,
       templateQueueStarted: started.value,
       templateNearingTurn: near.value,
+      templateSlotReservedActiveQueue: activeSlot.value,
+      templatePenalized: penalized.value,
+      templateForfeited: forfeited.value,
     },
   };
 };
@@ -254,6 +292,18 @@ const parseSmsConfig = (data) => {
     data?.templateNearingTurn ?? DEFAULT_SMS_TEMPLATES.templateNearingTurn,
     "Near Turn message"
   );
+  const activeSlot = validateSmsTemplate(
+    data?.templateSlotReservedActiveQueue ?? DEFAULT_SMS_TEMPLATES.templateSlotReservedActiveQueue,
+    "Active Queue Reservation message"
+  );
+  const penalized = validateSmsTemplate(
+    data?.templatePenalized ?? DEFAULT_SMS_TEMPLATES.templatePenalized,
+    "Penalty message"
+  );
+  const forfeited = validateSmsTemplate(
+    data?.templateForfeited ?? DEFAULT_SMS_TEMPLATES.templateForfeited,
+    "Forfeiture message"
+  );
 
   return {
     nearingTurnAheadCount: aheadValidation.valid
@@ -268,12 +318,20 @@ const parseSmsConfig = (data) => {
     templateNearingTurn: near.valid
       ? near.value
       : DEFAULT_SMS_TEMPLATES.templateNearingTurn,
+    templateSlotReservedActiveQueue: activeSlot.valid
+      ? activeSlot.value
+      : DEFAULT_SMS_TEMPLATES.templateSlotReservedActiveQueue,
+    templatePenalized: penalized.valid
+      ? penalized.value
+      : DEFAULT_SMS_TEMPLATES.templatePenalized,
+    templateForfeited: forfeited.valid
+      ? forfeited.value
+      : DEFAULT_SMS_TEMPLATES.templateForfeited,
   };
 };
 
 const parseBranchConfig = (data) => ({
-  penaltyMoveBack: parsePenaltyMoveBack(data?.penaltyMoveBack),
-  lateLimit: parseLateLimitValue(data?.lateLimit),
+  ...parseQueueConfig(data),
   sms: parseSmsConfig(data?.sms),
 });
 
@@ -281,6 +339,8 @@ const isBranchConfigSeeded = (data) =>
   Boolean(
     data &&
       (data.penaltyMoveBack !== undefined ||
+        data.penaltyTimerMinutes !== undefined ||
+        data.penaltyGraceMinutes !== undefined ||
         data.lateLimit !== undefined ||
         (data.sms && typeof data.sms === "object"))
   );
@@ -356,14 +416,16 @@ export const ensureBranchSystemConfiguration = async (branchId) => {
   const legacy = await readLegacyGlobal();
   const parsed = parseBranchConfig({
     penaltyMoveBack: existing?.penaltyMoveBack ?? legacy.queue?.penaltyMoveBack,
-    lateLimit: existing?.lateLimit,
+    penaltyTimerMinutes: existing?.penaltyTimerMinutes,
+    penaltyGraceMinutes: existing?.penaltyGraceMinutes,
     sms: existing?.sms ?? legacy.sms,
   });
 
   try {
     await update(ref(database, path), {
       penaltyMoveBack: parsed.penaltyMoveBack,
-      lateLimit: parsed.lateLimit,
+      penaltyTimerMinutes: parsed.penaltyTimerMinutes,
+      penaltyGraceMinutes: parsed.penaltyGraceMinutes,
       sms: {
         ...parsed.sms,
         updatedAt: Date.now(),
@@ -389,7 +451,11 @@ export const getBranchSystemConfiguration = async (branchId) => {
  */
 export const getQueueConfiguration = async (branchId) => {
   const config = await getBranchSystemConfiguration(branchId);
-  return { penaltyMoveBack: config.penaltyMoveBack };
+  return {
+    penaltyMoveBack: config.penaltyMoveBack,
+    penaltyTimerMinutes: config.penaltyTimerMinutes,
+    penaltyGraceMinutes: config.penaltyGraceMinutes,
+  };
 };
 
 /**
@@ -461,53 +527,72 @@ export const updatePenaltyMoveBack = async (branchId, newValue) => {
   });
 };
 
-export const getLateLimit = async (branchId) => {
-  const config = await getBranchSystemConfiguration(branchId);
-  return config.lateLimit;
-};
-
-export const updateLateLimit = async (branchId, newValue) => {
+export const updatePenaltyTimerMinutes = async (branchId, newValue) => {
   if (!isUsableBranchId(branchId)) {
-    throw new Error("Branch is required to update Late Limit");
+    throw new Error("Branch is required to update Penalty Timer");
   }
 
-  const validation = validateLateLimit(newValue);
+  const validation = validatePenaltyTimerMinutes(newValue);
   if (!validation.valid) {
     throw new Error(validation.error);
   }
 
   const newSafeValue = validation.value;
   await ensureBranchSystemConfiguration(branchId);
-  const currentValue = await getLateLimit(branchId);
+  const currentConfig = await getQueueConfiguration(branchId);
+  const currentValue = currentConfig.penaltyTimerMinutes;
 
   if (currentValue === newSafeValue) {
     return;
   }
 
   await update(ref(database, branchConfigPath(branchId)), {
-    lateLimit: newSafeValue,
+    penaltyTimerMinutes: newSafeValue,
     updatedAt: Date.now(),
   });
 
   logAuditEvent({
     action: AUDIT_ACTIONS.SYSTEM_CONFIGURATION_CHANGED,
     category: AUDIT_CATEGORIES.SYSTEM_MANAGEMENT,
-    description: `Changed Late Limit from ${currentValue} to ${newSafeValue}`,
+    description: `Changed Penalty Timer from ${currentValue} to ${newSafeValue} minutes`,
     targetType: "systemConfiguration",
     targetId: branchId,
     branchId,
   });
 };
 
-/**
- * Hybrid Late Limit: saved per-schedule value for existing records, else live branch config.
- */
-export const resolveLateLimitForSchedule = async (schedule) => {
-  if (hasOwnScheduleLateLimit(schedule)) {
-    return Number(schedule.lateLimit);
+export const updatePenaltyGraceMinutes = async (branchId, newValue) => {
+  if (!isUsableBranchId(branchId)) {
+    throw new Error("Branch is required to update Penalty Grace Period");
   }
-  const branchId = await resolveScheduleBranchId(schedule);
-  return getLateLimit(branchId);
+
+  const validation = validatePenaltyGraceMinutes(newValue);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
+  const newSafeValue = validation.value;
+  await ensureBranchSystemConfiguration(branchId);
+  const currentConfig = await getQueueConfiguration(branchId);
+  const currentValue = currentConfig.penaltyGraceMinutes;
+
+  if (currentValue === newSafeValue) {
+    return;
+  }
+
+  await update(ref(database, branchConfigPath(branchId)), {
+    penaltyGraceMinutes: newSafeValue,
+    updatedAt: Date.now(),
+  });
+
+  logAuditEvent({
+    action: AUDIT_ACTIONS.SYSTEM_CONFIGURATION_CHANGED,
+    category: AUDIT_CATEGORIES.SYSTEM_MANAGEMENT,
+    description: `Changed Penalty Grace Period from ${currentValue} to ${newSafeValue} minutes`,
+    targetType: "systemConfiguration",
+    targetId: branchId,
+    branchId,
+  });
 };
 
 /**
@@ -563,7 +648,10 @@ export const updateSmsConfiguration = async (branchId, input) => {
     current.nearingTurnAheadCount === next.nearingTurnAheadCount &&
     current.templateSlotReserved === next.templateSlotReserved &&
     current.templateQueueStarted === next.templateQueueStarted &&
-    current.templateNearingTurn === next.templateNearingTurn;
+    current.templateNearingTurn === next.templateNearingTurn &&
+    current.templateSlotReservedActiveQueue === next.templateSlotReservedActiveQueue &&
+    current.templatePenalized === next.templatePenalized &&
+    current.templateForfeited === next.templateForfeited;
 
   if (unchanged) {
     return current;
@@ -591,6 +679,15 @@ export const updateSmsConfiguration = async (branchId, input) => {
   }
   if (current.templateNearingTurn !== next.templateNearingTurn) {
     changes.push("near-turn SMS template");
+  }
+  if (current.templateSlotReservedActiveQueue !== next.templateSlotReservedActiveQueue) {
+    changes.push("active-queue reservation SMS template");
+  }
+  if (current.templatePenalized !== next.templatePenalized) {
+    changes.push("penalty SMS template");
+  }
+  if (current.templateForfeited !== next.templateForfeited) {
+    changes.push("forfeiture SMS template");
   }
 
   logAuditEvent({

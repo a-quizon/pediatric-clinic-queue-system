@@ -235,8 +235,8 @@ export default function ParentQRCode() {
               <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500 border border-red-100 shadow-sm">
                 <AlertCircle className="w-10 h-10" />
               </div>
-              <h2 className="text-xl font-bold text-gray-800 mb-2">Late Limit Reached</h2>
-              <p className="text-gray-500 text-sm mt-2 font-medium max-w-xs mx-auto">This reservation exceeded the late limit and was removed from the queue.</p>
+              <h2 className="text-xl font-bold text-gray-800 mb-2">Reservation Forfeited</h2>
+              <p className="text-gray-500 text-sm mt-2 font-medium max-w-xs mx-auto">This reservation was forfeited because check-in did not happen on time.</p>
               <button
                 onClick={() => navigate("/parent/reserve")}
                 className="mt-6 py-2.5 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-sm"

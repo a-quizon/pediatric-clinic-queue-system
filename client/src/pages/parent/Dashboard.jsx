@@ -7,6 +7,7 @@ import { subscribeToParentReservations, subscribeToScheduleReservations, ACTIVE_
 import { getSchedules, subscribeToAllSchedules } from "../../services/scheduleService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { isReservationExpired, getRemainingValidationTime, formatRemainingTime } from "../../services/timeService";
+import { getPenaltyTimerRemainingMs, hasActivePenaltyTimer } from "../../utils/penaltyTimer";
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 import { computeReservationState, computeAheadOfYou, QUEUE_STATES } from "../../services/queueEngine";
 import PushNotificationSettings from "../../components/parent/PushNotificationSettings";
@@ -105,11 +106,12 @@ export default function Dashboard() {
     : "text-xl sm:text-2xl";
 
   const [tick, setTick] = useState(0);
+  const penaltyTimerActive = hasActivePenaltyTimer(activeReservation);
   useEffect(() => {
-    if (activeReservation?.status !== "validation_open") return;
+    if (activeReservation?.status !== "validation_open" && !penaltyTimerActive) return;
     const interval = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(interval);
-  }, [activeReservation?.status]);
+  }, [activeReservation?.status, penaltyTimerActive, activeReservation?.penaltyTimerExpiresAt]);
 
   const permanentQueueNumber = activeReservation ? (activeReservation.queueNumber || activeReservation.originalQueueNumber || 1) : null;
 
@@ -239,6 +241,7 @@ export default function Dashboard() {
   const waitingKeys = activeLine.filter((r) => !["in_consultation", "with_doctor"].includes(r.status));
   const guideFirst = waitingKeys[0]?.pNum;
   const guideLast = waitingKeys[waitingKeys.length - 1]?.pNum;
+  const penaltyRemainingMs = tick >= 0 ? getPenaltyTimerRemainingMs(activeReservation) : 0;
 
   return (
     <div className="space-y-5 pb-6 relative max-w-lg mx-auto">
@@ -278,6 +281,15 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+
+            {penaltyRemainingMs > 0 && (
+              <div className="mx-4 mb-3 pq-note pq-note-alert text-sm">
+                <p className="font-extrabold">Validate your QR at the desk</p>
+                <p className="mt-0.5 font-medium">
+                  You were marked late. Check in within {formatRemainingTime(penaltyRemainingMs)} or this reservation will be forfeited.
+                </p>
+              </div>
+            )}
 
             <Link to={`/parent/reservations/${activeReservation.id}/qr`} className="pq-ticket block">
               <div className="pq-ticket-num">

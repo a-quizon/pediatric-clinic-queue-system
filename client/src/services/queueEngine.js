@@ -1,6 +1,10 @@
 import { database } from "../firebase/database";
 import { ref, get, update, query, orderByChild, equalTo } from "firebase/database";
 import { ACTIVE_RESERVATION_STATUSES } from "./reservationService";
+import {
+  UNCHECKED_WAITING_STATUSES,
+  isLiveQueueStatus,
+} from "../utils/penaltyTimer";
 
 /**
  * Queue Engine
@@ -197,7 +201,34 @@ export const recalculateEntireQueue = async (scheduleId, options = {}) => {
       if (queueState) {
         updates[`reservations/${r.id}/queueState`] = queueState;
       }
+      if (r.becameCurrentTurnAt) {
+        updates[`reservations/${r.id}/becameCurrentTurnAt`] = null;
+      }
     });
+
+  let queueIsLive = false;
+  try {
+    const scheduleSnap = await get(ref(database, `schedules/${scheduleId}`));
+    queueIsLive = isLiveQueueStatus(scheduleSnap.exists() ? scheduleSnap.val()?.queueStatus : null);
+  } catch (error) {
+    console.warn("Could not read schedule queue status for current-turn stamp:", error);
+  }
+
+  const firstUnchecked = queueIsLive
+    ? activeQueue.find((r) => UNCHECKED_WAITING_STATUSES.includes(r.status))
+    : null;
+
+  scheduleReservations.forEach((r) => {
+    if (!activeStatuses.includes(r.status)) return;
+    const isCurrentTurn = Boolean(firstUnchecked && firstUnchecked.id === r.id);
+    if (isCurrentTurn) {
+      if (!r.becameCurrentTurnAt) {
+        updates[`reservations/${r.id}/becameCurrentTurnAt`] = Date.now();
+      }
+    } else if (r.becameCurrentTurnAt) {
+      updates[`reservations/${r.id}/becameCurrentTurnAt`] = null;
+    }
+  });
 
   // Step 7: Write ALL updated queue data back to Firebase
   if (Object.keys(updates).length > 0) {

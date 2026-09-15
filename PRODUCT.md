@@ -37,7 +37,7 @@ Used across physical pediatric clinic branches (product defaults include Angeles
 - Parent self-registration (SMS OTP phone verify → email/password → email verification → first child profile onboarding), then reserve, monitor, cancel (pre–check-in), and receive persistent Notification Center + Web Push + clinic SMS.
 - Secretary schedule publish / queue start, check-in, penalties/forfeit, send-to-doctor, walk-ins, branch-scoped operations.
 - Doctor schedule create/publish / queue start (any branch), queue session control (pause / resume / close), and consultation completion with optional notes.
-- Admin staff/branch/user management. Per-branch queue and SMS rules (penalty move-back, late limit, templates / near-turn threshold) are configured by each Secretary.
+- Admin staff/branch/user management. Per-branch queue and SMS rules (penalty move-back, grace period, penalty timer, templates / near-turn threshold) are configured by each Secretary.
 - Capacitor Android wrapper around the same web app (not a separate native design language).
 
 **Hard constraints to preserve**

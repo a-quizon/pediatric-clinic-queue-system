@@ -7,9 +7,10 @@ import {
   getQueueConfiguration,
   updatePenaltyMoveBack,
   validatePenaltyMoveBack,
-  getLateLimit,
-  updateLateLimit,
-  validateLateLimit,
+  updatePenaltyTimerMinutes,
+  validatePenaltyTimerMinutes,
+  updatePenaltyGraceMinutes,
+  validatePenaltyGraceMinutes,
   getSmsConfiguration,
   updateSmsConfiguration,
   validateSmsConfiguration,
@@ -18,8 +19,10 @@ import {
   MAX_SMS_TEMPLATE_LENGTH,
   MIN_NEARING_TURN_AHEAD,
   MAX_NEARING_TURN_AHEAD,
-  MIN_LATE_LIMIT,
-  MAX_LATE_LIMIT,
+  MIN_PENALTY_TIMER_MINUTES,
+  MAX_PENALTY_TIMER_MINUTES,
+  MIN_PENALTY_GRACE_MINUTES,
+  MAX_PENALTY_GRACE_MINUTES,
 } from "../../services/systemConfigurationService";
 
 export default function SystemSettings() {
@@ -28,11 +31,15 @@ export default function SystemSettings() {
   const branchLabel = formatBranchLabel(user?.assignedBranch) || "your assigned branch";
 
   const [penaltyMoveBack, setPenaltyMoveBack] = useState("");
-  const [lateLimit, setLateLimit] = useState("");
+  const [penaltyTimerMinutes, setPenaltyTimerMinutes] = useState("");
+  const [penaltyGraceMinutes, setPenaltyGraceMinutes] = useState("");
   const [nearingTurnAheadCount, setNearingTurnAheadCount] = useState("");
   const [templateSlotReserved, setTemplateSlotReserved] = useState("");
+  const [templateSlotReservedActiveQueue, setTemplateSlotReservedActiveQueue] = useState("");
   const [templateQueueStarted, setTemplateQueueStarted] = useState("");
   const [templateNearingTurn, setTemplateNearingTurn] = useState("");
+  const [templatePenalized, setTemplatePenalized] = useState("");
+  const [templateForfeited, setTemplateForfeited] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [savingQueue, setSavingQueue] = useState(false);
@@ -51,17 +58,20 @@ export default function SystemSettings() {
   const fetchConfig = async () => {
     try {
       setLoading(true);
-      const [queueConfig, branchLateLimit, smsConfig] = await Promise.all([
+      const [queueConfig, smsConfig] = await Promise.all([
         getQueueConfiguration(branchId),
-        getLateLimit(branchId),
         getSmsConfiguration(branchId),
       ]);
       setPenaltyMoveBack(queueConfig.penaltyMoveBack.toString());
-      setLateLimit(branchLateLimit.toString());
+      setPenaltyTimerMinutes(queueConfig.penaltyTimerMinutes.toString());
+      setPenaltyGraceMinutes(queueConfig.penaltyGraceMinutes.toString());
       setNearingTurnAheadCount(smsConfig.nearingTurnAheadCount.toString());
       setTemplateSlotReserved(smsConfig.templateSlotReserved);
+      setTemplateSlotReservedActiveQueue(smsConfig.templateSlotReservedActiveQueue);
       setTemplateQueueStarted(smsConfig.templateQueueStarted);
       setTemplateNearingTurn(smsConfig.templateNearingTurn);
+      setTemplatePenalized(smsConfig.templatePenalized);
+      setTemplateForfeited(smsConfig.templateForfeited);
     } catch (err) {
       console.error("Failed to load configuration", err);
       toast.error("Failed to load system settings");
@@ -79,21 +89,37 @@ export default function SystemSettings() {
 
     if (queueError) {
       const penalty = validatePenaltyMoveBack(value);
-      const limit = validateLateLimit(lateLimit);
-      if (penalty.valid && limit.valid) setQueueError(null);
+      const timer = validatePenaltyTimerMinutes(penaltyTimerMinutes);
+      const grace = validatePenaltyGraceMinutes(penaltyGraceMinutes);
+      if (penalty.valid && timer.valid && grace.valid) setQueueError(null);
     }
   };
 
-  const handleLateLimitChange = (e) => {
+  const handleTimerChange = (e) => {
     const value = e.target.value;
     if (value !== "" && (value.includes("-") || Number(value) < 0)) {
       return;
     }
-    setLateLimit(value);
+    setPenaltyTimerMinutes(value);
     if (queueError) {
       const penalty = validatePenaltyMoveBack(penaltyMoveBack);
-      const limit = validateLateLimit(value);
-      if (penalty.valid && limit.valid) setQueueError(null);
+      const timer = validatePenaltyTimerMinutes(value);
+      const grace = validatePenaltyGraceMinutes(penaltyGraceMinutes);
+      if (penalty.valid && timer.valid && grace.valid) setQueueError(null);
+    }
+  };
+
+  const handleGraceChange = (e) => {
+    const value = e.target.value;
+    if (value !== "" && (value.includes("-") || Number(value) < 0)) {
+      return;
+    }
+    setPenaltyGraceMinutes(value);
+    if (queueError) {
+      const penalty = validatePenaltyMoveBack(penaltyMoveBack);
+      const timer = validatePenaltyTimerMinutes(penaltyTimerMinutes);
+      const grace = validatePenaltyGraceMinutes(value);
+      if (penalty.valid && timer.valid && grace.valid) setQueueError(null);
     }
   };
 
@@ -107,8 +133,11 @@ export default function SystemSettings() {
       const validation = validateSmsConfiguration({
         nearingTurnAheadCount: value,
         templateSlotReserved,
+        templateSlotReservedActiveQueue,
         templateQueueStarted,
         templateNearingTurn,
+        templatePenalized,
+        templateForfeited,
       });
       if (validation.valid) setSmsError(null);
     }
@@ -120,9 +149,14 @@ export default function SystemSettings() {
       setQueueError(penalty.error);
       return;
     }
-    const limit = validateLateLimit(lateLimit);
-    if (!limit.valid) {
-      setQueueError(limit.error);
+    const timer = validatePenaltyTimerMinutes(penaltyTimerMinutes);
+    if (!timer.valid) {
+      setQueueError(timer.error);
+      return;
+    }
+    const grace = validatePenaltyGraceMinutes(penaltyGraceMinutes);
+    if (!grace.valid) {
+      setQueueError(grace.error);
       return;
     }
 
@@ -131,11 +165,13 @@ export default function SystemSettings() {
       setQueueError(null);
       await Promise.all([
         updatePenaltyMoveBack(branchId, penalty.value),
-        updateLateLimit(branchId, limit.value),
+        updatePenaltyTimerMinutes(branchId, timer.value),
+        updatePenaltyGraceMinutes(branchId, grace.value),
       ]);
       toast.success("Queue rules updated for this branch.");
       setPenaltyMoveBack(penalty.value.toString());
-      setLateLimit(limit.value.toString());
+      setPenaltyTimerMinutes(timer.value.toString());
+      setPenaltyGraceMinutes(grace.value.toString());
     } catch (err) {
       console.error("Failed to save queue configuration", err);
       setQueueError(err.message || "An unexpected error occurred while saving.");
@@ -149,8 +185,11 @@ export default function SystemSettings() {
     const validation = validateSmsConfiguration({
       nearingTurnAheadCount,
       templateSlotReserved,
+      templateSlotReservedActiveQueue,
       templateQueueStarted,
       templateNearingTurn,
+      templatePenalized,
+      templateForfeited,
     });
     if (!validation.valid) {
       setSmsError(validation.error);
@@ -164,8 +203,11 @@ export default function SystemSettings() {
       toast.success("SMS configuration updated for this branch.");
       setNearingTurnAheadCount(saved.nearingTurnAheadCount.toString());
       setTemplateSlotReserved(saved.templateSlotReserved);
+      setTemplateSlotReservedActiveQueue(saved.templateSlotReservedActiveQueue);
       setTemplateQueueStarted(saved.templateQueueStarted);
       setTemplateNearingTurn(saved.templateNearingTurn);
+      setTemplatePenalized(saved.templatePenalized);
+      setTemplateForfeited(saved.templateForfeited);
     } catch (err) {
       console.error("Failed to save SMS configuration", err);
       setSmsError(err.message || "An unexpected error occurred while saving.");
@@ -234,7 +276,7 @@ export default function SystemSettings() {
         <div className="p-5 sm:p-6" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <h3 className="text-lg font-extrabold tracking-tight mb-1">Queue Rules</h3>
           <p className="pq-muted text-sm mb-5 max-w-2xl">
-            These two values control how penalties work for this branch only.
+            These values control how penalties and late forfeiture work for this branch only.
           </p>
 
           <div className="space-y-5">
@@ -263,22 +305,45 @@ export default function SystemSettings() {
 
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <label htmlFor="lateLimit" className="pq-label">
-                  Late Limit ({MIN_LATE_LIMIT}–{MAX_LATE_LIMIT})
+                <label htmlFor="penaltyGraceMinutes" className="pq-label">
+                  Penalty Grace Period ({MIN_PENALTY_GRACE_MINUTES}–{MAX_PENALTY_GRACE_MINUTES} min)
                 </label>
                 <p className="pq-muted text-sm">
-                  Maximum penalties before a parent is forfeited. New schedules use this automatically. Older schedules keep their saved limit.
+                  How long after a parent becomes next in line before Penalize is available. Protects parents who are walking in as they are called.
                 </p>
               </div>
               <div className="w-full sm:w-32 shrink-0">
                 <input
-                  id="lateLimit"
+                  id="penaltyGraceMinutes"
                   type="number"
-                  min={MIN_LATE_LIMIT}
-                  max={MAX_LATE_LIMIT}
+                  min={MIN_PENALTY_GRACE_MINUTES}
+                  max={MAX_PENALTY_GRACE_MINUTES}
                   step="1"
-                  value={lateLimit}
-                  onChange={handleLateLimitChange}
+                  value={penaltyGraceMinutes}
+                  onChange={handleGraceChange}
+                  className="pq-input text-center text-lg font-extrabold"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <label htmlFor="penaltyTimerMinutes" className="pq-label">
+                  Penalty Timer ({MIN_PENALTY_TIMER_MINUTES}–{MAX_PENALTY_TIMER_MINUTES} min)
+                </label>
+                <p className="pq-muted text-sm">
+                  After Penalize, the parent must validate their QR within this time or they are forfeited. Later penalties keep the first expiry.
+                </p>
+              </div>
+              <div className="w-full sm:w-32 shrink-0">
+                <input
+                  id="penaltyTimerMinutes"
+                  type="number"
+                  min={MIN_PENALTY_TIMER_MINUTES}
+                  max={MAX_PENALTY_TIMER_MINUTES}
+                  step="1"
+                  value={penaltyTimerMinutes}
+                  onChange={handleTimerChange}
                   className="pq-input text-center text-lg font-extrabold"
                 />
               </div>
@@ -296,7 +361,7 @@ export default function SystemSettings() {
           <button
             type="button"
             onClick={handleSaveQueue}
-            disabled={savingQueue || penaltyMoveBack === "" || lateLimit === ""}
+            disabled={savingQueue || penaltyMoveBack === "" || penaltyTimerMinutes === "" || penaltyGraceMinutes === ""}
             className="pq-btn-primary"
           >
             {savingQueue ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Save className="w-4 h-4" aria-hidden="true" />}
@@ -385,6 +450,79 @@ export default function SystemSettings() {
                 className="pq-input resize-y min-h-[8rem] font-mono text-sm"
               />
               {renderCharHint(templateSlotReserved)}
+            </div>
+
+            <div>
+              <label htmlFor="templateSlotReservedActiveQueue" className="pq-label">Active Queue Reservation Message</label>
+              <p className="pq-muted text-sm mb-3">Sent instead of the confirmed-reservation message when the parent books after the queue has already started.</p>
+              <div className="flex flex-wrap gap-2 mb-3 mt-2">
+                {["queueNumber", "queuePosition"].map((ph) => (
+                  <button
+                    key={ph}
+                    type="button"
+                    onClick={() => insertPlaceholder(setTemplateSlotReservedActiveQueue, templateSlotReservedActiveQueue, ph)}
+                    className="pq-btn-secondary text-xs py-1 px-2.5"
+                  >
+                    {`{${ph}}`}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                id="templateSlotReservedActiveQueue"
+                rows={4}
+                value={templateSlotReservedActiveQueue}
+                onChange={(e) => setTemplateSlotReservedActiveQueue(e.target.value)}
+                className="pq-input resize-y min-h-[6rem]"
+              />
+              {renderCharHint(templateSlotReservedActiveQueue)}
+            </div>
+
+            <div>
+              <label htmlFor="templatePenalized" className="pq-label">Penalty Message</label>
+              <div className="flex flex-wrap gap-2 mb-3 mt-2">
+                {["queueNumber", "queuePosition", "branch", "minutes"].map((ph) => (
+                  <button
+                    key={ph}
+                    type="button"
+                    onClick={() => insertPlaceholder(setTemplatePenalized, templatePenalized, ph)}
+                    className="pq-btn-secondary text-xs py-1 px-2.5"
+                  >
+                    {`{${ph}}`}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                id="templatePenalized"
+                rows={4}
+                value={templatePenalized}
+                onChange={(e) => setTemplatePenalized(e.target.value)}
+                className="pq-input resize-y min-h-[6rem]"
+              />
+              {renderCharHint(templatePenalized)}
+            </div>
+
+            <div>
+              <label htmlFor="templateForfeited" className="pq-label">Forfeiture Message</label>
+              <div className="flex flex-wrap gap-2 mb-3 mt-2">
+                {["queueNumber", "branch", "date"].map((ph) => (
+                  <button
+                    key={ph}
+                    type="button"
+                    onClick={() => insertPlaceholder(setTemplateForfeited, templateForfeited, ph)}
+                    className="pq-btn-secondary text-xs py-1 px-2.5"
+                  >
+                    {`{${ph}}`}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                id="templateForfeited"
+                rows={4}
+                value={templateForfeited}
+                onChange={(e) => setTemplateForfeited(e.target.value)}
+                className="pq-input resize-y min-h-[6rem]"
+              />
+              {renderCharHint(templateForfeited)}
             </div>
 
             <div>

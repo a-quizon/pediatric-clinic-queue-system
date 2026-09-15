@@ -66,7 +66,7 @@ export default function Profile() {
             </div>
             <div className="min-w-0">
               <span className="font-extrabold tracking-tight block">System Configuration</span>
-              <span className="pq-muted text-sm">Penalty, late limit, and SMS rules for this branch</span>
+              <span className="pq-muted text-sm">Penalty timer, grace period, and SMS rules for this branch</span>
             </div>
           </div>
           <ChevronRight className="w-5 h-5 pq-faint shrink-0" aria-hidden="true" />

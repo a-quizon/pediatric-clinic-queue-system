@@ -143,12 +143,12 @@ State model: `AuthContext` + Firebase `onValue` listeners. No Redux / Zustand / 
 | `/secretary/validate` | QR scan or 6-char code check-in |
 | `/secretary/queue` | Manage Queue: remind check-in, penalize, send to doctor |
 | `/secretary/profile` | Profile + **Walk-in Patient** entry |
-| `/secretary/settings` | Per-branch System Configuration (Penalty Move-Back, Late Limit, SMS templates) |
+| `/secretary/settings` | Per-branch System Configuration (Penalty Move-Back, Grace Period, Penalty Timer, SMS templates) |
 | `/secretary/monitor` | Full-screen Queue Monitor (outside main layout) |
 
 #### Workflow A — Create and open a clinic day
 
-1. Secretary or Doctor creates a **draft** schedule (Secretary: **their assigned branch**; Doctor: any branch) (date, opening/closing times within branch hours, `slotCapacity`). Late Limit is **not** entered on the form — new schedules use `systemConfiguration/{branchId}/lateLimit`.
+1. Secretary or Doctor creates a **draft** schedule (Secretary: **their assigned branch**; Doctor: any branch) (date, opening/closing times within branch hours, `slotCapacity`). Late Limit is no longer collected; penalty timer/grace come from `systemConfiguration/{branchId}`.
 2. Publishes schedule → `status: published`, `queueStatus: not_started`; parents can book; **SCHEDULE_AVAILABLE** notifications fire.
 3. When floor opens, secretary **starts queue** → `queueStatus: active`; **QUEUE_STARTED** push/SMS to parents with active reservations on that schedule.
 
@@ -231,7 +231,7 @@ Secretary or Doctor **starts** the queue; doctor **controls** the live session a
 | `clinicDate` | `YYYY-MM-DD` |
 | `openingTime` / `closingTime` | Must fit branch weekly hours |
 | `slotCapacity` | Max concurrent **active** reservations |
-| `lateLimit` | Optional legacy field. New schedules omit it and use the branch System Configuration Late Limit. |
+| `lateLimit` | Ignored legacy field on old schedules. Penalty count no longer forfeits. |
 | `status` | `draft` → `published` → `completed` |
 | `queueStatus` | `not_started` → `active` → `paused` / `closed` → `completed` |
 
@@ -350,15 +350,17 @@ Parameters:
 | Setting | Where | Default | Effect |
 |---------|--------|---------|--------|
 | `penaltyMoveBack` | `systemConfiguration/{branchId}` (Secretary) | **2** (range 0–10) | How many places to shift back |
-| `lateLimit` | Saved on legacy schedules; else branch `systemConfiguration/{branchId}/lateLimit` | **3** | Penalties until forfeit |
+| `penaltyGraceMinutes` | `systemConfiguration/{branchId}` | **2** (range 0–5) | Wait after becoming current-turn before Penalize is enabled |
+| `penaltyTimerMinutes` | `systemConfiguration/{branchId}` | **15** (range 5–30) | Check-in deadline after first penalty |
 
 Behavior of `penalizeReservation`:
 
 1. Increment `penaltyCount`.
-2. If `penaltyMoveBack === 0` **OR** `penaltyCount >= lateLimit` → status **`forfeited`** (terminal); slot released; removed from active queue.
-3. Else rewrite `sortTimestamp` to sit behind N waiting patients (or end if fewer remain).
-4. Always `recalculateEntireQueue`.
-5. Parent receives **PENALIZED** or **FORFEITED** notifications (if they have a parent account).
+2. If `penaltyMoveBack === 0` → status **`forfeited`** (terminal); slot released; removed from active queue. No timer.
+3. Else rewrite `sortTimestamp` to sit behind N waiting patients (or end if fewer remain). Set `penaltyTimerExpiresAt` on the **first** penalty only (later penalties keep that expiry). Clear `becameCurrentTurnAt`.
+4. Always `recalculateEntireQueue` (stamps `becameCurrentTurnAt` on the new first unchecked waiting patient when the queue is live).
+5. Parent receives **PENALIZED** (push + SMS) or **FORFEITED** (push + SMS) notifications (if they have a parent account).
+6. QR/code check-in clears the timer. If the timer expires without check-in, Cloud Function `expirePenaltyTimers` (every 1 minute) and secretary Manage Queue forfeit the reservation.
 
 Edge case: if alone in line, penalty count still increases but there may be nobody to move behind — they can remain #1.
 
@@ -426,13 +428,15 @@ OTP SMS is sent from the Express auth/OTP routes (`/api/auth/sms/*`).
 
 ### 4.2 Clinic / queue SMS trigger points
 
-Only **three** clinic SMS event types exist:
+Only **five** clinic SMS event types exist:
 
 | Event | Exact fire condition | Recipient | Template key |
 |-------|----------------------|-----------|--------------|
-| **SLOT_RESERVED** (Confirmed Reservation) | Reservation `patientInfoCompleted` transitions to **true** (parent **Save Information**). **Not** on bare `createReservation`. Walk-ins set this true at create but have no `parentId` → **no SMS**. | That parent’s phone | `templateSlotReserved` |
+| **SLOT_RESERVED** (Confirmed Reservation) | Reservation `patientInfoCompleted` transitions to **true** (parent **Save Information**). **Not** on bare `createReservation`. Walk-ins set this true at create but have no `parentId` → **no SMS**. If the schedule queue is already live (`active` / `paused` / `closed`), use the active-queue template instead. | That parent’s phone | `templateSlotReserved` or `templateSlotReservedActiveQueue` |
 | **QUEUE_STARTED** | Schedule `queueStatus` first becomes **`active`** | Each parent with an **active** reservation on that schedule | `templateQueueStarted` |
 | **NEARING_TURN** | After queue recalculation, first time reservation’s `aheadOfYou` **is at or below** `nearingTurnAheadCount` (default **3**). Locked by `reservations/{id}/nearTurnSmsSent`. | That parent | `templateNearingTurn` |
+| **PENALIZED** | `penaltyCount` increases and status is not `forfeited` | That parent | `templatePenalized` |
+| **FORFEITED** | Reservation status becomes **`forfeited`** | That parent | `templateForfeited` |
 
 **Deduplication:**
 
@@ -440,14 +444,17 @@ Only **three** clinic SMS event types exist:
 - SMS send is marked with `smsDispatchedAt` (same pattern as `pushDispatchedAt`) so pause/resume cannot re-spam.
 - `NEARING_TURN` is also locked on the reservation itself (`nearTurnSmsSent: true`, claimed with an RTDB transaction) so lingering at or below the threshold cannot re-send.
 
-**Placeholders allowed in Admin templates:** `{count}`, `{queueNumber}`, `{branch}`, `{date}`, `{timeRange}`, `{doctor}`  
+**Placeholders allowed in Secretary templates:** `{count}`, `{queueNumber}`, `{queuePosition}`, `{minutes}`, `{branch}`, `{date}`, `{timeRange}`, `{doctor}`  
 **Max template length:** 320 characters.
 
 **Default templates** (used when RTDB node missing / until Admin saves):
 
 - Slot reserved: confirms date, time range, queue number, doctor, branch.
+- Active queue reservation: queue number and position for bookings after the queue has started.
 - Queue started: announces queue start at `{branch}` for `{date}`.
 - Nearing turn: “Only `{count}` patients ahead (Queue `#{queueNumber}`). Please head to the clinic now.”
+- Penalized: moved back; validate QR within `{minutes}` minutes or forfeit.
+- Forfeited: did not check in on time; may still book a new slot on the same schedule.
 
 ---
 
@@ -481,23 +488,27 @@ OTP storage (`smsOtps/{phoneKey}`):
 | Key | Node | Range / notes |
 |-----|------|----------------|
 | `penaltyMoveBack` | `systemConfiguration/{branchId}` | 0–10; default 2; **0 = auto-forfeit on any penalty** |
-| `lateLimit` | `systemConfiguration/{branchId}` | 1–10; default 3; new schedules only (legacy schedules keep saved `lateLimit`) |
+| `penaltyGraceMinutes` | `systemConfiguration/{branchId}` | 0–5; default 2 |
+| `penaltyTimerMinutes` | `systemConfiguration/{branchId}` | 5–30; default 15 |
 | `nearingTurnAheadCount` | `systemConfiguration/{branchId}/sms` | 1–10; default 3 |
 | `templateSlotReserved` | `systemConfiguration/{branchId}/sms` | Secretary text + placeholders |
+| `templateSlotReservedActiveQueue` | `systemConfiguration/{branchId}/sms` | Used when booking after queue start |
 | `templateQueueStarted` | `systemConfiguration/{branchId}/sms` | Secretary text + placeholders |
 | `templateNearingTurn` | `systemConfiguration/{branchId}/sms` | Secretary text + placeholders |
+| `templatePenalized` | `systemConfiguration/{branchId}/sms` | Secretary text + placeholders |
+| `templateForfeited` | `systemConfiguration/{branchId}/sms` | Secretary text + placeholders |
 
 Secretary may read/write **only their assigned branch**. Doctors may read any branch (schedule display). Parents may read the `sms` child (near-turn threshold). Admin may read/write all branches. TextBee API key stays in server/Functions env (global).
 
 **Fixed / not Secretary-editable:**
 
-- Which events send SMS (only SLOT_RESERVED, QUEUE_STARTED, NEARING_TURN + OTP purposes)
+- Which events send SMS (SLOT_RESERVED, QUEUE_STARTED, NEARING_TURN, PENALIZED, FORFEITED + OTP purposes)
 - OTP message wording and TTL/attempt limits
 - TextBee as the gateway
 - Dedupe key strategy / `smsDispatchedAt`
 - Push/toast copy for most events (near-turn **count** is shared; push/toast wording for near-turn is system-managed but count-synced)
 - Parents-only persistent notifications rule
-- All other notification event types (ALMOST_NEXT, YOU_ARE_NEXT, PENALIZED, etc.) → Notification Center + push/toast, **not SMS**
+- All other notification event types (ALMOST_NEXT, YOU_ARE_NEXT, etc.) → Notification Center + push/toast, **not SMS**
 
 ---
 
@@ -543,7 +554,7 @@ Priority when delivering: **role restriction** → **dedupe** → **DB write** �
 | `reservations/{reservationId}` | Tickets / patients / queue fields / penalties / `nearTurnSmsSent` |
 | `notifications/{parentId}/{id}` | Parent Notification Center |
 | `auditLogs/{logId}` | Immutable staff/admin actions |
-| `systemConfiguration/{branchId}` | Penalty Move-Back, Late Limit, SMS templates (per branch) |
+| `systemConfiguration/{branchId}` | Penalty Move-Back, Grace Period, Penalty Timer, SMS templates (per branch) |
 | `smsOtps/{phoneKey}` | Hashed OTPs (server only) |
 | `phoneVerifications/{phoneKey}` | Short-lived phone proofs (server only) |
 

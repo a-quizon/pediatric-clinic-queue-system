@@ -21,7 +21,7 @@ A reservation follows a strict linear progression, with early exits for cancella
 
 **Early Exits:**
 * **Cancelled**: Terminated manually by the parent.
-* **Forfeited**: Terminated by the Secretary due to exceeding the clinic's late penalty limit, or immediately when Penalty Move-Back is 0.
+* **Forfeited**: Terminated because the late penalty timer expired without check-in, or immediately when Penalty Move-Back is 0.
 
 ---
 
@@ -35,7 +35,7 @@ A reservation follows a strict linear progression, with early exits for cancella
 | **in_consultation** | Patient is actively being seen. | Interchangeable with `with_doctor`. | `consultation_completed` |
 | **consultation_completed**| The medical visit is finished. | Doctor clicks "Complete Consultation". | *(Terminal State)* |
 | **cancelled** | The reservation was abandoned. | Parent clicks "Cancel". | *(Terminal State)* |
-| **forfeited** | Exceeded late limit, or Penalty Move-Back is 0. Slot is lost. | Secretary applies a penalty that triggers forfeit. | *(Terminal State)* |
+| **forfeited** | Penalty timer expired without check-in, or Penalty Move-Back is 0. Slot is lost. | Secretary Penalize (timer or move-back 0), or timer auto-expiry. | *(Terminal State)* |
 
 
 ---
@@ -106,7 +106,7 @@ Slots are evaluated dynamically at runtime by counting active reservations.
 * **Monitor Floor**: Observes the physical clinic flow.
 * **Check In**: Validates QR codes or the 6-character reservation code (camera auto-starts on the Validation screen; manual entry auto-submits at full length).
 * **Walk-in Patient**: From Profile, the secretary may create a reservation for one or more children physically present at the clinic without a parent account. The record is stored with `source: "walk_in"`, `createdBy` set to the secretary’s uid, and **no** `parentId` / `parentEmail` (the one-active-reservation-per-parent rule does not apply). Patient data uses the same `children[]` + shared `concern` model as parent bookings; multiple children still consume **one** slot and one queue ticket. On submit the reservation is created already `checked_in` (QR/code validation is skipped) and injected into the Queue Engine like any other reservation, so it appears on Manage Queue, the doctor’s live queue, and doctor Reports once the schedule completes.
-* **Penalize**: Applies penalties to absent patients. Patients are moved backward by the branch-configured Penalty Move-Back count. Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent. If the penalty count reaches `lateLimit` (legacy: saved on the schedule; new schedules: that branch’s System Configuration, default 3), the Secretary's action automatically transitions the reservation to `forfeited`.
+* **Penalize**: Enabled on the first unchecked waiting patient after the branch Penalty Grace Period. Moves them backward by Penalty Move-Back. Setting Move-Back to 0 forfeits immediately. Otherwise a Penalty Timer starts (later penalties keep the first expiry). Check-in before expiry clears the timer. Timer expiry forfeits automatically. There is no maximum penalty count.
 * **Send to Doctor**: Manages the final gateway into the consultation room, strictly abiding by the Active Consultation lock.
 
 ---
@@ -141,7 +141,7 @@ When conflicting reservation events occur, the system evaluates them in this ord
 2. **Duplication Rule**: A parent cannot create a reservation if an active one already exists for that day.
 3. **Capacity Rule**: A reservation cannot be created if active + completed reservations >= slot capacity.
 4. **Active Consultation Rule**: A reservation cannot transition to `with_doctor` if another reservation holds that state.
-5. **Penalty Limit Rule**: A reservation cannot simply shift backward if Penalty Move-Back is `0` or if its penalty count >= `lateLimit`; it must transition to `forfeited`. Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent.
+5. **Penalty Timer Rule**: A reservation forfeits immediately if Penalty Move-Back is `0`. Otherwise Penalize only shifts position and starts (or keeps) the first penalty timer; forfeiture happens when that timer expires without QR/code check-in.
 
 *Why this order?* Data integrity is paramount. Terminal states protect historical records. Duplication and Capacity rules protect the physical clinic from overcrowding. The Consultation rule protects the Doctor's workflow.
 

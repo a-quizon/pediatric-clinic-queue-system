@@ -60,7 +60,7 @@ Reservations act as the gateway into the Queue Engine.
 The Queue Engine governs the flow of active reservations.
 * **Queue Order**: The queue initially follows a strict First-In, First-Out (FIFO) pipeline based on creation time.
 * **Dynamic Ordering vs Permanent Identity**: Every reservation receives a permanent Ticket Number (`queueNumber`) that never changes. However, official penalty actions dynamically adjust the active `queueOrder` (the relative line position) without altering the original Ticket Number.
-* **Penalties**: If a patient is absent when called, the Secretary applies a penalty. This shifts their internal sorting timestamp backward by that branch’s Penalty Move-Back count (`systemConfiguration/{branchId}/penaltyMoveBack`), dynamically moving them behind other waiting patients. Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent.
+* **Penalties**: If a patient is absent when called (after the branch grace period), the Secretary applies a penalty. This shifts their internal sorting timestamp backward by that branch’s Penalty Move-Back count (`systemConfiguration/{branchId}/penaltyMoveBack`), dynamically moving them behind other waiting patients, and starts a penalty timer (`penaltyTimerMinutes`, default 15). Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent. If the timer expires without QR validation, the reservation is forfeited automatically.
 * **Consultation Lock**: The Queue Engine forcefully prevents any queue progression into the Doctor's room if an active consultation is already occurring.
 * **Queue Recalculation**: Any business event (check-in, penalty, cancellation, completion) triggers a full queue recalculation, updating UI states (like "You're Next") across the entire system instantly.
 
@@ -103,7 +103,7 @@ Notifications provide real-time transparency, reducing physical clinic congestio
 * **Reservation Confirmation**: SMS (+ Notification Center) when a parent successfully reserves a slot, including date, clinic hours, queue number, doctor, and branch.
 * **Queue Updates**: Pings parents proactively the first time they are at or below their branch’s near-turn threshold (`NEARING_TURN` SMS once per reservation via `nearTurnSmsSent`; default 3 patients ahead via `systemConfiguration/{branchId}/sms`), when their dynamic state shifts to "Almost Next" or "You're Next", or when the Secretary requests they approach the desk.
 * **Consultation Updates**: Confirms when they enter and exit the consultation room.
-* **Penalty Updates**: Alerts parents if they are penalized for absence or permanently forfeited due to exceeding the late limit.
+* **Penalty Updates**: Alerts parents if they are penalized for absence (including SMS that the countdown has started) or permanently forfeited for not checking in on time.
 * **Schedule Updates**: Informs parents when a new schedule becomes available, when the queue starts/pauses/closes, and when the session ends. Queue start also sends SMS via textbee.dev.
 * **SMS Authentication**: Parents may sign in with a 6-digit OTP delivered by textbee; OTP records live under `smsOtps` (Admin SDK only) and expire after 5 minutes.
 

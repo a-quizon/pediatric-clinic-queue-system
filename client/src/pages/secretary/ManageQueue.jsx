@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Users, UserCheck, Clock, CheckCircle, Activity, PlayCircle, AlertTriangle, Monitor } from "lucide-react";
-import { subscribeToScheduleReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder, cancelReservation } from "../../services/reservationService";
+import { subscribeToScheduleReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder, cancelReservation, forfeitReservationIfTimerExpired } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
-import { subscribeToQueueConfiguration, resolveLateLimitForSchedule } from "../../services/systemConfigurationService";
+import { subscribeToQueueConfiguration } from "../../services/systemConfigurationService";
 import { computeReservationState, QUEUE_STATES, sortActiveQueue } from "../../services/queueEngine";
 import { useAuth } from "../../hooks/useAuth";
 import { get, ref } from "firebase/database";
@@ -13,6 +13,12 @@ import ReservationPatientNames from "../../components/common/ReservationPatientN
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 import { PqSpinner } from "../../components/parent/pqUi";
+import { getServerTime, formatRemainingTime } from "../../services/timeService";
+import {
+  getPenaltyTimerRemainingMs,
+  getPenaltyGraceRemainingMs,
+  isPenaltyGraceElapsed,
+} from "../../utils/penaltyTimer";
 
 const isWalkInReservation = (res) => res?.source === "walk_in";
 
@@ -25,6 +31,7 @@ export default function ManageQueue({ hideHeader = false }) {
   const [actionLoading, setActionLoading] = useState(null);
   const [requestingCheckIn, setRequestingCheckIn] = useState(false);
   const [penaltyMoveBack, setPenaltyMoveBack] = useState(2);
+  const [penaltyGraceMinutes, setPenaltyGraceMinutes] = useState(2);
   const [nowTs, setNowTs] = useState(Date.now());
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [parentContactInfo, setParentContactInfo] = useState(null);
@@ -33,6 +40,7 @@ export default function ManageQueue({ hideHeader = false }) {
   const [contactReservation, setContactReservation] = useState(null);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const forfeitingRef = useRef(new Set());
 
   const closeContactModal = () => {
     if (isCancelling) return;
@@ -54,7 +62,7 @@ export default function ManageQueue({ hideHeader = false }) {
   }, [isContactModalOpen, isCancelConfirmOpen, isCancelling]);
 
   useEffect(() => {
-    const timer = setInterval(() => setNowTs(Date.now()), 1000);
+    const timer = setInterval(() => setNowTs(getServerTime()), 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -68,6 +76,7 @@ export default function ManageQueue({ hideHeader = false }) {
 
     const unsubConfig = subscribeToQueueConfiguration(user?.assignedBranchId, (config) => {
       setPenaltyMoveBack(config.penaltyMoveBack);
+      setPenaltyGraceMinutes(config.penaltyGraceMinutes);
     });
 
     return () => {
@@ -97,6 +106,18 @@ export default function ManageQueue({ hideHeader = false }) {
 
     return () => unsubReservations();
   }, [activeStartedSchedule?.id]);
+
+  useEffect(() => {
+    reservations.forEach((r) => {
+      const expiresAt = Number(r.penaltyTimerExpiresAt) || 0;
+      if (!expiresAt || expiresAt > nowTs) return;
+      if (forfeitingRef.current.has(r.id)) return;
+      forfeitingRef.current.add(r.id);
+      forfeitReservationIfTimerExpired(r.id)
+        .catch((err) => console.error("Failed to forfeit expired penalty timer", err))
+        .finally(() => forfeitingRef.current.delete(r.id));
+    });
+  }, [reservations, nowTs]);
 
   const loading = !schedulesLoaded || (!!activeStartedSchedule && !reservationsLoaded);
 
@@ -212,16 +233,10 @@ export default function ManageQueue({ hideHeader = false }) {
       setActionLoading(res.id);
       const schedule = schedules[res.scheduleId] || {};
       await penalizeReservation(res.id, schedule, reservations, penaltyMoveBack);
-      const newPenaltyCount = (res.penaltyCount || 0) + 1;
-      const lateLimit = await resolveLateLimitForSchedule(schedule);
-      if (penaltyMoveBack === 0 || newPenaltyCount >= lateLimit) {
-        toast.error(
-          penaltyMoveBack === 0
-            ? `${getReservationChildDisplayName(res, "Patient")} was forfeited because Penalty Move-Back is 0.`
-            : `${getReservationChildDisplayName(res, "Patient")} reached late limit (${lateLimit}) and was removed from the queue.`
-        );
+      if (penaltyMoveBack === 0) {
+        toast.error(`${getReservationChildDisplayName(res, "Patient")} was forfeited because Penalty Move-Back is 0.`);
       } else {
-        toast.success(`Penalty applied to ${getReservationChildDisplayName(res, "Patient")} (${newPenaltyCount}/${lateLimit}). Moved back in queue.`);
+        toast.success(`Penalty applied to ${getReservationChildDisplayName(res, "Patient")}. Moved back in queue and late timer started.`);
       }
     } catch (err) {
       toast.error("Failed to apply penalty");
@@ -459,9 +474,12 @@ export default function ManageQueue({ hideHeader = false }) {
                 isFirstWaiting &&
                 res.status === "checked_in" &&
                 inConsultationPatients.length === 0;
-              const canPenalize =
-                idx === firstUncheckedIdx && firstUncheckedIdx !== -1;
-              const hasRowActions = canSendToDoctor || canPenalize;
+              const isPenalizeTarget = idx === firstUncheckedIdx && firstUncheckedIdx !== -1;
+              const graceElapsed = isPenaltyGraceElapsed(res, penaltyGraceMinutes, nowTs);
+              const graceRemainingMs = getPenaltyGraceRemainingMs(res, penaltyGraceMinutes, nowTs);
+              const canPenalize = isPenalizeTarget && graceElapsed;
+              const hasRowActions = canSendToDoctor || isPenalizeTarget;
+              const timerRemainingMs = getPenaltyTimerRemainingMs(res, nowTs);
 
               return (
                 <div
@@ -496,6 +514,11 @@ export default function ManageQueue({ hideHeader = false }) {
                         Late ({res.penaltyCount})
                       </span>
                     )}
+                    {timerRemainingMs > 0 && (
+                      <span className="pq-chip pq-chip-alert shrink-0">
+                        Forfeit in {formatRemainingTime(timerRemainingMs)}
+                      </span>
+                    )}
                   </div>
 
                   <div className="justify-self-end">
@@ -517,16 +540,24 @@ export default function ManageQueue({ hideHeader = false }) {
                         </button>
                       )}
 
-                      {canPenalize && (
+                      {isPenalizeTarget && (
                         <button
                           type="button"
                           onClick={() => handlePenalize(res)}
-                          disabled={actionLoading === res.id}
+                          disabled={actionLoading === res.id || !canPenalize}
                           className="pq-btn-warn flex-1"
-                          title="Penalize absent patient (#1 waiting patient)"
+                          title={
+                            canPenalize
+                              ? "Penalize absent patient (#1 waiting patient)"
+                              : "Wait for the grace period after this parent became next in line"
+                          }
                         >
                           <AlertTriangle className="w-4 h-4" aria-hidden="true" />
-                          Penalize
+                          {canPenalize
+                            ? "Penalize"
+                            : graceRemainingMs == null
+                              ? "Penalize"
+                              : `Penalize (${Math.ceil(graceRemainingMs / 1000)}s)`}
                         </button>
                       )}
                     </div>
