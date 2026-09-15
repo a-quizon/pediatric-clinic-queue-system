@@ -23,10 +23,14 @@ import ChildProfileForm, {
   isChildProfileValid
 } from "../../components/parent/ChildProfileForm";
 import { formatBranchLabel, branchesMatch } from "../../utils/stringUtils";
+import { useTourSample } from "../../hooks/useTourPreview";
+import { TourSampleSchedulesBlock } from "../../components/onboarding/TourSampleViews";
 
 export default function ReserveQueue() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const showSampleSchedules = useTourSample(["reserve-schedule", "reserve-form"]);
+  const showSampleForm = useTourSample("reserve-form");
   
   const [schedules, setSchedules] = useState([]);
   const [parentReservationsList, setParentReservationsList] = useState([]);
@@ -308,6 +312,14 @@ export default function ReserveQueue() {
     setActiveReservationId(null);
   };
 
+  if (showSampleSchedules) {
+    return (
+      <div className="space-y-6 pb-6 relative">
+        <TourSampleSchedulesBlock showForm={showSampleForm} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-6 relative">
 
@@ -316,7 +328,7 @@ export default function ReserveQueue() {
           <span className="pq-spinner" />
         </div>
       ) : schedules.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5" data-tour="reserve-schedule-list">
           {schedules.map((schedule) => {
             const currentReservations = getReservationCount(schedule.id);
             
@@ -454,7 +466,7 @@ export default function ReserveQueue() {
           })}
         </div>
       ) : (
-        <div className="pq-glass overflow-hidden">
+        <div className="pq-glass overflow-hidden" data-tour="reserve-schedule-list">
           <div className="p-8 md:p-12 text-center">
             <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6" style={{ background: "color-mix(in srgb, var(--pq-ink) 8%, white)", color: "var(--pq-ink-faint)" }}>
               <CalendarDays className="w-8 h-8" />

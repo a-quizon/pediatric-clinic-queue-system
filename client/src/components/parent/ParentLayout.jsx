@@ -22,9 +22,9 @@ export default function ParentLayout() {
 
   const navItems = [
     { name: "Home", path: "/parent", icon: Home },
-    { name: "Reserve Queue", mobileName: "Reserve", path: "/parent/reserve", icon: CalendarPlus },
-    { name: "My Reservations", mobileName: "Tickets", path: "/parent/reservations", icon: Ticket },
-    { name: "My Profile", mobileName: "Profile", path: "/parent/profile", icon: User },
+    { name: "Reserve Queue", mobileName: "Reserve", path: "/parent/reserve", icon: CalendarPlus, tour: "nav-reserve" },
+    { name: "My Reservations", mobileName: "Tickets", path: "/parent/reservations", icon: Ticket, tour: "nav-tickets" },
+    { name: "My Profile", mobileName: "Profile", path: "/parent/profile", icon: User, tour: "nav-profile" },
   ];
 
   const isActive = (path) => {
@@ -96,6 +96,7 @@ export default function ParentLayout() {
               key={item.name}
               to={item.path}
               aria-current={isActive(item.path) ? "page" : undefined}
+              data-tour={item.tour}
               className={() =>
                 `pq-side-link ${isActive(item.path) ? "pq-side-link-active" : ""}`
               }
@@ -133,6 +134,7 @@ export default function ParentLayout() {
               onClick={() => navigate("/parent/notifications")}
               className="pq-icon-btn relative flex-shrink-0"
               aria-label="Notifications"
+              data-tour="nav-notifications"
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
@@ -160,6 +162,7 @@ export default function ParentLayout() {
                 to={item.path}
                 aria-label={item.name}
                 aria-current={active ? "page" : undefined}
+                data-tour={item.tour}
                 className={`pq-dock-item ${active ? "pq-dock-item-active" : ""}`}
               >
                 <item.icon

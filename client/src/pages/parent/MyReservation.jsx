@@ -6,10 +6,13 @@ import { subscribeToAllSchedules } from "../../services/scheduleService";
 import { subscribeToParentReservations } from "../../services/reservationService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { useAuth } from "../../hooks/useAuth";
+import { useTourSample } from "../../hooks/useTourPreview";
+import { TourSampleTicket } from "../../components/onboarding/TourSampleViews";
 
 export default function MyReservation() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const showSampleTicket = useTourSample("reservation-list");
   
   const [schedules, setSchedules] = useState({});
   const [allReservations, setAllReservations] = useState([]);
@@ -84,15 +87,35 @@ export default function MyReservation() {
     return `${formattedH}:${minutes} ${ampm}`;
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-5 pb-8 relative">
+        <p className="pq-muted text-sm">
+          View your active clinic reservations, check-in arrival passes, and real-time queue status.
+        </p>
+        <PqSpinner />
+      </div>
+    );
+  }
+
+  if (showSampleTicket && activeReservations.length === 0) {
+    return (
+      <div className="space-y-5 pb-8 relative">
+        <p className="pq-muted text-sm">
+          View your active clinic reservations, check-in arrival passes, and real-time queue status.
+        </p>
+        <TourSampleTicket />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-5 pb-8 relative">
+    <div className="space-y-5 pb-8 relative" data-tour="reservation-list">
       <p className="pq-muted text-sm">
           View your active clinic reservations, check-in arrival passes, and real-time queue status.
       </p>
 
-      {loading ? (
-        <PqSpinner />
-      ) : activeReservations.length > 0 ? (
+      {activeReservations.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {activeReservations.map((res) => {
             const schedule = schedules[res.scheduleId];
