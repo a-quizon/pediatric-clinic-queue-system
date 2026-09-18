@@ -1,5 +1,5 @@
 const admin = require("firebase-admin");
-const { UNCHECKED_WAITING_STATUSES, recalculateEntireQueueAdmin } = require("./queueRuntime");
+const { recalculateEntireQueueAdmin, canExpirePenaltyTimer } = require("./queueRuntime");
 
 const PENALTY_TIMER_FORFEIT_REASON =
   "Did not check in before the late penalty timer expired.";
@@ -45,7 +45,7 @@ async function expirePenaltyTimers() {
   for (const id of ids) {
     const result = await db().ref(`reservations/${id}`).transaction((current) => {
       if (!current) return;
-      if (!UNCHECKED_WAITING_STATUSES.includes(current.status)) return;
+      if (!canExpirePenaltyTimer(current)) return;
       const expiresAt = Number(current.penaltyTimerExpiresAt) || 0;
       if (!expiresAt || expiresAt > Date.now()) return;
       return applyForfeitFields(current, Date.now());

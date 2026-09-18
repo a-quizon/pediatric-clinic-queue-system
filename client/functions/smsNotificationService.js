@@ -422,6 +422,50 @@ async function enrichSmsContext(eventId, context = {}) {
   return enriched;
 }
 
+const SKIP_WALK_IN_SMS_QUEUE_STATUSES = ["active", "paused", "closed", "completed", "ended"];
+
+/**
+ * One-shot confirmed-reservation SMS for phone-in walk-ins.
+ * Walk-in `parentPhone` is used only at creation. Never used for Queue Started,
+ * Near Turn, Penalized, or Forfeited broadcasts (those require parentId).
+ */
+async function deliverWalkInReservationSms(reservation) {
+  if (!reservation || reservation.source !== "walk_in" || reservation.parentId) {
+    return { success: false, skipped: true, reason: "not_walk_in" };
+  }
+  const phone = normalizePhoneE164(reservation.parentPhone || "");
+  if (!phone) {
+    return { success: false, skipped: true, reason: "no_phone" };
+  }
+  if (!reservation.scheduleId) {
+    return { success: false, skipped: true, reason: "no_schedule" };
+  }
+
+  const snap = await db().ref(`schedules/${reservation.scheduleId}`).once("value");
+  if (!snap.exists()) {
+    return { success: false, skipped: true, reason: "schedule_missing" };
+  }
+  const schedule = snap.val() || {};
+  const queueStatus = schedule.queueStatus || "not_started";
+  if (SKIP_WALK_IN_SMS_QUEUE_STATUSES.includes(queueStatus)) {
+    return { success: false, skipped: true, reason: "queue_already_started" };
+  }
+
+  const smsContext = await enrichSmsContext("SLOT_RESERVED", {
+    phone,
+    reservationId: reservation.id,
+    scheduleId: reservation.scheduleId,
+    queueNumber: reservation.queueNumber ?? reservation.originalQueueNumber ?? reservation.queuePosition,
+    queuePosition: reservation.queueOrder ?? reservation.queuePosition,
+    branchId: reservation.branchId || reservation.branch || schedule.branchId || schedule.branch,
+    queueStatus: "not_started",
+  });
+  smsContext.phone = phone;
+  smsContext.queueStatus = "not_started";
+
+  return deliverSmsForNotification("SLOT_RESERVED", smsContext);
+}
+
 function computeAheadOfYouForSms(reservation, allReservations = []) {
   if (!reservation) return 0;
   if (
@@ -454,6 +498,7 @@ module.exports = {
   SMS_NOTIFICATION_EVENTS,
   DEFAULT_NEARING_TURN_AHEAD,
   deliverSmsForNotification,
+  deliverWalkInReservationSms,
   enrichSmsContext,
   buildSmsMessage,
   getSmsConfiguration,

@@ -51,10 +51,10 @@ The core tenet of the Queue Engine is clinical isolation:
 ---
 
 ## 6. Penalty Rules
-1. **Trigger**: Penalize is available on the first unchecked waiting patient only after that patient has been current-turn for the branch **Penalty Grace Period** (`systemConfiguration/{branchId}/penaltyGraceMinutes`, default 2, range 0–5). `becameCurrentTurnAt` is stamped by queue recalculation when the queue is live.
+1. **Trigger**: Penalize is available on the first unchecked waiting patient, **or** on a walk-in who is first in the waiting queue even if already `checked_in`, only after that patient has been current-turn for the branch **Penalty Grace Period** (`systemConfiguration/{branchId}/penaltyGraceMinutes`, default 2, range 0–5). `becameCurrentTurnAt` is stamped by queue recalculation when the queue is live (first unchecked ticket, or first waiting walk-in). Regular checked-in parents are not penalize targets.
 2. **Queue Shifting**: A penalized patient's `sortTimestamp` is recalculated to move them backward in the active queue by that branch’s **Penalty Move-Back** count (`systemConfiguration/{branchId}/penaltyMoveBack`, range 0–10), or to the very end if fewer patients remain behind them. There is no cap on how many times a parent can be moved back.
 3. **Zero Move-Back Forfeit**: Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent. The Secretary's penalty action immediately transitions the reservation to `forfeited` instead of shifting position or starting a timer.
-4. **Penalty Timer**: When Move-Back is greater than 0, Penalize also starts a countdown (`penaltyTimerStartedAt` / `penaltyTimerExpiresAt`) using **Penalty Timer** minutes (`systemConfiguration/{branchId}/penaltyTimerMinutes`, default 15, range 5–30). Later penalties **keep the first expiry**. If the parent validates QR/code before expiry, the timer is cleared and they stay in queue at the new position. If the timer expires without check-in, the reservation is automatically `forfeited` (Cloud Function every minute, plus secretary desk fallback).
+4. **Penalty Timer**: When Move-Back is greater than 0, Penalize also starts a countdown (`penaltyTimerStartedAt` / `penaltyTimerExpiresAt`) using **Penalty Timer** minutes (`systemConfiguration/{branchId}/penaltyTimerMinutes`, default 15, range 5–30). Later penalties **keep the first expiry**. If the parent validates QR/code before expiry, the timer is cleared and they stay in queue at the new position. If the timer expires without check-in, the reservation is automatically `forfeited` (Cloud Function every minute, plus secretary desk fallback). Walk-ins remain `checked_in` after Penalize; timer expiry still forfeits a walk-in (regular checked-in parents are never auto-forfeited this way).
 5. **Constraint**: Applying a penalty triggers a queue recalculation, but it **never bypasses the Active Consultation Rule**.
 
 ---
@@ -82,16 +82,17 @@ The `recalculateEntireQueue` function executes whenever a mutation occurs in the
 The Secretary manages schedules and the flow of the physical clinic:
 * **Schedule Lifecycle**: Creates drafts, publishes schedules for their assigned branch, and starts the queue (`queueStatus: active`). The Doctor role has the same create/publish/start actions across all branches.
 * **Check In**: Verifies arrivals via QR scan or 6-character code.
-* **Penalize**: Applies penalties to absent patients who are #1 in the unchecked waiting queue, after the grace period has elapsed.
+* **Penalize**: Applies penalties to absent patients who are #1 in the unchecked waiting queue, after the grace period has elapsed. Walk-ins who are #1 waiting remain penalizable even though they are created already `checked_in`.
 * **Send to Doctor**: Promotes a `checked_in` patient to `with_doctor` **ONLY IF** there are zero active consultations.
 * **Remind Check-In**: Pings the next eligible patient to proceed to the desk.
+* **Queue session controls**: Pause, Resume, Close Queue, and End Clinic Session from Manage Queue (same schedule writes as Doctor Queue Control). Completing a consultation stays Doctor-only.
 
 ---
 
 ## 9. Doctor Rules
 The Doctor controls the consultation room and live queue session controls:
 * **Schedule Lifecycle**: Creates drafts, publishes schedules for any branch, and starts the queue (`queueStatus: active`). Same validation and record shape as Secretary.
-* **Queue Control**: Pauses, resumes, or closes the live queue during an active clinic session. Pause stops consultation progression (complete consult); it does not block Secretary QR/code check-in.
+* **Queue Control**: Pauses, resumes, or closes the live queue during an active clinic session (Secretary can trigger the same four session actions from Manage Queue). Pause stops consultation progression (complete consult); it does not block Secretary QR/code check-in.
 * **Consultation**: Receives the patient (status shifts to `in_consultation` / `with_doctor`).
 * **Complete Consultation**: Ends the session, shifting the patient to `consultation_completed`. This crucially frees the Consultation Room, unlocking the Secretary's ability to send the next patient.
 * **Complete Schedule**: Ends the entire clinic session when appropriate from Queue Control.
@@ -120,7 +121,7 @@ When a Doctor clicks "Complete Consultation":
 ## 12. Edge Cases
 * **Empty Active Queue**: If no patients are waiting, no action can be taken.
 * **Penalized but only one waiting**: The patient's timestamp updates, but since there is no one to fall behind, they effectively remain #1 (but their penalty count increases).
-* **Missing Check-ins**: The Secretary can penalize the #1 patient if they haven't checked in, forcing the queue to bypass them.
+* **Missing Check-ins**: The Secretary can penalize the #1 patient if they haven't checked in, forcing the queue to bypass them. A walk-in who is #1 waiting can also be penalized even if already marked checked-in.
 
 ---
 

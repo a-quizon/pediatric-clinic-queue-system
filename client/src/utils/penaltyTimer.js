@@ -7,11 +7,21 @@ export const UNCHECKED_WAITING_STATUSES = [
 
 export const LIVE_QUEUE_STATUSES = ["active", "paused", "closed"];
 
+export const WALK_IN_PENALIZE_STATUSES = ["checked_in", "reserved", "waiting"];
+
 export const isUncheckedWaitingStatus = (status) =>
   UNCHECKED_WAITING_STATUSES.includes(status);
 
 export const isLiveQueueStatus = (queueStatus) =>
   LIVE_QUEUE_STATUSES.includes(queueStatus);
+
+export const isWalkInReservation = (reservation) => reservation?.source === "walk_in";
+
+export const canExpirePenaltyTimer = (reservation) => {
+  if (!reservation) return false;
+  if (isUncheckedWaitingStatus(reservation.status)) return true;
+  return isWalkInReservation(reservation) && WALK_IN_PENALIZE_STATUSES.includes(reservation.status);
+};
 
 export const getPenaltyTimerRemainingMs = (reservation, now = Date.now()) => {
   const expiresAt = Number(reservation?.penaltyTimerExpiresAt) || 0;
@@ -20,7 +30,7 @@ export const getPenaltyTimerRemainingMs = (reservation, now = Date.now()) => {
 };
 
 export const hasActivePenaltyTimer = (reservation, now = Date.now()) =>
-  isUncheckedWaitingStatus(reservation?.status) && getPenaltyTimerRemainingMs(reservation, now) > 0;
+  canExpirePenaltyTimer(reservation) && getPenaltyTimerRemainingMs(reservation, now) > 0;
 
 export const remainingPenaltyMinutes = (expiresAt, now = Date.now()) => {
   const ms = Number(expiresAt) - now;

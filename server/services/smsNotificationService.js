@@ -356,6 +356,10 @@ async function deliverSmsForNotification(eventId, context = {}, notificationId) 
 
   const phone = context.phone || (await getParentPhone(context.parentId));
   if (!phone) {
+    console.log(`[sms] ${eventId} skipped: no_phone`, {
+      parentId: context.parentId || null,
+      reservationId: context.reservationId || null,
+    });
     return { success: false, skipped: true, reason: "no_phone" };
   }
 
@@ -367,11 +371,20 @@ async function deliverSmsForNotification(eventId, context = {}, notificationId) 
   if (eventId === "SLOT_RESERVED") {
     const claimed = await claimSlotReservedSms(context.reservationId);
     if (!claimed) {
+      console.log(`[sms] ${eventId} skipped: already_dispatched`, {
+        reservationId: context.reservationId || null,
+        lock: "slotReservedSmsSent",
+      });
       return { success: true, skipped: true, reason: "already_dispatched" };
     }
   } else if (eventId === "PENALIZED") {
     const claimed = await claimPenalizedSms(context.reservationId, context.penaltyCount);
     if (!claimed) {
+      console.log(`[sms] ${eventId} skipped: already_dispatched`, {
+        reservationId: context.reservationId || null,
+        penaltyCount: context.penaltyCount,
+        lock: "penaltySmsSent",
+      });
       return { success: true, skipped: true, reason: "already_dispatched" };
     }
   }
@@ -380,11 +393,75 @@ async function deliverSmsForNotification(eventId, context = {}, notificationId) 
   if (safeId && context.parentId) {
     const claimed = await claimSmsDispatch(context.parentId, safeId);
     if (!claimed) {
+      console.log(`[sms] ${eventId} skipped: already_dispatched`, {
+        parentId: context.parentId,
+        reservationId: context.reservationId || null,
+      });
       return { success: true, skipped: true, reason: "already_dispatched" };
     }
   }
 
+  console.log(`[sms] ${eventId} calling sendSms`, {
+    phone,
+    reservationId: context.reservationId || null,
+    scheduleId: context.scheduleId || context.entityId || null,
+    queueNumber: context.queueNumber ?? null,
+    queueStatus: context.queueStatus || null,
+  });
   return sendSms(phone, message);
+}
+
+const SKIP_WALK_IN_SMS_QUEUE_STATUSES = ["active", "paused", "closed", "completed", "ended"];
+
+/**
+ * One-shot confirmed-reservation SMS for phone-in walk-ins.
+ * Walk-in `parentPhone` is used only at creation. Never used for Queue Started,
+ * Near Turn, Penalized, or Forfeited broadcasts (those require parentId).
+ */
+async function deliverWalkInReservationSms(reservation) {
+  if (!reservation || reservation.source !== "walk_in" || reservation.parentId) {
+    return { success: false, skipped: true, reason: "not_walk_in" };
+  }
+  const phone = normalizePhoneE164(reservation.parentPhone || "");
+  if (!phone) {
+    console.log("[sms] walk-in SMS skipped: no_phone", {
+      reservationId: reservation.id || null,
+      scheduleId: reservation.scheduleId || null,
+    });
+    return { success: false, skipped: true, reason: "no_phone" };
+  }
+  if (!reservation.scheduleId) {
+    return { success: false, skipped: true, reason: "no_schedule" };
+  }
+
+  const snap = await getDb().ref(`schedules/${reservation.scheduleId}`).once("value");
+  if (!snap.exists()) {
+    return { success: false, skipped: true, reason: "schedule_missing" };
+  }
+  const schedule = snap.val() || {};
+  const queueStatus = schedule.queueStatus || "not_started";
+  if (SKIP_WALK_IN_SMS_QUEUE_STATUSES.includes(queueStatus)) {
+    console.log("[sms] walk-in SMS skipped: queue_already_started", {
+      reservationId: reservation.id || null,
+      scheduleId: reservation.scheduleId,
+      queueStatus,
+    });
+    return { success: false, skipped: true, reason: "queue_already_started" };
+  }
+
+  const smsContext = await enrichSmsContext("SLOT_RESERVED", {
+    phone,
+    reservationId: reservation.id,
+    scheduleId: reservation.scheduleId,
+    queueNumber: reservation.queueNumber ?? reservation.originalQueueNumber ?? reservation.queuePosition,
+    queuePosition: reservation.queueOrder ?? reservation.queuePosition,
+    branchId: reservation.branchId || reservation.branch || schedule.branchId || schedule.branch,
+    queueStatus: "not_started",
+  });
+  smsContext.phone = phone;
+  smsContext.queueStatus = "not_started";
+
+  return deliverSmsForNotification("SLOT_RESERVED", smsContext);
 }
 
 /**
@@ -472,6 +549,7 @@ module.exports = {
   SMS_NOTIFICATION_EVENTS,
   DEFAULT_NEARING_TURN_AHEAD,
   deliverSmsForNotification,
+  deliverWalkInReservationSms,
   enrichSmsContext,
   buildSmsMessage,
   formatClinicDate,

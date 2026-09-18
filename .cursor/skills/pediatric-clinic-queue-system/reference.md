@@ -72,10 +72,13 @@ Default branches: **Angeles**, **Magalang**.
   children: [                      // 1+ patients on this reservation (1 slot)
     { childId, childName, age, sex }
   ],
+  source,                          // "walk_in" for secretary-created tickets
+  createdBy,                       // secretary uid for walk-ins
+  parentName, parentPhone,         // optional walk-in contact (E.164 phone); omitted if blank
   doctorNotes,
   checkedIn, createdAt, reservationCreatedAt,
   penaltyCount, lastPenalizedAt,
-  becameCurrentTurnAt,             // ms; first unchecked waiting ticket while queue is live
+  becameCurrentTurnAt,             // ms; first penalize-eligible waiting ticket while queue is live
   penaltyTimerStartedAt, penaltyTimerExpiresAt, penaltyTimerClearedAt,
 }
 ```

@@ -2,6 +2,7 @@ const admin = require("firebase-admin");
 const webpush = require("web-push");
 const {
   deliverSmsForNotification,
+  deliverWalkInReservationSms,
   enrichSmsContext,
   computeAheadOfYouForSms,
   getSmsConfiguration,
@@ -413,6 +414,7 @@ async function getActiveParentIdsForSchedule(scheduleId) {
   const reservations = await getReservationsBySchedule(scheduleId);
   const ids = new Set();
   reservations.forEach((r) => {
+    // parentId only — walk-in parentPhone is never a Queue Started recipient.
     if (r.parentId && ACTIVE_RESERVATION_STATUSES.includes(r.status)) ids.add(r.parentId);
   });
   return { parentIds: [...ids], reservations };
@@ -433,6 +435,7 @@ async function evaluatePositionEvents(schedule, reservations, options = {}) {
   const nearingTurnAheadCount = smsConfig.nearingTurnAheadCount;
   const sendNearTurnSms = options.sendNearTurnSms === true;
 
+  // Near Turn / position events use parentId only. Walk-in parentPhone is never a recipient.
   const candidates = reservations.filter(
     (r) =>
       r.parentId &&
@@ -491,6 +494,17 @@ async function evaluatePositionEvents(schedule, reservations, options = {}) {
 
 async function handleReservationChange(before, after) {
   if (!after) return;
+
+  // Walk-in parentPhone is creation-time only (confirmed-reservation SMS).
+  // Do not wire it into Queue Started / Near Turn / parent notification events.
+  if (!before) {
+    try {
+      await deliverWalkInReservationSms(after);
+    } catch (err) {
+      console.error("[functions/push] Walk-in reservation SMS failed:", err.message);
+    }
+  }
+
   for (const event of eventsFromReservationChange(before, after)) {
     await deliverNotification(event.eventId, event);
   }

@@ -19,6 +19,28 @@ const UNCHECKED_WAITING_STATUSES = [
 
 const LIVE_QUEUE_STATUSES = ["active", "paused", "closed"];
 
+const WAITING_FOR_TURN_STATUSES = [
+  "reserved",
+  "waiting",
+  "validation_open",
+  "waiting_for_window",
+  "checked_in",
+];
+
+const WALK_IN_PENALIZE_STATUSES = ["checked_in", "reserved", "waiting"];
+
+function canExpirePenaltyTimer(reservation) {
+  if (!reservation) return false;
+  if (UNCHECKED_WAITING_STATUSES.includes(reservation.status)) return true;
+  return reservation.source === "walk_in" && WALK_IN_PENALIZE_STATUSES.includes(reservation.status);
+}
+
+function firstPenalizeTargetInQueue(activeQueue) {
+  const firstWaiting = activeQueue.find((r) => WAITING_FOR_TURN_STATUSES.includes(r.status));
+  if (firstWaiting?.source === "walk_in") return firstWaiting;
+  return activeQueue.find((r) => UNCHECKED_WAITING_STATUSES.includes(r.status)) || null;
+}
+
 function db() {
   return admin.database();
 }
@@ -104,13 +126,11 @@ async function recalculateEntireQueueAdmin(scheduleId) {
     console.warn("expirePenaltyTimers: could not read schedule status", error.message);
   }
 
-  const firstUnchecked = queueIsLive
-    ? activeQueue.find((r) => UNCHECKED_WAITING_STATUSES.includes(r.status))
-    : null;
+  const firstPenalizeTarget = queueIsLive ? firstPenalizeTargetInQueue(activeQueue) : null;
 
   scheduleReservations.forEach((r) => {
     if (!ACTIVE_RESERVATION_STATUSES.includes(r.status)) return;
-    const isCurrentTurn = Boolean(firstUnchecked && firstUnchecked.id === r.id);
+    const isCurrentTurn = Boolean(firstPenalizeTarget && firstPenalizeTarget.id === r.id);
     if (isCurrentTurn) {
       if (!r.becameCurrentTurnAt) {
         updates[`reservations/${r.id}/becameCurrentTurnAt`] = Date.now();
@@ -128,5 +148,6 @@ async function recalculateEntireQueueAdmin(scheduleId) {
 module.exports = {
   ACTIVE_RESERVATION_STATUSES,
   UNCHECKED_WAITING_STATUSES,
+  canExpirePenaltyTimer,
   recalculateEntireQueueAdmin,
 };

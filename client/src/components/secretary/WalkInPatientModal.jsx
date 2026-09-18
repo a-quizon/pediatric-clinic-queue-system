@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, AlertCircle } from "lucide-react";
+import { X, AlertCircle, Phone } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import {
@@ -9,6 +9,7 @@ import {
 } from "../../services/reservationService";
 import { getChildAgeError } from "../parent/ChildProfileForm";
 import { scheduleMatchesAssignedBranch, formatBranchLabel } from "../../utils/stringUtils";
+import { formatToE164 } from "../../utils/phoneUtils";
 import MessageModal from "../common/MessageModal";
 
 const MAX_CHILDREN = 10;
@@ -59,6 +60,9 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
   const [selectedScheduleId, setSelectedScheduleId] = useState("");
   const [childCountInput, setChildCountInput] = useState("1");
   const [children, setChildren] = useState([emptyChild()]);
+  const [parentName, setParentName] = useState("");
+  const [parentPhoneLocal, setParentPhoneLocal] = useState("");
+  const [parentPhoneError, setParentPhoneError] = useState("");
   const [concern, setConcern] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [childCountError, setChildCountError] = useState("");
@@ -77,6 +81,9 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
     setSelectedScheduleId("");
     setChildCountInput("1");
     setChildren([emptyChild()]);
+    setParentName("");
+    setParentPhoneLocal("");
+    setParentPhoneError("");
     setConcern("");
     setChildCountError("");
     setIsSubmitting(false);
@@ -207,12 +214,15 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
       return nameOk && /^\d+$/.test(age) && !getChildAgeError(age) && sexOk;
     });
 
+  const parentPhoneValid = parentPhoneLocal === "" || parentPhoneLocal.length === 10;
+
   const canSubmit =
     selectedSchedule &&
     !selectedIsFull &&
     childCountValid &&
     fieldsMatchCount &&
     childrenValid &&
+    parentPhoneValid &&
     !isSubmitting;
 
   const handleSubmit = async (e) => {
@@ -243,6 +253,12 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
     });
     if (!allValid) return;
 
+    if (parentPhoneLocal && parentPhoneLocal.length !== 10) {
+      setParentPhoneError("Enter a valid 10-digit mobile number, or leave this blank.");
+      return;
+    }
+    setParentPhoneError("");
+
     setIsSubmitting(true);
     try {
       await createWalkInReservation({
@@ -250,6 +266,8 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
         children: finalChildren,
         concern,
         secretaryUid: user.uid,
+        parentName,
+        parentPhone: parentPhoneLocal ? formatToE164(parentPhoneLocal) : "",
       });
       setMessageModal({
         isOpen: true,
@@ -348,8 +366,63 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
               </section>
 
               <section>
+                <h3 className="text-sm font-extrabold tracking-tight mb-2">2. Parent contact (optional)</h3>
+                <p className="text-xs pq-muted mb-3">
+                  Fill these in for phone-in bookings so the clinic can text reservation details. Leave blank for in-person walk-ins.
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label htmlFor="walkin-parent-name" className="pq-label">
+                      Parent's Name
+                    </label>
+                    <input
+                      id="walkin-parent-name"
+                      type="text"
+                      value={parentName}
+                      onChange={(e) => setParentName(e.target.value)}
+                      placeholder="Optional"
+                      autoComplete="name"
+                      className="pq-input"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="walkin-parent-phone" className="pq-label">
+                      Parent's Phone Number
+                    </label>
+                    <div className="relative">
+                      <div className="pq-field-icon gap-2">
+                        <Phone className="h-5 w-5" aria-hidden="true" />
+                        <span className="pq-muted font-medium">+63</span>
+                      </div>
+                      <input
+                        id="walkin-parent-phone"
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        value={parentPhoneLocal}
+                        onChange={(e) => {
+                          const sanitized = e.target.value.replace(/\D/g, "").slice(0, 10);
+                          setParentPhoneLocal(sanitized);
+                          if (parentPhoneError) setParentPhoneError("");
+                        }}
+                        autoComplete="tel-national"
+                        className={`pq-input pl-20 ${parentPhoneError ? "pq-input-error" : ""}`}
+                        placeholder="9123456789"
+                      />
+                    </div>
+                    {parentPhoneError && (
+                      <p className="mt-1.5 pq-error-text flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                        {parentPhoneError}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <section>
                 <label htmlFor="walkin-child-count" className="pq-label">
-                  2. How many children will be checked in?
+                  3. How many children will be checked in?
                 </label>
                 <input
                   id="walkin-child-count"
@@ -372,7 +445,7 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
 
               {fieldsMatchCount && (
                 <section className="space-y-3">
-                  <h3 className="text-sm font-extrabold tracking-tight">3. Child details</h3>
+                  <h3 className="text-sm font-extrabold tracking-tight">4. Child details</h3>
                   {children.map((child, index) => {
                     const ageError = getChildAgeError(child.age || "");
                     return (
@@ -460,7 +533,7 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
               )}
 
               <section>
-                <h3 className="text-sm font-extrabold tracking-tight mb-2">4. Concern</h3>
+                <h3 className="text-sm font-extrabold tracking-tight mb-2">5. Concern</h3>
                 <label htmlFor="walkin-concern" className="pq-label">
                   Concern / Reason for Visit
                 </label>

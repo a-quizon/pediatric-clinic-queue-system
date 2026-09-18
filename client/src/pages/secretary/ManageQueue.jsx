@@ -10,6 +10,7 @@ import { database } from "../../firebase/database";
 import toast from "react-hot-toast";
 import { getReservationChildDisplayName } from "../../utils/reservationPatients";
 import ReservationPatientNames from "../../components/common/ReservationPatientNames";
+import QueueSessionControls from "../../components/common/QueueSessionControls";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 import { PqSpinner } from "../../components/parent/pqUi";
@@ -175,6 +176,8 @@ export default function ManageQueue({ hideHeader = false }) {
   const firstUncheckedIdx = waitingQueue.findIndex(
     (r) => r.status === "reserved" || r.status === "waiting"
   );
+  const firstWaitingIsWalkIn = waitingQueue[0]?.source === "walk_in";
+  const penalizeTargetIdx = firstWaitingIsWalkIn ? 0 : firstUncheckedIdx;
 
   const formatTime = (timestamp) => {
     if (!timestamp) return "N/A";
@@ -372,7 +375,11 @@ export default function ManageQueue({ hideHeader = false }) {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <QueueSessionControls
+          schedule={activeStartedSchedule}
+          canEndSession={waitingQueue.length === 0 && inConsultationPatients.length === 0}
+        />
         <div className="flex items-center gap-3 flex-wrap">
           <button
             type="button"
@@ -478,7 +485,7 @@ export default function ManageQueue({ hideHeader = false }) {
                 isFirstWaiting &&
                 res.status === "checked_in" &&
                 inConsultationPatients.length === 0;
-              const isPenalizeTarget = idx === firstUncheckedIdx && firstUncheckedIdx !== -1;
+              const isPenalizeTarget = idx === penalizeTargetIdx && penalizeTargetIdx !== -1;
               const graceElapsed = isPenaltyGraceElapsed(res, penaltyGraceMinutes, nowTs);
               const graceRemainingMs = getPenaltyGraceRemainingMs(res, penaltyGraceMinutes, nowTs);
               const canPenalize = isPenalizeTarget && graceElapsed;
@@ -593,11 +600,33 @@ export default function ManageQueue({ hideHeader = false }) {
               {loadingContactInfo ? (
                 <PqSpinner label="Loading contact" />
               ) : contactIsWalkIn ? (
-                <div className="py-6 text-center pq-muted space-y-2">
-                  <p className="text-base font-extrabold" style={{ color: "var(--pq-ink)" }}>
-                    {getReservationChildDisplayName(contactReservation, "Walk-in patient")}
-                  </p>
-                  <p>Walk-in patient (no parent account).</p>
+                <div className="mt-4 space-y-4">
+                  <div className="py-1 text-center pq-muted space-y-1">
+                    <p className="text-base font-extrabold" style={{ color: "var(--pq-ink)" }}>
+                      {getReservationChildDisplayName(contactReservation, "Walk-in patient")}
+                    </p>
+                    <p>Walk-in patient (no parent account).</p>
+                  </div>
+                  {(contactReservation?.parentName || contactReservation?.parentPhone) && (
+                    <>
+                      <div className="pq-row block min-h-0">
+                        <p className="pq-stat-label">Parent's Name</p>
+                        <p className="text-base font-semibold mt-0.5">
+                          {contactReservation.parentName || "Not provided"}
+                        </p>
+                      </div>
+                      <div className="pq-row block min-h-0">
+                        <p className="pq-stat-label">Parent's Phone</p>
+                        {contactReservation.parentPhone ? (
+                          <a href={`tel:${contactReservation.parentPhone}`} className="pq-link mt-0.5 block">
+                            {contactReservation.parentPhone}
+                          </a>
+                        ) : (
+                          <p className="mt-0.5">Not provided</p>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : parentContactInfo ? (
                 <div className="mt-4 space-y-4">

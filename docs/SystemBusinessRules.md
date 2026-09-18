@@ -12,8 +12,8 @@ The Pediatric Clinic Queue Management System is designed to digitize and orchest
 ## 2. System Actors
 
 * **Parent / Guardian**: The end-user who consumes clinic services. They browse available schedules, reserve slots, monitor their dynamic queue position remotely, and bring the patient to the clinic for QR validation.
-* **Secretary**: The frontline branch manager. They create and publish reservation schedules for their assigned branch, start the clinic queue, physically verify patient arrivals (Check In), enforce attendance policies (Penalize), and control the flow of patients into the doctor's room (Send to Doctor).
-* **Doctor**: The primary medical provider. They can create and publish reservation schedules (any branch), start the clinic queue, control the live consultation room (pause/resume/close queue via Queue Control), add optional consultation notes, and finalize medical visits (Complete Consultation).
+* **Secretary**: The frontline branch manager. They create and publish reservation schedules for their assigned branch, start the clinic queue, physically verify patient arrivals (Check In), enforce attendance policies (Penalize, including walk-ins already marked checked-in), control the flow of patients into the doctor's room (Send to Doctor), and can pause/resume/close/end the live session from Manage Queue.
+* **Doctor**: The primary medical provider. They can create and publish reservation schedules (any branch), start the clinic queue, control the live consultation room (pause/resume/close queue via Queue Control — Secretary can trigger the same four session actions), add optional consultation notes, and finalize medical visits (Complete Consultation).
 * **Admin**: The system operator. They manage the internal business structure by creating staff accounts (Secretaries) and defining the clinic's physical locations (Branches). 
 
 ---

@@ -6,6 +6,20 @@ import {
   isLiveQueueStatus,
 } from "../utils/penaltyTimer";
 
+const WAITING_FOR_TURN_STATUSES = [
+  "reserved",
+  "waiting",
+  "validation_open",
+  "waiting_for_window",
+  "checked_in",
+];
+
+const firstPenalizeTargetInQueue = (activeQueue) => {
+  const firstWaiting = activeQueue.find((r) => WAITING_FOR_TURN_STATUSES.includes(r.status));
+  if (firstWaiting?.source === "walk_in") return firstWaiting;
+  return activeQueue.find((r) => UNCHECKED_WAITING_STATUSES.includes(r.status)) || null;
+};
+
 /**
  * Queue Engine
  * Single Source of Truth for live queue state and relative queue positions across the system.
@@ -214,13 +228,11 @@ export const recalculateEntireQueue = async (scheduleId, options = {}) => {
     console.warn("Could not read schedule queue status for current-turn stamp:", error);
   }
 
-  const firstUnchecked = queueIsLive
-    ? activeQueue.find((r) => UNCHECKED_WAITING_STATUSES.includes(r.status))
-    : null;
+  const firstPenalizeTarget = queueIsLive ? firstPenalizeTargetInQueue(activeQueue) : null;
 
   scheduleReservations.forEach((r) => {
     if (!activeStatuses.includes(r.status)) return;
-    const isCurrentTurn = Boolean(firstUnchecked && firstUnchecked.id === r.id);
+    const isCurrentTurn = Boolean(firstPenalizeTarget && firstPenalizeTarget.id === r.id);
     if (isCurrentTurn) {
       if (!r.becameCurrentTurnAt) {
         updates[`reservations/${r.id}/becameCurrentTurnAt`] = Date.now();

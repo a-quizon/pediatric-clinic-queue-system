@@ -10,8 +10,8 @@ import {
   resolveScheduleBranchId,
 } from "./systemConfigurationService";
 import {
-  UNCHECKED_WAITING_STATUSES,
   PENALTY_TIMER_FORFEIT_REASON,
+  canExpirePenaltyTimer,
 } from "../utils/penaltyTimer";
 
 const generateReservationCode = () => {
@@ -62,7 +62,14 @@ const MAX_WALK_IN_CHILDREN = 10;
  * Secretary-created walk-in: no parent account, immediately checked in.
  * Uses the same reservation/queue record as parent bookings.
  */
-export const createWalkInReservation = async ({ scheduleId, children, concern, secretaryUid }) => {
+export const createWalkInReservation = async ({
+  scheduleId,
+  children,
+  concern,
+  secretaryUid,
+  parentName = "",
+  parentPhone = "",
+}) => {
   if (!scheduleId) throw new Error("Schedule is required.");
   if (!secretaryUid) throw new Error("Secretary identity is required.");
 
@@ -114,6 +121,8 @@ export const createWalkInReservation = async ({ scheduleId, children, concern, s
 
   const patientPayload = buildPatientInfoPayload(normalizedChildren, concern);
   const checkedInAt = Date.now();
+  const trimmedParentName = String(parentName || "").trim();
+  const trimmedParentPhone = String(parentPhone || "").trim();
 
   return createReservation({
     scheduleId,
@@ -121,6 +130,8 @@ export const createWalkInReservation = async ({ scheduleId, children, concern, s
     source: "walk_in",
     createdBy: secretaryUid,
     ...patientPayload,
+    ...(trimmedParentName ? { parentName: trimmedParentName } : {}),
+    ...(trimmedParentPhone ? { parentPhone: trimmedParentPhone } : {}),
     patientInfoCompleted: true,
     checkedIn: true,
     checkedInAt,
@@ -551,7 +562,7 @@ export const forfeitReservationIfTimerExpired = async (reservationId) => {
 
   const result = await runTransaction(resRef, (current) => {
     if (!current) return;
-    if (!UNCHECKED_WAITING_STATUSES.includes(current.status)) return;
+    if (!canExpirePenaltyTimer(current)) return;
     const expiresAt = Number(current.penaltyTimerExpiresAt) || 0;
     if (!expiresAt || expiresAt > Date.now()) return;
     return applyForfeitFields(current, {

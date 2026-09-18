@@ -29,7 +29,7 @@ Default physical branches in the product: **Angeles** and **Magalang**.
 | Role | Who | What they do (summary) |
 |------|-----|-------------------------|
 | **Parent / Guardian** | Self-registering end users | Reserve slots, enter child/patient info, monitor queue, receive SMS/push/in-app alerts, present QR ticket at clinic, manage child profiles and notification prefs |
-| **Secretary** | Front-desk staff, **one assigned branch** | Create/publish schedules, start the queue, validate check-in, manage queue (send to doctor / penalize / remind), create walk-ins, view full-screen queue monitor |
+| **Secretary** | Front-desk staff, **one assigned branch** | Create/publish schedules, start the queue, validate check-in, manage queue (send to doctor / penalize / remind), pause/resume/close/end session, create walk-ins, view full-screen queue monitor |
 | **Doctor** | Clinical provider (system enforces **one active doctor** account) | Create/publish schedules (any branch), start the queue, live queue view, queue session control (pause / resume / close / complete schedule), complete consultations with optional notes, session reports |
 | **Admin** | Back-office operator | Staff & parent user management, branch configuration, system settings (penalty move-back + SMS templates/threshold), audit activity / reports |
 
@@ -141,7 +141,7 @@ State model: `AuthContext` + Firebase `onValue` listeners. No Redux / Zustand / 
 | `/secretary` | Branch dashboard / today’s ops summary |
 | `/secretary/schedules` | Draft, edit (draft), publish, **start queue** |
 | `/secretary/validate` | QR scan or 6-char code check-in |
-| `/secretary/queue` | Manage Queue: remind check-in, penalize, send to doctor |
+| `/secretary/queue` | Manage Queue: remind check-in, penalize, send to doctor, pause/resume/close/end session |
 | `/secretary/profile` | Profile + **Walk-in Patient** entry |
 | `/secretary/settings` | Per-branch System Configuration (Penalty Move-Back, Grace Period, Penalty Timer, SMS templates) |
 | `/secretary/monitor` | Full-screen Queue Monitor (outside main layout) |
@@ -168,9 +168,9 @@ State model: `AuthContext` + Firebase `onValue` listeners. No Redux / Zustand / 
 #### Workflow D — Walk-in patient
 
 1. Profile → Walk-in Patient modal.
-2. Choose today’s published schedule with capacity; enter 1–10 children (age 1–25) + concern.
-3. Creates reservation with `source: "walk_in"`, **no** `parentId`, already `checked_in`, `patientInfoCompleted: true`.
-4. Appears on Manage Queue / doctor queue like any other ticket; **no** parent SMS/push (no parent account).
+2. Choose today’s published schedule with capacity; enter 1–10 children (age 1–25) + concern. Optional parent name and phone (phone-in bookings).
+3. Creates reservation with `source: "walk_in"`, **no** `parentId`, already `checked_in`, `patientInfoCompleted: true`. Optional `parentName` / `parentPhone`.
+4. Appears on Manage Queue / doctor queue like any other ticket. Parent Notification Center / push still require `parentId`. If `parentPhone` is set and the queue is still `not_started`, one confirmed-reservation SMS is sent; no Queue Started / Near Turn / later clinic SMS.
 
 ---
 
@@ -181,7 +181,7 @@ State model: `AuthContext` + Firebase `onValue` listeners. No Redux / Zustand / 
 | Path | Capability |
 |------|------------|
 | `/doctor` | Home / session overview |
-| `/doctor/queue` | Live queue + **Queue Control** (pause / resume / close / complete schedule) |
+| `/doctor/queue` | Live queue + **Queue Control** (pause / resume / close / end session; complete consultation stays here) |
 | `/doctor/schedules` | Draft, edit (draft), publish, **start queue** (same shared UI as Secretary; any branch) |
 | `/doctor/reports` | Completed-session reports |
 | `/doctor/profile` | Profile |
@@ -376,14 +376,15 @@ Any of: create, cancel, expire, check-in, send/start/complete consultation, pena
 | Aspect | Parent self-book | Walk-in |
 |--------|------------------|---------|
 | Who creates | Parent | Secretary (Profile → Walk-in modal) |
-| Account | `parentId`, email | **No parent**; `source: "walk_in"`, `createdBy: secretaryUid` |
+| Account | `parentId`, email | **No parent**; `source: "walk_in"`, `createdBy: secretaryUid`; optional `parentName` / `parentPhone` |
 | One-reservation-per-parent rule | Applies | **Does not apply** |
 | Initial status | `reserved` | **`checked_in` immediately** |
 | QR validation | Required later | **Skipped** |
 | Children | From saved profiles | Inline entry; max **10**; age **1–25** |
 | Slot / ticket | 1 slot, 1 `queueNumber` | Same |
 | `patientInfoCompleted` | After Save Information | `true` at create |
-| SMS / push / Notification Center | Yes | **No** (engine short-circuits without `parentId`) |
+| SMS / push / Notification Center | Yes | **No** parent-account notifications. One confirmed-reservation SMS only if `parentPhone` is set **and** queue is still `not_started`. Never Queue Started / Near Turn. |
+| Penalize | First unchecked waiting | Also available when a walk-in is #1 waiting, even if `checked_in` |
 | Doctor notes UI | Allowed | Disabled for walk-ins |
 | Path | reserved → checked_in → … | checked_in → with_doctor → consultation_completed |
 
@@ -433,7 +434,7 @@ Only **five** clinic SMS event types exist:
 
 | Event | Exact fire condition | Recipient | Template key |
 |-------|----------------------|-----------|--------------|
-| **SLOT_RESERVED** (Confirmed Reservation) | Reservation `patientInfoCompleted` transitions to **true** (parent **Save Information**). **Not** on bare `createReservation`. Walk-ins set this true at create but have no `parentId` → **no SMS**. If the schedule queue is already live (`active` / `paused` / `closed`), use the active-queue template instead. | That parent’s phone | `templateSlotReserved` or `templateSlotReservedActiveQueue` |
+| **SLOT_RESERVED** (Confirmed Reservation) | Reservation `patientInfoCompleted` transitions to **true** (parent **Save Information**). **Not** on bare parent `createReservation`. If the schedule queue is already live (`active` / `paused` / `closed`), use the active-queue template instead. **Walk-in exception:** on create, if `source === "walk_in"`, `parentPhone` is set, no `parentId`, and queue is still `not_started`, send `templateSlotReserved` to `parentPhone` (no Notification Center). Skip if queue already started. | That parent’s phone, or walk-in `parentPhone` | `templateSlotReserved` or `templateSlotReservedActiveQueue` |
 | **QUEUE_STARTED** | Schedule `queueStatus` first becomes **`active`** | Each parent with an **active** reservation on that schedule | `templateQueueStarted` |
 | **NEARING_TURN** | **Only when the queue first starts.** Tickets with `aheadOfYou` **greater than 0 and at or below** `nearingTurnAheadCount` (default **3**). Already-first (`aheadOfYou === 0`) does not send. Locked by `reservations/{id}/nearTurnSmsSent`. Not sent on later recalculation, penalties, or resume. | That parent | `templateNearingTurn` |
 | **PENALIZED** | `penaltyCount` increases and status is not `forfeited` | That parent | `templatePenalized` |
