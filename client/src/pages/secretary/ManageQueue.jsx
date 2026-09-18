@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Users, UserCheck, Clock, CheckCircle, Activity, PlayCircle, AlertTriangle, Monitor } from "lucide-react";
+import { Users, UserCheck, UserPlus, Clock, CheckCircle, Activity, PlayCircle, AlertTriangle, Monitor } from "lucide-react";
 import { subscribeToScheduleReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder, cancelReservation, forfeitReservationIfTimerExpired } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { subscribeToQueueConfiguration } from "../../services/systemConfigurationService";
@@ -22,6 +22,50 @@ import {
 } from "../../utils/penaltyTimer";
 
 const isWalkInReservation = (res) => res?.source === "walk_in";
+
+function QueuePageIntro({ branchName }) {
+  return (
+    <div className="@container">
+      <div className="flex flex-col gap-3 @3xl:flex-row @3xl:items-start @3xl:justify-between">
+        <p className="text-sm pq-muted min-w-0 flex-1 leading-relaxed">
+          Control patient flow and consultations for your assigned branch:{" "}
+          <span className="font-extrabold" style={{ color: "var(--pq-ink)" }}>{branchName}</span>.
+        </p>
+        <a
+          href="/secretary/monitor"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="pq-btn-secondary shrink-0 self-start"
+          aria-label="Live Queue Monitor (opens in a new tab)"
+        >
+          <Monitor className="w-4 h-4" aria-hidden="true" />
+          <span>Live Queue Monitor</span>
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function formatElapsedHms(startedAt, nowTs) {
+  const start = Number(startedAt);
+  if (!Number.isFinite(start) || start <= 0) return "00:00:00";
+  const totalSec = Math.max(0, Math.floor((nowTs - start) / 1000));
+  const hours = String(Math.floor(totalSec / 3600)).padStart(2, "0");
+  const minutes = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
+  const seconds = String(totalSec % 60).padStart(2, "0");
+  return `${hours}:${minutes}:${seconds}`;
+}
+
+function SessionDurationMeter({ startedAt, nowTs, className = "" }) {
+  return (
+    <div className={`pq-row min-h-11 ${className}`.trim()}>
+      <span className="text-sm font-semibold pq-muted">Session Duration</span>
+      <span className="pq-num text-[0.95rem] font-extrabold tracking-tight">
+        {formatElapsedHms(startedAt, nowTs)}
+      </span>
+    </div>
+  );
+}
 
 export default function ManageQueue({ hideHeader = false }) {
   const { user } = useAuth();
@@ -134,22 +178,7 @@ export default function ManageQueue({ hideHeader = false }) {
   if (!activeStartedSchedule) {
     return (
       <div className="space-y-6 pb-8">
-        {!hideHeader && (
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <p className="text-sm pq-muted">Control patient flow and consultations for your assigned branch: <span className="font-extrabold" style={{ color: "var(--pq-ink)" }}>{user.assignedBranch}</span>.</p>
-            </div>
-            <a
-              href="/secretary/monitor"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="pq-btn-secondary"
-            >
-              <Monitor className="w-4 h-4" aria-hidden="true" />
-              <span>Live Queue Monitor</span>
-            </a>
-          </div>
-        )}
+        {!hideHeader && <QueuePageIntro branchName={user.assignedBranch} />}
 
         <div className="pq-glass p-12 text-center max-w-xl mx-auto">
           <Clock className="w-12 h-12 pq-faint mx-auto mb-4" aria-hidden="true" />
@@ -360,51 +389,49 @@ export default function ManageQueue({ hideHeader = false }) {
 
   return (
     <div className="space-y-6 pb-8 max-w-4xl mx-auto">
-      {!hideHeader && (
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2">
-          <p className="text-sm pq-muted">Control patient flow and consultations for your assigned branch: <span className="font-extrabold" style={{ color: "var(--pq-ink)" }}>{user.assignedBranch}</span>.</p>
-          <a
-            href="/secretary/monitor"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="pq-btn-secondary"
-          >
-            <Monitor className="w-4 h-4" aria-hidden="true" />
-            <span>Live Queue Monitor</span>
-          </a>
-        </div>
-      )}
+      {!hideHeader && <QueuePageIntro branchName={user.assignedBranch} />}
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <QueueSessionControls
-          schedule={activeStartedSchedule}
-          canEndSession={waitingQueue.length === 0 && inConsultationPatients.length === 0}
-        />
-        <div className="flex items-center gap-3 flex-wrap">
-          <button
-            type="button"
-            onClick={handleRequestCheckIn}
-            disabled={requestingCheckIn || nextEligibleCooldownSec > 0}
-            className="pq-btn-primary"
-            title={
-              nextEligibleCooldownSec > 0
-                ? "Check-in request already sent. Please wait before sending another reminder."
-                : "Remind the next awaiting patient to proceed to the clinic for QR validation"
-            }
-          >
-            <UserCheck className="w-4 h-4" aria-hidden="true" />
-            <span>
-              {nextEligibleCooldownSec > 0
-                ? `Request Check-In (${nextEligibleCooldownSec}s)`
-                : "Request Check-In"}
-            </span>
-          </button>
-          <span className="pq-chip pq-chip-info min-h-11 px-3.5">
-            <Users className="w-4 h-4" aria-hidden="true" />
-            {inConsultationPatients.length + waitingQueue.length} Total Active
-          </span>
+      <section className="@container pq-glass p-5 sm:p-6" aria-label="Queue session">
+        <div className="flex flex-col gap-3">
+          <QueueSessionControls
+            layout="cluster"
+            schedule={activeStartedSchedule}
+            canEndSession={waitingQueue.length === 0 && inConsultationPatients.length === 0}
+          />
+          <SessionDurationMeter
+            startedAt={activeStartedSchedule.queueStartedAt}
+            nowTs={nowTs}
+          />
+          <div className="flex flex-col gap-3 @2xl:flex-row @2xl:items-center">
+            <button
+              type="button"
+              onClick={handleRequestCheckIn}
+              disabled={requestingCheckIn || nextEligibleCooldownSec > 0}
+              className="pq-btn-primary pq-btn-pill w-full @2xl:flex-1"
+              title={
+                nextEligibleCooldownSec > 0
+                  ? "Check-in request already sent. Please wait before sending another reminder."
+                  : "Remind the next awaiting patient to proceed to the clinic for QR validation"
+              }
+            >
+              <UserPlus className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className="whitespace-nowrap">
+                {nextEligibleCooldownSec > 0
+                  ? `Request Check-In (${nextEligibleCooldownSec}s)`
+                  : "Request Check-In"}
+              </span>
+            </button>
+            <div
+              className="pq-session-count @2xl:flex-1"
+              role="status"
+              aria-live="polite"
+            >
+              <Users className="w-4 h-4" aria-hidden="true" />
+              {inConsultationPatients.length + waitingQueue.length} Total Active
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
       <section className="pq-glass overflow-hidden">
         <div className="pq-now mx-0 rounded-none" style={{ borderRadius: 0, border: "none", borderBottom: "1px solid color-mix(in srgb, var(--pq-live) 18%, white)" }}>

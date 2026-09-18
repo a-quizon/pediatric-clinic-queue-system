@@ -356,10 +356,6 @@ async function deliverSmsForNotification(eventId, context = {}, notificationId) 
 
   const phone = context.phone || (await getParentPhone(context.parentId));
   if (!phone) {
-    console.log(`[sms] ${eventId} skipped: no_phone`, {
-      parentId: context.parentId || null,
-      reservationId: context.reservationId || null,
-    });
     return { success: false, skipped: true, reason: "no_phone" };
   }
 
@@ -371,20 +367,11 @@ async function deliverSmsForNotification(eventId, context = {}, notificationId) 
   if (eventId === "SLOT_RESERVED") {
     const claimed = await claimSlotReservedSms(context.reservationId);
     if (!claimed) {
-      console.log(`[sms] ${eventId} skipped: already_dispatched`, {
-        reservationId: context.reservationId || null,
-        lock: "slotReservedSmsSent",
-      });
       return { success: true, skipped: true, reason: "already_dispatched" };
     }
   } else if (eventId === "PENALIZED") {
     const claimed = await claimPenalizedSms(context.reservationId, context.penaltyCount);
     if (!claimed) {
-      console.log(`[sms] ${eventId} skipped: already_dispatched`, {
-        reservationId: context.reservationId || null,
-        penaltyCount: context.penaltyCount,
-        lock: "penaltySmsSent",
-      });
       return { success: true, skipped: true, reason: "already_dispatched" };
     }
   }
@@ -393,21 +380,10 @@ async function deliverSmsForNotification(eventId, context = {}, notificationId) 
   if (safeId && context.parentId) {
     const claimed = await claimSmsDispatch(context.parentId, safeId);
     if (!claimed) {
-      console.log(`[sms] ${eventId} skipped: already_dispatched`, {
-        parentId: context.parentId,
-        reservationId: context.reservationId || null,
-      });
       return { success: true, skipped: true, reason: "already_dispatched" };
     }
   }
 
-  console.log(`[sms] ${eventId} calling sendSms`, {
-    phone,
-    reservationId: context.reservationId || null,
-    scheduleId: context.scheduleId || context.entityId || null,
-    queueNumber: context.queueNumber ?? null,
-    queueStatus: context.queueStatus || null,
-  });
   return sendSms(phone, message);
 }
 
@@ -424,10 +400,6 @@ async function deliverWalkInReservationSms(reservation) {
   }
   const phone = normalizePhoneE164(reservation.parentPhone || "");
   if (!phone) {
-    console.log("[sms] walk-in SMS skipped: no_phone", {
-      reservationId: reservation.id || null,
-      scheduleId: reservation.scheduleId || null,
-    });
     return { success: false, skipped: true, reason: "no_phone" };
   }
   if (!reservation.scheduleId) {
@@ -441,11 +413,6 @@ async function deliverWalkInReservationSms(reservation) {
   const schedule = snap.val() || {};
   const queueStatus = schedule.queueStatus || "not_started";
   if (SKIP_WALK_IN_SMS_QUEUE_STATUSES.includes(queueStatus)) {
-    console.log("[sms] walk-in SMS skipped: queue_already_started", {
-      reservationId: reservation.id || null,
-      scheduleId: reservation.scheduleId,
-      queueStatus,
-    });
     return { success: false, skipped: true, reason: "queue_already_started" };
   }
 

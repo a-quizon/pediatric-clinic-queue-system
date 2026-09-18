@@ -8,6 +8,7 @@ export default function QueueSessionControls({
   canEndSession = false,
   includeStartQueue = false,
   showStatusBadge = true,
+  layout = "inline",
 }) {
   const [isCloseQueueModalOpen, setIsCloseQueueModalOpen] = useState(false);
   const [isEndSessionModalOpen, setIsEndSessionModalOpen] = useState(false);
@@ -30,7 +31,7 @@ export default function QueueSessionControls({
         return (
           <span className="pq-chip pq-chip-live">
             <span className="pq-pip" style={{ width: 8, height: 8 }} />
-            Active
+            {layout === "cluster" ? "Active Session" : "Active"}
           </span>
         );
       case "paused":
@@ -105,80 +106,114 @@ export default function QueueSessionControls({
     }
   };
 
+  const isCluster = layout === "cluster";
+  const orb = (tone) => (isCluster ? `pq-session-orb pq-session-orb-${tone}` : "pq-icon-btn");
+  const orbStyle = (tone) => {
+    if (isCluster) return undefined;
+    if (tone === "wait") return { color: "var(--pq-wait)" };
+    if (tone === "lock") return { color: "var(--pq-alert)" };
+    if (tone === "live") return { color: "var(--pq-live)" };
+    return undefined;
+  };
+
+  const actionButtons = (
+    <div className={`flex items-center gap-2 min-w-0 ${isCluster ? "shrink-0" : "flex-wrap"}`}>
+      {includeStartQueue && queueStatus === "published" && (
+        <button type="button" onClick={() => handleQueueControl("active")} className="pq-btn-live">
+          <Play className="w-4 h-4" aria-hidden="true" /> Start Queue
+        </button>
+      )}
+      {queueStatus === "active" && (
+        <>
+          <button
+            type="button"
+            onClick={() => handleQueueControl("paused")}
+            className={orb("wait")}
+            style={orbStyle("wait")}
+            aria-label="Pause Queue"
+            title="Pause Queue"
+          >
+            <Pause className="w-4 h-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleQueueControl("closed")}
+            className={orb("lock")}
+            style={orbStyle("lock")}
+            aria-label="Close Queue to New Reservations"
+            title="Close Queue to New Reservations"
+          >
+            <Lock className="w-4 h-4" aria-hidden="true" />
+          </button>
+        </>
+      )}
+      {queueStatus === "paused" && (
+        <>
+          <button
+            type="button"
+            onClick={() => handleQueueControl("active")}
+            className={orb("live")}
+            style={orbStyle("live")}
+            aria-label="Resume Queue"
+            title="Resume Queue"
+          >
+            <Play className="w-4 h-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleQueueControl("closed")}
+            className={orb("lock")}
+            style={orbStyle("lock")}
+            aria-label="Close Queue to New Reservations"
+            title="Close Queue to New Reservations"
+          >
+            <Lock className="w-4 h-4" aria-hidden="true" />
+          </button>
+        </>
+      )}
+      {(queueStatus === "active" || queueStatus === "paused" || queueStatus === "closed") && (
+        isCluster ? (
+          <button
+            type="button"
+            onClick={handleEndSessionClick}
+            className="pq-session-orb pq-session-orb-stop"
+            style={!canEndSession ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
+            aria-label={!canEndSession ? "End Clinic Session (finish remaining consultations first)" : "End Clinic Session"}
+            title={!canEndSession ? "Finish all remaining consultations to end session" : "End Clinic Session"}
+          >
+            <Square className="w-4 h-4" aria-hidden="true" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleEndSessionClick}
+            className={canEndSession ? "pq-btn-danger" : "pq-btn-secondary"}
+            style={!canEndSession ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
+            title={!canEndSession ? "Finish all remaining consultations to end session" : "End Clinic Session"}
+          >
+            <Square className="w-4 h-4 shrink-0" aria-hidden="true" />
+            <span className="whitespace-nowrap">End Clinic Session</span>
+          </button>
+        )
+      )}
+      {(queueStatus === "ended" || queueStatus === "completed") && (
+        <span className="pq-chip">Clinic Session Ended</span>
+      )}
+    </div>
+  );
+
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3">
-        {showStatusBadge && getQueueStatusBadge(queueStatus)}
-
-        <div className="flex items-center gap-2">
-          {includeStartQueue && queueStatus === "published" && (
-            <button type="button" onClick={() => handleQueueControl("active")} className="pq-btn-live">
-              <Play className="w-4 h-4" aria-hidden="true" /> Start Queue
-            </button>
-          )}
-          {queueStatus === "active" && (
-            <>
-              <button
-                type="button"
-                onClick={() => handleQueueControl("paused")}
-                className="pq-icon-btn"
-                style={{ color: "var(--pq-wait)" }}
-                aria-label="Pause Queue"
-                title="Pause Queue"
-              >
-                <Pause className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQueueControl("closed")}
-                className="pq-icon-btn"
-                style={{ color: "var(--pq-alert)" }}
-                aria-label="Close Queue to New Reservations"
-                title="Close Queue to New Reservations"
-              >
-                <Lock className="w-4 h-4" />
-              </button>
-            </>
-          )}
-          {queueStatus === "paused" && (
-            <>
-              <button
-                type="button"
-                onClick={() => handleQueueControl("active")}
-                className="pq-icon-btn"
-                style={{ color: "var(--pq-live)" }}
-                aria-label="Resume Queue"
-                title="Resume Queue"
-              >
-                <Play className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQueueControl("closed")}
-                className="pq-icon-btn"
-                style={{ color: "var(--pq-alert)" }}
-                aria-label="Close Queue to New Reservations"
-                title="Close Queue to New Reservations"
-              >
-                <Lock className="w-4 h-4" />
-              </button>
-            </>
-          )}
-          {(queueStatus === "active" || queueStatus === "paused" || queueStatus === "closed") && (
-            <button
-              type="button"
-              onClick={handleEndSessionClick}
-              className={canEndSession ? "pq-btn-danger" : "pq-btn-secondary"}
-              style={!canEndSession ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
-              title={!canEndSession ? "Finish all remaining consultations to end session" : "End Clinic Session"}
-            >
-              <Square className="w-4 h-4" aria-hidden="true" /> End Clinic Session
-            </button>
-          )}
-          {(queueStatus === "ended" || queueStatus === "completed") && (
-            <span className="pq-chip">Clinic Session Ended</span>
-          )}
-        </div>
+      <div className={isCluster
+        ? "flex w-full min-w-0 flex-wrap items-center justify-between gap-2"
+        : "flex flex-wrap items-center gap-2 sm:gap-3 min-w-0"
+      }>
+        {showStatusBadge && (
+          isCluster
+            ? <div className="shrink-0">{getQueueStatusBadge(queueStatus)}</div>
+            : getQueueStatusBadge(queueStatus)
+        )}
+        {actionButtons}
       </div>
 
       {isCloseQueueModalOpen && (

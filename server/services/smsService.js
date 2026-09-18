@@ -77,13 +77,6 @@ async function sendSms(to, message) {
     body.deviceId = deviceId;
   }
 
-  console.log("[sms] TextBee request payload:", {
-    url: `${TEXTBEE_API_BASE}/send-sms`,
-    recipients: body.recipients,
-    message: body.message,
-    deviceId: body.deviceId || null,
-  });
-
   try {
     const response = await fetch(`${TEXTBEE_API_BASE}/send-sms`, {
       method: "POST",

@@ -20,6 +20,7 @@
   --pq-live-wash: #d8f3ea;
   --pq-alert: #b4232c;
   --pq-alert-wash: #fde8e8;
+  --pq-alert-deep: #8f1c24;
   --pq-wait: #9a5b12;
   --pq-wait-wash: #f8e7c8;
   --pq-glass: color-mix(in srgb, #ffffff 58%, transparent);
@@ -482,6 +483,78 @@
   color: var(--pq-mark-blue-deep);
 }
 
+.pq-session-orb {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, #ffffff 82%, transparent);
+  border: 1.5px solid transparent;
+  color: var(--pq-ink);
+  cursor: pointer;
+  transition: background 160ms var(--pq-ease), color 160ms var(--pq-ease), transform 160ms var(--pq-ease), box-shadow 160ms var(--pq-ease);
+}
+
+.pq-session-orb-wait {
+  color: var(--pq-wait);
+  border-color: color-mix(in srgb, var(--pq-wait) 58%, white);
+}
+
+.pq-session-orb-lock {
+  color: var(--pq-mark-coral);
+  border-color: color-mix(in srgb, var(--pq-mark-coral) 52%, white);
+}
+
+.pq-session-orb-live {
+  color: var(--pq-live);
+  border-color: color-mix(in srgb, var(--pq-live) 52%, white);
+}
+
+.pq-session-orb-stop {
+  background: var(--pq-alert);
+  color: #fff;
+  border-color: var(--pq-alert);
+  box-shadow: 0 8px 16px -10px color-mix(in srgb, var(--pq-alert) 72%, transparent);
+}
+
+.pq-session-orb:hover {
+  background: #fff;
+}
+
+.pq-session-orb-stop:hover {
+  background: var(--pq-alert-deep);
+  color: #fff;
+}
+
+.pq-session-orb:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.pq-btn-pill {
+  border-radius: 999px;
+}
+
+.pq-session-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  width: 100%;
+  padding: 0.65rem 1.15rem;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.9375rem;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  background: color-mix(in srgb, var(--pq-mark-blue) 10%, white);
+  color: var(--pq-mark-blue-deep);
+  border: 1px solid color-mix(in srgb, var(--pq-mark-blue) 22%, white);
+}
+
 @media (min-width: 768px) {
   .pq-icon-btn.pq-mobile-nav-toggle,
   .pq-mobile-nav-root {
@@ -547,6 +620,8 @@
 .pq-tab svg,
 .pq-chip svg,
 .pq-side-link svg,
+.pq-session-orb svg,
+.pq-session-count svg,
 .pq-icon-btn svg,
 .pq-dock-item svg,
 .pq-note svg,
@@ -1081,7 +1156,8 @@ svg.pq-field-icon {
   }
   .pq-btn-primary:active:not(:disabled),
   .pq-btn-live:active:not(:disabled),
-  .pq-icon-btn:active:not(:disabled) {
+  .pq-icon-btn:active:not(:disabled),
+  .pq-session-orb:active:not(:disabled) {
     transform: none;
   }
 }

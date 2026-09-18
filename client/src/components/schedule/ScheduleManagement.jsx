@@ -8,7 +8,7 @@ import ScheduleFormModal from "./ScheduleFormModal";
 import ScheduleDetailsModal from "../doctor/ScheduleDetailsModal";
 import ConfirmationModal from "../common/ConfirmationModal";
 import ScheduleConfirmModal from "./ScheduleConfirmModal";
-import { Plus, Search, Filter, PlayCircle, CalendarX, CalendarCheck } from "lucide-react";
+import { Plus, Search, ChevronDown, PlayCircle, CalendarX, CalendarCheck } from "lucide-react";
 import toast from "react-hot-toast";
 import { sortSchedules } from "../../utils/scheduleUtils";
 import { useAuth } from "../../hooks/useAuth";
@@ -248,14 +248,13 @@ export default function ScheduleManagement({
           />
         </div>
         <div className="relative min-w-[200px]">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 pq-faint pointer-events-none" aria-hidden="true" />
           <select
             value={currentFilter}
             onChange={(e) => {
               setCurrentFilter(e.target.value);
               setCurrentPage(1);
             }}
-            className="pq-input pl-10 appearance-none cursor-pointer"
+            className="pq-input pr-10 appearance-none cursor-pointer"
             aria-label="Filter by status"
           >
             <option value="All">All Statuses</option>
@@ -263,6 +262,9 @@ export default function ScheduleManagement({
             <option value="Published">Published</option>
             <option value="Completed">Completed</option>
           </select>
+          <div className="pq-field-icon" style={{ left: "auto", right: "0.85rem" }}>
+            <ChevronDown className="w-4 h-4" aria-hidden="true" />
+          </div>
         </div>
       </div>
 
