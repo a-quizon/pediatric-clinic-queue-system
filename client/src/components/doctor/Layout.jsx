@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Home, Users, User, BarChart3, ArrowLeft, CalendarDays } from "lucide-react";
 import { PqBrand } from "../parent/pqUi";
+import { goBackOr } from "../../utils/navigationRoots";
 
 export default function Layout() {
   const location = useLocation();
@@ -32,11 +33,11 @@ export default function Layout() {
   const headerInfo = getHeaderInfo();
 
   const navItems = [
-    { name: "Dashboard", mobileName: "Home", path: "/doctor", icon: Home },
-    { name: "Queue", path: "/doctor/queue", icon: Users },
-    { name: "Schedules", path: "/doctor/schedules", icon: CalendarDays },
+    { name: "Dashboard", mobileName: "Home", path: "/doctor", icon: Home, replace: true },
+    { name: "Queue", path: "/doctor/queue", icon: Users, replace: true },
+    { name: "Schedules", path: "/doctor/schedules", icon: CalendarDays, replace: true },
     { name: "Reports & Analytics", mobileName: "Reports", path: "/doctor/reports", icon: BarChart3, desktopOnly: true },
-    { name: "Profile", path: "/doctor/profile", icon: User },
+    { name: "Profile", path: "/doctor/profile", icon: User, replace: true },
   ];
 
   const isActive = (path) => {
@@ -47,11 +48,7 @@ export default function Layout() {
   };
 
   const handleBack = () => {
-    if (headerInfo.backPath) {
-      navigate(headerInfo.backPath);
-    } else {
-      navigate(-1);
-    }
+    goBackOr(navigate, headerInfo.backPath || "/doctor");
   };
 
   return (
@@ -65,6 +62,7 @@ export default function Layout() {
             <NavLink
               key={item.name}
               to={item.path}
+              replace={item.replace === true}
               aria-current={isActive(item.path) ? "page" : undefined}
               className={() =>
                 `pq-side-link ${isActive(item.path) ? "pq-side-link-active" : ""}`
@@ -115,6 +113,7 @@ export default function Layout() {
               <NavLink
                 key={item.name}
                 to={item.path}
+                replace={item.replace === true}
                 aria-label={item.name}
                 aria-current={active ? "page" : undefined}
                 className={`pq-dock-item ${active ? "pq-dock-item-active" : ""}`}

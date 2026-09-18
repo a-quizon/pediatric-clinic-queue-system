@@ -25,6 +25,7 @@ import ChildProfileForm, {
 import { formatBranchLabel, branchesMatch } from "../../utils/stringUtils";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleSchedulesBlock } from "../../components/onboarding/TourSampleViews";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 export default function ReserveQueue() {
   const { user } = useAuth();
@@ -60,6 +61,14 @@ export default function ReserveQueue() {
     type: 'info',
     title: '',
     message: ''
+  });
+  useHistoryOverlay(isPatientInfoModalOpen, () => setIsPatientInfoModalOpen(false));
+  useHistoryOverlay(isAddChildOpen, () => setIsAddChildOpen(false));
+  useHistoryOverlay(isSuccessModalOpen, () => {
+    setIsSuccessModalOpen(false);
+    setSelectedSchedule(null);
+    setGeneratedQueuePosition(null);
+    setActiveReservationId(null);
   });
 
   const formatTime = (time) => {

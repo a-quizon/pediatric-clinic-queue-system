@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createBranch, updateBranch } from "../../services/branchConfigurationService";
 import { AlertCircle, X } from "lucide-react";
 import toast from "react-hot-toast";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 export default function BranchConfiguration({ isOpen, mode, branch, existingBranches = [], onClose, onSuccess }) {
   const defaultScheduleState = {
@@ -19,6 +20,7 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
   const [schedule, setSchedule] = useState(defaultScheduleState);
   const [errorMsg, setErrorMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  useHistoryOverlay(isOpen, onClose);
 
   useEffect(() => {
     if (isOpen) {

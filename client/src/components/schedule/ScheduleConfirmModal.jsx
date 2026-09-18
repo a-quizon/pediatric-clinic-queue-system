@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar, Clock, MapPin, CalendarCheck, PlayCircle } from 'lucide-react';
+import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
 
 export default function ScheduleConfirmModal({
   isOpen,
@@ -13,6 +14,7 @@ export default function ScheduleConfirmModal({
   loading = false,
   icon: Icon = CalendarCheck,
 }) {
+  useHistoryOverlay(Boolean(isOpen && schedule), onCancel);
   if (!isOpen || !schedule) return null;
 
   const formatDate = (dateStr) => {

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Play, Pause, Square, Lock, X } from "lucide-react";
 import { updateQueueStatus, completeSchedule } from "../../services/scheduleService";
 import toast from "react-hot-toast";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 export default function QueueSessionControls({
   schedule,
@@ -12,6 +13,8 @@ export default function QueueSessionControls({
 }) {
   const [isCloseQueueModalOpen, setIsCloseQueueModalOpen] = useState(false);
   const [isEndSessionModalOpen, setIsEndSessionModalOpen] = useState(false);
+  useHistoryOverlay(isCloseQueueModalOpen, () => setIsCloseQueueModalOpen(false));
+  useHistoryOverlay(isEndSessionModalOpen, () => setIsEndSessionModalOpen(false));
 
   if (!schedule?.id) return null;
 

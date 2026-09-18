@@ -9,6 +9,7 @@ import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 import QueueSessionControls from "../common/QueueSessionControls";
 import toast from "react-hot-toast";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
 import ReservationPatientNames from "../common/ReservationPatientNames";
 import { PqSpinner } from "../parent/pqUi";
@@ -31,6 +32,8 @@ export default function QueueControlCenter() {
 
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [infoPatient, setInfoPatient] = useState(null);
+  useHistoryOverlay(isInfoModalOpen, () => setIsInfoModalOpen(false));
+  useHistoryOverlay(isCompleteModalOpen, () => setIsCompleteModalOpen(false));
 
   useEffect(() => {
     const unsubSchedules = subscribeToPublishedSchedules((data) => {

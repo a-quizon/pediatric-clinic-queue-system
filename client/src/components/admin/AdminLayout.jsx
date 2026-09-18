@@ -1,14 +1,16 @@
 import { useState, useCallback } from "react";
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Home, Users, MapPin, Plus, ChevronLeft, LogOut } from "lucide-react";
 import { PqBrand } from "../parent/pqUi";
 import AddStaffModal from "./AddStaffModal";
 import ConfirmationModal from "../common/ConfirmationModal";
 import MobileNavDrawer, { MobileNavToggle } from "../common/MobileNavDrawer";
 import { useLogout } from "../../hooks/useLogout";
+import { goBackOr } from "../../utils/navigationRoots";
 
 export default function AdminLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setIsMenuOpen(false), []);
@@ -64,6 +66,7 @@ export default function AdminLayout() {
         <NavLink
           key={item.name}
           to={item.path}
+          replace
           end={item.path === "/admin"}
           aria-current={active ? "page" : undefined}
           className={`pq-side-link ${active ? "pq-side-link-active" : ""}`}
@@ -105,13 +108,14 @@ export default function AdminLayout() {
                 controlsId="admin-mobile-menu"
               />
               {headerInfo.backTo ? (
-                <NavLink
-                  to={headerInfo.backTo}
+                <button
+                  type="button"
+                  onClick={() => goBackOr(navigate, headerInfo.backTo)}
                   className="pq-icon-btn shrink-0"
                   aria-label="Back to Home"
                 >
                   <ChevronLeft className="w-5 h-5" aria-hidden="true" />
-                </NavLink>
+                </button>
               ) : null}
               <h1 className="text-lg sm:text-xl font-extrabold tracking-tight truncate">
                 {headerInfo.title}

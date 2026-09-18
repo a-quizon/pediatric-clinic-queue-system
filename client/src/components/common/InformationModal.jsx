@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Info, CheckCircle, AlertTriangle, X } from 'lucide-react';
+import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
 
 export default function InformationModal({ 
   isOpen, 
@@ -9,6 +10,7 @@ export default function InformationModal({
   buttonText = "OK", 
   type = "info" // "info", "success", "warning", "error"
 }) {
+  useHistoryOverlay(isOpen, onClose);
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle2, XCircle, AlertCircle, Info } from 'lucide-react';
+import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
 
 export default function MessageModal({ 
   isOpen, 
@@ -8,6 +9,7 @@ export default function MessageModal({
   message, 
   onClose 
 }) {
+  useHistoryOverlay(isOpen, onClose);
   if (!isOpen) return null;
 
   const getConfig = () => {

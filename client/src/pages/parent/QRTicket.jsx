@@ -13,6 +13,7 @@ import ConfirmationModal from "../../components/common/ConfirmationModal";
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 import ChildProfileForm, { isChildProfileValid } from "../../components/parent/ChildProfileForm";
 import toast from "react-hot-toast";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 export default function QRTicket() {
   const { id } = useParams();
@@ -34,6 +35,8 @@ export default function QRTicket() {
   const [isPatientInfoModalOpen, setIsPatientInfoModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ childName: "", age: "", sex: "", concern: "" });
+  useHistoryOverlay(isQrModalOpen, () => setIsQrModalOpen(false));
+  useHistoryOverlay(isPatientInfoModalOpen, () => setIsPatientInfoModalOpen(false));
 
   useEffect(() => {
     const unsubSchedules = subscribeToAllSchedules((data) => {

@@ -6,8 +6,10 @@ import { getBranchConfigurations } from "../../services/branchConfigurationServi
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
 import toast from "react-hot-toast";
 import ConfirmationModal from "../common/ConfirmationModal";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
+  useHistoryOverlay(Boolean(isOpen && user?.id), onClose);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [isSaving, setIsSaving] = useState(false);

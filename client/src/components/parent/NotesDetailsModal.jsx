@@ -1,8 +1,10 @@
 import React from 'react';
 import { X, MapPin, CalendarDays, FileText, Activity } from 'lucide-react';
 import { getReservationChildDisplayName, getReservationChildren } from '../../utils/reservationPatients';
+import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
 
 export default function NotesDetailsModal({ isOpen, onClose, reservation, schedule }) {
+  useHistoryOverlay(Boolean(isOpen && reservation && schedule), onClose);
   if (!isOpen || !reservation || !schedule) return null;
 
   return (

@@ -1,9 +1,11 @@
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Home, QrCode, Users, User, CalendarDays, ChevronLeft } from "lucide-react";
 import { PqBrand } from "../parent/pqUi";
+import { goBackOr } from "../../utils/navigationRoots";
 
 export default function SecretaryLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const getHeaderInfo = () => {
     const path = location.pathname;
@@ -57,6 +59,7 @@ export default function SecretaryLayout() {
             <NavLink
               key={item.name}
               to={item.path}
+              replace
               aria-current={isActive(item.path) ? "page" : undefined}
               className={() =>
                 `pq-side-link ${isActive(item.path) ? "pq-side-link-active" : ""}`
@@ -74,13 +77,14 @@ export default function SecretaryLayout() {
           <header className="pq-header-pill">
             <div className="flex items-center gap-3 min-w-0">
               {headerInfo.backTo ? (
-                <NavLink
-                  to={headerInfo.backTo}
+                <button
+                  type="button"
+                  onClick={() => goBackOr(navigate, headerInfo.backTo)}
                   className="pq-icon-btn shrink-0"
                   aria-label="Back to profile"
                 >
                   <ChevronLeft className="w-5 h-5" aria-hidden="true" />
-                </NavLink>
+                </button>
               ) : (
                 <span className="md:hidden flex-shrink-0">
                   <PqBrand size={32} wordmark={false} />
@@ -107,6 +111,7 @@ export default function SecretaryLayout() {
               <NavLink
                 key={item.name}
                 to={item.path}
+                replace
                 aria-label={item.name}
                 aria-current={active ? "page" : undefined}
                 className={`pq-dock-item ${active ? "pq-dock-item-active" : ""}`}

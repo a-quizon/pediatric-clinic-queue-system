@@ -2,8 +2,10 @@ import React from 'react';
 import { X, MapPin, CalendarDays, Clock, User, FileText, Activity, Hash } from 'lucide-react';
 import ReservationStatusBadge from '../common/ReservationStatusBadge';
 import { getReservationChildren } from '../../utils/reservationPatients';
+import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
 
 export default function ReservationDetailsModal({ isOpen, onClose, reservation, schedule, clinicAddress }) {
+  useHistoryOverlay(Boolean(isOpen && reservation), onClose);
   if (!isOpen || !reservation) return null;
 
   const sched = schedule || {};

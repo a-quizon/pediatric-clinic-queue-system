@@ -3,6 +3,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Home, CalendarPlus, Ticket, User, ArrowLeft, Bell } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { subscribeToUserNotifications } from "../../services/notificationCenterService";
+import { goBackOr } from "../../utils/navigationRoots";
 import { PqBrand } from "./pqUi";
 
 export default function ParentLayout() {
@@ -67,7 +68,7 @@ export default function ParentLayout() {
       return { title: "Notification Settings", showBack: true, backPath: "/parent/profile" };
     }
     if (path === "/parent/notifications" || path.startsWith("/parent/notifications/")) {
-      return { title: "Notifications", showBack: true, useHistoryBack: true, backPath: "/parent" };
+      return { title: "Notifications", showBack: true, backPath: "/parent" };
     }
     return { title: "Home", showBack: false };
   };
@@ -75,13 +76,7 @@ export default function ParentLayout() {
   const headerInfo = getHeaderInfo();
 
   const handleBack = () => {
-    if (headerInfo.useHistoryBack && window.history.state && window.history.state.idx > 0) {
-      navigate(-1);
-    } else if (headerInfo.backPath) {
-      navigate(headerInfo.backPath);
-    } else {
-      navigate("/parent");
-    }
+    goBackOr(navigate, headerInfo.backPath || "/parent");
   };
 
   return (
@@ -95,6 +90,7 @@ export default function ParentLayout() {
             <NavLink
               key={item.name}
               to={item.path}
+              replace
               aria-current={isActive(item.path) ? "page" : undefined}
               data-tour={item.tour}
               className={() =>
@@ -160,6 +156,7 @@ export default function ParentLayout() {
               <NavLink
                 key={item.name}
                 to={item.path}
+                replace
                 aria-label={item.name}
                 aria-current={active ? "page" : undefined}
                 data-tour={item.tour}

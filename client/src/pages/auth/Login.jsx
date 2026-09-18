@@ -28,16 +28,16 @@ export default function Login() {
   useEffect(() => {
     if (!authLoading && user) {
       if (role) {
-        if (role === 'doctor') navigate('/doctor');
-        else if (role === 'secretary') navigate('/secretary');
-        else if (role === 'admin') navigate('/admin');
+        if (role === 'doctor') navigate('/doctor', { replace: true });
+        else if (role === 'secretary') navigate('/secretary', { replace: true });
+        else if (role === 'admin') navigate('/admin', { replace: true });
         else {
-          navigate(getParentPostAuthPath(user, auth.currentUser));
+          navigate(getParentPostAuthPath(user, auth.currentUser), { replace: true });
         }
       } else {
         const firebaseUser = auth.currentUser;
         if (firebaseUser && !firebaseUser.emailVerified) {
-          navigate('/verify-email');
+          navigate('/verify-email', { replace: true });
         } else if (firebaseUser && firebaseUser.emailVerified) {
           signOut(auth).then(() => {
             toast.error('Account profile not found. Please contact the administrator.');
@@ -75,13 +75,13 @@ export default function Login() {
 
       if (userData.role === "parent" && !authUser.emailVerified) {
         toast("Please verify your email before continuing.", { icon: "ℹ️" });
-        navigate("/verify-email");
+        navigate("/verify-email", { replace: true });
         return;
       }
 
       if (userData.role === "parent") {
         if (userData.onboardingComplete === false) {
-          navigate("/onboarding/child");
+          navigate("/onboarding/child", { replace: true });
         }
         const { requestPushPermissionAfterLogin } = await import("../../services/pushService");
         await requestPushPermissionAfterLogin({
@@ -93,7 +93,7 @@ export default function Login() {
     } else {
       if (!authUser.emailVerified) {
         toast('Please verify your email before continuing.', { icon: 'ℹ️' });
-        navigate('/verify-email');
+        navigate('/verify-email', { replace: true });
         return;
       }
       await signOut(auth);

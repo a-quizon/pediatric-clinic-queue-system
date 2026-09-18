@@ -13,6 +13,7 @@ import ConfirmationModal from "../../components/common/ConfirmationModal";
 import DeleteAccountModal from "../../components/common/DeleteAccountModal";
 import { mapAuthError } from "../../utils/authErrors";
 import toast from "react-hot-toast";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 const RESEND_COOLDOWN_SEC = 90;
 
@@ -58,6 +59,7 @@ export default function PersonalInformation() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  useHistoryOverlay(passwordModalOpen, () => setPasswordModalOpen(false));
 
   const phoneChanged = phone.length === 10 && phone !== originalPhoneLocal;
   const hydratedUidRef = useRef(null);

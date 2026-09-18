@@ -49,6 +49,7 @@ import AdminActivity from "../pages/admin/Activity";
 import OnboardingRoute from "./OnboardingRoute";
 import RoleRoute from "./RoleRoute";
 import NativeNotificationBridge from "../components/common/NativeNotificationBridge";
+import NativeBackButtonHandler from "../components/common/NativeBackButtonHandler";
 import OnboardingChildProfile from "../pages/auth/OnboardingChildProfile";
 import SmsTester from "../pages/dev/SmsTester";
 import SplashGate from "../components/onboarding/SplashGate";
@@ -61,6 +62,7 @@ export default function AppRoutes() {
       <SplashGate>
         <TourPreviewProvider>
           <NativeNotificationBridge />
+          <NativeBackButtonHandler />
           <ParentTourController />
           <Routes>
         <Route path="/" element={<Login />} />

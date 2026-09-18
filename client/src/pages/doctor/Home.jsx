@@ -10,6 +10,7 @@ import {
 import QueueControlCenter from "../../components/doctor/QueueControlCenter";
 import { sortSchedules } from "../../utils/scheduleUtils";
 import { PqSpinner } from "../../components/parent/pqUi";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 export default function Home() {
   const { user } = useAuth();
@@ -34,6 +35,7 @@ export default function Home() {
 
   const [hiddenSchedules, setHiddenSchedules] = useState([]);
   const [hideConfirmModal, setHideConfirmModal] = useState({ isOpen: false, schedule: null });
+  useHistoryOverlay(hideConfirmModal.isOpen, () => setHideConfirmModal({ isOpen: false, schedule: null }));
 
   const scheduleList = useMemo(() => {
     return Object.entries(schedules).map(([id, val]) => ({ id, ...val }));

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { AlertTriangle, Info } from 'lucide-react';
+import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
 
 export default function ConfirmationModal({ 
   isOpen, 
@@ -16,6 +17,7 @@ export default function ConfirmationModal({
 }) {
   const close = onClose || onCancel;
   const busy = isLoading || loading;
+  useHistoryOverlay(isOpen, close);
 
   useEffect(() => {
     const handleKeyDown = (e) => {

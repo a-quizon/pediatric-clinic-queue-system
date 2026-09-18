@@ -6,6 +6,7 @@ import { getBranchConfigurations } from "../../services/branchConfigurationServi
 import { formatName } from "../../utils/stringUtils";
 import { usePasswordValidation } from "../../utils/passwordUtils";
 import { formatToE164 } from "../../utils/phoneUtils";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   const [step, setStep] = useState(1);
@@ -30,6 +31,8 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   const passwordInvalid = formData.password.length > 0 && !isPasswordValid;
   const confirmInvalid = formData.confirmPassword.length > 0 && formData.password !== formData.confirmPassword;
   const isPasswordFormValid = isPasswordValid && formData.password === formData.confirmPassword && !isChecking;
+
+  useHistoryOverlay(isOpen, onClose);
 
   useEffect(() => {
     if (isOpen) {

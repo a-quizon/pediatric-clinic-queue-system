@@ -7,6 +7,7 @@ import ChildProfileForm, {
 } from "../../components/parent/ChildProfileForm";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import MessageModal from "../../components/common/MessageModal";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import {
   addChild,
   removeChild,
@@ -29,6 +30,11 @@ export default function ChildProfiles() {
     type: "error",
     title: "",
     message: ""
+  });
+  useHistoryOverlay(isFormOpen, () => {
+    setIsFormOpen(false);
+    setEditingChild(null);
+    setFormValue(emptyChildProfile());
   });
 
   useEffect(() => {

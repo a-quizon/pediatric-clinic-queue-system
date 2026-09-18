@@ -2,8 +2,10 @@
 import { X, MapPin, CalendarDays, Clock, Users, Activity, CheckCircle2, User } from 'lucide-react';
 import { ACTIVE_RESERVATION_STATUSES } from '../../services/reservationService';
 import { formatBranchLabel } from '../../utils/stringUtils';
+import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
 
 export default function ScheduleDetailsModal({ isOpen, onClose, schedule, reservations = [] }) {
+  useHistoryOverlay(Boolean(isOpen && schedule), onClose);
   if (!isOpen || !schedule) return null;
 
   const formatTime = (time) => {

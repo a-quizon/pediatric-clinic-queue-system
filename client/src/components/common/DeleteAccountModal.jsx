@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { AlertTriangle, Eye, EyeOff, Lock } from "lucide-react";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 export default function DeleteAccountModal({
   isOpen,
@@ -19,6 +20,8 @@ export default function DeleteAccountModal({
       setShowPassword(false);
     }
   }, [isOpen]);
+
+  useHistoryOverlay(isOpen, onClose);
 
   useEffect(() => {
     const handleKeyDown = (e) => {

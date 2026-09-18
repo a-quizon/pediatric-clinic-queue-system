@@ -14,6 +14,7 @@ import QueueSessionControls from "../../components/common/QueueSessionControls";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 import { PqSpinner } from "../../components/parent/pqUi";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { getServerTime, formatRemainingTime } from "../../services/timeService";
 import {
   getPenaltyTimerRemainingMs,
@@ -96,6 +97,7 @@ export default function ManageQueue({ hideHeader = false }) {
     setContactIsWalkIn(false);
     setIsCancelConfirmOpen(false);
   };
+  useHistoryOverlay(isContactModalOpen, closeContactModal);
 
   useEffect(() => {
     const handleKeyDown = (e) => {

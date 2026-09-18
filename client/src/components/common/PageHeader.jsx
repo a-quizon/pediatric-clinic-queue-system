@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { goBackOr } from '../../utils/navigationRoots';
 
 export default function PageHeader({ desktopTitle, mobileTitle, icon: Icon = Activity, action, backTo }) {
   const finalMobileTitle = mobileTitle || desktopTitle;
@@ -11,7 +12,7 @@ export default function PageHeader({ desktopTitle, mobileTitle, icon: Icon = Act
       <div className="flex items-center gap-3">
         {backTo ? (
           <button 
-            onClick={() => typeof backTo === 'string' ? navigate(backTo) : navigate(-1)}
+            onClick={() => goBackOr(navigate, typeof backTo === 'string' ? backTo : undefined)}
             className="md:hidden flex items-center justify-center p-1.5 -ml-1.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
             aria-label="Go back"
           >

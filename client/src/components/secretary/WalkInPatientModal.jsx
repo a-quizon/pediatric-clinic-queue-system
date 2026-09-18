@@ -11,6 +11,7 @@ import { getChildAgeError } from "../parent/ChildProfileForm";
 import { scheduleMatchesAssignedBranch, formatBranchLabel } from "../../utils/stringUtils";
 import { formatToE164 } from "../../utils/phoneUtils";
 import MessageModal from "../common/MessageModal";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 const MAX_CHILDREN = 10;
 
@@ -54,6 +55,7 @@ const parseChildCount = (raw) => {
 };
 
 export default function WalkInPatientModal({ isOpen, onClose }) {
+  useHistoryOverlay(isOpen, onClose);
   const { user } = useAuth();
   const [schedules, setSchedules] = useState([]);
   const [scheduleCapacities, setScheduleCapacities] = useState({});

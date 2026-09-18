@@ -5,9 +5,11 @@ import { useAuth } from '../../hooks/useAuth';
 import { X, AlertCircle, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { branchesMatch } from '../../utils/stringUtils';
+import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
 
 export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSuccess, lockBranch = false }) {
   const { user } = useAuth();
+  useHistoryOverlay(isOpen, onClose);
   
   const initialFormState = {
     branch: "",

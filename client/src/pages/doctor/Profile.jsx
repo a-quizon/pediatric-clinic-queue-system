@@ -9,6 +9,7 @@ import { User as UserIcon, Save, MapPin, Lock, ChevronRight, Info, BarChart3, Ey
 import { useSearchParams, useNavigate } from "react-router-dom";
 import LogoutButton from "../../components/common/LogoutButton";
 import toast from "react-hot-toast";
+import { goBackOr } from "../../utils/navigationRoots";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -45,7 +46,7 @@ export default function Profile() {
 
   const setMobileView = (view) => {
     if (view === "hub") {
-      setSearchParams({});
+      goBackOr(navigate, "/doctor/profile");
     } else {
       setSearchParams({ view });
     }

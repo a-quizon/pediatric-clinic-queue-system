@@ -7,6 +7,7 @@ import { validateReservationByCode, checkInReservation } from "../../services/re
 import { getScheduleById } from "../../services/scheduleService";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 const CODE_LENGTH = 6;
 
@@ -20,6 +21,7 @@ function ValidateResultModal({
   actionClass = "pq-btn-primary",
   iconTone = "info",
 }) {
+  useHistoryOverlay(open, onClose);
   if (!open) return null;
 
   const iconStyle =
@@ -302,6 +304,7 @@ export default function ValidateReservation() {
       await startScanner(selectedCameraId);
     }
   };
+  useHistoryOverlay(showSuccessModal, closeAllModals);
 
   return (
     <div className="space-y-6 max-w-lg mx-auto pb-8 relative">
