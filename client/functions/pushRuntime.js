@@ -308,7 +308,10 @@ async function deliverNotification(eventId, context = {}) {
 
   try {
     const smsContext = await enrichSmsContext(eventId, context);
-    await deliverSmsForNotification(eventId, smsContext, key);
+    const smsResult = await deliverSmsForNotification(eventId, smsContext, key);
+    if (smsResult && !smsResult.success && !smsResult.skipped) {
+      console.error(`[functions/push] SMS delivery failed for ${eventId}:`, smsResult.reason, smsResult.status || "");
+    }
   } catch (err) {
     console.error(`[functions/push] SMS delivery failed for ${eventId}:`, err.message);
   }

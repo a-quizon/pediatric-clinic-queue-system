@@ -57,6 +57,12 @@ async function sendSms(to, message) {
       console.error("[functions/sms] textbee send failed:", response.status, data);
       return { success: false, reason: "provider_error", status: response.status, data };
     }
+    console.log(
+      "[functions/sms] textbee accepted:",
+      response.status,
+      data?.data?.success === true || data?.success === true,
+      data?.data?.message || data?.message || "ok"
+    );
     return { success: true, data };
   } catch (err) {
     console.error("[functions/sms] textbee request error:", err.message);

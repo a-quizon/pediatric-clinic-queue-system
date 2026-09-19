@@ -371,7 +371,29 @@ async function deliverSmsForNotification(eventId, context = {}, notificationId) 
     if (!claimed) return { success: true, skipped: true, reason: "already_dispatched" };
   }
 
-  return sendSms(phone, message);
+  const sendResult = await sendSms(phone, message);
+  if (!sendResult?.success) {
+    console.error(
+      `[functions/sms] ${eventId} send failed:`,
+      sendResult?.reason || "unknown",
+      sendResult?.status || "",
+      sendResult?.data?.error || sendResult?.data?.code || ""
+    );
+    if (eventId === "SLOT_RESERVED" && context.reservationId) {
+      try {
+        await db().ref(`reservations/${context.reservationId}/slotReservedSmsSent`).remove();
+        if (safeId && context.parentId) {
+          await db().ref(`notifications/${context.parentId}/${safeId}/smsDispatchedAt`).remove();
+        }
+        console.error(`[functions/sms] SLOT_RESERVED claim released after send failure reservationId=${context.reservationId}`);
+      } catch (releaseErr) {
+        console.error("[functions/sms] failed to release SLOT_RESERVED claim:", releaseErr.message);
+      }
+    }
+  } else {
+    console.log(`[functions/sms] ${eventId} accepted by textbee`);
+  }
+  return sendResult;
 }
 
 async function enrichSmsContext(eventId, context = {}) {
