@@ -57,8 +57,13 @@ export function useHistoryOverlay(isOpen, onClose) {
     overlayStack.push(entry);
 
     const loc = locationRef.current;
+    const openedAt = {
+      pathname: loc.pathname,
+      search: loc.search,
+      hash: loc.hash,
+    };
     navigateRef.current(
-      { pathname: loc.pathname, search: loc.search, hash: loc.hash },
+      { pathname: openedAt.pathname, search: openedAt.search, hash: openedAt.hash },
       {
         state: { ...(loc.state || {}), pqOverlay: overlayStack.length },
         preventScrollReset: true,
@@ -69,6 +74,13 @@ export function useHistoryOverlay(isOpen, onClose) {
       const index = overlayStack.indexOf(entry);
       if (index === -1) return;
       overlayStack.splice(index, 1);
+      // Use the live URL: the overlay host can unmount on a route change
+      // before React Router updates this component's location.
+      const stillOnOpenedRoute =
+        window.location.pathname === openedAt.pathname &&
+        window.location.search === openedAt.search &&
+        window.location.hash === openedAt.hash;
+      if (!stillOnOpenedRoute) return;
       ignorePopCount += 1;
       navigateRef.current(-1);
     };

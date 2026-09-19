@@ -1,0 +1,236 @@
+# Doctor User Manual
+
+A short clinic-day guide for the doctor role in PlusQueue (the clinic queue web app).
+
+Unlike the secretary, you can see **all clinic branches**.
+
+**Screenshots:** Real captures were not taken (the app has no mock/test data mode, and screenshots would show live clinic records). Each section has a labeled placeholder. Replace it with a photo later.
+
+---
+
+## How to move around
+
+After you sign in, use the left menu (computer) or the bar at the bottom (phone):
+
+| Menu item | What it is |
+| --- | --- |
+| Dashboard | Today’s summary |
+| Queue | Live line and consultation |
+| Schedules | Create, publish, and start clinic days |
+| Reports & Analytics | Completed-day numbers and charts (computer menu; on phone, open it from Profile) |
+| Profile | Your account, password, and log out |
+
+The secretary can also **pause, resume, close, and end** the queue. Use whichever desk is free.
+
+---
+
+## 1. Logging In
+
+Sign in with the email (or phone) and password given to you by the administrator.
+
+1. Open the app in a browser.
+2. Type your **email or phone number**.
+3. Type your **password**.
+4. Click **Sign In**.
+5. You are taken to Dashboard.
+
+Forgot your password? Click **Forgot Password?** on the sign-in screen.
+
+*[Screenshot: Sign in screen]*
+
+---
+
+## 2. Viewing the Queue
+
+This is your live view of who is with you and who is still waiting.
+
+1. Click **Queue** in the menu.
+2. If a clinic day is running, you see the branch, date, and session controls at the top.
+3. **Current Consultation** shows the patient in your room (name, age, sex, and the parent’s stated concern). Walk-ins have a **Walk-in** tag.
+4. **Waiting Queue** lists everyone still in line, with their queue number and whether they are checked in.
+
+The **queue number** is the ticket number. It does not change.
+
+If no session is running, you will see “No Clinic Queue is Currently Active.” Start the queue from **Schedules** first.
+
+Click **View Details** (or the consultation card) to open the same patient info in a larger popup.
+
+The secretary is the one who **sends** the next checked-in patient to you. You do not send patients from this screen.
+
+*[Screenshot: Doctor Queue — Current Consultation and Waiting Queue]*
+
+---
+
+## 3. Starting the Queue
+
+Start the live line when the clinic floor is ready. Parents can then check in, and consultations can begin.
+
+1. Open **Schedules**.
+2. Find the **Published** card for today’s clinic.
+3. Click **Start Queue**.
+4. Review the details.
+5. Click **Start Queue** again.
+6. You are taken to Queue.
+
+You can run only **one** live queue at a time. End the current one before starting another.
+
+*[Screenshot: Published schedule card with Start Queue]*
+
+---
+
+## 4. Pause, resume, close, and end the clinic session
+
+These buttons sit at the top of **Queue**. The secretary has the same four actions on Manage Queue.
+
+| Button | What it does |
+| --- | --- |
+| Pause (pause icon) | Temporarily stop the live session. Check-in can still happen. You cannot complete a consultation while paused. |
+| Play (play icon) | Resume after a pause. |
+| Lock (lock icon) | Close the queue to **new** reservations. People already in line keep their place. Consultations continue. |
+| Stop (square icon) | End the clinic day. Only works when **nobody is waiting and nobody is in consultation**. |
+
+### Pause
+
+1. On Queue, click the **pause** button.
+2. Status shows **Paused**.
+
+### Resume
+
+1. Click the **play** button.
+2. Status shows **Active** again.
+
+### Close the queue to new reservations
+
+1. Click the **lock** button.
+2. Read the confirmation.
+3. Click **Close Queue**.
+
+### End the clinic session
+
+1. Finish remaining patients first.
+2. Click the **square** button.
+3. Click **End Clinic Session**.
+
+This marks the schedule completed. It then appears in Reports.
+
+If you are busy with a patient, the secretary can do any of these four actions for you.
+
+*[Screenshot: Queue session controls]*
+
+---
+
+## 5. Completing a consultation
+
+Mark the visit finished when you are done with the patient in your room. Only **one** patient can be in consultation at a time.
+
+1. On **Queue**, open **Current Consultation**.
+2. Click **Complete Consultation**.
+3. For a **parent reservation**, you may type optional **Doctor's Notes** (the parent can see these later).
+4. For a **walk-in**, notes are turned off. Walk-ins have no parent app account, so there is nowhere to send notes.
+5. Click **Complete Session**.
+
+The room is then free for the next patient the secretary sends.
+
+You cannot complete a consultation while the queue is **paused**. Resume first.
+
+*[Screenshot: Complete Consultation popup]*
+
+---
+
+## 6. Publishing a reservation schedule
+
+A **schedule** is a clinic day (branch, date, hours, how many slots). Parents can book only after you **publish** it.
+
+You can create schedules for **any** branch.
+
+### Create a draft
+
+1. Open **Schedules**.
+2. Click the round **+** button (bottom right).
+3. Choose the **branch**, **date**, **opening time**, **closing time**, and **slot capacity**.
+4. Save.
+
+A draft is not visible to parents yet.
+
+### Publish
+
+1. On the draft card, click **Publish**.
+2. Review the details.
+3. Click **Publish Schedule**.
+
+Parents can now reserve slots.
+
+Drafts can also be **Edit**ed or **Delete**d. After the queue is running, click **Open Queue Control** on the card to jump to Queue.
+
+*[Screenshot: Schedules page with Publish]*
+
+---
+
+## 7. Viewing Reports & Analytics
+
+This page shows numbers for **finished** clinic days only (after you or the secretary end the session).
+
+1. On a computer, click **Reports & Analytics** in the left menu.
+2. On a phone, open **Profile**, then tap **Reports & Analytics**.
+
+**Filters**
+
+- **Branch** — one clinic, or **All Branches**.
+- **Date range** — **Today**, **This Week**, **This Month**, or **This Year** (This Year is the default).
+
+Click **Reset** to go back to All Branches and This Year.
+
+You will see:
+
+- Totals: Total, Checked Up, Cancelled, Forfeited, Completion %
+- **Reservation Trend** — bookings over time
+- **Outcome Distribution** — checked up vs cancelled vs forfeited
+- **Session History** — one row per completed clinic day
+
+*[Screenshot: Reports & Analytics screen]*
+
+---
+
+## 8. Reviewing the doctor’s report
+
+The report is the **Reports & Analytics** page (including **Session History**). It is built from each completed schedule and **every ticket on that day**.
+
+| Number | Meaning |
+| --- | --- |
+| **Total** | All reservations that day — parent app bookings **and** walk-ins |
+| **Checked Up** | Visits you finished (Complete Consultation) |
+| **Cancelled** | Tickets that were cancelled (parent, or a walk-in cancelled at the desk) |
+| **Forfeited** | Tickets lost because the parent did not check in in time |
+| **Completion** | Checked Up ÷ Total |
+
+Walk-ins count the same as regular reservations. They are not listed in a separate report.
+
+Nothing appears here until a clinic session is **ended**.
+
+*[Screenshot: Session History table]*
+
+---
+
+## 9. Other doctor tools
+
+### Dashboard (Home)
+
+First screen after login. Pick a schedule from the dropdown to see today’s counts (waiting, in consult, completed, and so on). A compact Queue view appears on a wide screen.
+
+You can hide a **completed today** session from this dropdown. It stays available under Schedules.
+
+*[Screenshot: Dashboard]*
+
+### Profile
+
+Update your name, title, contact number, and clinic name. Change your password under **Security**. Clinic branch addresses are listed here (set by the administrator).
+
+1. Open **Profile**.
+2. Edit the fields you need.
+3. Click **Save Information**.
+
+To log out: click **Log Out**, then confirm.
+
+On a phone, Profile also has **About System** (app name and version).
+
+*[Screenshot: Profile]*

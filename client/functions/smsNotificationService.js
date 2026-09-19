@@ -422,12 +422,14 @@ async function enrichSmsContext(eventId, context = {}) {
   return enriched;
 }
 
-const SKIP_WALK_IN_SMS_QUEUE_STATUSES = ["active", "paused", "closed", "completed", "ended"];
+const SKIP_WALK_IN_SMS_QUEUE_STATUSES = ["closed", "completed", "ended"];
 
 /**
  * One-shot confirmed-reservation SMS for phone-in walk-ins.
  * Walk-in `parentPhone` is used only at creation. Never used for Queue Started,
  * Near Turn, Penalized, or Forfeited broadcasts (those require parentId).
+ * Upcoming queues use templateSlotReserved; active/paused reuse the parent
+ * live-queue template via buildSmsMessage (templateSlotReservedActiveQueue).
  */
 async function deliverWalkInReservationSms(reservation) {
   if (!reservation || reservation.source !== "walk_in" || reservation.parentId) {
@@ -448,7 +450,7 @@ async function deliverWalkInReservationSms(reservation) {
   const schedule = snap.val() || {};
   const queueStatus = schedule.queueStatus || "not_started";
   if (SKIP_WALK_IN_SMS_QUEUE_STATUSES.includes(queueStatus)) {
-    return { success: false, skipped: true, reason: "queue_already_started" };
+    return { success: false, skipped: true, reason: "queue_closed" };
   }
 
   const smsContext = await enrichSmsContext("SLOT_RESERVED", {
@@ -458,10 +460,10 @@ async function deliverWalkInReservationSms(reservation) {
     queueNumber: reservation.queueNumber ?? reservation.originalQueueNumber ?? reservation.queuePosition,
     queuePosition: reservation.queueOrder ?? reservation.queuePosition,
     branchId: reservation.branchId || reservation.branch || schedule.branchId || schedule.branch,
-    queueStatus: "not_started",
+    queueStatus,
   });
   smsContext.phone = phone;
-  smsContext.queueStatus = "not_started";
+  smsContext.queueStatus = queueStatus;
 
   return deliverSmsForNotification("SLOT_RESERVED", smsContext);
 }

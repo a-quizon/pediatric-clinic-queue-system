@@ -92,7 +92,7 @@ A parent may hold **only one active reservation on the same calendar date**, eve
 
 ### Walk-in patients (no parent account)
 
-A walk-in is someone who did not book through the app. The secretary adds them from Profile → Walk-in Patient: pick a schedule, enter the children and concern. Parent’s name and phone are **optional**.
+A walk-in is someone who did not book through the app. The secretary adds them from Profile → Walk-in Patient: pick an **Upcoming** published schedule or an **Active Now** queue, enter the children and concern. Parent’s name and phone are **optional**. Closed or ended clinic days do not appear.
 
 - **In person:** leave parent name/phone blank. The desk will call the child’s name when it is their turn.
 - **Phone-in:** fill in parent name and phone so the system can text reservation details.
@@ -103,7 +103,7 @@ The system:
 - Marks them **already checked in** (no QR step)
 - Puts them into the live line like anyone else
 
-If a parent phone is provided **and the queue has not started yet**, they get **one** confirmation text with the same reservation details as a normal booking (branch, date, ticket number). They do **not** get Queue Started, Near Turn, or later clinic texts. If the queue is already running, no text is sent. In-person walk-ins (no phone) get no texts. They still count as one slot.
+If a parent phone is provided, they get **one** confirmation text. If the queue has not started yet, it is the usual reservation-details message (branch, date, ticket number). If the queue is already running, it is the active-queue message (ticket number and current position). They do **not** get Queue Started, Near Turn, or later clinic texts. In-person walk-ins (no phone) get no texts. They still count as one slot.
 
 ---
 
@@ -265,7 +265,7 @@ The secretary opens that patient on Manage Queue and cancels the walk-in. The sl
 
 ## 7. Notifications summary (SMS)
 
-Clinic texts go to **parents** on the phone number on their account. Walk-ins with no phone get none. A phone-in walk-in (parent phone filled in) gets **only** the confirmation text, and only if the queue has not started yet.
+Clinic texts go to **parents** on the phone number on their account. Walk-ins with no phone get none. A phone-in walk-in (parent phone filled in) gets **only** the confirmation text: reservation details if the queue has not started, or the active-queue number/position text if it is already running.
 
 Each branch secretary can edit the wording; the table uses the system’s default meaning.
 

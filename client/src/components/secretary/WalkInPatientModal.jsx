@@ -37,6 +37,34 @@ const getLocalDateString = () => {
 const isQueueEnded = (schedule) =>
   ["closed", "ended", "completed"].includes(schedule?.queueStatus);
 
+const isUpcomingQueue = (schedule) => {
+  const qs = schedule?.queueStatus;
+  return !qs || qs === "not_started";
+};
+
+const isStartedOpenQueue = (schedule) => {
+  const qs = schedule?.queueStatus;
+  return qs === "active" || qs === "paused";
+};
+
+/** Published upcoming (not started) or currently started (active/paused). Closed/ended stay out. */
+const isWalkInScheduleEligible = (schedule) =>
+  schedule?.status === "published" &&
+  !isQueueEnded(schedule) &&
+  (isUpcomingQueue(schedule) || isStartedOpenQueue(schedule));
+
+const getScheduleSessionLabel = (schedule) => {
+  if (schedule?.queueStatus === "active") return "Active Now";
+  if (schedule?.queueStatus === "paused") return "Paused";
+  return "Upcoming";
+};
+
+const getScheduleSessionChipClass = (schedule) => {
+  if (schedule?.queueStatus === "active") return "pq-chip pq-chip-live";
+  if (schedule?.queueStatus === "paused") return "pq-chip pq-chip-wait";
+  return "pq-chip pq-chip-info";
+};
+
 /** Resize children[] to match a validated count; keep existing entries for groups that remain. */
 const resizeChildren = (prev, count) => {
   if (count === prev.length) return prev;
@@ -98,10 +126,12 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
       const today = getLocalDateString();
       const filtered = data
         .filter((s) => scheduleMatchesAssignedBranch(s, user))
-        .filter((s) => s.status === "published")
-        .filter((s) => !isQueueEnded(s))
+        .filter(isWalkInScheduleEligible)
         .filter((s) => String(s.clinicDate || "") >= today)
         .sort((a, b) => {
+          const aLive = isStartedOpenQueue(a) ? 0 : 1;
+          const bLive = isStartedOpenQueue(b) ? 0 : 1;
+          if (aLive !== bLive) return aLive - bLive;
           const dateDiff = new Date(a.clinicDate) - new Date(b.clinicDate);
           if (dateDiff !== 0) return dateDiff;
           return String(a.openingTime || "").localeCompare(String(b.openingTime || ""));
@@ -309,7 +339,8 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
     });
     const timeLabel = `${formatTime(schedule.openingTime)} – ${formatTime(schedule.closingTime)}`;
     const fullTag = remaining <= 0 ? " (Full)" : ` (${remaining}/${capacity} slots left)`;
-    return `${formatBranchLabel(schedule.branch)} · ${dateLabel} · ${timeLabel}${fullTag}`;
+    const sessionTag = ` — ${getScheduleSessionLabel(schedule)}`;
+    return `${formatBranchLabel(schedule.branch)} · ${dateLabel} · ${timeLabel}${fullTag}${sessionTag}`;
   };
 
   if (!isOpen) return null;
@@ -336,7 +367,7 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
                 <label htmlFor="walkin-schedule" className="pq-label">1. Select schedule</label>
                 {schedules.length === 0 ? (
                   <p className="text-sm pq-muted pq-row block min-h-0">
-                    No published schedules available for your assigned branch.
+                    No published or active schedules available for your assigned branch.
                   </p>
                 ) : (
                   <select
@@ -358,6 +389,18 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
                       );
                     })}
                   </select>
+                )}
+                {selectedSchedule && (
+                  <p className="mt-2 flex items-center gap-2">
+                    <span className={getScheduleSessionChipClass(selectedSchedule)}>
+                      {getScheduleSessionLabel(selectedSchedule)}
+                    </span>
+                    <span className="text-xs pq-muted">
+                      {isStartedOpenQueue(selectedSchedule)
+                        ? "This walk-in will join the live queue."
+                        : "This walk-in will be checked in before the queue starts."}
+                    </span>
+                  </p>
                 )}
                 {selectedIsFull && (
                   <p className="mt-1.5 pq-error-text flex items-center gap-1">

@@ -168,9 +168,9 @@ State model: `AuthContext` + Firebase `onValue` listeners. No Redux / Zustand / 
 #### Workflow D — Walk-in patient
 
 1. Profile → Walk-in Patient modal.
-2. Choose today’s published schedule with capacity; enter 1–10 children (age 1–25) + concern. Optional parent name and phone (phone-in bookings).
-3. Creates reservation with `source: "walk_in"`, **no** `parentId`, already `checked_in`, `patientInfoCompleted: true`. Optional `parentName` / `parentPhone`.
-4. Appears on Manage Queue / doctor queue like any other ticket. Parent Notification Center / push still require `parentId`. If `parentPhone` is set and the queue is still `not_started`, one confirmed-reservation SMS is sent; no Queue Started / Near Turn / later clinic SMS.
+2. Choose a published **Upcoming** schedule or an **Active Now** / paused queue with capacity; enter 1–10 children (age 1–25) + concern. Optional parent name and phone (phone-in bookings). Closed / ended schedules do not appear.
+3. Creates reservation with `source: "walk_in"`, **no** `parentId`, already `checked_in`, `patientInfoCompleted: true`. Optional `parentName` / `parentPhone`. A walk-in added to a live queue is placed at the next FIFO position (back of the waiting line), same as a parent booking into an active queue.
+4. Appears on Manage Queue / doctor queue like any other ticket. Parent Notification Center / push still require `parentId`. If `parentPhone` is set: one `templateSlotReserved` SMS when the queue is still `not_started`, or `templateSlotReservedActiveQueue` when already `active` / `paused`. No Queue Started / Near Turn / later clinic SMS.
 
 ---
 
@@ -383,7 +383,7 @@ Any of: create, cancel, expire, check-in, send/start/complete consultation, pena
 | Children | From saved profiles | Inline entry; max **10**; age **1–25** |
 | Slot / ticket | 1 slot, 1 `queueNumber` | Same |
 | `patientInfoCompleted` | After Save Information | `true` at create |
-| SMS / push / Notification Center | Yes | **No** parent-account notifications. One confirmed-reservation SMS only if `parentPhone` is set **and** queue is still `not_started`. Never Queue Started / Near Turn. |
+| SMS / push / Notification Center | Yes | **No** parent-account notifications. One confirmed-reservation SMS if `parentPhone` is set: `templateSlotReserved` when queue is `not_started`, or `templateSlotReservedActiveQueue` when `active` / `paused`. Never Queue Started / Near Turn. |
 | Penalize | First unchecked waiting | Also available when a walk-in is #1 waiting, even if `checked_in` |
 | Doctor notes UI | Allowed | Disabled for walk-ins |
 | Path | reserved → checked_in → … | checked_in → with_doctor → consultation_completed |
@@ -434,7 +434,7 @@ Only **five** clinic SMS event types exist:
 
 | Event | Exact fire condition | Recipient | Template key |
 |-------|----------------------|-----------|--------------|
-| **SLOT_RESERVED** (Confirmed Reservation) | Reservation `patientInfoCompleted` transitions to **true** (parent **Save Information**). **Not** on bare parent `createReservation`. If the schedule queue is already live (`active` / `paused` / `closed`), use the active-queue template instead. **Walk-in exception:** on create, if `source === "walk_in"`, `parentPhone` is set, no `parentId`, and queue is still `not_started`, send `templateSlotReserved` to `parentPhone` (no Notification Center). Skip if queue already started. | That parent’s phone, or walk-in `parentPhone` | `templateSlotReserved` or `templateSlotReservedActiveQueue` |
+| **SLOT_RESERVED** (Confirmed Reservation) | Reservation `patientInfoCompleted` transitions to **true** (parent **Save Information**). **Not** on bare parent `createReservation`. If the schedule queue is already live (`active` / `paused` / `closed`), use the active-queue template instead. **Walk-in exception:** on create, if `source === "walk_in"`, `parentPhone` is set, and no `parentId`, send SMS to `parentPhone` (no Notification Center): `templateSlotReserved` when queue is `not_started`, or the same live-queue path (`templateSlotReservedActiveQueue`) when `active` / `paused`. Skip if queue is `closed` / `ended` / `completed`. | That parent’s phone, or walk-in `parentPhone` | `templateSlotReserved` or `templateSlotReservedActiveQueue` |
 | **QUEUE_STARTED** | Schedule `queueStatus` first becomes **`active`** | Each parent with an **active** reservation on that schedule | `templateQueueStarted` |
 | **NEARING_TURN** | **Only when the queue first starts.** Tickets with `aheadOfYou` **greater than 0 and at or below** `nearingTurnAheadCount` (default **3**). Already-first (`aheadOfYou === 0`) does not send. Locked by `reservations/{id}/nearTurnSmsSent`. Not sent on later recalculation, penalties, or resume. | That parent | `templateNearingTurn` |
 | **PENALIZED** | `penaltyCount` increases and status is not `forfeited` | That parent | `templatePenalized` |
