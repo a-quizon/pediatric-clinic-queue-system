@@ -2,7 +2,7 @@ import { database } from "../firebase/database";
 import { ref, get, update } from "firebase/database";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { branchesMatch } from "../utils/stringUtils";
-import { noopUnsub, subscribeOnValue } from "../firebase/rtdbSubscribe";
+import { isPermissionDenied, noopUnsub, subscribeOnValue } from "../firebase/rtdbSubscribe";
 
 const MAX_PENALTY_MOVE_BACK = 10;
 const MIN_PENALTY_MOVE_BACK = 0;
@@ -344,19 +344,35 @@ const isBranchConfigSeeded = (data) =>
         (data.sms && typeof data.sms === "object"))
   );
 
-const readLegacyGlobal = async () => {
+const readLegacyNode = async (path) => {
   try {
-    const [queueSnap, smsSnap] = await Promise.all([
-      get(ref(database, "systemConfiguration/queue")),
-      get(ref(database, "systemConfiguration/sms")),
-    ]);
-    return {
-      queue: queueSnap.exists() ? queueSnap.val() : null,
-      sms: smsSnap.exists() ? smsSnap.val() : null,
-    };
+    const snap = await get(ref(database, path));
+    return snap.exists() ? snap.val() : null;
   } catch (error) {
-    console.warn("Could not read legacy global systemConfiguration:", error);
-    return { queue: null, sms: null };
+    if (!isPermissionDenied(error)) {
+      console.warn("Could not read legacy global systemConfiguration:", error);
+    }
+    return null;
+  }
+};
+
+const readLegacyGlobal = async () => {
+  const [queue, sms] = await Promise.all([
+    readLegacyNode("systemConfiguration/queue"),
+    readLegacyNode("systemConfiguration/sms"),
+  ]);
+  return { queue, sms };
+};
+
+const readBranchSmsOnly = async (branchId) => {
+  try {
+    const snap = await get(ref(database, `${branchConfigPath(branchId)}/sms`));
+    return parseBranchConfig({ sms: snap.exists() ? snap.val() : null });
+  } catch (error) {
+    if (!isPermissionDenied(error)) {
+      console.error("Failed to read branch SMS configuration:", error);
+    }
+    return parseBranchConfig(null);
   }
 };
 
@@ -405,7 +421,12 @@ export const ensureBranchSystemConfiguration = async (branchId) => {
     const snap = await get(ref(database, path));
     existing = snap.exists() ? snap.val() : null;
   } catch (error) {
+    if (isPermissionDenied(error)) {
+      // Parents may read /sms only; they cannot read or seed the full branch node.
+      return readBranchSmsOnly(branchId);
+    }
     console.error("Failed to read branch system configuration:", error);
+    return parseBranchConfig(null);
   }
 
   if (isBranchConfigSeeded(existing)) {
@@ -432,7 +453,9 @@ export const ensureBranchSystemConfiguration = async (branchId) => {
       updatedAt: Date.now(),
     });
   } catch (error) {
-    console.error("Failed to seed branch system configuration:", error);
+    if (!isPermissionDenied(error)) {
+      console.error("Failed to seed branch system configuration:", error);
+    }
   }
 
   return parsed;
@@ -611,8 +634,6 @@ export const subscribeToSmsConfiguration = (branchId, callback) => {
     callback(parseSmsConfig(null));
     return noopUnsub;
   }
-
-  ensureBranchSystemConfiguration(branchId).catch(() => {});
 
   return subscribeOnValue(
     ref(database, `${branchConfigPath(branchId)}/sms`),

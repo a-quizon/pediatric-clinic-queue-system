@@ -546,16 +546,16 @@ export default function ReserveQueue() {
                         const checked = selectedChildIds.includes(child.id);
                         return (
                           <li key={child.id}>
-                            <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer ${
-                              checked ? "pq-row-you" : "pq-row"
+                            <label className={`pq-row pq-row-start w-full cursor-pointer text-left ${
+                              checked ? "pq-row-you" : ""
                             }`}>
                               <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={() => toggleChildSelection(child.id)}
-                                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                className="w-4 h-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               />
-                              <span className="min-w-0">
+                              <span className="min-w-0 flex-1 text-left">
                                 <span className="block text-sm font-bold truncate">{child.childName}</span>
                                 <span className="block text-xs pq-muted">{child.age} • {child.sex}</span>
                               </span>

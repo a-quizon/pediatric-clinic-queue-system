@@ -250,9 +250,9 @@ export function TourSampleReservationForm() {
         <div className="space-y-4 pointer-events-none">
           <div>
             <label className="block text-sm font-medium mb-2">Who is this reservation for? *</label>
-            <label className="flex items-center gap-3 p-3 rounded-xl border pq-row-you">
-              <input type="checkbox" checked readOnly onChange={() => {}} className="w-4 h-4 rounded" />
-              <span className="min-w-0">
+            <label className="pq-row pq-row-start pq-row-you w-full cursor-pointer text-left">
+              <input type="checkbox" checked readOnly onChange={() => {}} className="w-4 h-4 shrink-0 rounded" />
+              <span className="min-w-0 flex-1 text-left">
                 <span className="block text-sm font-bold truncate">{TOUR_SAMPLE_CHILD.childName}</span>
                 <span className="block text-xs pq-muted">{TOUR_SAMPLE_CHILD.age} • {TOUR_SAMPLE_CHILD.sex}</span>
               </span>

@@ -728,6 +728,10 @@
   border-color: color-mix(in srgb, var(--pq-mark-blue) 28%, white);
 }
 
+.pq-row.pq-row-start {
+  justify-content: flex-start;
+}
+
 .pq-now {
   display: flex;
   align-items: center;
