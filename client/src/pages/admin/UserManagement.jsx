@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, Filter, Shield, Stethoscope, UserCog, User, MapPin, Mail, Phone, Trash2, AlertCircle } from "lucide-react";
-import { ref, onValue } from "firebase/database";
+import { ref } from "firebase/database";
 import { database } from "../../firebase/database";
+import { subscribeOnValue } from "../../firebase/rtdbSubscribe";
 import UserDetailsModal from "../../components/admin/UserDetailsModal";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import { deleteUserAccount } from "../../services/adminService";
@@ -48,7 +49,7 @@ export default function UserManagement() {
 
   useEffect(() => {
     const usersRef = ref(database, "users");
-    const unsubscribe = onValue(usersRef, (snapshot) => {
+    const unsubscribe = subscribeOnValue(usersRef, (snapshot) => {
       if (snapshot.exists()) {
         const usersData = snapshot.val();
         const usersList = Object.keys(usersData).map((key) => ({

@@ -1,9 +1,10 @@
 import { createContext, useEffect, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { ref, onValue, update, get } from "firebase/database";
+import { ref, update, get } from "firebase/database";
 
 import { auth } from "../firebase/auth";
 import { database } from "../firebase/database";
+import { isPermissionDenied, safeUnsub, subscribeOnValue } from "../firebase/rtdbSubscribe";
 import { cleanupPushSubscriptionOnLogout, registerPushSubscription } from "../services/pushService";
 import { cacheNotificationPreferences } from "../services/notificationPreferencesService";
 import {
@@ -27,7 +28,7 @@ export function AuthProvider({ children }) {
             auth,
             (currentUser) => {
                 if (unsubscribeDB) {
-                    unsubscribeDB();
+                    safeUnsub(unsubscribeDB);
                     unsubscribeDB = null;
                 }
 
@@ -36,7 +37,7 @@ export function AuthProvider({ children }) {
                     setUser(currentUser);
 
                     const userRef = ref(database, `users/${currentUser.uid}`);
-                    unsubscribeDB = onValue(userRef, (snapshot) => {
+                    unsubscribeDB = subscribeOnValue(userRef, (snapshot) => {
                         if (snapshot.exists()) {
                             let userData = snapshot.val();
                             
@@ -160,7 +161,9 @@ export function AuthProvider({ children }) {
                         }
                         setLoading(false);
                     }, (error) => {
-                        console.error("Database read error in AuthContext:", error);
+                        if (!isPermissionDenied(error)) {
+                            console.error("Database read error in AuthContext:", error);
+                        }
                         setLoading(false);
                     });
                 } else {
@@ -179,9 +182,9 @@ export function AuthProvider({ children }) {
 
         return () => {
             if (unsubscribeDB) {
-                unsubscribeDB();
+                safeUnsub(unsubscribeDB);
             }
-            unsubscribeAuth();
+            safeUnsub(unsubscribeAuth);
         };
     }, []);
 

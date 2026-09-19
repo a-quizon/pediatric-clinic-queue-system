@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { auth } from "../firebase/auth";
 
 /**
  * Syncs an overlay/modal to the router history stack so device/browser
@@ -81,8 +82,15 @@ export function useHistoryOverlay(isOpen, onClose) {
         window.location.search === openedAt.search &&
         window.location.hash === openedAt.hash;
       if (!stillOnOpenedRoute) return;
-      ignorePopCount += 1;
-      navigateRef.current(-1);
+      // Auth is already gone (logout / session drop): do not POP against
+      // ProtectedRoute's blank <Navigate to="/" />.
+      if (!auth.currentUser) return;
+      try {
+        ignorePopCount += 1;
+        navigateRef.current(-1);
+      } catch {
+        ignorePopCount = Math.max(0, ignorePopCount - 1);
+      }
     };
   }, [isOpen]);
 }

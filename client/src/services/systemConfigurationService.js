@@ -1,7 +1,8 @@
 import { database } from "../firebase/database";
-import { ref, get, update, onValue } from "firebase/database";
+import { ref, get, update } from "firebase/database";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { branchesMatch } from "../utils/stringUtils";
+import { noopUnsub, subscribeOnValue } from "../firebase/rtdbSubscribe";
 
 const MAX_PENALTY_MOVE_BACK = 10;
 const MIN_PENALTY_MOVE_BACK = 0;
@@ -67,8 +68,6 @@ export const isUsableBranchId = (branchId) =>
   typeof branchId === "string" && branchId.trim() !== "" && !LEGACY_GLOBAL_KEYS.has(branchId);
 
 const branchConfigPath = (branchId) => `systemConfiguration/${branchId}`;
-
-const noopUnsub = () => {};
 
 /**
  * Validates the penalty move back value.
@@ -478,7 +477,7 @@ export const subscribeToQueueConfiguration = (branchId, callback) => {
 
   ensureBranchSystemConfiguration(branchId).catch(() => {});
 
-  return onValue(
+  return subscribeOnValue(
     ref(database, branchConfigPath(branchId)),
     (snapshot) => {
       callback(parseQueueConfig(snapshot.val()));
@@ -615,7 +614,7 @@ export const subscribeToSmsConfiguration = (branchId, callback) => {
 
   ensureBranchSystemConfiguration(branchId).catch(() => {});
 
-  return onValue(
+  return subscribeOnValue(
     ref(database, `${branchConfigPath(branchId)}/sms`),
     (snapshot) => {
       callback(parseSmsConfig(snapshot.val()));

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { FileText, Activity as ActivityIcon, Search, Filter, Shield, Stethoscope, UserCog, User, MapPin, Clock, ArrowDownToLine, AlertCircle, Calendar, Users, Inbox } from "lucide-react";
-import { ref, query, limitToLast, onValue } from "firebase/database";
+import { ref, query, limitToLast } from "firebase/database";
 import { database } from "../../firebase/database";
+import { subscribeOnValue } from "../../firebase/rtdbSubscribe";
 import { AUDIT_CATEGORIES } from "../../services/auditService";
 import { useAdminReportsData } from "../../hooks/useAdminReportsData";
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
@@ -321,7 +322,7 @@ export default function Activity() {
     const auditRef = ref(database, "auditLogs");
     const q = query(auditRef, limitToLast(logLimit));
 
-    const unsubscribe = onValue(q, (snapshot) => {
+    const unsubscribe = subscribeOnValue(q, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
         const logsList = Object.keys(data).map((key) => ({

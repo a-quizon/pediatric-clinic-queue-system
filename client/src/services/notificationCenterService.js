@@ -1,6 +1,7 @@
 import { database } from "../firebase/database";
-import { ref, push, update, get, onValue } from "firebase/database";
+import { ref, push, update, get } from "firebase/database";
 import { getAuth } from "firebase/auth";
+import { subscribeOnValue } from "../firebase/rtdbSubscribe";
 
 /**
  * Notification Center Service
@@ -119,6 +120,7 @@ export const saveNotification = async (parentId, notificationData) => {
 };
 
 export const subscribeToUserNotifications = (parentId, callback) => {
+  if (typeof callback !== "function") return () => {};
   if (!parentId) {
     callback([]);
     return () => {};
@@ -128,7 +130,7 @@ export const subscribeToUserNotifications = (parentId, callback) => {
   migrateUserNotifications(parentId);
 
   const notifRef = ref(database, `notifications/${parentId}`);
-  const unsubscribe = onValue(notifRef, (snapshot) => {
+  return subscribeOnValue(notifRef, (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.val();
       const list = Object.values(data).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -140,7 +142,6 @@ export const subscribeToUserNotifications = (parentId, callback) => {
     console.error("[NotificationCenterService] Subscription error:", error);
     callback([]);
   });
-  return unsubscribe;
 };
 
 export const markNotificationsAsRead = async (parentId, notificationIds = []) => {

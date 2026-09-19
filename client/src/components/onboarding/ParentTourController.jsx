@@ -71,7 +71,11 @@ export default function ParentTourController() {
 
     const destroyProgrammatically = () => {
       programmaticRef.current = true;
-      driverRef.current?.destroy();
+      try {
+        driverRef.current?.destroy();
+      } catch {
+        // Overlay DOM may already be gone during logout unmount.
+      }
       driverRef.current = null;
     };
 

@@ -1,5 +1,6 @@
 import { database } from "../firebase/database";
-import { ref, push, set, update, remove, onValue } from "firebase/database";
+import { ref, push, set, update, remove } from "firebase/database";
+import { subscribeOnValue } from "../firebase/rtdbSubscribe";
 import { formatName } from "../utils/stringUtils";
 
 const childrenRef = (uid) => ref(database, `users/${uid}/children`);
@@ -23,11 +24,12 @@ const normalizePayload = (data) => ({
 });
 
 export const subscribeToChildren = (uid, callback) => {
+  if (typeof callback !== "function") return () => {};
   if (!uid) {
     callback([]);
     return () => {};
   }
-  return onValue(childrenRef(uid), (snapshot) => {
+  return subscribeOnValue(childrenRef(uid), (snapshot) => {
     callback(toChildList(snapshot.val()));
   });
 };

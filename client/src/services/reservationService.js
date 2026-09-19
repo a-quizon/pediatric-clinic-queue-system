@@ -1,5 +1,6 @@
 import { database } from "../firebase/database";
-import { ref, push, set, get, onValue, update, query, orderByChild, equalTo, serverTimestamp, runTransaction } from "firebase/database";
+import { ref, push, set, get, update, query, orderByChild, equalTo, serverTimestamp, runTransaction } from "firebase/database";
+import { subscribeOnValue } from "../firebase/rtdbSubscribe";
 import { recalculateRollingValidation } from "./rollingValidationService";
 import { recalculateEntireQueue, enrichReservationsWithState } from "./queueEngine";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
@@ -296,12 +297,17 @@ export const calculateDynamicQueuePositions = (reservations) => {
 };
 
 export const subscribeToParentReservations = (parentId, callback) => {
+  if (typeof callback !== "function") return () => {};
+  if (!parentId) {
+    callback([]);
+    return () => {};
+  }
   const q = query(
     ref(database, "reservations"),
     orderByChild("parentId"),
     equalTo(parentId)
   );
-  return onValue(q, (snapshot) => {
+  return subscribeOnValue(q, (snapshot) => {
     if (!snapshot.exists()) {
       callback([]);
       return;
@@ -314,12 +320,17 @@ export const subscribeToParentReservations = (parentId, callback) => {
 };
 
 export const subscribeToScheduleReservations = (scheduleId, callback) => {
+  if (typeof callback !== "function") return () => {};
+  if (!scheduleId) {
+    callback([]);
+    return () => {};
+  }
   const q = query(
     ref(database, "reservations"),
     orderByChild("scheduleId"),
     equalTo(scheduleId)
   );
-  return onValue(q, (snapshot) => {
+  return subscribeOnValue(q, (snapshot) => {
     if (!snapshot.exists()) {
       callback([]);
       return;
@@ -332,8 +343,9 @@ export const subscribeToScheduleReservations = (scheduleId, callback) => {
 };
 
 export const subscribeToAllReservations = (callback) => {
+  if (typeof callback !== "function") return () => {};
   const reservationsRef = ref(database, "reservations");
-  return onValue(reservationsRef, (snapshot) => {
+  return subscribeOnValue(reservationsRef, (snapshot) => {
     if (!snapshot.exists()) {
       callback([]);
       return;

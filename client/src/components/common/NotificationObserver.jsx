@@ -10,6 +10,7 @@ import {
   resolveScheduleBranchId,
   DEFAULT_NEARING_TURN_AHEAD,
 } from '../../services/systemConfigurationService';
+import { safeUnsub } from '../../firebase/rtdbSubscribe';
 
 /**
  * Global Notification Observer
@@ -37,12 +38,20 @@ export default function NotificationObserver() {
   const smsResolveTokenRef = useRef(0);
   const activeParentScheduleIdRef = useRef(null);
 
+  const unbindSms = () => {
+    smsResolveTokenRef.current += 1;
+    safeUnsub(smsUnsubRef.current);
+    smsUnsubRef.current = () => {};
+    smsBranchIdRef.current = null;
+    nearingTurnAheadCountRef.current = DEFAULT_NEARING_TURN_AHEAD;
+  };
+
   const bindSmsForSchedule = (schedule) => {
     const token = ++smsResolveTokenRef.current;
     resolveScheduleBranchId(schedule).then((branchId) => {
       if (token !== smsResolveTokenRef.current) return;
       if (branchId === smsBranchIdRef.current) return;
-      smsUnsubRef.current();
+      safeUnsub(smsUnsubRef.current);
       smsBranchIdRef.current = branchId || null;
       if (!branchId) {
         nearingTurnAheadCountRef.current = DEFAULT_NEARING_TURN_AHEAD;
@@ -57,12 +66,15 @@ export default function NotificationObserver() {
 
   useEffect(() => {
     return () => {
-      smsUnsubRef.current();
+      unbindSms();
     };
   }, []);
 
   useEffect(() => {
-    if (!user || role !== 'parent') return;
+    if (!user || role !== 'parent') {
+      unbindSms();
+      return;
+    }
 
     // Subscribe to all schedules for schedule state transitions
     const unsubSchedules = subscribeToAllSchedules((data) => {
@@ -162,7 +174,7 @@ export default function NotificationObserver() {
       }
     });
 
-    return () => unsubSchedules();
+    return () => safeUnsub(unsubSchedules);
   }, [user, role]);
 
   const isInitialScheduleLoad = useRef(true);
@@ -280,8 +292,8 @@ export default function NotificationObserver() {
     });
 
     return () => {
-      unsubParent();
-      unsubSchedule();
+      safeUnsub(unsubParent);
+      safeUnsub(unsubSchedule);
     };
   }, [user, role]);
 

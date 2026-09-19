@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { CalendarDays, MapPin, Users, User, Activity, Clock } from "lucide-react";
-import { ref, onValue, query, limitToLast } from "firebase/database";
+import { ref, query, limitToLast } from "firebase/database";
 import { database } from "../../firebase/database";
+import { subscribeOnValue } from "../../firebase/rtdbSubscribe";
 import { PqSpinner } from "../../components/parent/pqUi";
 
 const PREVIEW_LOG_COUNT = 8;
@@ -186,20 +187,20 @@ export default function Dashboard() {
       setLoading(false);
     };
 
-    const unsubUsers = onValue(usersRef, (snapshot) => {
+    const unsubUsers = subscribeOnValue(usersRef, (snapshot) => {
       usersData = snapshot.val();
       usersLoaded = true;
       setError(null);
       computeStats();
     }, handleError);
 
-    const unsubSchedules = onValue(schedulesRef, (snapshot) => {
+    const unsubSchedules = subscribeOnValue(schedulesRef, (snapshot) => {
       schedulesData = snapshot.val();
       schedulesLoaded = true;
       computeStats();
     }, handleError);
 
-    const unsubBranches = onValue(branchesRef, (snapshot) => {
+    const unsubBranches = subscribeOnValue(branchesRef, (snapshot) => {
       branchesData = snapshot.val();
       branchesLoaded = true;
       computeStats();
@@ -214,7 +215,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const auditRef = query(ref(database, "auditLogs"), limitToLast(PREVIEW_LOG_COUNT));
-    const unsubscribe = onValue(auditRef, (snapshot) => {
+    const unsubscribe = subscribeOnValue(auditRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
         const logsList = Object.keys(data).map((key) => ({

@@ -1,5 +1,6 @@
 import { database } from "../firebase/database";
-import { ref, push, set, get, update, remove, onValue, serverTimestamp, query, orderByChild, equalTo } from "firebase/database";
+import { ref, push, set, get, update, remove, serverTimestamp, query, orderByChild, equalTo } from "firebase/database";
+import { subscribeOnValue } from "../firebase/rtdbSubscribe";
 import { getReservationsBySchedule } from "./reservationService";
 import { recalculateRollingValidation } from "./rollingValidationService";
 import { validateScheduleClosingTime } from "./branchConfigurationService";
@@ -209,12 +210,13 @@ export const completeSchedule = async ( scheduleId ) => {
 };
 
 export const subscribeToPublishedSchedules = ( callback ) => {
+  if (typeof callback !== "function") return () => {};
   const q = query(
     ref(database, "schedules"),
     orderByChild("status"),
     equalTo("published")
   );
-  return onValue( q, (snapshot) => {
+  return subscribeOnValue(q, (snapshot) => {
       if (!snapshot.exists()) {
         callback([]);
         return;
@@ -229,8 +231,9 @@ export const subscribeToPublishedSchedules = ( callback ) => {
 };
 
 export const subscribeToAllSchedules = (callback) => {
+  if (typeof callback !== "function") return () => {};
   const schedulesRef = ref(database, "schedules");
-  return onValue(schedulesRef, (snapshot) => {
+  return subscribeOnValue(schedulesRef, (snapshot) => {
     if (!snapshot.exists()) {
       callback({});
       return;

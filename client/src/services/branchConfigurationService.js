@@ -1,5 +1,6 @@
 import { database } from "../firebase/database";
-import { ref, push, set, get, update, remove, onValue } from "firebase/database";
+import { ref, push, set, get, update, remove } from "firebase/database";
+import { subscribeOnValue } from "../firebase/rtdbSubscribe";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { getReservationsBySchedule } from "./reservationService";
 import { branchesMatch, normalizeBranchName } from "../utils/stringUtils";
@@ -114,8 +115,9 @@ export const getBranchConfigurations = async () => {
 };
 
 export const subscribeToBranchConfigurations = (callback) => {
+  if (typeof callback !== "function") return () => {};
   const branchesRef = ref(database, "branchConfigurations");
-  return onValue(branchesRef, async (snapshot) => {
+  return subscribeOnValue(branchesRef, async (snapshot) => {
     if (!snapshot.exists()) {
       callback([]);
       return;
