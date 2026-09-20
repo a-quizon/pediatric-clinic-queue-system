@@ -4,7 +4,7 @@
       "command": "npx",
       "args": ["-y", "@textbee/mcp"],
       "env": {
-        "TEXTBEE_API_KEY": "txb_FLu3i4t0hWmJTsaVYfUVbMILtHMRINzd"
+        "TEXTBEE_API_KEY": "txb_YzXhF24lVG42DJGnXxI5oPJmcOixhK5l"
       }
     }
   }
