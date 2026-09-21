@@ -42,7 +42,7 @@ export function TourSampleManageQueue() {
   const sample = getSecretaryTourSampleQueue();
 
   return (
-    <div className="space-y-6 pb-8 max-w-4xl mx-auto pointer-events-none">
+    <div className="pq-tour-sample space-y-6 max-w-4xl mx-auto pointer-events-none">
       <p className="text-[11px] font-semibold pq-muted flex items-center gap-2">
         Tour preview — not a real queue
         <SampleFlag />
@@ -54,7 +54,7 @@ export function TourSampleManageQueue() {
             <span className="pq-pip" style={{ width: 8, height: 8 }} />
             Active Session
           </span>
-          <div className="flex items-center gap-2 min-w-0 shrink-0">
+          <div className="flex items-center gap-2 min-w-0 flex-wrap">
             <button type="button" tabIndex={-1} className="pq-session-orb pq-session-orb-wait" aria-label="Pause Queue">
               <Pause className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -95,7 +95,7 @@ export function TourSampleManageQueue() {
               className={`pq-row ${idx === 0 ? "pq-row-you" : ""}`}
               style={{
                 display: "grid",
-                gridTemplateColumns: "3rem minmax(0, 1fr) auto",
+                gridTemplateColumns: "3rem minmax(0, 1fr)",
                 alignItems: "center",
                 columnGap: "0.85rem",
                 rowGap: "0.55rem",
@@ -115,8 +115,8 @@ export function TourSampleManageQueue() {
                 {res.forfeitLabel && (
                   <span className="pq-chip pq-chip-alert shrink-0">{res.forfeitLabel}</span>
                 )}
+                {statusBadge(res.status)}
               </div>
-              <div className="justify-self-end">{statusBadge(res.status)}</div>
               {res.penalize && (
                 <div className="flex items-center gap-2" style={{ gridColumn: "2 / -1" }} data-tour="queue-penalize">
                   <button type="button" tabIndex={-1} className="pq-btn-warn flex-1">
@@ -137,15 +137,16 @@ export function TourSampleWalkInModal() {
   const sample = SECRETARY_TOUR_SAMPLE_WALKIN;
 
   return (
+    <div className="pq-tour-sample">
     <div
-      className="pq-glass w-full max-w-lg mx-auto flex flex-col overflow-hidden pointer-events-none"
+      className="pq-glass w-full max-w-lg mx-auto min-w-0 flex flex-col overflow-hidden pointer-events-none"
       data-tour="walkin-form"
     >
-      <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
-        <h2 id="walkin-title" className="text-lg font-extrabold tracking-tight">Walk-in Patient</h2>
+      <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <h2 id="walkin-title" className="text-base sm:text-lg font-extrabold tracking-tight min-w-0 truncate">Walk-in Patient</h2>
         <SampleFlag />
       </div>
-      <div className="px-6 py-5 space-y-6">
+      <div className="px-4 sm:px-6 py-5 space-y-6">
         <p className="text-[11px] font-semibold pq-muted">Tour preview — this form does not check anyone in.</p>
         <section>
           <label htmlFor="tour-walkin-schedule" className="pq-label">1. Select schedule</label>
@@ -208,17 +209,18 @@ export function TourSampleWalkInModal() {
           <textarea readOnly tabIndex={-1} value={sample.concern} rows={3} className="pq-input resize-none" />
         </section>
       </div>
-      <div className="px-6 py-4 flex gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+      <div className="px-4 sm:px-6 py-4 flex gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
         <button type="button" tabIndex={-1} className="pq-btn-secondary flex-1">Cancel</button>
         <button type="button" tabIndex={-1} disabled className="pq-btn-primary flex-1">Check In Walk-in</button>
       </div>
+    </div>
     </div>
   );
 }
 
 export function TourSampleValidate() {
   return (
-    <div className="space-y-6 max-w-lg mx-auto pb-8 relative pointer-events-none">
+    <div className="pq-tour-sample space-y-6 max-w-lg mx-auto relative pointer-events-none">
       <section className="pq-glass p-5 md:p-6 flex flex-col items-center text-center" data-tour="validate-qr">
         <div className="w-full flex justify-between items-center mb-3">
           <p className="text-[11px] font-semibold pq-muted">Tour preview — camera stays off</p>
@@ -235,7 +237,7 @@ export function TourSampleValidate() {
           Point the camera at the patient&apos;s QR code, or type the code below.
         </p>
         <div
-          className="w-full min-h-[280px] overflow-hidden flex flex-col items-center justify-center mb-4 p-8"
+          className="w-full min-h-[180px] sm:min-h-[280px] overflow-hidden flex flex-col items-center justify-center mb-4 p-6 sm:p-8"
           style={{ background: "color-mix(in srgb, #ffffff 88%, var(--pq-paper))", borderRadius: "var(--pq-radius-sm)", border: "1px solid var(--pq-glass-line)" }}
         >
           <div className="w-44 h-44 sm:w-52 sm:h-52">
@@ -267,7 +269,7 @@ export function TourSampleSchedulePublish({
   const schedule = getSecretaryTourSampleSchedule();
 
   return (
-    <div className="w-full pb-8 space-y-6 pointer-events-none">
+    <div className="pq-tour-sample w-full space-y-6 pointer-events-none">
       <p className="text-[11px] font-semibold pq-muted flex items-center gap-2">
         Tour preview — no schedule is published
         <SampleFlag />

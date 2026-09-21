@@ -1279,11 +1279,14 @@ svg.pq-field-icon {
   --pq-font: "Lexend", "Segoe UI", sans-serif;
   --pq-modal-shadow: 0 18px 40px -12px rgba(22, 52, 74, 0.32), 0 6px 16px -8px rgba(22, 52, 74, 0.18);
   box-sizing: border-box;
-  display: block;
+  display: flex;
+  flex-direction: column;
   position: fixed;
   z-index: 1000000000;
-  min-width: min(18.5rem, calc(100vw - 2rem));
-  max-width: min(22rem, calc(100vw - 2rem));
+  width: min(22rem, calc(100vw - 1.5rem));
+  min-width: 0;
+  max-width: calc(100vw - 1.5rem);
+  max-height: none;
   padding: 1rem 1.05rem 0.9rem;
   overflow: visible;
   font-family: var(--pq-font);
@@ -1318,6 +1321,10 @@ svg.pq-field-icon {
   font-weight: 500;
   line-height: 1.45;
   color: #3a5c6e;
+  overflow-y: auto;
+  min-height: 0;
+  max-height: min(12.5rem, 36vh);
+  -webkit-overflow-scrolling: touch;
 }
 
 .pq-driver-popover .driver-popover-close-btn {
@@ -1350,6 +1357,7 @@ svg.pq-field-icon {
   margin-top: 0.95rem;
   flex-wrap: wrap;
   overflow: visible;
+  flex-shrink: 0;
 }
 
 .pq-driver-popover .driver-popover-progress-text {
@@ -1405,6 +1413,7 @@ svg.pq-field-icon {
   cursor: pointer;
   visibility: visible;
   opacity: 1;
+  touch-action: manipulation;
 }
 
 .pq-driver-popover .driver-popover-prev-btn {
@@ -1458,6 +1467,93 @@ svg.pq-field-icon {
   border-top-color: transparent;
   border-left-color: transparent;
   border-right-color: transparent;
+}
+
+[data-tour] {
+  scroll-margin-top: 5.75rem;
+  scroll-margin-bottom: 7.5rem;
+}
+
+@media (min-width: 768px) {
+  [data-tour] {
+    scroll-margin-bottom: 1.75rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .pq-driver-popover {
+    width: calc(100vw - 1.25rem);
+    max-width: calc(100vw - 1.25rem);
+    max-height: none;
+    padding: 0.85rem 0.9rem 0.75rem;
+  }
+
+  .pq-driver-popover .driver-popover-description {
+    max-height: min(8.75rem, 28vh);
+  }
+
+  .pq-driver-popover .driver-popover-title {
+    font-size: 1rem;
+    padding-right: 0.25rem;
+  }
+
+  .pq-driver-popover .driver-popover-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "skip progress"
+      "nav nav";
+    align-items: center;
+    gap: 0.35rem 0.5rem;
+  }
+
+  .pq-driver-popover .pq-driver-skip {
+    grid-area: skip;
+    margin-right: 0;
+    min-height: 44px;
+    justify-self: start;
+  }
+
+  .pq-driver-popover .driver-popover-progress-text {
+    grid-area: progress;
+    margin-right: 0;
+    justify-self: end;
+  }
+
+  .pq-driver-popover .driver-popover-navigation-btns {
+    grid-area: nav;
+    width: 100%;
+    display: flex;
+    justify-content: stretch;
+  }
+
+  .pq-driver-popover .driver-popover-prev-btn,
+  .pq-driver-popover .driver-popover-next-btn,
+  .pq-driver-popover .driver-popover-done-btn {
+    flex: 1 1 0;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .pq-driver-popover {
+    width: min(28rem, calc(100vw - 1.25rem));
+  }
+
+  .pq-driver-popover .driver-popover-description {
+    max-height: min(5.5rem, 32vh);
+  }
+}
+
+.pq-tour-sample {
+  min-width: 0;
+  overflow-x: hidden;
+  padding-bottom: 6rem;
+}
+
+@media (min-width: 768px) {
+  .pq-tour-sample {
+    padding-bottom: 2rem;
+  }
 }
 
 .pq-tour-sample-flag {

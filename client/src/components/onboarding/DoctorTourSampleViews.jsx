@@ -68,14 +68,14 @@ function SampleCompletePanel({
       className="pq-glass w-full max-w-md mx-auto flex flex-col overflow-hidden"
       data-tour={tourId}
     >
-      <div className="flex items-center justify-between p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
-        <h2 className="text-lg font-extrabold tracking-tight flex items-center">
-          <CheckCircle className="w-5 h-5 mr-2" style={{ color: "var(--pq-live)" }} aria-hidden="true" />
-          Complete Consultation
+      <div className="flex items-center justify-between gap-3 p-4 sm:p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <h2 className="text-base sm:text-lg font-extrabold tracking-tight flex items-center min-w-0">
+          <CheckCircle className="w-5 h-5 mr-2 shrink-0" style={{ color: "var(--pq-live)" }} aria-hidden="true" />
+          <span className="truncate">Complete Consultation</span>
         </h2>
         <SampleFlag />
       </div>
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="pq-row mb-6">
           <div>
             <div className="text-xs pq-faint font-extrabold uppercase tracking-wider mb-1">Patient</div>
@@ -119,9 +119,9 @@ function SampleCompletePanel({
           </>
         )}
       </div>
-      <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
-        <button type="button" tabIndex={-1} className="pq-btn-secondary">Cancel</button>
-        <button type="button" tabIndex={-1} disabled className="pq-btn-live">Complete Session</button>
+      <div className="p-4 sm:p-5 flex gap-3 justify-end flex-wrap" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+        <button type="button" tabIndex={-1} className="pq-btn-secondary flex-1 sm:flex-none">Cancel</button>
+        <button type="button" tabIndex={-1} disabled className="pq-btn-live flex-1 sm:flex-none">Complete Session</button>
       </div>
     </div>
   );
@@ -132,22 +132,22 @@ export function TourSampleDoctorQueue() {
   const walkInPatient = sample.waiting.find((row) => row.source === "walk_in") || sample.waiting[0];
 
   return (
-    <div className="space-y-6 pb-8 pointer-events-none">
+    <div className="pq-tour-sample space-y-6 pointer-events-none">
       <p className="text-[11px] font-semibold pq-muted flex items-center gap-2">
         Tour preview — not a real queue
         <SampleFlag />
       </p>
 
-      <div className="pq-glass p-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
+      <div className="pq-glass p-4 sm:p-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 min-w-0">
+          <div className="min-w-0">
             <h2 className="text-lg font-extrabold tracking-tight flex items-center">
-              <MapPin className="w-5 h-5 mr-2" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
+              <MapPin className="w-5 h-5 mr-2 shrink-0" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
               {sample.branch}
             </h2>
             <div className="pq-muted text-sm mt-1">
               <span className="flex items-center">
-                <Clock className="w-4 h-4 mr-1.5" aria-hidden="true" />
+                <Clock className="w-4 h-4 mr-1.5 shrink-0" aria-hidden="true" />
                 {formatDoctorSampleDate(sample.clinicDate, {
                   weekday: "long",
                   year: "numeric",
@@ -158,11 +158,11 @@ export function TourSampleDoctorQueue() {
             </div>
           </div>
 
-          <div className="flex flex-col items-stretch sm:items-end gap-3">
-            <button type="button" tabIndex={-1} className="pq-btn-live" data-tour="doctor-queue-start">
+          <div className="flex flex-col items-stretch sm:items-end gap-3 min-w-0 w-full sm:w-auto">
+            <button type="button" tabIndex={-1} className="pq-btn-live w-full sm:w-auto" data-tour="doctor-queue-start">
               <Play className="w-4 h-4" aria-hidden="true" /> Start Queue
             </button>
-            <div className="flex items-center gap-2 min-w-0" data-tour="doctor-queue-control">
+            <div className="flex flex-wrap items-center gap-2 min-w-0" data-tour="doctor-queue-control">
               <span className="pq-chip pq-chip-live shrink-0">
                 <span className="pq-pip" style={{ width: 8, height: 8 }} />
                 Active Session
@@ -193,7 +193,7 @@ export function TourSampleDoctorQueue() {
             </h3>
             <span className="pq-chip pq-chip-live">Queue #{sample.inConsultation.queueNumber}</span>
           </div>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="mb-6">
               <h3 className="font-extrabold tracking-tight text-2xl">{sample.inConsultation.childName}</h3>
               <div className="text-sm pq-muted flex flex-col gap-1 mt-2">
@@ -271,7 +271,7 @@ export function TourSampleDoctorReports() {
   };
 
   return (
-    <div className="space-y-6 pb-6 pointer-events-none">
+    <div className="pq-tour-sample space-y-6 pointer-events-none">
       <p className="text-[11px] font-semibold pq-muted flex items-center gap-2">
         Tour preview — sample numbers only
         <SampleFlag />
@@ -330,8 +330,8 @@ export function TourSampleDoctorReports() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="pq-glass p-6">
-          <h3 className="text-lg font-extrabold tracking-tight mb-6">Reservation Trend</h3>
-          <div className="h-72 w-full">
+          <h3 className="text-lg font-extrabold tracking-tight mb-4 sm:mb-6">Reservation Trend</h3>
+          <div className="h-52 sm:h-64 lg:h-72 w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={sample.trend} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_GRID} />
@@ -344,8 +344,8 @@ export function TourSampleDoctorReports() {
           </div>
         </div>
         <div className="pq-glass p-6">
-          <h3 className="text-lg font-extrabold tracking-tight mb-6">Outcome Distribution</h3>
-          <div className="h-72 w-full">
+          <h3 className="text-lg font-extrabold tracking-tight mb-4 sm:mb-6">Outcome Distribution</h3>
+          <div className="h-52 sm:h-64 lg:h-72 w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <RePieChart>
                 <Pie data={sample.outcomes} cx="50%" cy="50%" innerRadius={70} outerRadius={95} paddingAngle={5} dataKey="value">

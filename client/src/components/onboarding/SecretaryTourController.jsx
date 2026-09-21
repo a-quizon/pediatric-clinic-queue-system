@@ -17,6 +17,14 @@ import {
   pathMatchesSecretaryStep,
   shouldRunSecretaryTour,
 } from "./secretaryTourSteps";
+import {
+  bindTourViewport,
+  decorateTourPopover,
+  getTourDriverChrome,
+  mapTourDriverSteps,
+  scrollTourTargetIntoView,
+  clampActiveTourPopover,
+} from "./tourLayout";
 
 function waitForPaint() {
   return new Promise((resolve) => {
@@ -164,18 +172,9 @@ export default function SecretaryTourController() {
           instance?.destroy();
         };
 
+        const chrome = getTourDriverChrome();
         instance = driver({
-          steps: stepsToDrive.map((step) => ({
-            element: () => findVisibleTourTarget(step.targets),
-            disableActiveInteraction: Boolean(step.disableActiveInteraction),
-            skipMissingElement: false,
-            waitForElement: 2500,
-            popover: {
-              title: step.title,
-              description: step.description,
-              align: "start",
-            },
-          })),
+          steps: mapTourDriverSteps(stepsToDrive, findVisibleTourTarget),
           animate: true,
           smoothScroll: true,
           allowClose: false,
@@ -183,10 +182,10 @@ export default function SecretaryTourController() {
           showButtons: ["next", "previous"],
           overlayColor: "#16344a",
           overlayOpacity: 0.48,
-          stagePadding: 10,
+          stagePadding: chrome.stagePadding,
           stageRadius: 16,
           popoverClass: "pq-driver-popover",
-          popoverOffset: 12,
+          popoverOffset: chrome.popoverOffset,
           showProgress: stepsToDrive.length > 1,
           progressText: "{{current}} of {{total}}",
           nextBtnText: "Next",
@@ -194,18 +193,13 @@ export default function SecretaryTourController() {
           doneBtnText: doneLabel,
           disableActiveInteraction: false,
           onPopoverRender: (popover) => {
-            if (popover.footer.querySelector(".pq-driver-skip")) return;
-            const skip = document.createElement("button");
-            skip.type = "button";
-            skip.className = "pq-driver-skip";
-            skip.textContent = "Skip tour";
-            skip.addEventListener("click", finishAsSkip);
-            popover.footer.insertBefore(skip, popover.footer.firstChild);
+            decorateTourPopover(popover, finishAsSkip);
           },
-          onHighlightStarted: (_el, _step, { driver: d }) => {
+          onHighlightStarted: (el, _step, { driver: d }) => {
             const idx = d.getActiveIndex() ?? 0;
             const current = stepsToDrive[idx];
             if (current) setCurrentStepIdRef.current(current.id);
+            scrollTourTargetIntoView(el);
           },
           onNextClick: (_el, _step, { driver: d }) => {
             const idx = d.getActiveIndex() ?? 0;
@@ -274,12 +268,27 @@ export default function SecretaryTourController() {
       debounceId = window.setTimeout(start, 120);
     });
     observer.observe(root, { childList: true, subtree: true });
+    const unbindViewport = bindTourViewport((reason) => {
+      if (cancelled || !driverRef.current?.isActive()) return;
+      if (reason === "breakpoint") {
+        destroyProgrammatically();
+        window.setTimeout(start, 80);
+        return;
+      }
+      try {
+        driverRef.current.refresh();
+        window.requestAnimationFrame(() => clampActiveTourPopover());
+      } catch {
+        // Overlay may already be mid-destroy during route change.
+      }
+    });
 
     return () => {
       cancelled = true;
       window.clearTimeout(timeoutId);
       window.clearTimeout(debounceId);
       observer?.disconnect();
+      unbindViewport();
       destroyProgrammatically();
     };
   }, [pathname, tourPending, replayRole]);
