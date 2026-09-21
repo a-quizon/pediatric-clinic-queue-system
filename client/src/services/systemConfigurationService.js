@@ -1,8 +1,8 @@
 import { database } from "../firebase/database";
-import { ref, get, update } from "firebase/database";
+import { ref, get, onValue, update } from "firebase/database";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { branchesMatch } from "../utils/stringUtils";
-import { isPermissionDenied, noopUnsub, subscribeOnValue } from "../firebase/rtdbSubscribe";
+import { isPermissionDenied, noopUnsub, safeUnsub, subscribeOnValue } from "../firebase/rtdbSubscribe";
 
 const MAX_PENALTY_MOVE_BACK = 10;
 const MIN_PENALTY_MOVE_BACK = 0;
@@ -422,7 +422,7 @@ export const ensureBranchSystemConfiguration = async (branchId) => {
     existing = snap.exists() ? snap.val() : null;
   } catch (error) {
     if (isPermissionDenied(error)) {
-      // Parents may read /sms only; they cannot read or seed the full branch node.
+      // Legacy fallback if branch-node read is still denied; parents may still read /sms.
       return readBranchSmsOnly(branchId);
     }
     console.error("Failed to read branch system configuration:", error);
@@ -477,6 +477,56 @@ export const getQueueConfiguration = async (branchId) => {
     penaltyMoveBack: config.penaltyMoveBack,
     penaltyTimerMinutes: config.penaltyTimerMinutes,
     penaltyGraceMinutes: config.penaltyGraceMinutes,
+  };
+};
+
+/**
+ * Live queue rules for the schedule's branch. Throws on missing branch or read failure
+ * so the parent agreement never proceeds on silent defaults.
+ */
+export const queueRulesValuesEqual = (a, b) =>
+  Boolean(
+    a &&
+      b &&
+      a.penaltyMoveBack === b.penaltyMoveBack &&
+      a.penaltyTimerMinutes === b.penaltyTimerMinutes &&
+      a.penaltyGraceMinutes === b.penaltyGraceMinutes
+  );
+
+/**
+ * Live queue rules for the schedule's branch. Calls onError instead of silent defaults
+ * so the parent agreement never proceeds on stale or guessed numbers.
+ */
+export const subscribeToQueueRulesForSchedule = (schedule, onRules, onError) => {
+  let cancelled = false;
+  let unsub = noopUnsub;
+
+  resolveScheduleBranchId(schedule)
+    .then((branchId) => {
+      if (cancelled) return;
+      if (!isUsableBranchId(branchId)) {
+        onError?.(new Error("Could not determine this clinic's queue rules."));
+        return;
+      }
+
+      unsub = onValue(
+        ref(database, branchConfigPath(branchId)),
+        (snapshot) => {
+          onRules(parseQueueConfig(snapshot.exists() ? snapshot.val() : null));
+        },
+        (error) => {
+          console.error("Queue rules subscription error:", error);
+          onError?.(error);
+        }
+      );
+    })
+    .catch((error) => {
+      if (!cancelled) onError?.(error);
+    });
+
+  return () => {
+    cancelled = true;
+    safeUnsub(unsub);
   };
 };
 

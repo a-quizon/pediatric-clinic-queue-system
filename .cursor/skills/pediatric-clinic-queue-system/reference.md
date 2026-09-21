@@ -136,7 +136,7 @@ Each branch (Angeles, Magalang, …) has an independent node keyed by `branchCon
 | `schedules` | All auth | Secretary or doctor (create/publish/start and queue control; active) |
 | `reservations` | All auth | Parent, doctor, secretary (active) |
 | `auditLogs` | Admin | Admin, doctor, secretary |
-| `systemConfiguration/{branchId}` | Admin, doctor; secretary own branch | Admin; secretary own branch |
+| `systemConfiguration/{branchId}` | Admin, doctor, parent; secretary own branch | Admin; secretary own branch |
 | `systemConfiguration/{branchId}/sms` | + parents | (same write as parent node) |
 | `smsOtps`, `phoneVerifications`, `passwordResetLimits` | denied | denied (Admin SDK only) |
 

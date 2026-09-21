@@ -504,7 +504,7 @@ OTP storage (`smsOtps/{phoneKey}`):
 | `templatePenalized` | `systemConfiguration/{branchId}/sms` | Secretary text + placeholders |
 | `templateForfeited` | `systemConfiguration/{branchId}/sms` | Secretary text + placeholders |
 
-Secretary may read/write **only their assigned branch**. Doctors may read any branch (schedule display). Parents may read the `sms` child (near-turn threshold). Admin may read/write all branches. TextBee API key stays in server/Functions env (global).
+Secretary may read/write **only their assigned branch**. Doctors may read any branch (schedule display). Parents may read the branch node (queue rules for the reservation agreement) including the `sms` child (near-turn threshold). Admin may read/write all branches. TextBee API key stays in server/Functions env (global).
 
 **Fixed / not Secretary-editable:**
 
@@ -581,7 +581,7 @@ From `database.rules.json`:
 | `schedules` | Authenticated | Active secretary / doctor |
 | `reservations` | Authenticated | Active parent / doctor / secretary |
 | `auditLogs` | Admin | Admin / doctor / secretary |
-| `systemConfiguration/{branchId}` | Admin, doctor; secretary own branch | Admin; secretary own branch |
+| `systemConfiguration/{branchId}` | Admin, doctor, parent; secretary own branch | Admin; secretary own branch |
 | `systemConfiguration/{branchId}/sms` | + parents | (same write as parent node) |
 | `smsOtps`, `phoneVerifications`, `passwordResetLimits` | **denied** | **denied** (Admin SDK only) |
 
@@ -608,7 +608,7 @@ App-level isolation still matters: secretaries filter by `assignedBranch`; role 
 
 1. Admin has branches + one doctor + branch secretaries configured; SMS/queue settings saved as needed.
 2. Secretary or Doctor drafts & **publishes** a schedule → parents notified schedule available.
-3. Parents **reserve** → receive ticket numbers → **Save Information** → confirmation SMS/push.
+3. Parents **reserve** → Queue Rules agreement (checkbox agree, that branch's live config) → receive ticket numbers → **Save Information** → confirmation SMS/push.
 4. Secretary or Doctor **starts queue** → QUEUE_STARTED SMS/push.
 5. When the queue **starts**, parents who are approaching (`0 < aheadOfYou <=` Near Turn count) get **NEARING_TURN** SMS once. The parent already first in line does not. Later Almost Next / You’re Next stay push/in-app as the line advances.
 6. Parent arrives → secretary **checks in** via QR/code.

@@ -46,6 +46,7 @@ A reservation follows a strict linear progression, with early exits for cancella
   2. The schedule must have active slot capacity available.
   3. The branch's clinic operating hours must still be valid for that date.
   4. The parent must not already have an active, non-terminal reservation for that specific clinic date.
+  5. For parent self-booking only, the parent must open the Queue Rules agreement for **that schedule's branch**, tick that they understand and agree, and tap **Proceed** before the slot is created. Cancel/back creates nothing. Secretary walk-in and phone-in bookings skip this step.
 * **Identity Generation**: Upon creation, the system generates a 6-character alphanumeric `reservationCode`.
 * **Queue Number Assignment**: The system queries existing reservations for that schedule and assigns the next incremental integer as the permanent `queueNumber`.
 * **Patients**: After the slot is claimed, the parent selects one or more saved child profiles and a single `concern` string. The reservation stores `children[]` plus legacy `childName` / `age` / `sex` mirrored from the first selected child. Multiple children still consume **one** slot.
@@ -93,7 +94,7 @@ Slots are evaluated dynamically at runtime by counting active reservations.
 ---
 
 ## 10. Parent Rules
-* **Reserve**: May book one active reservation per clinic day. That reservation may include one or more saved child profiles plus a single shared visit concern. Multiple children still consume one slot and one queue ticket.
+* **Reserve**: May book one active reservation per clinic day. Before the slot is created, the parent must read and agree to that branch's Queue Rules (Penalty Move-Back, forfeiture timer, grace wait, and the same-day / any-branch limit). That reservation may include one or more saved child profiles plus a single shared visit concern. Multiple children still consume one slot and one queue ticket.
 * **Child Profiles**: Parents manage reusable child records (name, age, sex) from Profile. Selecting patients at reservation time snapshots those profiles onto the reservation.
 * **View Ticket**: Can view their live digital ticket, displaying their permanent `queueNumber`, generated QR code, and `reservationCode`.
 * **View Queue Status**: Can monitor their dynamic `queueState` (e.g., "Almost Next") and `aheadOfYou` count relative to the live clinic floor.

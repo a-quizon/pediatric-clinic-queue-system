@@ -55,7 +55,7 @@
         ".write": false
       },
       "$branchId": {
-        ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('assignedBranchId').val() === $branchId))",
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'parent' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('assignedBranchId').val() === $branchId))",
         ".write": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'active' && root.child('branchConfigurations').child($branchId).exists() && (root.child('users').child(auth.uid).child('role').val() === 'admin' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('assignedBranchId').val() === $branchId))",
         "sms": {
           ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'parent' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('assignedBranchId').val() === $branchId))"

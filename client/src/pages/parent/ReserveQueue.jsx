@@ -18,6 +18,7 @@ import { buildPatientInfoPayload } from "../../utils/reservationPatients";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { useAuth } from "../../hooks/useAuth";
 import MessageModal from "../../components/common/MessageModal";
+import QueueRulesAgreementModal from "../../components/parent/QueueRulesAgreementModal";
 import ChildProfileForm, {
   emptyChildProfile,
   isChildProfileValid
@@ -42,6 +43,7 @@ export default function ReserveQueue() {
 
   // Modal States
   const [selectedSchedule, setSelectedSchedule] = useState(null);
+  const [isAgreementModalOpen, setIsAgreementModalOpen] = useState(false);
   const [isPatientInfoModalOpen, setIsPatientInfoModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [generatedQueuePosition, setGeneratedQueuePosition] = useState(null);
@@ -156,6 +158,8 @@ export default function ReserveQueue() {
   };
 
   const handleReserveClick = async (schedule) => {
+    if (isAgreementModalOpen || isPatientInfoModalOpen || isSubmitting) return;
+
     // Check Capacity
     const currentCount = getReservationCount(schedule.id);
     if (currentCount >= schedule.slotCapacity) {
@@ -208,23 +212,33 @@ export default function ReserveQueue() {
     setConcern("");
     setIsAddChildOpen(false);
     setNewChildForm(emptyChildProfile());
-    
+    setIsAgreementModalOpen(true);
+  };
+
+  const handleCancelAgreement = () => {
+    if (isSubmitting) return;
+    setIsAgreementModalOpen(false);
+    setSelectedSchedule(null);
+  };
+
+  const handleAgreeToQueueRules = async () => {
+    if (!selectedSchedule || isSubmitting) return;
+
     setIsSubmitting(true);
     try {
-      // Create reservation without static queue position
       const reservationId = await createReservation({
         parentId: user.uid,
         parentEmail: user.email,
-        scheduleId: schedule.id,
+        scheduleId: selectedSchedule.id,
         status: "reserved",
       });
 
-      // Fetch newly calculated dynamic position
-      const updatedReservations = await getReservationsBySchedule(schedule.id);
+      const updatedReservations = await getReservationsBySchedule(selectedSchedule.id);
       const newRes = updatedReservations.find(r => r.id === reservationId);
 
       setGeneratedQueuePosition(newRes?.queuePosition || "Assigned");
       setActiveReservationId(reservationId);
+      setIsAgreementModalOpen(false);
       setIsPatientInfoModalOpen(true);
     } catch (error) {
       console.error("Failed to create reservation", error);
@@ -378,7 +392,7 @@ export default function ReserveQueue() {
               return true;
             });
 
-            const buttonDisabled = isFull || hasReservedOnDate || isEnded;
+            const buttonDisabled = isFull || hasReservedOnDate || isEnded || isAgreementModalOpen || isSubmitting;
 
             return (
               <div key={schedule.id} className="pq-glass p-5 flex flex-col">
@@ -492,6 +506,15 @@ export default function ReserveQueue() {
       )}
 
 
+
+      <QueueRulesAgreementModal
+        key={selectedSchedule?.id || "queue-rules"}
+        isOpen={isAgreementModalOpen}
+        schedule={selectedSchedule}
+        isSubmitting={isSubmitting}
+        onCancel={handleCancelAgreement}
+        onAgree={handleAgreeToQueueRules}
+      />
 
       {/* Complete Patient Info Modal */}
       {isPatientInfoModalOpen && selectedSchedule && (
