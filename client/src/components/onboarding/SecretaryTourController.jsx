@@ -3,18 +3,20 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useTourPreview } from "../../hooks/useTourPreview";
 import {
+  SECRETARY_TOUR_STEPS_KEY,
   clearTourStepProgress,
   getCompletedTourSteps,
   markTourStepComplete,
-  persistParentTourComplete,
+  persistTourComplete,
 } from "../../services/firstVisitService";
 import {
-  TOUR_STEPS,
-  areAllTourStepsComplete,
+  SECRETARY_TOUR_STEPS,
+  areAllSecretaryTourStepsComplete,
   findVisibleTourTarget,
-  getRemainingStepsForPath,
-  shouldRunParentTour,
-} from "./parentTourSteps";
+  getRemainingSecretaryStepsForPath,
+  pathMatchesSecretaryStep,
+  shouldRunSecretaryTour,
+} from "./secretaryTourSteps";
 
 function waitForPaint() {
   return new Promise((resolve) => {
@@ -22,35 +24,68 @@ function waitForPaint() {
   });
 }
 
-function waitForPreview() {
-  return waitForPaint().then(
-    () => new Promise((resolve) => window.setTimeout(resolve, 50))
-  );
+function waitForMs(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function waitForStepTarget(step, timeoutMs = 2500) {
+  if (!step) return false;
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    if (findVisibleTourTarget(step.targets)) return true;
+    await waitForPaint();
+    await waitForMs(50);
+  }
+  return Boolean(findVisibleTourTarget(step.targets));
 }
 
 function nextGlobalStep(stepId) {
-  const index = TOUR_STEPS.findIndex((step) => step.id === stepId);
-  return index >= 0 ? TOUR_STEPS[index + 1] || null : null;
+  const index = SECRETARY_TOUR_STEPS.findIndex((step) => step.id === stepId);
+  return index >= 0 ? SECRETARY_TOUR_STEPS[index + 1] || null : null;
 }
 
-export default function ParentTourController() {
+export default function SecretaryTourController() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, role, updateContextUser } = useAuth();
-  const { setCurrentStepId, clearPreview } = useTourPreview();
+  const { setCurrentStepId, clearPreview, replayRole, clearReplay } = useTourPreview();
   const driverRef = useRef(null);
-  const programmaticRef = useRef(false);
-  const tourPending = shouldRunParentTour(user, role, pathname);
+  const suppressFinishRef = useRef(false);
+  const userRef = useRef(user);
+  const updateContextUserRef = useRef(updateContextUser);
+  const setCurrentStepIdRef = useRef(setCurrentStepId);
+  const clearPreviewRef = useRef(clearPreview);
+  const clearReplayRef = useRef(clearReplay);
+  const navigateRef = useRef(navigate);
+  const tourPending = shouldRunSecretaryTour(user, role, pathname, replayRole);
+
+  userRef.current = user;
+  updateContextUserRef.current = updateContextUser;
+  setCurrentStepIdRef.current = setCurrentStepId;
+  clearPreviewRef.current = clearPreview;
+  clearReplayRef.current = clearReplay;
+  navigateRef.current = navigate;
 
   useEffect(() => {
     if (!tourPending) {
-      if (role === "parent") clearPreview();
+      if (role === "secretary") clearPreviewRef.current();
       return undefined;
     }
-    const remaining = getRemainingStepsForPath(pathname);
-    if (remaining[0]) setCurrentStepId(remaining[0].id);
+    const completed = getCompletedTourSteps(SECRETARY_TOUR_STEPS_KEY);
+    const firstStep = SECRETARY_TOUR_STEPS[0];
+    if (
+      replayRole === "secretary" &&
+      completed.length === 0 &&
+      firstStep &&
+      !pathMatchesSecretaryStep(pathname, firstStep)
+    ) {
+      navigateRef.current(firstStep.route);
+      return undefined;
+    }
+    const remaining = getRemainingSecretaryStepsForPath(pathname);
+    if (remaining[0]) setCurrentStepIdRef.current(remaining[0].id);
     return undefined;
-  }, [pathname, tourPending, role, setCurrentStepId, clearPreview]);
+  }, [pathname, tourPending, role, replayRole]);
 
   useEffect(() => {
     if (!tourPending) return undefined;
@@ -60,17 +95,18 @@ export default function ParentTourController() {
     let observer;
 
     const finishTour = () => {
-      const uid = user?.uid;
-      clearPreview();
-      clearTourStepProgress();
-      updateContextUser({ hasCompletedTour: true });
+      const uid = userRef.current?.uid;
+      clearPreviewRef.current();
+      clearReplayRef.current();
+      clearTourStepProgress(SECRETARY_TOUR_STEPS_KEY);
+      updateContextUserRef.current({ hasCompletedTour: true });
       if (uid) {
-        persistParentTourComplete(uid).catch(console.error);
+        persistTourComplete(uid).catch(console.error);
       }
     };
 
     const destroyProgrammatically = () => {
-      programmaticRef.current = true;
+      suppressFinishRef.current = true;
       try {
         driverRef.current?.destroy();
       } catch {
@@ -84,22 +120,34 @@ export default function ParentTourController() {
       starting = true;
 
       try {
-        const remaining = getRemainingStepsForPath(pathname);
+        const remaining = getRemainingSecretaryStepsForPath(pathname);
+        const completed = getCompletedTourSteps(SECRETARY_TOUR_STEPS_KEY);
+        const firstStep = SECRETARY_TOUR_STEPS[0];
+        if (
+          replayRole === "secretary" &&
+          completed.length === 0 &&
+          firstStep &&
+          !pathMatchesSecretaryStep(pathname, firstStep)
+        ) {
+          return;
+        }
         if (remaining.length === 0) {
-          if (areAllTourStepsComplete()) {
+          if (areAllSecretaryTourStepsComplete()) {
             finishTour();
           }
           return;
         }
 
-        setCurrentStepId(remaining[0].id);
-        await waitForPreview();
+        setCurrentStepIdRef.current(remaining[0].id);
+        const ready = await waitForStepTarget(remaining[0]);
+        if (cancelled) return;
+        if (!ready) return;
 
-        const hasVisible = remaining.some((step) => findVisibleTourTarget(step.targets));
-        if (!hasVisible) return;
         const stepsToDrive = remaining;
         const lastStep = stepsToDrive[stepsToDrive.length - 1];
-        const unfinished = TOUR_STEPS.filter((step) => !getCompletedTourSteps().includes(step.id));
+        const unfinished = SECRETARY_TOUR_STEPS.filter(
+          (step) => !getCompletedTourSteps(SECRETARY_TOUR_STEPS_KEY).includes(step.id)
+        );
         const lastUnfinished = unfinished[unfinished.length - 1];
         const doneLabel =
           lastStep && lastUnfinished?.id === lastStep.id && !lastStep.onNextNavigate
@@ -112,6 +160,7 @@ export default function ParentTourController() {
         let instance;
         const finishAsSkip = () => {
           finishTour();
+          suppressFinishRef.current = true;
           instance?.destroy();
         };
 
@@ -119,7 +168,7 @@ export default function ParentTourController() {
           steps: stepsToDrive.map((step) => ({
             element: () => findVisibleTourTarget(step.targets),
             disableActiveInteraction: Boolean(step.disableActiveInteraction),
-            skipMissingElement: true,
+            skipMissingElement: false,
             waitForElement: 2500,
             popover: {
               title: step.title,
@@ -129,8 +178,9 @@ export default function ParentTourController() {
           })),
           animate: true,
           smoothScroll: true,
-          allowClose: true,
+          allowClose: false,
           overlayClickBehavior: "close",
+          showButtons: ["next", "previous"],
           overlayColor: "#16344a",
           overlayOpacity: 0.48,
           stagePadding: 10,
@@ -155,56 +205,56 @@ export default function ParentTourController() {
           onHighlightStarted: (_el, _step, { driver: d }) => {
             const idx = d.getActiveIndex() ?? 0;
             const current = stepsToDrive[idx];
-            if (current) setCurrentStepId(current.id);
+            if (current) setCurrentStepIdRef.current(current.id);
           },
           onNextClick: (_el, _step, { driver: d }) => {
             const idx = d.getActiveIndex() ?? 0;
             const current = stepsToDrive[idx];
-            if (current) markTourStepComplete(current.id);
+            if (current) markTourStepComplete(current.id, SECRETARY_TOUR_STEPS_KEY);
 
             if (!d.isLastStep()) {
               const next = stepsToDrive[idx + 1];
-              if (next) setCurrentStepId(next.id);
-              waitForPreview().then(() => {
-                if (!cancelled) d.moveNext();
+              if (next) setCurrentStepIdRef.current(next.id);
+              waitForStepTarget(next).then((found) => {
+                if (cancelled) return;
+                if (found) d.moveNext();
               });
               return;
             }
 
             if (current?.onNextNavigate) {
               const upcoming = nextGlobalStep(current.id);
-              if (upcoming) setCurrentStepId(upcoming.id);
+              if (upcoming) setCurrentStepIdRef.current(upcoming.id);
               destroyProgrammatically();
-              navigate(current.onNextNavigate);
+              navigateRef.current(current.onNextNavigate);
               return;
             }
 
             destroyProgrammatically();
-            if (areAllTourStepsComplete()) {
+            if (areAllSecretaryTourStepsComplete()) {
               finishTour();
             }
           },
           onPrevClick: (_el, _step, { driver: d }) => {
             const idx = d.getActiveIndex() ?? 0;
             const prev = stepsToDrive[idx - 1];
-            if (prev) setCurrentStepId(prev.id);
-            waitForPreview().then(() => {
-              if (!cancelled) d.movePrevious();
+            if (prev) setCurrentStepIdRef.current(prev.id);
+            waitForStepTarget(prev).then((found) => {
+              if (cancelled) return;
+              if (found) d.movePrevious();
             });
           },
-          onCloseClick: finishAsSkip,
           onDestroyStarted: (_el, _step, { driver: d }) => {
-            if (programmaticRef.current) {
-              programmaticRef.current = false;
-              d.destroy();
-              return;
-            }
-            finishTour();
+            const ignore = suppressFinishRef.current;
             d.destroy();
+            if (!ignore && !cancelled) {
+              finishTour();
+            }
           },
         });
 
         driverRef.current = instance;
+        suppressFinishRef.current = false;
         instance.drive();
       } finally {
         starting = false;
@@ -232,7 +282,7 @@ export default function ParentTourController() {
       observer?.disconnect();
       destroyProgrammatically();
     };
-  }, [pathname, tourPending, navigate, user?.uid, updateContextUser, setCurrentStepId, clearPreview]);
+  }, [pathname, tourPending, replayRole]);
 
   return null;
 }

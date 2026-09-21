@@ -15,6 +15,8 @@ import ConfirmationModal from "../../components/common/ConfirmationModal";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 import { PqSpinner } from "../../components/parent/pqUi";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
+import { useTourSample } from "../../hooks/useTourPreview";
+import { TourSampleManageQueue } from "../../components/onboarding/SecretaryTourSampleViews";
 import { getServerTime, formatRemainingTime } from "../../services/timeService";
 import {
   getPenaltyTimerRemainingMs,
@@ -70,6 +72,7 @@ function SessionDurationMeter({ startedAt, nowTs, className = "" }) {
 
 export default function ManageQueue({ hideHeader = false }) {
   const { user } = useAuth();
+  const showQueueSample = useTourSample(["queue-list", "queue-penalize", "queue-control"]);
   const [reservations, setReservations] = useState([]);
   const [schedules, setSchedules] = useState({});
   const [schedulesLoaded, setSchedulesLoaded] = useState(false);
@@ -168,6 +171,15 @@ export default function ManageQueue({ hideHeader = false }) {
   }, [reservations, nowTs]);
 
   const loading = !schedulesLoaded || (!!activeStartedSchedule && !reservationsLoaded);
+
+  if (showQueueSample) {
+    return (
+      <div className="space-y-6 pb-8">
+        {!hideHeader && <QueuePageIntro branchName={user.assignedBranch} />}
+        <TourSampleManageQueue />
+      </div>
+    );
+  }
 
   if (loading) {
     return (

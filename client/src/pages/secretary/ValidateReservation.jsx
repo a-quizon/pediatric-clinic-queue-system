@@ -8,6 +8,8 @@ import { getScheduleById } from "../../services/scheduleService";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
+import { useTourSample } from "../../hooks/useTourPreview";
+import { TourSampleValidate } from "../../components/onboarding/SecretaryTourSampleViews";
 
 const CODE_LENGTH = 6;
 
@@ -51,6 +53,7 @@ function ValidateResultModal({
 
 export default function ValidateReservation() {
   const { user } = useAuth();
+  const showSampleValidate = useTourSample("validate-qr");
   const [reservationCode, setReservationCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -224,6 +227,8 @@ export default function ValidateReservation() {
 
   // Request cameras and auto-start on open
   useEffect(() => {
+    if (showSampleValidate) return undefined;
+
     let cancelled = false;
     Html5Qrcode.getCameras()
       .then((devices) => {
@@ -254,14 +259,15 @@ export default function ValidateReservation() {
         html5QrCodeRef.current.stop().catch(() => {});
       }
     };
-  }, []);
+  }, [showSampleValidate]);
 
   // Auto-start once camera id is ready
   useEffect(() => {
+    if (showSampleValidate) return;
     if (!selectedCameraId || autoStartedRef.current || anyModalOpen) return;
     autoStartedRef.current = true;
     startScanner(selectedCameraId);
-  }, [selectedCameraId, startScanner, anyModalOpen]);
+  }, [selectedCameraId, startScanner, anyModalOpen, showSampleValidate]);
 
   const handleManualValidate = useCallback(async (code) => {
     const trimmed = (code || "").toUpperCase().trim();
@@ -305,6 +311,10 @@ export default function ValidateReservation() {
     }
   };
   useHistoryOverlay(showSuccessModal, closeAllModals);
+
+  if (showSampleValidate) {
+    return <TourSampleValidate />;
+  }
 
   return (
     <div className="space-y-6 max-w-lg mx-auto pb-8 relative">

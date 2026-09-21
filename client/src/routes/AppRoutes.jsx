@@ -54,6 +54,7 @@ import OnboardingChildProfile from "../pages/auth/OnboardingChildProfile";
 import SmsTester from "../pages/dev/SmsTester";
 import SplashGate from "../components/onboarding/SplashGate";
 import ParentTourController from "../components/onboarding/ParentTourController";
+import SecretaryTourController from "../components/onboarding/SecretaryTourController";
 import { TourPreviewProvider } from "../context/TourPreviewContext";
 
 function RedirectAdminActivity() {
@@ -69,6 +70,7 @@ export default function AppRoutes() {
           <NativeNotificationBridge />
           <NativeBackButtonHandler />
           <ParentTourController />
+          <SecretaryTourController />
           <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/sms-tester" element={<SmsTester />} />

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Save, AlertCircle, Loader2, MapPin } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
+import { useTourSample } from "../../hooks/useTourPreview";
 import { formatBranchLabel } from "../../utils/stringUtils";
 import {
   getQueueConfiguration,
@@ -27,6 +28,7 @@ import {
 
 export default function SystemSettings() {
   const { user } = useAuth();
+  const tourLock = useTourSample(["settings-queue-rules", "settings-sms"]);
   const branchId = user?.assignedBranchId;
   const branchLabel = formatBranchLabel(user?.assignedBranch) || "your assigned branch";
 
@@ -272,7 +274,7 @@ export default function SystemSettings() {
         </div>
       </div>
 
-      <section className="pq-glass overflow-hidden">
+      <section className="pq-glass overflow-hidden" data-tour="settings-queue-rules">
         <div className="p-5 sm:p-6" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <h3 className="text-lg font-extrabold tracking-tight mb-1">Queue Rules</h3>
           <p className="pq-muted text-sm mb-5 max-w-2xl">
@@ -361,7 +363,7 @@ export default function SystemSettings() {
           <button
             type="button"
             onClick={handleSaveQueue}
-            disabled={savingQueue || penaltyMoveBack === "" || penaltyTimerMinutes === "" || penaltyGraceMinutes === ""}
+            disabled={tourLock || savingQueue || penaltyMoveBack === "" || penaltyTimerMinutes === "" || penaltyGraceMinutes === ""}
             className="pq-btn-primary"
           >
             {savingQueue ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Save className="w-4 h-4" aria-hidden="true" />}
@@ -370,7 +372,7 @@ export default function SystemSettings() {
         </div>
       </section>
 
-      <section className="pq-glass overflow-hidden">
+      <section className="pq-glass overflow-hidden" data-tour="settings-sms">
         <div className="p-5 sm:p-6" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <h3 className="text-lg font-extrabold tracking-tight mb-1">SMS Notification Configuration</h3>
           <p className="pq-muted text-sm mb-6 max-w-2xl">
@@ -565,7 +567,7 @@ export default function SystemSettings() {
           <button
             type="button"
             onClick={handleSaveSms}
-            disabled={savingSms || nearingTurnAheadCount === ""}
+            disabled={tourLock || savingSms || nearingTurnAheadCount === ""}
             className="pq-btn-primary"
           >
             {savingSms ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Save className="w-4 h-4" aria-hidden="true" />}

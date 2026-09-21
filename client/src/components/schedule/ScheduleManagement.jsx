@@ -12,7 +12,9 @@ import { Plus, Search, ChevronDown, PlayCircle, CalendarX, CalendarCheck } from 
 import toast from "react-hot-toast";
 import { sortSchedules } from "../../utils/scheduleUtils";
 import { useAuth } from "../../hooks/useAuth";
+import { useTourSample } from "../../hooks/useTourPreview";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
+import { TourSampleSchedulePublish } from "../onboarding/SecretaryTourSampleViews";
 
 /**
  * Shared schedule lifecycle UI (create / publish / start queue).
@@ -24,6 +26,7 @@ export default function ScheduleManagement({
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const showScheduleSample = useTourSample(["schedule-publish", "schedule-form"]);
   const [schedules, setSchedules] = useState([]);
   const [branches, setBranches] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -229,6 +232,10 @@ export default function ScheduleManagement({
 
   const startIndex = (validCurrentPage - 1) * PAGE_SIZE;
   const paginatedSchedules = filteredSchedules.slice(startIndex, startIndex + PAGE_SIZE);
+
+  if (showScheduleSample) {
+    return <TourSampleSchedulePublish showForm />;
+  }
 
   return (
     <div className="w-full pb-20 pt-2">

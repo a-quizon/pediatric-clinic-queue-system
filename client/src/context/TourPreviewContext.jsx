@@ -5,18 +5,37 @@ export const TourPreviewContext = createContext({
   currentStepId: null,
   setCurrentStepId: () => {},
   clearPreview: () => {},
+  replayRole: null,
+  startTourReplay: () => {},
+  clearReplay: () => {},
 });
 
 export function TourPreviewProvider({ children }) {
   const [currentStepId, setCurrentStepId] = useState(null);
+  const [replayRole, setReplayRole] = useState(null);
 
   const clearPreview = useCallback(() => {
     setCurrentStepId(null);
   }, []);
 
+  const startTourReplay = useCallback((role) => {
+    setReplayRole(role || null);
+  }, []);
+
+  const clearReplay = useCallback(() => {
+    setReplayRole(null);
+  }, []);
+
   const value = useMemo(
-    () => ({ currentStepId, setCurrentStepId, clearPreview }),
-    [currentStepId, clearPreview]
+    () => ({
+      currentStepId,
+      setCurrentStepId,
+      clearPreview,
+      replayRole,
+      startTourReplay,
+      clearReplay,
+    }),
+    [currentStepId, clearPreview, replayRole, startTourReplay, clearReplay]
   );
 
   return (

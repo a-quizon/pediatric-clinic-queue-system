@@ -1,16 +1,28 @@
 import React, { useState } from "react";
-import { User, Mail, MapPin, Phone, UserPlus, Settings, ChevronRight } from "lucide-react";
+import { User, Mail, MapPin, Phone, UserPlus, Settings, ChevronRight, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
+import { useTourPreview, useTourSample } from "../../hooks/useTourPreview";
+import { SECRETARY_TOUR_STEPS_KEY, clearTourStepProgress } from "../../services/firstVisitService";
 import LogoutButton from "../../components/common/LogoutButton";
 import WalkInPatientModal from "../../components/secretary/WalkInPatientModal";
+import { TourSampleWalkInModal } from "../../components/onboarding/SecretaryTourSampleViews";
 
 export default function Profile() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { startTourReplay } = useTourPreview();
+  const showWalkInSample = useTourSample(["walkin-open", "walkin-form"]);
+  const walkInTour = showWalkInSample;
   const [isWalkInOpen, setIsWalkInOpen] = useState(false);
 
   if (!user) return null;
+
+  const handleReplayTutorial = () => {
+    clearTourStepProgress(SECRETARY_TOUR_STEPS_KEY);
+    startTourReplay("secretary");
+    navigate("/secretary");
+  };
 
   return (
     <div className="space-y-6 pb-8 max-w-2xl mx-auto flex flex-col min-h-[70vh]">
@@ -45,7 +57,10 @@ export default function Profile() {
 
         <button
           type="button"
-          onClick={() => setIsWalkInOpen(true)}
+          data-tour="walkin-open"
+          onClick={() => {
+            if (!walkInTour) setIsWalkInOpen(true);
+          }}
           className="pq-btn-primary w-full"
         >
           <UserPlus className="w-5 h-5" aria-hidden="true" />
@@ -71,13 +86,34 @@ export default function Profile() {
           </div>
           <ChevronRight className="w-5 h-5 pq-faint shrink-0" aria-hidden="true" />
         </button>
+
+        <button
+          type="button"
+          onClick={handleReplayTutorial}
+          className="pq-glass w-full p-5 flex items-center justify-between text-left"
+        >
+          <div className="flex items-center min-w-0">
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 mr-4"
+              style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 14%, white)", color: "var(--pq-mark-blue-deep)" }}
+            >
+              <RotateCcw className="w-6 h-6" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <span className="font-extrabold tracking-tight block">Replay Tutorial</span>
+              <span className="pq-muted text-sm">Walk through Manage Queue, walk-in, QR check-in, and settings again.</span>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 pq-faint shrink-0" aria-hidden="true" />
+        </button>
       </div>
 
       <div className="mt-auto pt-8">
         <LogoutButton className="pq-btn-danger w-full" />
       </div>
 
-      <WalkInPatientModal isOpen={isWalkInOpen} onClose={() => setIsWalkInOpen(false)} />
+      <WalkInPatientModal isOpen={isWalkInOpen && !showWalkInSample} onClose={() => setIsWalkInOpen(false)} />
+      {showWalkInSample ? <TourSampleWalkInModal /> : null}
     </div>
   );
 }

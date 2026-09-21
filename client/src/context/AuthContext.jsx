@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useCallback, useEffect, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { ref, update, get } from "firebase/database";
 
@@ -105,6 +105,11 @@ export function AuthProvider({ children }) {
                                 updates.hasCompletedTour = userData.hasCompletedTour;
                                 needsUpdate = true;
                             }
+                            if (userData.role === "secretary" && typeof userData.hasCompletedTour !== "boolean") {
+                                userData.hasCompletedTour = true;
+                                updates.hasCompletedTour = true;
+                                needsUpdate = true;
+                            }
                             
                             if (needsUpdate) {
                                 // Background save, no need to await so it doesn't block login
@@ -202,13 +207,13 @@ export function AuthProvider({ children }) {
         return () => navigator.serviceWorker.removeEventListener("message", onMessage);
     }, [user?.uid, user?.role]);
 
-    const updateContextUser = (updates) => {
+    const updateContextUser = useCallback((updates) => {
         setUser((prev) => {
             const next = { ...prev, ...updates };
             cacheNotificationPreferences(next);
             return next;
         });
-    };
+    }, []);
 
     return (
         <AuthContext.Provider

@@ -207,7 +207,9 @@ export default function QueueSessionControls({
 
   return (
     <>
-      <div className={isCluster
+      <div
+        data-tour="queue-session-controls"
+        className={isCluster
         ? "flex w-full min-w-0 flex-wrap items-center justify-between gap-2"
         : "flex flex-wrap items-center gap-2 sm:gap-3 min-w-0"
       }>

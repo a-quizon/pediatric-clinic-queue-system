@@ -1,7 +1,8 @@
 import { ref, update } from "firebase/database";
 import { database } from "../firebase/database";
 
-const TOUR_STEPS_KEY = "pq.parentTour.v1.completedSteps";
+export const PARENT_TOUR_STEPS_KEY = "pq.parentTour.v1.completedSteps";
+export const SECRETARY_TOUR_STEPS_KEY = "pq.secretaryTour.v1.completedSteps";
 
 function readSession(key) {
   try {
@@ -27,7 +28,7 @@ function removeSession(key) {
   }
 }
 
-export async function persistParentTourComplete(uid) {
+export async function persistTourComplete(uid) {
   if (!uid) return;
   await update(ref(database, `users/${uid}`), {
     hasCompletedTour: true,
@@ -35,9 +36,11 @@ export async function persistParentTourComplete(uid) {
   });
 }
 
-export function getCompletedTourSteps() {
+export const persistParentTourComplete = persistTourComplete;
+
+export function getCompletedTourSteps(key = PARENT_TOUR_STEPS_KEY) {
   try {
-    const raw = readSession(TOUR_STEPS_KEY);
+    const raw = readSession(key);
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -45,15 +48,15 @@ export function getCompletedTourSteps() {
   }
 }
 
-export function markTourStepComplete(stepId) {
-  if (!stepId) return getCompletedTourSteps();
-  const steps = getCompletedTourSteps();
+export function markTourStepComplete(stepId, key = PARENT_TOUR_STEPS_KEY) {
+  if (!stepId) return getCompletedTourSteps(key);
+  const steps = getCompletedTourSteps(key);
   if (steps.includes(stepId)) return steps;
   const next = [...steps, stepId];
-  writeSession(TOUR_STEPS_KEY, JSON.stringify(next));
+  writeSession(key, JSON.stringify(next));
   return next;
 }
 
-export function clearTourStepProgress() {
-  removeSession(TOUR_STEPS_KEY);
+export function clearTourStepProgress(key = PARENT_TOUR_STEPS_KEY) {
+  removeSession(key);
 }

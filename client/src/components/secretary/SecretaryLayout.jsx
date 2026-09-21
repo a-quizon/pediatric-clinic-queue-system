@@ -34,11 +34,11 @@ export default function SecretaryLayout() {
   const headerInfo = getHeaderInfo();
 
   const navItems = [
-    { name: "Dashboard", mobileName: "Home", path: "/secretary", icon: Home },
-    { name: "Schedules", path: "/secretary/schedules", icon: CalendarDays },
-    { name: "Validate Reservation", mobileName: "Validate", path: "/secretary/validate", icon: QrCode },
-    { name: "Manage Queue", mobileName: "Queue", path: "/secretary/queue", icon: Users },
-    { name: "Profile", path: "/secretary/profile", icon: User },
+    { name: "Dashboard", mobileName: "Home", path: "/secretary", icon: Home, tour: "nav-dashboard" },
+    { name: "Schedules", path: "/secretary/schedules", icon: CalendarDays, tour: "nav-schedules" },
+    { name: "Validate Reservation", mobileName: "Validate", path: "/secretary/validate", icon: QrCode, tour: "nav-validate" },
+    { name: "Manage Queue", mobileName: "Queue", path: "/secretary/queue", icon: Users, tour: "nav-queue" },
+    { name: "Profile", path: "/secretary/profile", icon: User, tour: "nav-profile" },
   ];
 
   const isActive = (path) => {
@@ -61,6 +61,7 @@ export default function SecretaryLayout() {
               to={item.path}
               replace
               aria-current={isActive(item.path) ? "page" : undefined}
+              data-tour={item.tour}
               className={() =>
                 `pq-side-link ${isActive(item.path) ? "pq-side-link-active" : ""}`
               }
@@ -114,6 +115,7 @@ export default function SecretaryLayout() {
                 replace
                 aria-label={item.name}
                 aria-current={active ? "page" : undefined}
+                data-tour={item.tour}
                 className={`pq-dock-item ${active ? "pq-dock-item-active" : ""}`}
               >
                 <item.icon
