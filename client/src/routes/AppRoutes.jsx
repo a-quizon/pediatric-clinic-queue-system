@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import ProtectedRoute from "./ProtectedRoute";
 import VerifiedRoute from "./VerifiedRoute";
@@ -44,7 +44,7 @@ import AdminLayout from "../components/admin/AdminLayout";
 import AdminDashboard from "../pages/admin/Dashboard";
 import AdminUserManagement from "../pages/admin/UserManagement";
 import AdminBranchManagement from "../pages/admin/BranchManagement";
-import AdminActivity from "../pages/admin/Activity";
+import AdminAuditLogs from "../pages/admin/AuditLogs";
 
 import OnboardingRoute from "./OnboardingRoute";
 import RoleRoute from "./RoleRoute";
@@ -55,6 +55,11 @@ import SmsTester from "../pages/dev/SmsTester";
 import SplashGate from "../components/onboarding/SplashGate";
 import ParentTourController from "../components/onboarding/ParentTourController";
 import { TourPreviewProvider } from "../context/TourPreviewContext";
+
+function RedirectAdminActivity() {
+  const { search } = useLocation();
+  return <Navigate to={`/admin/audit-logs${search}`} replace />;
+}
 
 export default function AppRoutes() {
   return (
@@ -113,7 +118,8 @@ export default function AppRoutes() {
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<AdminUserManagement />} />
           <Route path="branches" element={<AdminBranchManagement />} />
-          <Route path="activity" element={<AdminActivity />} />
+          <Route path="audit-logs" element={<AdminAuditLogs />} />
+          <Route path="activity" element={<RedirectAdminActivity />} />
           <Route path="settings" element={<Navigate to="/admin" replace />} />
           <Route path="profile" element={<Navigate to="/admin" replace />} />
         </Route>

@@ -203,11 +203,11 @@ Secretary or Doctor **starts** the queue; doctor **controls** the live session a
 
 | Path | Capability |
 |------|------------|
-| `/admin` | High-level stats (parents, staff, branches, ops) |
+| `/admin` | Dashboard — high-level stats (parents, staff, branches, ops) plus recent audit preview |
 | `/admin/users` | Create / edit / activate / deactivate / delete staff & parents |
 | `/admin/branches` | Branch name, address, weekly clinic hours |
-| `/admin/activity` | Audit logs + admin report charts |
-| `/admin/profile` | Profile |
+| `/admin/audit-logs` | Audit logs + admin report charts (`/admin/activity` redirects here) |
+| `/admin/profile` | Redirects to Dashboard |
 
 #### Staff creation rules (important)
 

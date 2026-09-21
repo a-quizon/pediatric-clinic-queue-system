@@ -25,6 +25,7 @@ const TAB_ROOTS = new Set([
   "/admin",
   "/admin/users",
   "/admin/branches",
+  "/admin/audit-logs",
 ]);
 
 export function normalizePathname(pathname) {
@@ -53,7 +54,6 @@ export function getNestedFallback(pathname, search = "") {
   if (path === "/secretary/settings") return "/secretary/profile";
   if (path === "/secretary/monitor") return "/secretary/queue";
   if (path === "/doctor/reports") return "/doctor";
-  if (path === "/admin/activity") return "/admin";
   if (path === "/onboarding/child") return "/parent";
   return null;
 }

@@ -262,7 +262,7 @@ const AdminReports = () => {
   );
 };
 
-export default function Activity() {
+export default function AuditLogs() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => (
     searchParams.get("tab") === "reports" ? "reports" : "audit"
@@ -381,7 +381,7 @@ export default function Activity() {
 
   return (
     <div className="space-y-6 pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
-      <div className="pq-tablist" role="tablist" aria-label="System activity views">
+      <div className="pq-tablist" role="tablist" aria-label="Audit logs views">
         <button
           type="button"
           role="tab"
@@ -426,11 +426,11 @@ export default function Activity() {
               <div className="pq-field-icon">
                 <Search className="w-5 h-5" aria-hidden="true" />
               </div>
-              <label htmlFor="activity-search" className="sr-only">Search activity</label>
+              <label htmlFor="activity-search" className="sr-only">Search audit logs</label>
               <input
                 id="activity-search"
                 type="text"
-                placeholder="Search activity..."
+                placeholder="Search audit logs..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pq-input pl-10"

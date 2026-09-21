@@ -231,7 +231,7 @@ export default function Dashboard() {
       setActivityLoading(false);
     }, (err) => {
       console.error("Failed to load recent activity", err);
-      setActivityError("Couldn't load recent activity.");
+      setActivityError("Couldn't load recent audit logs.");
       setActivityLoading(false);
     });
 
@@ -377,8 +377,8 @@ export default function Dashboard() {
 
       <section className="pq-glass p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h2 className="text-lg font-extrabold tracking-tight">Recent Activity</h2>
-          <NavLink to="/admin/activity" className="pq-btn-secondary shrink-0" aria-label="View all activity">
+          <h2 className="text-lg font-extrabold tracking-tight">Recent Audit Logs</h2>
+          <NavLink to="/admin/audit-logs" className="pq-btn-secondary shrink-0" aria-label="View all audit logs">
             View all
           </NavLink>
         </div>
@@ -388,11 +388,11 @@ export default function Dashboard() {
             <p className="font-medium text-sm">{activityError}</p>
           </div>
         ) : activityLoading ? (
-          <PqSpinner label="Loading recent activity" />
+          <PqSpinner label="Loading recent audit logs" />
         ) : recentLogs.length === 0 ? (
           <div className="pq-row flex-col items-center text-center min-h-0 py-10">
             <Activity className="w-8 h-8 pq-faint mb-3" aria-hidden="true" />
-            <p className="font-extrabold tracking-tight">No activity yet</p>
+            <p className="font-extrabold tracking-tight">No audit logs yet</p>
             <p className="text-sm pq-muted mt-1 max-w-sm">
               Staff and admin actions will appear here as they happen.
             </p>

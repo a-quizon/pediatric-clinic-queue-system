@@ -1,16 +1,14 @@
 import { useState, useCallback } from "react";
-import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, Users, MapPin, Plus, ChevronLeft, LogOut } from "lucide-react";
+import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { Home, Users, MapPin, Plus, ScrollText, LogOut } from "lucide-react";
 import { PqBrand } from "../parent/pqUi";
 import AddStaffModal from "./AddStaffModal";
 import ConfirmationModal from "../common/ConfirmationModal";
 import MobileNavDrawer, { MobileNavToggle } from "../common/MobileNavDrawer";
 import { useLogout } from "../../hooks/useLogout";
-import { goBackOr } from "../../utils/navigationRoots";
 
 export default function AdminLayout() {
   const location = useLocation();
-  const navigate = useNavigate();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setIsMenuOpen(false), []);
@@ -25,7 +23,7 @@ export default function AdminLayout() {
   const getHeaderInfo = () => {
     const path = location.pathname;
     if (path === "/admin" || path === "/admin/") {
-      return { title: "Home" };
+      return { title: "Dashboard" };
     }
     if (path.startsWith("/admin/users")) {
       return { title: "Users", showAddStaff: true };
@@ -33,23 +31,28 @@ export default function AdminLayout() {
     if (path.startsWith("/admin/branches")) {
       return { title: "Branches", showAddBranch: true };
     }
-    if (path.startsWith("/admin/activity")) {
-      return { title: "System Activity", backTo: "/admin" };
+    if (path.startsWith("/admin/audit-logs") || path.startsWith("/admin/activity")) {
+      return { title: "Audit Logs" };
     }
-    return { title: "Home" };
+    return { title: "Dashboard" };
   };
 
   const headerInfo = getHeaderInfo();
 
   const navItems = [
-    { name: "Home", path: "/admin", icon: Home },
+    { name: "Dashboard", path: "/admin", icon: Home },
     { name: "Users", path: "/admin/users", icon: Users },
     { name: "Branches", path: "/admin/branches", icon: MapPin },
+    { name: "Audit Logs", path: "/admin/audit-logs", icon: ScrollText },
   ];
 
   const isActive = (path) => {
     if (path === "/admin") {
       return location.pathname === "/admin" || location.pathname === "/admin/";
+    }
+    if (path === "/admin/audit-logs") {
+      return location.pathname.startsWith("/admin/audit-logs")
+        || location.pathname.startsWith("/admin/activity");
     }
     return location.pathname.startsWith(path);
   };
@@ -107,16 +110,6 @@ export default function AdminLayout() {
                 onToggle={() => setIsMenuOpen((open) => !open)}
                 controlsId="admin-mobile-menu"
               />
-              {headerInfo.backTo ? (
-                <button
-                  type="button"
-                  onClick={() => goBackOr(navigate, headerInfo.backTo)}
-                  className="pq-icon-btn shrink-0"
-                  aria-label="Back to Home"
-                >
-                  <ChevronLeft className="w-5 h-5" aria-hidden="true" />
-                </button>
-              ) : null}
               <h1 className="text-lg sm:text-xl font-extrabold tracking-tight truncate">
                 {headerInfo.title}
               </h1>
