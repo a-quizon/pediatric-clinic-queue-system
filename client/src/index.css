@@ -348,6 +348,13 @@
 .pq-input.pr-10 { padding-right: 2.5rem; }
 .pq-input.pr-11 { padding-right: 2.75rem; }
 
+.pq-shell select.pq-input {
+  padding-block: 0;
+  height: 44px;
+  min-height: 44px;
+  line-height: 42px;
+}
+
 .pq-input:focus {
   background: #fff;
   border-color: var(--pq-mark-blue);
@@ -778,6 +785,15 @@
   display: none;
 }
 
+.pq-scroll-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.pq-scroll-hide::-webkit-scrollbar {
+  display: none;
+}
+
 .pq-wait-key {
   flex: 0 0 auto;
   min-width: 3.25rem;
@@ -812,8 +828,9 @@
 
 .pq-field-icon {
   position: absolute;
-  inset-block: 0;
+  top: 50%;
   left: 0.85rem;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   gap: 0.35rem;

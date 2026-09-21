@@ -191,7 +191,7 @@ export default function UserManagement() {
         <div className="flex gap-3">
           <div className="relative flex-1 md:flex-none">
             <div className="pq-field-icon">
-              <Filter className="w-4 h-4" aria-hidden="true" />
+              <Filter className="w-5 h-5" aria-hidden="true" />
             </div>
             <label htmlFor="user-role-filter" className="sr-only">Filter by role</label>
             <select

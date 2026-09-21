@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { FileText, Activity as ActivityIcon, Search, Filter, Shield, Stethoscope, UserCog, User, MapPin, Clock, ArrowDownToLine, AlertCircle, Calendar, Users, Inbox } from "lucide-react";
+import { FileText, Activity as ActivityIcon, Search, Shield, Stethoscope, UserCog, User, MapPin, Clock, ArrowDownToLine, AlertCircle, Users, Inbox, ChevronDown } from "lucide-react";
 import { ref, query, limitToLast } from "firebase/database";
 import { database } from "../../firebase/database";
 import { subscribeOnValue } from "../../firebase/rtdbSubscribe";
@@ -36,12 +36,32 @@ const formatDateTime = (timestamp) => {
   }).format(d);
 };
 
+const formatLogDate = (timestamp) => {
+  if (!timestamp) return "Unknown";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short", day: "numeric", year: "numeric"
+  }).format(new Date(timestamp));
+};
+
+const formatLogTime = (timestamp) => {
+  if (!timestamp) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric", minute: "2-digit", hour12: true
+  }).format(new Date(timestamp));
+};
+
 const roleChip = (role) => {
   if (role === "doctor") return "pq-chip pq-chip-info";
   if (role === "secretary") return "pq-chip pq-chip-wait";
   if (role === "admin") return "pq-chip pq-chip-info";
   return "pq-chip";
 };
+
+const SelectChevron = () => (
+  <div className="pq-field-icon" style={{ left: "auto", right: "0.85rem" }} aria-hidden="true">
+    <ChevronDown className="w-4 h-4" />
+  </div>
+);
 
 const AdminReports = () => {
   const { loading, error, metrics, filters } = useAdminReportsData();
@@ -67,31 +87,22 @@ const AdminReports = () => {
   const { kpis, adoptionData, branchData, outcomeData, hasData } = metrics;
 
   return (
-    <div className="space-y-6 md:flex-1 overflow-y-auto">
-      <div className="pq-filter-bar p-4 sm:p-5 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-extrabold tracking-tight flex items-center gap-2 leading-none">
-            <Calendar className="w-5 h-5" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
-            System Analytics
-          </h2>
-        </div>
-
-        <div className="relative min-w-[180px]">
-          <div className="pq-field-icon">
-            <Calendar className="w-4 h-4" aria-hidden="true" />
-          </div>
+    <div className="space-y-4 md:flex-1 md:flex md:flex-col md:min-h-0 overflow-y-auto pq-scroll-hide">
+      <div className="pq-filter-bar p-3 sm:p-4 flex">
+        <div className="relative w-full sm:w-auto sm:min-w-[12rem]">
           <label htmlFor="reports-date-range" className="sr-only">Date range</label>
           <select
             id="reports-date-range"
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
-            className="pq-input pl-10 appearance-none cursor-pointer"
+            className="pq-input pr-10 appearance-none cursor-pointer"
           >
             <option value="This Month">This Month</option>
             <option value="Last 3 Months">Last 3 Months</option>
             <option value="This Year">This Year</option>
             <option value="All Time">All Time</option>
           </select>
+          <SelectChevron />
         </div>
       </div>
 
@@ -103,42 +114,39 @@ const AdminReports = () => {
           >
             <Inbox className="w-8 h-8" aria-hidden="true" />
           </div>
-          <h3 className="text-lg font-extrabold tracking-tight mb-1">No Activity Found</h3>
+          <h3 className="text-lg font-extrabold tracking-tight mb-1">No activity found</h3>
           <p className="pq-muted text-sm max-w-sm mx-auto">
             There is no system activity for the selected date range. Try expanding your search.
           </p>
         </div>
       ) : (
-        <>
-          <div className="pq-glass p-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="pq-stat pq-stat-info">
-                <span className="pq-stat-label flex items-center gap-1">
-                  <Users className="w-3.5 h-3.5" aria-hidden="true" /> Registered Parents
-                </span>
-                <span className="pq-stat-value">{kpis.totalParents}</span>
-              </div>
+        <div className="pq-glass p-5 sm:p-6 space-y-6 md:flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="pq-stat pq-stat-info">
+              <span className="pq-stat-label flex items-center gap-1">
+                <Users className="w-3.5 h-3.5" aria-hidden="true" /> Registered Parents
+              </span>
+              <span className="pq-stat-value">{kpis.totalParents}</span>
+            </div>
 
-              <div className="pq-stat">
-                <span className="pq-stat-label flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5" aria-hidden="true" /> Completed Sessions
-                </span>
-                <span className="pq-stat-value">{kpis.totalSessions}</span>
-              </div>
+            <div className="pq-stat">
+              <span className="pq-stat-label flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5" aria-hidden="true" /> Completed Sessions
+              </span>
+              <span className="pq-stat-value">{kpis.totalSessions}</span>
+            </div>
 
-              <div className="pq-stat pq-stat-live">
-                <span className="pq-stat-label flex items-center gap-1">
-                  <ActivityIcon className="w-3.5 h-3.5" aria-hidden="true" /> Total Reservations
-                </span>
-                <span className="pq-stat-value">{kpis.totalReservations}</span>
-              </div>
+            <div className="pq-stat pq-stat-live">
+              <span className="pq-stat-label flex items-center gap-1">
+                <ActivityIcon className="w-3.5 h-3.5" aria-hidden="true" /> Total Reservations
+              </span>
+              <span className="pq-stat-value">{kpis.totalReservations}</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="pq-glass p-6 lg:col-span-2">
-              <h3 className="text-lg font-extrabold tracking-tight mb-6">Parent Adoption Trend</h3>
-              <div className="h-72 w-full">
+          <div>
+            <h3 className="text-lg font-extrabold tracking-tight mb-4">Parent Adoption Trend</h3>
+            <div className="h-72 w-full">
                 {adoptionData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={adoptionData} margin={{ top: 5, right: 0, bottom: 5, left: -20 }}>
@@ -186,77 +194,78 @@ const AdminReports = () => {
               </div>
             </div>
 
-            <div className="pq-glass p-6">
-              <h3 className="text-lg font-extrabold tracking-tight mb-6">Reservations by Branch</h3>
-              <div className="h-72 w-full">
-                {branchData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={branchData} margin={{ top: 5, right: 0, bottom: 5, left: -20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_GRID} />
-                      <XAxis
-                        dataKey="branch"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: CHART_MUTED, fontSize: 12, fontFamily: "Lexend, Segoe UI, sans-serif" }}
-                        dy={10}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: CHART_MUTED, fontSize: 12, fontFamily: "Lexend, Segoe UI, sans-serif" }}
-                        allowDecimals={false}
-                      />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        cursor={{ fill: "color-mix(in srgb, #ffffff 55%, transparent)" }}
-                      />
-                      <Bar dataKey="reservations" name="Reservations" fill={CHART_LINE} radius={[8, 8, 0, 0]} maxBarSize={60} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-full pq-faint">
-                    No branch data in this period
-                  </div>
-                )}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-extrabold tracking-tight mb-4">Reservations by Branch</h3>
+                <div className="h-72 w-full">
+                  {branchData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={branchData} margin={{ top: 5, right: 0, bottom: 5, left: -20 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_GRID} />
+                        <XAxis
+                          dataKey="branch"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: CHART_MUTED, fontSize: 12, fontFamily: "Lexend, Segoe UI, sans-serif" }}
+                          dy={10}
+                        />
+                        <YAxis
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: CHART_MUTED, fontSize: 12, fontFamily: "Lexend, Segoe UI, sans-serif" }}
+                          allowDecimals={false}
+                        />
+                        <Tooltip
+                          contentStyle={tooltipStyle}
+                          cursor={{ fill: "color-mix(in srgb, #ffffff 55%, transparent)" }}
+                        />
+                        <Bar dataKey="reservations" name="Reservations" fill={CHART_LINE} radius={[8, 8, 0, 0]} maxBarSize={60} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full pq-faint">
+                      No branch data in this period
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="pq-glass p-6">
-              <h3 className="text-lg font-extrabold tracking-tight mb-6">Global Outcomes</h3>
-              <div className="h-72 w-full">
-                {outcomeData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={outcomeData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={70}
-                        outerRadius={95}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {outcomeData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={OUTCOME_COLORS[entry.name] || entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Legend
-                        verticalAlign="bottom"
-                        height={36}
-                        iconType="circle"
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-full pq-faint">
-                    No outcome data to display
-                  </div>
-                )}
-              </div>
+              <div>
+                <h3 className="text-lg font-extrabold tracking-tight mb-4">Global Outcomes</h3>
+                <div className="h-72 w-full">
+                  {outcomeData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={outcomeData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={70}
+                          outerRadius={95}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {outcomeData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={OUTCOME_COLORS[entry.name] || entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={tooltipStyle} />
+                        <Legend
+                          verticalAlign="bottom"
+                          height={36}
+                          iconType="circle"
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full pq-faint">
+                      No outcome data to display
+                    </div>
+                  )}
+                </div>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -380,7 +389,7 @@ export default function AuditLogs() {
   };
 
   return (
-    <div className="space-y-6 pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
+    <div className="space-y-4 pb-4 md:pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
       <div className="pq-tablist" role="tablist" aria-label="Audit logs views">
         <button
           type="button"
@@ -419,9 +428,9 @@ export default function AuditLogs() {
           role="tabpanel"
           id="activity-panel-audit"
           aria-labelledby="activity-tab-audit"
-          className="space-y-6 md:flex-1 md:flex md:flex-col md:min-h-0"
+          className="space-y-4 md:flex-1 md:flex md:flex-col md:min-h-0"
         >
-          <div className="pq-filter-bar p-3 sm:p-4 flex flex-col md:flex-row gap-3">
+          <div className="pq-filter-bar p-3 sm:p-4 flex flex-col md:flex-row md:items-center gap-3">
             <div className="relative flex-1">
               <div className="pq-field-icon">
                 <Search className="w-5 h-5" aria-hidden="true" />
@@ -439,21 +448,19 @@ export default function AuditLogs() {
 
             <div className="flex gap-3">
               <div className="relative flex-1 md:flex-none">
-                <div className="pq-field-icon">
-                  <Filter className="w-4 h-4" aria-hidden="true" />
-                </div>
                 <label htmlFor="activity-category-filter" className="sr-only">Filter by category</label>
                 <select
                   id="activity-category-filter"
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="pq-input pl-10 appearance-none cursor-pointer min-w-[12rem]"
+                  className="pq-input pr-10 appearance-none cursor-pointer min-w-[12rem]"
                 >
                   <option value="all">All Categories</option>
                   {Object.values(AUDIT_CATEGORIES).map((cat) => (
                     <option key={cat} value={cat}>{formatCategory(cat)}</option>
                   ))}
                 </select>
+                <SelectChevron />
               </div>
 
               <div className="relative flex-1 md:flex-none">
@@ -462,13 +469,14 @@ export default function AuditLogs() {
                   id="activity-role-filter"
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value)}
-                  className="pq-input appearance-none cursor-pointer min-w-[9rem]"
+                  className="pq-input pr-10 appearance-none cursor-pointer min-w-[9rem]"
                 >
                   <option value="all">All Roles</option>
                   <option value="admin">Admin</option>
                   <option value="doctor">Doctor</option>
                   <option value="secretary">Secretary</option>
                 </select>
+                <SelectChevron />
               </div>
             </div>
           </div>
@@ -483,7 +491,7 @@ export default function AuditLogs() {
               <PqSpinner label="Loading audit logs" />
             ) : filteredLogs.length > 0 ? (
               <>
-                <div className="block md:hidden overflow-y-auto">
+                <div className="block md:hidden overflow-y-auto pq-scroll-hide">
                   {paginatedLogs.map((log) => (
                     <div
                       key={log.id}
@@ -520,25 +528,26 @@ export default function AuditLogs() {
                   ))}
                 </div>
 
-                <div className="hidden md:block overflow-x-auto md:flex-1 md:overflow-y-auto relative">
+                <div className="hidden md:block md:flex-1 md:overflow-y-auto relative pq-scroll-hide">
                   <table className="pq-table">
                     <thead className="pq-table-head-sticky">
                       <tr>
-                        <th className="pl-6 w-48">Date & Time</th>
-                        <th className="w-48">Actor</th>
-                        <th className="w-32">Role</th>
-                        <th className="min-w-[200px]">Activity</th>
-                        <th className="w-48">Category</th>
+                        <th className="pl-6 w-px whitespace-nowrap">Date & Time</th>
+                        <th className="w-px whitespace-nowrap">Actor</th>
+                        <th className="w-px whitespace-nowrap">Role</th>
+                        <th>Activity</th>
+                        <th className="pr-6 w-px whitespace-nowrap">Category</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedLogs.map((log) => (
                         <tr key={log.id}>
-                          <td className="pl-6 text-sm pq-muted whitespace-nowrap font-medium">
-                            {formatDateTime(log.timestamp)}
+                          <td className="pl-6 w-px whitespace-nowrap">
+                            <p className="text-sm font-medium leading-tight">{formatLogDate(log.timestamp)}</p>
+                            <p className="text-xs pq-muted mt-0.5 leading-tight">{formatLogTime(log.timestamp)}</p>
                           </td>
-                          <td className="font-semibold truncate max-w-[150px]">
-                            {log.actorName}
+                          <td className="w-px max-w-[9rem]">
+                            <span className="font-semibold block truncate">{log.actorName}</span>
                           </td>
                           <td>
                             <span className={`${roleChip(log.actorRole)} capitalize`}>
@@ -549,7 +558,7 @@ export default function AuditLogs() {
                           <td className="text-sm font-semibold">
                             {log.description}
                           </td>
-                          <td>
+                          <td className="pr-6">
                             <span className="pq-chip">
                               {formatCategory(log.category)}
                             </span>
