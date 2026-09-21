@@ -26,7 +26,9 @@ export default function ScheduleManagement({
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const showScheduleSample = useTourSample(["schedule-publish", "schedule-form"]);
+  const showSecretaryScheduleSample = useTourSample(["schedule-publish", "schedule-form"]);
+  const showDoctorScheduleSample = useTourSample(["doctor-schedule-publish", "doctor-schedule-form"]);
+  const showScheduleSample = showSecretaryScheduleSample || showDoctorScheduleSample;
   const [schedules, setSchedules] = useState([]);
   const [branches, setBranches] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -234,7 +236,13 @@ export default function ScheduleManagement({
   const paginatedSchedules = filteredSchedules.slice(startIndex, startIndex + PAGE_SIZE);
 
   if (showScheduleSample) {
-    return <TourSampleSchedulePublish showForm />;
+    return (
+      <TourSampleSchedulePublish
+        showForm
+        publishTourId={showDoctorScheduleSample ? "doctor-schedule-publish" : "schedule-publish"}
+        formTourId={showDoctorScheduleSample ? "doctor-schedule-form" : "schedule-form"}
+      />
+    );
   }
 
   return (

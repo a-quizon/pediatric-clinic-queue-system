@@ -3,6 +3,7 @@ import { database } from "../firebase/database";
 
 export const PARENT_TOUR_STEPS_KEY = "pq.parentTour.v1.completedSteps";
 export const SECRETARY_TOUR_STEPS_KEY = "pq.secretaryTour.v1.completedSteps";
+export const DOCTOR_TOUR_STEPS_KEY = "pq.doctorTour.v1.completedSteps";
 
 function readSession(key) {
   try {

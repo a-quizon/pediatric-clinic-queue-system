@@ -33,11 +33,11 @@ export default function Layout() {
   const headerInfo = getHeaderInfo();
 
   const navItems = [
-    { name: "Dashboard", mobileName: "Home", path: "/doctor", icon: Home, replace: true },
-    { name: "Queue", path: "/doctor/queue", icon: Users, replace: true },
-    { name: "Schedules", path: "/doctor/schedules", icon: CalendarDays, replace: true },
-    { name: "Reports & Analytics", mobileName: "Reports", path: "/doctor/reports", icon: BarChart3, desktopOnly: true },
-    { name: "Profile", path: "/doctor/profile", icon: User, replace: true },
+    { name: "Dashboard", mobileName: "Home", path: "/doctor", icon: Home, replace: true, tour: "doctor-nav-dashboard" },
+    { name: "Queue", path: "/doctor/queue", icon: Users, replace: true, tour: "doctor-nav-queue" },
+    { name: "Schedules", path: "/doctor/schedules", icon: CalendarDays, replace: true, tour: "doctor-nav-schedules" },
+    { name: "Reports & Analytics", mobileName: "Reports", path: "/doctor/reports", icon: BarChart3, desktopOnly: true, tour: "doctor-nav-reports" },
+    { name: "Profile", path: "/doctor/profile", icon: User, replace: true, tour: "doctor-nav-profile" },
   ];
 
   const isActive = (path) => {
@@ -64,6 +64,7 @@ export default function Layout() {
               to={item.path}
               replace={item.replace === true}
               aria-current={isActive(item.path) ? "page" : undefined}
+              data-tour={item.tour}
               className={() =>
                 `pq-side-link ${isActive(item.path) ? "pq-side-link-active" : ""}`
               }
@@ -116,6 +117,7 @@ export default function Layout() {
                 replace={item.replace === true}
                 aria-label={item.name}
                 aria-current={active ? "page" : undefined}
+                data-tour={item.tour}
                 className={`pq-dock-item ${active ? "pq-dock-item-active" : ""}`}
               >
                 <item.icon

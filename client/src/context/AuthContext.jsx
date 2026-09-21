@@ -105,7 +105,10 @@ export function AuthProvider({ children }) {
                                 updates.hasCompletedTour = userData.hasCompletedTour;
                                 needsUpdate = true;
                             }
-                            if (userData.role === "secretary" && typeof userData.hasCompletedTour !== "boolean") {
+                            if (
+                                (userData.role === "secretary" || userData.role === "doctor") &&
+                                typeof userData.hasCompletedTour !== "boolean"
+                            ) {
                                 userData.hasCompletedTour = true;
                                 updates.hasCompletedTour = true;
                                 needsUpdate = true;

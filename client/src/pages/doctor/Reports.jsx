@@ -4,6 +4,8 @@ import { useReportsData } from "../../hooks/useReportsData";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, Legend } from 'recharts';
 import { PqSpinner } from "../../components/parent/pqUi";
+import { useTourSample } from "../../hooks/useTourPreview";
+import { TourSampleDoctorReports } from "../../components/onboarding/DoctorTourSampleViews";
 
 const DATE_RANGES = ["Today", "This Week", "This Month", "This Year"];
 
@@ -29,6 +31,12 @@ export default function Reports() {
   useEffect(() => {
     setCurrentPage(1);
   }, [dataset]);
+
+  const showReportsSample = useTourSample(["doctor-reports-filters", "doctor-reports-history"]);
+
+  if (showReportsSample) {
+    return <TourSampleDoctorReports />;
+  }
 
   if (error) return <div className="pq-error-text text-center py-10 text-base">Failed to load reports data.</div>;
 

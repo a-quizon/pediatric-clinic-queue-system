@@ -259,7 +259,11 @@ export function TourSampleValidate() {
   );
 }
 
-export function TourSampleSchedulePublish({ showForm = false }) {
+export function TourSampleSchedulePublish({
+  showForm = false,
+  publishTourId = "schedule-publish",
+  formTourId = "schedule-form",
+}) {
   const schedule = getSecretaryTourSampleSchedule();
 
   return (
@@ -269,7 +273,7 @@ export function TourSampleSchedulePublish({ showForm = false }) {
         <SampleFlag />
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        <div className="pq-glass p-5 flex flex-col h-full" data-tour="schedule-publish">
+        <div className="pq-glass p-5 flex flex-col h-full" data-tour={publishTourId}>
           <div className="mb-4">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
               <h3 className="text-lg font-extrabold tracking-tight truncate">{schedule.branch}</h3>
@@ -305,7 +309,7 @@ export function TourSampleSchedulePublish({ showForm = false }) {
       </div>
 
       {showForm ? (
-        <div className="pq-glass overflow-hidden" data-tour="schedule-form">
+        <div className="pq-glass overflow-hidden" data-tour={formTourId}>
           <div className="flex items-center justify-between p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
             <h2 className="text-lg font-extrabold tracking-tight">Create Schedule</h2>
             <SampleFlag />

@@ -5,14 +5,17 @@ import { subscribeToBranchConfigurations } from "../../services/branchConfigurat
 import { handlePasswordChangeRequest, usePasswordValidation } from "../../utils/passwordUtils";
 import { formatName, formatBranchLabel } from "../../utils/stringUtils";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
-import { User as UserIcon, Save, MapPin, Lock, ChevronRight, Info, BarChart3, Eye, EyeOff } from "lucide-react";
+import { User as UserIcon, Save, MapPin, Lock, ChevronRight, Info, BarChart3, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import LogoutButton from "../../components/common/LogoutButton";
 import toast from "react-hot-toast";
 import { goBackOr } from "../../utils/navigationRoots";
+import { useTourPreview } from "../../hooks/useTourPreview";
+import { DOCTOR_TOUR_STEPS_KEY, clearTourStepProgress } from "../../services/firstVisitService";
 
 export default function Profile() {
   const { user } = useAuth();
+  const { startTourReplay } = useTourPreview();
   
   const [isSaving, setIsSaving] = useState(false);
   
@@ -51,6 +54,34 @@ export default function Profile() {
       setSearchParams({ view });
     }
   };
+
+  const handleReplayTutorial = () => {
+    clearTourStepProgress(DOCTOR_TOUR_STEPS_KEY);
+    startTourReplay("doctor");
+    navigate("/doctor");
+  };
+
+  const renderReplayTutorial = () => (
+    <button
+      type="button"
+      onClick={handleReplayTutorial}
+      className="pq-glass w-full p-5 flex items-center justify-between text-left"
+    >
+      <div className="flex items-center min-w-0">
+        <div
+          className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 mr-4"
+          style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 14%, white)", color: "var(--pq-mark-blue-deep)" }}
+        >
+          <RotateCcw className="w-6 h-6" aria-hidden="true" />
+        </div>
+        <div className="min-w-0">
+          <span className="font-extrabold tracking-tight block">Replay Tutorial</span>
+          <span className="pq-muted text-sm">Walk through Queue, consultations, schedules, and reports again.</span>
+        </div>
+      </div>
+      <ChevronRight className="w-5 h-5 pq-faint shrink-0" aria-hidden="true" />
+    </button>
+  );
 
   useEffect(() => {
     const unsub = subscribeToBranchConfigurations((data) => {
@@ -390,6 +421,7 @@ export default function Profile() {
       <div className="hidden md:block space-y-6 pb-8 max-w-4xl mx-auto">
         {renderProfileCard()}
         {renderSecurityCard()}
+        {renderReplayTutorial()}
         <div className="pt-4">
           <LogoutButton className="pq-btn-danger w-full" />
         </div>
@@ -435,6 +467,19 @@ export default function Profile() {
                   <div className="text-left">
                     <h3 className="font-extrabold">About System</h3>
                     <p className="text-xs pq-muted mt-0.5">App version and information</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />
+              </button>
+
+              <button type="button" onClick={handleReplayTutorial} className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+                <div className="flex items-center">
+                  <div className="w-11 h-11 rounded-2xl mr-4 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
+                    <RotateCcw className="w-5 h-5" aria-hidden="true" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-extrabold">Replay Tutorial</h3>
+                    <p className="text-xs pq-muted mt-0.5">Walk through Queue, consultations, and reports again</p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />

@@ -13,6 +13,8 @@ import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
 import ReservationPatientNames from "../common/ReservationPatientNames";
 import { PqSpinner } from "../parent/pqUi";
+import { useTourSample } from "../../hooks/useTourPreview";
+import { TourSampleDoctorQueue } from "../onboarding/DoctorTourSampleViews";
 
 function WalkInChip({ reservation }) {
   if (reservation?.source !== "walk_in") return null;
@@ -95,6 +97,13 @@ export default function QueueControlCenter() {
   }, [scheduleReservations]);
 
   const canEndSession = waitingQueue.length === 0 && !inConsultation;
+  const showQueueSample = useTourSample([
+    "doctor-queue-list",
+    "doctor-queue-start",
+    "doctor-queue-control",
+    "doctor-consult-regular",
+    "doctor-consult-walkin",
+  ]);
 
   const handleOpenCompleteModal = (res) => {
     const currentQueueStatus = activeSchedule?.queueStatus || 'not_started';
@@ -132,6 +141,10 @@ export default function QueueControlCenter() {
   };
 
   const loading = !schedulesLoaded || (!!activeSchedule && !reservationsLoaded);
+
+  if (showQueueSample) {
+    return <TourSampleDoctorQueue />;
+  }
 
   if (loading) {
     return (

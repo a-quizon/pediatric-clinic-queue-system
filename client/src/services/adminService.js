@@ -68,9 +68,11 @@ export const createStaffAccount = async (staffData) => {
       updatedAt: now
     };
 
+    if (staffData.role === "secretary" || staffData.role === "doctor") {
+      dbPayload.hasCompletedTour = false;
+    }
     if (staffData.role === "secretary") {
       dbPayload.assignedBranch = staffData.assignedBranch;
-      dbPayload.hasCompletedTour = false;
       if (staffData.assignedBranchId) {
         dbPayload.assignedBranchId = staffData.assignedBranchId;
       }
