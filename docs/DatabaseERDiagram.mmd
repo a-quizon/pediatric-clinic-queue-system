@@ -1,39 +1,19 @@
 erDiagram
-    BranchConfiguration ||--o{ Schedule : hosts
     BranchConfiguration ||--o{ User : assigns
+    BranchConfiguration ||--o{ Schedule : hosts
     BranchConfiguration ||--|| SystemConfiguration : configures
-    BranchConfiguration |o--o{ AuditLog : context
-    BranchConfiguration |o--o{ ParentNotification : at
-
-    User ||--o{ ChildProfile : nests
-    User ||--o{ PushSubscription : nests
     User |o--o{ Schedule : staffs
     User |o--o{ Reservation : books
-    User ||--o{ ParentNotification : receives
+    User ||--o{ ChildProfile : has
     User ||--o{ AuditLog : performs
-    User |o--o{ SmsOtp : otp
-    User |o--o{ PhoneVerification : proof
-
     Schedule ||--o{ Reservation : tickets
-    Schedule |o--o{ AuditLog : target
-
-    Reservation ||--o{ ReservationPatient : includes
-    Reservation |o--o{ ParentNotification : about
-    Reservation |o--o{ AuditLog : target
-    ChildProfile |o--o{ ReservationPatient : copied
-
-    SystemConfiguration ||--|| SmsConfig : sms
+    ChildProfile |o--o{ Reservation : copied_onto
 
     BranchConfiguration {
         string id PK
         string name
         string clinicAddress
-        string schedule
-        boolean schedule_isOpen
-        string schedule_openingTime
-        string schedule_closingTime
-        string schedulePatterns
-        datetime createdAt
+        string weeklyHours
     }
 
     User {
@@ -41,26 +21,12 @@ erDiagram
         string name
         string email
         string phone
-        string phoneNumber
         string role
         string status
-        string deactivationSource
-        boolean isDeleted
-        datetime deletedAt
-        boolean isPhoneVerified
-        boolean onboardingComplete
-        boolean hasCompletedTour
         string assignedBranch
         string assignedBranchId FK
-        string professionalTitle
-        string clinicName
-        string contactNumber
-        boolean inAppNotificationsEnabled
-        boolean devicePushEnabled
-        string notificationPermission
-        datetime notificationTokenUpdatedAt
-        datetime createdAt
-        datetime updatedAt
+        boolean onboardingComplete
+        boolean isDeleted
     }
 
     ChildProfile {
@@ -69,20 +35,6 @@ erDiagram
         string childName
         string age
         string sex
-        datetime createdAt
-        datetime updatedAt
-    }
-
-    PushSubscription {
-        string hash PK
-        string parentId FK
-        string endpoint
-        int expirationTime
-        string keys_p256dh
-        string keys_auth
-        string userAgent
-        datetime createdAt
-        datetime updatedAt
     }
 
     Schedule {
@@ -90,84 +42,32 @@ erDiagram
         string branchId FK
         string branch
         string doctorId FK
-        string doctorEmail
-        string createdBy FK
-        string createdByRole
         string clinicDate
         string openingTime
         string closingTime
         int slotCapacity
         string status
         string queueStatus
-        boolean isReady
-        datetime createdAt
-        datetime publishedAt
-        datetime queueStartedAt
-        datetime queueStatusUpdatedAt
-        datetime movedToReadyAt
-        datetime completedAt
-        datetime scheduleCompletedAt
-        int lateLimit
     }
 
     Reservation {
         string reservationId PK
         string scheduleId FK
         string parentId FK
-        string parentEmail
-        string reservationCode UK
+        string reservationCode
         int queueNumber
-        int originalQueueNumber
-        int queuePosition
         int queueOrder
-        int aheadOfYou
         string queueState
-        datetime sortTimestamp
         string status
         string source
-        string createdBy FK
         string parentName
         string parentPhone
         string children
-        string childName
-        string age
-        string sex
         string concern
-        boolean patientInfoCompleted
-        boolean checkedIn
-        datetime checkedInAt
-        string checkedInBy FK
-        datetime consultationStartedAt
-        datetime sentToDoctorAt
-        datetime consultationCompletedAt
         string doctorNotes
         int penaltyCount
-        datetime lastPenalizedAt
-        datetime penalizedAt
-        datetime becameCurrentTurnAt
-        datetime penaltyTimerStartedAt
         datetime penaltyTimerExpiresAt
-        datetime penaltyTimerClearedAt
-        string forfeitureReason
-        datetime forfeitedAt
-        datetime cancelledAt
-        string cancellationReason
-        datetime expiredAt
-        datetime checkInRequestedAt
-        boolean nearTurnSmsSent
-        boolean slotReservedSmsSent
-        string penaltySmsSent
-        datetime createdAt
-        datetime reservationCreatedAt
-        datetime completedAt
-    }
-
-    ReservationPatient {
-        string reservationId FK
-        string childId FK
-        string childName
-        string age
-        string sex
+        boolean checkedIn
     }
 
     SystemConfiguration {
@@ -175,90 +75,17 @@ erDiagram
         int penaltyMoveBack
         int penaltyGraceMinutes
         int penaltyTimerMinutes
-        int lateLimit
-        datetime updatedAt
-    }
-
-    SmsConfig {
-        string branchId PK
         int nearingTurnAheadCount
-        string templateSlotReserved
-        string templateSlotReservedActiveQueue
-        string templateQueueStarted
-        string templateNearingTurn
-        string templatePenalized
-        string templateForfeited
-        datetime updatedAt
-    }
-
-    LegacyQueueConfig {
-        string key PK
-        int penaltyMoveBack
-    }
-
-    LegacySmsConfig {
-        string key PK
-        string templates
-    }
-
-    ParentNotification {
-        string notificationId PK
-        string parentId FK
-        string type
-        string title
-        string body
-        string message
-        string severity
-        boolean read
-        string reservationId FK
-        string branchId FK
-        string dedupeKey
-        string url
-        string metadata
-        datetime createdAt
-        datetime smsDispatchedAt
-        datetime pushDispatchedAt
+        string smsTemplates
     }
 
     AuditLog {
         string logId PK
         string action
         string category
-        string description
         string actorUid FK
-        string actorName
         string actorRole
         string targetType
         string targetId
-        string branchId
         datetime loggedAt
-    }
-
-    SmsOtp {
-        string phoneKey PK
-        string phone
-        string purpose
-        string uid FK
-        string codeHash
-        int attempts
-        datetime createdAt
-        datetime expiresAt
-    }
-
-    PhoneVerification {
-        string phoneKey PK
-        string phone
-        string verificationId
-        string purpose
-        string uid FK
-        datetime verifiedAt
-        datetime expiresAt
-    }
-
-    PasswordResetLimit {
-        string emailKey PK
-        string email
-        string date
-        int count
-        datetime updatedAt
     }
