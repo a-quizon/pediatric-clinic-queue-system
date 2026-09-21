@@ -1,11 +1,12 @@
 import { initializeApp, getApps, deleteApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut, sendPasswordResetEmail } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { ref, set, get } from "firebase/database";
 import app, { firebaseConfig } from "../firebase/firebaseConfig";
 import { database } from "../firebase/database";
 import { auth } from "../firebase/auth";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
+import { sendPasswordResetLink } from "./passwordResetService";
 
 export const getActiveDoctor = async () => {
   const snapshot = await get(ref(database, "users"));
@@ -148,7 +149,7 @@ export const sendAdminPasswordResetEmail = async (email) => {
     url: `${window.location.origin}/reset-password`,
     handleCodeInApp: false
   };
-  return sendPasswordResetEmail(auth, email, actionCodeSettings);
+  return sendPasswordResetLink(email, actionCodeSettings);
 };
 
 export const deleteUserAccount = async (uid) => {

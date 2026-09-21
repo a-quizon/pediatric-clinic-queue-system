@@ -16,7 +16,7 @@ function recordFromSnap(id, snap) {
 }
 
 /**
- * Hosting rewrite target for /api/** (SMS OTP + auth identifier resolve).
+ * Hosting rewrite target for /api/** (SMS OTP, auth identifier resolve, password-reset claim).
  * Lazy-load Express app so deploy analysis stays under the load timeout.
  */
 let apiApp;

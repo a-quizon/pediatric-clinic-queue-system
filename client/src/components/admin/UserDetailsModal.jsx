@@ -146,7 +146,11 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
           closeConfirm();
         } catch (error) {
           console.error(error);
-          toast.error("Unable to send the password reset email. Please try again.");
+          if (error.code === "rate_limited") {
+            toast.error(error.message || "You've reached today's password reset limit. Please try again tomorrow.");
+          } else {
+            toast.error("Unable to send the password reset email. Please try again.");
+          }
         } finally {
           setIsResettingPassword(false);
         }

@@ -84,6 +84,8 @@ State model: `AuthContext` + Firebase `onValue` listeners. No Redux / Zustand / 
 
 **Staff (secretary / doctor / admin):** Created by Admin; login with email/password; **no** email-verification or child-onboarding gates.
 
+**Password reset:** Public `/forgot-password` and Admin “Reset Password” both call Firebase `sendPasswordResetEmail()`. Before the email is sent, the server consumes one slot under `passwordResetLimits/{emailKey}` (**5 per email per Asia/Manila calendar day**, Forgot Password and Admin Reset share the same counter). Over-limit requests are blocked with “You've reached today's password reset limit. Please try again tomorrow.” Completing the reset on `/reset-password` does not consume a slot. This cap is separate from SMS OTP resend cooldown.
+
 **Route guards:** `ProtectedRoute` → (parents) `VerifiedRoute` → (parents) `OnboardingRoute` → `RoleRoute`.
 
 ---
@@ -561,6 +563,7 @@ Priority when delivering: **role restriction** → **dedupe** → **DB write** �
 | `systemConfiguration/{branchId}` | Penalty Move-Back, Grace Period, Penalty Timer, SMS templates (per branch) |
 | `smsOtps/{phoneKey}` | Hashed OTPs (server only) |
 | `phoneVerifications/{phoneKey}` | Short-lived phone proofs (server only) |
+| `passwordResetLimits/{emailKey}` | Daily password-reset claim count (server only; 5/email/Asia/Manila day) |
 
 Business logic services of note: `reservationService.js`, `queueEngine.js`, `queueEligibilityService.js`, `scheduleService.js`, `systemConfigurationService.js`, `adminService.js`, `notificationService.js`, `notificationCenterService.js`, `positionEventEngine.js`.
 
@@ -580,7 +583,7 @@ From `database.rules.json`:
 | `auditLogs` | Admin | Admin / doctor / secretary |
 | `systemConfiguration/{branchId}` | Admin, doctor; secretary own branch | Admin; secretary own branch |
 | `systemConfiguration/{branchId}/sms` | + parents | (same write as parent node) |
-| `smsOtps`, `phoneVerifications` | **denied** | **denied** (Admin SDK only) |
+| `smsOtps`, `phoneVerifications`, `passwordResetLimits` | **denied** | **denied** (Admin SDK only) |
 
 App-level isolation still matters: secretaries filter by `assignedBranch`; role routes block cross-role UI access.
 

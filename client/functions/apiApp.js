@@ -1,6 +1,6 @@
 /**
  * HTTPS Express app for Hosting /api/** rewrites.
- * Mirrors server SMS auth + identifier resolve endpoints.
+ * Mirrors server SMS auth, identifier resolve, and password-reset claim endpoints.
  */
 const express = require("express");
 const cors = require("cors");
@@ -16,12 +16,14 @@ const {
   consumePhoneVerification,
 } = require("./otpService");
 const { resolveAccountByIdentifier } = require("./phoneLookup");
+const { claimPasswordResetSlot } = require("./passwordResetLimitService");
 
 function mapOtpError(err) {
   const code = err.code || "internal";
   const statusByCode = {
     invalid_phone: 400,
     invalid_input: 400,
+    invalid_email: 400,
     user_not_found: 404,
     phone_in_use: 409,
     phone_not_verified: 403,
@@ -112,6 +114,15 @@ function createApiApp() {
         error: err.code || "internal",
         message: err.message || "Unable to resolve login identifier.",
       });
+    }
+  });
+
+  app.post("/api/auth/password-reset/claim", async (req, res) => {
+    try {
+      const result = await claimPasswordResetSlot(req.body?.email);
+      return res.json(result);
+    } catch (err) {
+      return sendError(res, err);
     }
   });
 

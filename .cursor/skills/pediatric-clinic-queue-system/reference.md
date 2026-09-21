@@ -28,6 +28,18 @@ Read when modifying Firebase data, server routes, or environment setup.
 }
 ```
 
+### `passwordResetLimits/{emailKey}`
+Server-only daily cap for Forgot Password + Admin Reset Password. Email key is lowercase with `. # $ [ ]` replaced by `_`. Counter resets on a new **Asia/Manila** calendar date.
+```js
+{
+  email,                 // normalized lowercase
+  date: "YYYY-MM-DD",    // Asia/Manila
+  count: 1,              // 1–5; 5th claim is last allowed that day
+  updatedAt              // epoch ms
+}
+```
+Daily limit: **5** requests per email. Client R/W denied in rules.
+
 ### `branchConfigurations/{branchId}`
 ```js
 {
@@ -126,6 +138,7 @@ Each branch (Angeles, Magalang, …) has an independent node keyed by `branchCon
 | `auditLogs` | Admin | Admin, doctor, secretary |
 | `systemConfiguration/{branchId}` | Admin, doctor; secretary own branch | Admin; secretary own branch |
 | `systemConfiguration/{branchId}/sms` | + parents | (same write as parent node) |
+| `smsOtps`, `phoneVerifications`, `passwordResetLimits` | denied | denied (Admin SDK only) |
 
 Rules file: `database.rules.json` (repo root).
 
@@ -141,6 +154,7 @@ Rules file: `database.rules.json` (repo root).
 | POST | `/api/send-notification` | Bearer token or `x-push-secret` | Dispatch notification + push |
 | POST | `/api/admin/delete-user` | Bearer admin ID token | Delete Auth user + RTDB profile |
 | POST | `/api/auth/resolve-identifier` | None | Resolve email or phone → account email for password login |
+| POST | `/api/auth/password-reset/claim` | None | Consume 1 of 5 daily reset slots per email (Asia/Manila) before `sendPasswordResetEmail` |
 | POST | `/api/auth/sms/send-otp` | None | Generate + SMS-deliver 6-digit OTP (textbee) |
 | POST | `/api/auth/sms/verify-otp` | None | Validate OTP → custom token (login) or verificationId (register) |
 
@@ -150,6 +164,7 @@ Listeners: `server/services/pushListeners.js` watches `reservations` and `schedu
 - Utility: `server/services/smsService.js` (mirrored in `client/functions/smsService.js`)
 - Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`; once via `slotReservedSmsSent`), `QUEUE_STARTED`, `NEARING_TURN` (at **queue start only**; patients-ahead from `systemConfiguration/{branchId}/sms`, default 3; fires when `0 < aheadOfYou <=` count; SMS once per reservation via `reservations/{id}/nearTurnSmsSent` transaction + `dedupeKey` / `smsDispatchedAt`; Secretary-editable per branch), `PENALIZED` (once per increment via `penaltySmsSent/{count}`), `FORFEITED`. TextBee credentials remain env-global.
 - OTP store: `smsOtps/{phoneKey}` — bcrypt-hashed code, 5-minute `expiresAt`; client R/W denied in rules
+- Password reset cap: `passwordResetLimits/{emailKey}` — 5 claims per email per Asia/Manila day; client R/W denied; Forgot Password and Admin Reset share the same counter
 
 ## Cloud Functions (`client/functions/index.js`)
 

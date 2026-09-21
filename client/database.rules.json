@@ -22,6 +22,10 @@
       ".read": false,
       ".write": false
     },
+    "passwordResetLimits": {
+      ".read": false,
+      ".write": false
+    },
     "branchConfigurations": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('status').val() === 'active'"
