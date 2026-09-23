@@ -22,12 +22,6 @@ const ACTIVE_RESERVATION_STATUSES = [
 ];
 
 const NOTIFICATION_CONFIG = {
-  SCHEDULE_AVAILABLE: {
-    type: "info",
-    title: "Schedule Available",
-    message: "New clinic schedule is now available for reservation.",
-    url: "/parent/reserve",
-  },
   SLOT_RESERVED: {
     type: "success",
     title: "Reservation Confirmed",
@@ -326,18 +320,7 @@ function eventsFromScheduleChange(before, after, activeParentIds) {
   const prevPublished = before?.status === "published";
   const currPublished = after.status === "published";
 
-  if (!prevPublished && currPublished) {
-    activeParentIds.allParents.forEach((parentId) => {
-      events.push({
-        eventId: "SCHEDULE_AVAILABLE",
-        parentId,
-        entityId: schedId,
-        branchId: after.branch || null,
-        dedupeKey: `sched_avail_${schedId}`,
-      });
-    });
-    return events;
-  }
+  if (!prevPublished && currPublished) return events;
 
   const prevStatus = before?.queueStatus;
   const currStatus = after.queueStatus;
@@ -449,15 +432,6 @@ async function getActiveParentIdsForSchedule(scheduleId) {
   return { parentIds: [...ids], reservations };
 }
 
-async function getAllParentIds() {
-  const snap = await getDb().ref("users").once("value");
-  if (!snap.exists()) return [];
-  const users = snap.val();
-  return Object.entries(users)
-    .filter(([, user]) => user && user.role === "parent" && user.status !== "inactive" && user.isDeleted !== true)
-    .map(([uid]) => uid);
-}
-
 async function evaluatePositionEvents(schedule, reservations, options = {}) {
   if (!schedule || !["active", "paused", "closed"].includes(schedule.queueStatus)) return;
 
@@ -554,22 +528,12 @@ async function handleScheduleChange(before, after) {
 
   const prevPublished = before?.status === "published";
   const currPublished = after.status === "published";
-  let allParents = [];
-  let forSchedule = [];
-  let reservations = [];
+  if (!prevPublished && currPublished) return;
 
-  if (!prevPublished && currPublished) {
-    allParents = await getAllParentIds();
-  } else {
-    const active = await getActiveParentIdsForSchedule(after.id);
-    forSchedule = active.parentIds;
-    reservations = active.reservations;
-  }
-
+  const active = await getActiveParentIdsForSchedule(after.id);
   const events = eventsFromScheduleChange(before, after, {
-    allParents,
-    forSchedule,
-    reservations,
+    forSchedule: active.parentIds,
+    reservations: active.reservations,
   });
   for (const event of events) {
     await deliverNotification(event.eventId, event);
@@ -577,8 +541,8 @@ async function handleScheduleChange(before, after) {
 
   const queueJustStarted =
     (before?.queueStatus === "not_started" || !before?.queueStatus) && after.queueStatus === "active";
-  if (reservations.length) {
-    await evaluatePositionEvents(after, reservations, { sendNearTurnSms: queueJustStarted });
+  if (active.reservations.length) {
+    await evaluatePositionEvents(after, active.reservations, { sendNearTurnSms: queueJustStarted });
   }
 }
 

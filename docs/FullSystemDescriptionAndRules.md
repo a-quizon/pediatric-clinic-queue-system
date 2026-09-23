@@ -151,7 +151,7 @@ State model: `AuthContext` + Firebase `onValue` listeners. No Redux / Zustand / 
 #### Workflow A — Create and open a clinic day
 
 1. Secretary or Doctor creates a **draft** schedule (Secretary: **their assigned branch**; Doctor: any branch) (date, opening/closing times within branch hours, `slotCapacity`). Late Limit is no longer collected; penalty timer/grace come from `systemConfiguration/{branchId}`.
-2. Publishes schedule → `status: published`, `queueStatus: not_started`; parents can book; **SCHEDULE_AVAILABLE** notifications fire.
+2. Publishes schedule → `status: published`, `queueStatus: not_started`; parents can book from the calendar.
 3. When floor opens, secretary **starts queue** → `queueStatus: active`; **QUEUE_STARTED** push/SMS to parents with active reservations on that schedule.
 
 #### Workflow B — Check in a reserved parent
@@ -534,7 +534,6 @@ Staff (secretary/doctor/admin): **local toasts only**; no Notification Center; c
 
 | Event ID | Trigger |
 |----------|---------|
-| `SCHEDULE_AVAILABLE` | Schedule published |
 | `SLOT_RESERVED` | Patient info saved (`patientInfoCompleted`) |
 | `QUEUE_STARTED` / `QUEUE_PAUSED` / `QUEUE_RESUMED` / `QUEUE_CLOSED` | Queue session transitions |
 | `CLINIC_SESSION_ENDED` | Schedule/session completed |
@@ -607,7 +606,7 @@ App-level isolation still matters: secretaries filter by `assignedBranch`; role 
 ## 9. END-TO-END CLINIC DAY (HAPPY PATH)
 
 1. Admin has branches + one doctor + branch secretaries configured; SMS/queue settings saved as needed.
-2. Secretary or Doctor drafts & **publishes** a schedule → parents notified schedule available.
+2. Secretary or Doctor drafts and **publishes** a schedule. Parents see that day on the reservation calendar.
 3. Parents **reserve** → Queue Rules agreement (checkbox agree, that branch's live config) → receive ticket numbers → **Save Information** → confirmation SMS/push.
 4. Secretary or Doctor **starts queue** → QUEUE_STARTED SMS/push.
 5. When the queue **starts**, parents who are approaching (`0 < aheadOfYou <=` Near Turn count) get **NEARING_TURN** SMS once. The parent already first in line does not. Later Almost Next / You’re Next stay push/in-app as the line advances.

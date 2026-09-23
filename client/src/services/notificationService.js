@@ -9,7 +9,6 @@ import { isInAppNotificationsEnabled } from './notificationPreferencesService';
  * Single source of truth for system notification triggers across the clinic workflow.
  */
 export const NOTIFICATION_EVENTS = {
-  SCHEDULE_AVAILABLE: 'SCHEDULE_AVAILABLE',
   SLOT_RESERVED: 'SLOT_RESERVED',
   QUEUE_STARTED: 'QUEUE_STARTED',
   QUEUE_PAUSED: 'QUEUE_PAUSED',
@@ -32,12 +31,6 @@ export const NOTIFICATION_EVENTS = {
  * Configuration mapping each Event ID to its display hierarchy, title, and message.
  */
 const NOTIFICATION_CONFIG = {
-  [NOTIFICATION_EVENTS.SCHEDULE_AVAILABLE]: {
-    type: 'info',
-    title: 'Schedule Available',
-    message: 'New clinic schedule is now available for reservation.',
-    duration: 5000,
-  },
   [NOTIFICATION_EVENTS.SLOT_RESERVED]: {
     type: 'success',
     title: 'Reservation Confirmed',

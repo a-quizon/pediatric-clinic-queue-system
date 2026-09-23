@@ -22,12 +22,6 @@ const ACTIVE_RESERVATION_STATUSES = [
 ];
 
 const NOTIFICATION_CONFIG = {
-  SCHEDULE_AVAILABLE: {
-    type: "info",
-    title: "Schedule Available",
-    message: "New clinic schedule is now available for reservation.",
-    url: "/parent/reserve",
-  },
   SLOT_RESERVED: {
     type: "success",
     title: "Reservation Confirmed",
@@ -443,14 +437,6 @@ async function getActiveParentIdsForSchedule(scheduleId) {
   return { parentIds: [...ids], reservations };
 }
 
-async function getAllParentIds() {
-  const snap = await db().ref("users").once("value");
-  if (!snap.exists()) return [];
-  return Object.entries(snap.val())
-    .filter(([, user]) => user && user.role === "parent" && user.status !== "inactive" && user.isDeleted !== true)
-    .map(([uid]) => uid);
-}
-
 async function evaluatePositionEvents(schedule, reservations, options = {}) {
   if (!schedule || !["active", "paused", "closed"].includes(schedule.queueStatus)) return;
 
@@ -543,34 +529,17 @@ async function handleScheduleChange(before, after) {
   if (!after) return;
   const prevPublished = before?.status === "published";
   const currPublished = after.status === "published";
-  let allParents = [];
-  let forSchedule = [];
-  let reservations = [];
+  if (!prevPublished && currPublished) return;
 
-  if (!prevPublished && currPublished) {
-    allParents = await getAllParentIds();
-  } else {
-    const active = await getActiveParentIdsForSchedule(after.id);
-    forSchedule = active.parentIds;
-    reservations = active.reservations;
-  }
+  const active = await getActiveParentIdsForSchedule(after.id);
+  const forSchedule = active.parentIds;
+  const reservations = active.reservations;
 
   const events = [];
   const schedId = after.id;
   const clinicDate = after.clinicDate || "unknown";
   const base = { entityId: schedId, branchId: after.branch || null };
-
-  if (!prevPublished && currPublished) {
-    allParents.forEach((parentId) => {
-      events.push({
-        ...base,
-        eventId: "SCHEDULE_AVAILABLE",
-        parentId,
-        dedupeKey: `sched_avail_${schedId}`,
-      });
-    });
-  } else {
-    const prevStatus = before?.queueStatus;
+  const prevStatus = before?.queueStatus;
     const currStatus = after.queueStatus;
     if (prevStatus !== currStatus && forSchedule.length) {
       const reservationByParent = new Map();
@@ -627,7 +596,6 @@ async function handleScheduleChange(before, after) {
         );
       }
     }
-  }
 
   for (const event of events) {
     await deliverNotification(event.eventId, event);

@@ -119,6 +119,11 @@ export const saveNotification = async (parentId, notificationData) => {
   }
 };
 
+const isRetiredScheduleAvailable = (notification) => {
+  const type = notification?.type || notification?.eventId;
+  return type === "SCHEDULE_AVAILABLE" || notification?.title === "Schedule Available";
+};
+
 export const subscribeToUserNotifications = (parentId, callback) => {
   if (typeof callback !== "function") return () => {};
   if (!parentId) {
@@ -133,7 +138,9 @@ export const subscribeToUserNotifications = (parentId, callback) => {
   return subscribeOnValue(notifRef, (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.val();
-      const list = Object.values(data).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const list = Object.values(data)
+        .filter((notification) => !isRetiredScheduleAvailable(notification))
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       callback(list);
     } else {
       callback([]);

@@ -1,6 +1,5 @@
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
-const { handleReservationChange, handleScheduleChange } = require("./pushRuntime");
 
 const DATABASE_URL =
   process.env.RTDB_URL ||
@@ -39,6 +38,7 @@ exports.onReservationWrite = rtdb
     if (!after) return null;
     try {
       const { releaseSlotIfTerminal } = require("./slotRelease");
+      const { handleReservationChange } = require("./pushRuntime");
       await releaseSlotIfTerminal(admin, before, after);
       await handleReservationChange(before, after);
     } catch (err) {
@@ -58,6 +58,7 @@ exports.onScheduleWrite = rtdb
     const after = recordFromSnap(id, change.after);
     if (!after) return null;
     try {
+      const { handleScheduleChange } = require("./pushRuntime");
       await handleScheduleChange(before, after);
     } catch (err) {
       console.error("onScheduleWrite failed:", err);

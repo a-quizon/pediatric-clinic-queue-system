@@ -23,7 +23,6 @@ The system uses strict `NOTIFICATION_EVENTS` as the single source of truth for t
 
 | Event ID | Purpose | Triggered By | Recipient |
 |----------|---------|--------------|-----------|
-| **SCHEDULE_AVAILABLE** | Informs users of new booking slots. | Secretary or Doctor publishes schedule. | Parents |
 | **SLOT_RESERVED** | Confirms a finalized reservation (in-app / push / SMS with reservation details). Phone-in walk-ins get SMS only (no Notification Center): normal confirmed-reservation copy if the queue has not started, or the Active Queue Reservation template if it is already `active` / `paused`. | Parent clicks Save Information (`patientInfoCompleted`), or secretary creates a walk-in with `parentPhone` on a published upcoming or live (`active` / `paused`) schedule. | Specific Parent (or walk-in phone) |
 | **QUEUE_STARTED** | Clinic floor is open; SMS announces queue start (branch + date). | Secretary/doctor starts queue. | Parents with active reservations on that schedule |
 | **QUEUE_PAUSED** | Clinic floor is temporarily halted. | Doctor or secretary pauses queue. | Parents |
