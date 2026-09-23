@@ -10,6 +10,7 @@ const adminRouter = require("./routes/admin");
 const smsAuthRouter = require("./routes/smsAuth");
 const smsTestRouter = require("./routes/smsTest");
 const authRouter = require("./routes/auth");
+const reservationsRouter = require("./routes/reservations");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -30,6 +31,7 @@ app.use("/api", adminRouter);
 app.use("/api", smsAuthRouter);
 app.use("/api", smsTestRouter);
 app.use("/api", authRouter);
+app.use("/api", reservationsRouter);
 
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);

@@ -37,7 +37,7 @@ export default function ReservationHistory() {
     if (user) {
       unsub = subscribeToParentReservations(user.uid, (data) => {
         const history = data.filter(r => 
-          ["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"].includes(r.status)
+          ["cancelled", "cancelled_by_clinic", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"].includes(r.status)
         );
         setReservations(history);
         setLoading(false);
@@ -54,7 +54,7 @@ export default function ReservationHistory() {
     .filter(res => {
       if (activeFilter === "All") return true;
       if (activeFilter === "Completed") return ["completed", "consultation_completed"].includes(res.status);
-      if (activeFilter === "Cancelled") return res.status === "cancelled";
+      if (activeFilter === "Cancelled") return res.status === "cancelled" || res.status === "cancelled_by_clinic";
       if (activeFilter === "Forfeited" || activeFilter === "Late Limit Reached") return ["forfeited", "penalized", "late_limit_reached"].includes(res.status);
       if (activeFilter === "With Notes") {
         return ["completed", "consultation_completed"].includes(res.status) && !!res.doctorNotes && res.doctorNotes.trim() !== "";
@@ -71,8 +71,8 @@ export default function ReservationHistory() {
     if (["completed", "consultation_completed"].includes(status)) {
       return { label: "Completed", color: "pq-chip pq-chip-live" };
     }
-    if (status === "cancelled") {
-      return { label: "Cancelled", color: "pq-chip pq-chip-alert" };
+    if (status === "cancelled" || status === "cancelled_by_clinic") {
+      return { label: status === "cancelled_by_clinic" ? "Cancelled by clinic" : "Cancelled", color: "pq-chip pq-chip-alert" };
     }
     if (["forfeited", "penalized", "late_limit_reached"].includes(status)) {
       return { label: "Forfeited", color: "pq-chip pq-chip-alert" };

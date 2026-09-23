@@ -112,6 +112,12 @@ const NOTIFICATION_CONFIG = {
     message: "Your reservation has been forfeited because you did not check in on time.",
     url: "/parent/notifications",
   },
+  RESERVATION_CANCELLED_BY_CLINIC: {
+    type: "warning",
+    title: "Reservation Cancelled",
+    message: "The clinic closed this day and cancelled your reservation. Please book another posted day.",
+    url: "/parent/reserve",
+  },
   CHECK_IN_REQUESTED: {
     type: "info",
     title: "Check-In Requested",
@@ -291,6 +297,20 @@ function eventsFromReservationChange(before, after) {
         branchId,
         queueNumber: after.queueNumber ?? after.originalQueueNumber ?? after.queuePosition,
         dedupeKey: `forfeited_${id}`,
+      });
+    } else if (currStatus === "cancelled_by_clinic") {
+      const reason = after.cancellationReason || "Closed";
+      events.push({
+        eventId: "RESERVATION_CANCELLED_BY_CLINIC",
+        parentId: after.parentId,
+        reservationId: id,
+        scheduleId: after.scheduleId || null,
+        branchId,
+        clinicDate: after.clinicDate || null,
+        reason,
+        queueNumber: after.queueNumber ?? after.originalQueueNumber ?? after.queuePosition,
+        customMessage: `The clinic is closed (${reason}). Your reservation was cancelled. Please book another posted day.`,
+        dedupeKey: `clinic_cancel_${id}`,
       });
     }
   }

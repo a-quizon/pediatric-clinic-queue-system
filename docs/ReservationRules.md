@@ -35,6 +35,7 @@ A reservation follows a strict linear progression, with early exits for cancella
 | **in_consultation** | Patient is actively being seen. | Interchangeable with `with_doctor`. | `consultation_completed` |
 | **consultation_completed**| The medical visit is finished. | Doctor clicks "Complete Consultation". | *(Terminal State)* |
 | **cancelled** | The reservation was abandoned. | Parent clicks "Cancel". | *(Terminal State)* |
+| **cancelled_by_clinic** | The clinic closed the day. The parent rebooks on another posted day. | Secretary or doctor closes that date. | *(Terminal State)* |
 | **forfeited** | Penalty timer expired without check-in, or Penalty Move-Back is 0. Slot is lost. | Secretary Penalize (timer or move-back 0), or timer auto-expiry. | *(Terminal State)* |
 
 
@@ -89,7 +90,7 @@ A reservation follows a strict linear progression, with early exits for cancella
 Slots are evaluated dynamically at runtime by counting active reservations.
 * **Total Capacity**: Defined by the Secretary upon Schedule creation (e.g., 30 slots).
 * **Consumption**: Any reservation that is `reserved`, `waiting`, `checked_in`, `with_doctor`, or `in_consultation` counts as 1 consumed slot.
-* **Release**: Any reservation that reaches a terminal state (`cancelled`, `forfeited`, or `consultation_completed`) is excluded from the active count, immediately releasing the slot back to the public pool for a new reservation.
+* **Release**: Any reservation that reaches a terminal state (`cancelled`, `cancelled_by_clinic`, `forfeited`, or `consultation_completed`) is excluded from the active count and releases the slot. A completed visit does not keep the slot. The last slot is claimed in a Cloud Function transaction so two parents cannot book it at the same time. A parent cancellation, a clinic cancellation, and a forfeit all free the slot.
 
 ---
 
@@ -123,9 +124,9 @@ Slots are evaluated dynamically at runtime by counting active reservations.
 
 ## 13. Historical Records
 Reservations are never deleted from the database. 
-* **Archiving**: Once a reservation reaches a terminal state (`consultation_completed`, `cancelled`, `forfeited`), it is permanently excluded from dynamic queue sorting and capacity (except completed, which still counts against capacity).
-* **Preservation**: The original `queueNumber`, timestamps (`createdAt`, `completedAt`), attached `doctorNotes`, and the final `status` are preserved indefinitely.
-* **Parent View**: Parents access these records via their "Reservation History" page.
+* **Archiving**: Once a reservation reaches a terminal state (`consultation_completed`, `cancelled`, `cancelled_by_clinic`, `forfeited`), it is permanently excluded from dynamic queue sorting and from slot capacity.
+* **Preservation**: The original `queueNumber`, timestamps (`createdAt`, `completedAt`), attached `doctorNotes`, and the final `status` are preserved indefinitely. A completed consultation does not keep occupying a slot.
+* **Parent View**: Parents access these records via their "Reservation History" page. Clinic-cancelled reservations appear as "Cancelled by clinic".
 
 ---
 

@@ -5,6 +5,7 @@ import { subscribeToAllReservations, ACTIVE_RESERVATION_STATUSES } from "../../s
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import ScheduleCard from "./ScheduleCard";
 import ScheduleFormModal from "./ScheduleFormModal";
+import StaffScheduleCalendar from "./StaffScheduleCalendar";
 import ScheduleDetailsModal from "../doctor/ScheduleDetailsModal";
 import ConfirmationModal from "../common/ConfirmationModal";
 import ScheduleConfirmModal from "./ScheduleConfirmModal";
@@ -247,6 +248,15 @@ export default function ScheduleManagement({
 
   return (
     <div className="w-full pb-20 pt-2">
+      <StaffScheduleCalendar
+        branches={branches}
+        schedules={schedules}
+        reservations={reservations}
+        lockBranch={lockBranch}
+        onChanged={loadSchedules}
+        onEdit={handleOpenEditModal}
+        onOpen={handleViewDetails}
+      />
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 pq-faint" aria-hidden="true" />

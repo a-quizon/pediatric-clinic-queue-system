@@ -12,6 +12,7 @@ const SMS_NOTIFICATION_EVENTS = new Set([
   "NEARING_TURN",
   "PENALIZED",
   "FORFEITED",
+  "RESERVATION_CANCELLED_BY_CLINIC",
 ]);
 
 const MIN_NEARING_TURN_AHEAD = 1;
@@ -36,6 +37,7 @@ const ALLOWED_PLACEHOLDERS = new Set([
   "date",
   "timeRange",
   "doctor",
+  "reason",
 ]);
 
 const DEFAULT_SMS_TEMPLATES = {
@@ -58,6 +60,8 @@ const DEFAULT_SMS_TEMPLATES = {
     "You were marked late and moved back in line (Queue #{queueNumber}, position {queuePosition}). Please validate your QR at {branch} within {minutes} minutes or this reservation will be forfeited.",
   templateForfeited:
     "Your reservation (Queue #{queueNumber}) at {branch} on {date} was forfeited because you did not check in on time. You may still book a new slot on the same schedule if slots are available.",
+  templateClinicCancelled:
+    "The clinic at {branch} is closed on {date} ({reason}). Your reservation was cancelled. Please book another posted day.",
 };
 
 function sanitizeKey(value) {
@@ -142,6 +146,10 @@ function parseSmsConfig(data) {
     templateForfeited: sanitizeTemplate(
       data?.templateForfeited,
       DEFAULT_SMS_TEMPLATES.templateForfeited
+    ),
+    templateClinicCancelled: sanitizeTemplate(
+      data?.templateClinicCancelled,
+      DEFAULT_SMS_TEMPLATES.templateClinicCancelled
     ),
   };
 }
@@ -273,6 +281,7 @@ async function buildTemplateVars(eventId, context = {}, config) {
     date: dateLabel,
     timeRange,
     doctor: doctorName,
+    reason: context.reason || "Closed",
   };
 }
 
@@ -294,6 +303,8 @@ async function buildSmsMessage(eventId, context = {}) {
     template = config.templatePenalized;
   } else if (eventId === "FORFEITED") {
     template = config.templateForfeited;
+  } else if (eventId === "RESERVATION_CANCELLED_BY_CLINIC") {
+    template = config.templateClinicCancelled;
   } else {
     return context.customMessage || null;
   }

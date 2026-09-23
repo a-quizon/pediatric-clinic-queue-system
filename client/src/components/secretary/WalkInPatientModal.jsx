@@ -9,6 +9,7 @@ import {
 } from "../../services/reservationService";
 import { getChildAgeError } from "../parent/ChildProfileForm";
 import { scheduleMatchesAssignedBranch, formatBranchLabel } from "../../utils/stringUtils";
+import { manilaDateString } from "../../utils/manilaDate";
 import { formatToE164 } from "../../utils/phoneUtils";
 import MessageModal from "../common/MessageModal";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
@@ -26,13 +27,7 @@ const formatTime = (time) => {
   return `${h12}:${minutes} ${ampm}`;
 };
 
-const getLocalDateString = () => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+const getLocalDateString = () => manilaDateString();
 
 const isQueueEnded = (schedule) =>
   ["closed", "ended", "completed"].includes(schedule?.queueStatus);
@@ -50,6 +45,7 @@ const isStartedOpenQueue = (schedule) => {
 /** Published upcoming (not started) or currently started (active/paused). Closed/ended stay out. */
 const isWalkInScheduleEligible = (schedule) =>
   schedule?.status === "published" &&
+  !schedule?.dayClosed &&
   !isQueueEnded(schedule) &&
   (isUpcomingQueue(schedule) || isStartedOpenQueue(schedule));
 

@@ -38,6 +38,8 @@ exports.onReservationWrite = rtdb
     const after = recordFromSnap(id, change.after);
     if (!after) return null;
     try {
+      const { releaseSlotIfTerminal } = require("./slotRelease");
+      await releaseSlotIfTerminal(admin, before, after);
       await handleReservationChange(before, after);
     } catch (err) {
       console.error("onReservationWrite failed:", err);
@@ -82,6 +84,34 @@ exports.expirePenaltyTimers = functions
     }
     return null;
   });
+
+/**
+ * Transactional slot claim. Clients cannot create reservations directly.
+ */
+exports.claimReservationSlot = functions.region("asia-southeast1").https.onCall(async (data, context) => {
+  const { claimReservationSlot } = require("./claimReservationRuntime");
+  try {
+    const payload = data && typeof data === "object" && data.data && !data.scheduleId && !data.mode ? data.data : data;
+    const callerUid = context?.auth?.uid || data?.auth?.uid;
+    return await claimReservationSlot({ admin, callerUid, payload });
+  } catch (err) {
+    const code = err.code && typeof err.code === "string" && !String(err.code).startsWith("auth/")
+      ? err.code
+      : "internal";
+    const allowed = new Set([
+      "unauthenticated",
+      "permission-denied",
+      "invalid-argument",
+      "failed-precondition",
+      "not-found",
+      "internal",
+    ]);
+    throw new functions.https.HttpsError(
+      allowed.has(code) ? code : "internal",
+      err.message || "Could not reserve a slot."
+    );
+  }
+});
 
 /**
  * Admin-only account deletion (Firebase Auth + RTDB profile).

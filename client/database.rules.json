@@ -32,13 +32,29 @@
     },
     "schedules": {
       ".read": "auth != null",
-      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'secretary') && root.child('users').child(auth.uid).child('status').val() === 'active'",
-      ".indexOn": ["status"]
+      ".indexOn": ["status"],
+      "$scheduleId": {
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'secretary') && root.child('users').child(auth.uid).child('status').val() === 'active' && (!newData.exists() || newData.child('booking').val() == data.child('booking').val() || (!data.exists() && !newData.child('booking').exists()))"
+      }
+    },
+    "clinicClosures": {
+      ".read": "auth != null",
+      "$closureId": {
+        ".write": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'active' && (root.child('users').child(auth.uid).child('role').val() === 'doctor' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && ((newData.exists() && root.child('users').child(auth.uid).child('assignedBranchId').val() === newData.child('branchId').val()) || (!newData.exists() && root.child('users').child(auth.uid).child('assignedBranchId').val() === data.child('branchId').val()))))"
+      }
+    },
+    "bookingLocks": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'secretary' || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": false
+      }
     },
     "reservations": {
       ".read": "auth != null",
-      ".write": "auth != null && root.child('users').child(auth.uid).child('status').val() === 'active' && (root.child('users').child(auth.uid).child('role').val() === 'parent' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'secretary')",
-      ".indexOn": ["scheduleId", "parentId", "reservationCode", "penaltyTimerExpiresAt"]
+      ".indexOn": ["scheduleId", "parentId", "reservationCode", "penaltyTimerExpiresAt"],
+      "$reservationId": {
+        ".write": "auth != null && data.exists() && root.child('users').child(auth.uid).child('status').val() === 'active' && (root.child('users').child(auth.uid).child('role').val() === 'parent' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'secretary')"
+      }
     },
     "auditLogs": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",

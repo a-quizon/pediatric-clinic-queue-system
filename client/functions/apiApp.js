@@ -17,6 +17,7 @@ const {
 } = require("./otpService");
 const { resolveAccountByIdentifier } = require("./phoneLookup");
 const { claimPasswordResetSlot } = require("./passwordResetLimitService");
+const { claimReservationSlot } = require("./claimReservationRuntime");
 
 function mapOtpError(err) {
   const code = err.code || "internal";
@@ -194,6 +195,34 @@ function createApiApp() {
       return res.json(result);
     } catch (err) {
       return sendError(res, err);
+    }
+  });
+
+  app.post("/api/reservations/claim", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await claimReservationSlot({
+        admin,
+        callerUid: decoded.uid,
+        payload: req.body,
+      });
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] reservations/claim:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not reserve a slot.",
+      });
     }
   });
 

@@ -5,6 +5,11 @@ import { useAuth } from "../../hooks/useAuth";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { formatBranchLabel } from "../../utils/stringUtils";
 import {
+  getDefaultSlotCapacity,
+  updateDefaultSlotCapacity,
+  validateSlotCapacity,
+  MIN_SLOT_CAPACITY,
+  MAX_SLOT_CAPACITY,
   getQueueConfiguration,
   updatePenaltyMoveBack,
   validatePenaltyMoveBack,
@@ -35,6 +40,7 @@ export default function SystemSettings() {
   const [penaltyMoveBack, setPenaltyMoveBack] = useState("");
   const [penaltyTimerMinutes, setPenaltyTimerMinutes] = useState("");
   const [penaltyGraceMinutes, setPenaltyGraceMinutes] = useState("");
+  const [defaultSlotCapacity, setDefaultSlotCapacity] = useState("");
   const [nearingTurnAheadCount, setNearingTurnAheadCount] = useState("");
   const [templateSlotReserved, setTemplateSlotReserved] = useState("");
   const [templateSlotReservedActiveQueue, setTemplateSlotReservedActiveQueue] = useState("");
@@ -42,6 +48,7 @@ export default function SystemSettings() {
   const [templateNearingTurn, setTemplateNearingTurn] = useState("");
   const [templatePenalized, setTemplatePenalized] = useState("");
   const [templateForfeited, setTemplateForfeited] = useState("");
+  const [templateClinicCancelled, setTemplateClinicCancelled] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [savingQueue, setSavingQueue] = useState(false);
@@ -67,6 +74,8 @@ export default function SystemSettings() {
       setPenaltyMoveBack(queueConfig.penaltyMoveBack.toString());
       setPenaltyTimerMinutes(queueConfig.penaltyTimerMinutes.toString());
       setPenaltyGraceMinutes(queueConfig.penaltyGraceMinutes.toString());
+      const capacity = await getDefaultSlotCapacity(branchId);
+      setDefaultSlotCapacity(String(capacity));
       setNearingTurnAheadCount(smsConfig.nearingTurnAheadCount.toString());
       setTemplateSlotReserved(smsConfig.templateSlotReserved);
       setTemplateSlotReservedActiveQueue(smsConfig.templateSlotReservedActiveQueue);
@@ -74,6 +83,7 @@ export default function SystemSettings() {
       setTemplateNearingTurn(smsConfig.templateNearingTurn);
       setTemplatePenalized(smsConfig.templatePenalized);
       setTemplateForfeited(smsConfig.templateForfeited);
+      setTemplateClinicCancelled(smsConfig.templateClinicCancelled);
     } catch (err) {
       console.error("Failed to load configuration", err);
       toast.error("Failed to load system settings");
@@ -161,6 +171,11 @@ export default function SystemSettings() {
       setQueueError(grace.error);
       return;
     }
+    const capacity = validateSlotCapacity(defaultSlotCapacity);
+    if (!capacity.valid) {
+      setQueueError(capacity.error);
+      return;
+    }
 
     try {
       setSavingQueue(true);
@@ -169,11 +184,13 @@ export default function SystemSettings() {
         updatePenaltyMoveBack(branchId, penalty.value),
         updatePenaltyTimerMinutes(branchId, timer.value),
         updatePenaltyGraceMinutes(branchId, grace.value),
+        updateDefaultSlotCapacity(branchId, capacity.value),
       ]);
       toast.success("Queue rules updated for this branch.");
       setPenaltyMoveBack(penalty.value.toString());
       setPenaltyTimerMinutes(timer.value.toString());
       setPenaltyGraceMinutes(grace.value.toString());
+      setDefaultSlotCapacity(capacity.value.toString());
     } catch (err) {
       console.error("Failed to save queue configuration", err);
       setQueueError(err.message || "An unexpected error occurred while saving.");
@@ -192,6 +209,7 @@ export default function SystemSettings() {
       templateNearingTurn,
       templatePenalized,
       templateForfeited,
+      templateClinicCancelled,
     });
     if (!validation.valid) {
       setSmsError(validation.error);
@@ -210,6 +228,7 @@ export default function SystemSettings() {
       setTemplateNearingTurn(saved.templateNearingTurn);
       setTemplatePenalized(saved.templatePenalized);
       setTemplateForfeited(saved.templateForfeited);
+      setTemplateClinicCancelled(saved.templateClinicCancelled);
     } catch (err) {
       console.error("Failed to save SMS configuration", err);
       setSmsError(err.message || "An unexpected error occurred while saving.");
@@ -346,6 +365,29 @@ export default function SystemSettings() {
                   step="1"
                   value={penaltyTimerMinutes}
                   onChange={handleTimerChange}
+                  className="pq-input text-center text-lg font-extrabold"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <label htmlFor="defaultSlotCapacity" className="pq-label">
+                  Default slots per day ({MIN_SLOT_CAPACITY}–{MAX_SLOT_CAPACITY})
+                </label>
+                <p className="pq-muted text-sm">
+                  Used when a day is posted from the schedule calendar. A day can still use a different number.
+                </p>
+              </div>
+              <div className="w-full sm:w-32 shrink-0">
+                <input
+                  id="defaultSlotCapacity"
+                  type="number"
+                  min={MIN_SLOT_CAPACITY}
+                  max={MAX_SLOT_CAPACITY}
+                  step="1"
+                  value={defaultSlotCapacity}
+                  onChange={(e) => setDefaultSlotCapacity(e.target.value)}
                   className="pq-input text-center text-lg font-extrabold"
                 />
               </div>
@@ -525,6 +567,31 @@ export default function SystemSettings() {
                 className="pq-input resize-y min-h-[6rem]"
               />
               {renderCharHint(templateForfeited)}
+            </div>
+
+            <div>
+              <label htmlFor="templateClinicCancelled" className="pq-label">Clinic Closed Message</label>
+              <p className="pq-muted text-sm mb-3">Sent when the clinic cancels a reservation because a day is closed.</p>
+              <div className="flex flex-wrap gap-2 mb-3 mt-2">
+                {["branch", "date", "reason"].map((ph) => (
+                  <button
+                    key={ph}
+                    type="button"
+                    onClick={() => insertPlaceholder(setTemplateClinicCancelled, templateClinicCancelled, ph)}
+                    className="pq-btn-secondary text-xs py-1 px-2.5"
+                  >
+                    {`{${ph}}`}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                id="templateClinicCancelled"
+                rows={4}
+                value={templateClinicCancelled}
+                onChange={(e) => setTemplateClinicCancelled(e.target.value)}
+                className="pq-input resize-y min-h-[6rem]"
+              />
+              {renderCharHint(templateClinicCancelled)}
             </div>
 
             <div>

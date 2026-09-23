@@ -7,6 +7,7 @@ import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { getReservationChildDisplayName } from "../../utils/reservationPatients";
 import ManageQueue from "./ManageQueue";
 import { branchesMatch, scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
+import { manilaDateString } from "../../utils/manilaDate";
 import { PqSpinner } from "../../components/parent/pqUi";
 
 export default function Dashboard() {
@@ -54,7 +55,7 @@ export default function Dashboard() {
   
   if (!publishedSchedule) {
     // Priority 2: Published for today
-    const todayStr = new Date().toLocaleDateString('en-CA');
+    const todayStr = manilaDateString();
     publishedSchedule = branchSchedules.find(s => s.status === 'published' && s.clinicDate === todayStr && s.queueStatus !== 'completed' && s.queueStatus !== 'ended' && s.queueStatus !== 'closed');
   }
 

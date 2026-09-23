@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { X, AlertCircle, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { branchesMatch } from '../../utils/stringUtils';
+import { addManilaDays, manilaDateString } from '../../utils/manilaDate';
 import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
 
 export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSuccess, lockBranch = false }) {
@@ -34,16 +35,7 @@ export default function ScheduleModal({ isOpen, onClose, mode, schedule, onSucce
   };
 
   // helper to get local date string yyyy-mm-dd
-  const getLocalDateString = (offsetDays = 0) => {
-    const d = new Date();
-    if (offsetDays !== 0) {
-      d.setDate(d.getDate() + offsetDays);
-    }
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  const getLocalDateString = (offsetDays = 0) => addManilaDays(manilaDateString(), offsetDays);
 
   const [minSelectableDate, setMinSelectableDate] = useState(() => getLocalDateString(0));
 

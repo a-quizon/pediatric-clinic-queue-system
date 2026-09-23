@@ -16,6 +16,10 @@ export const MIN_PENALTY_GRACE_MINUTES = 0;
 export const MAX_PENALTY_GRACE_MINUTES = 5;
 export const DEFAULT_PENALTY_GRACE_MINUTES = 2;
 
+export const DEFAULT_SLOT_CAPACITY = 30;
+export const MIN_SLOT_CAPACITY = 1;
+export const MAX_SLOT_CAPACITY = 200;
+
 export const MIN_NEARING_TURN_AHEAD = 1;
 export const MAX_NEARING_TURN_AHEAD = 10;
 export const DEFAULT_NEARING_TURN_AHEAD = 3;
@@ -32,6 +36,7 @@ export const SMS_TEMPLATE_PLACEHOLDERS = [
   "date",
   "timeRange",
   "doctor",
+  "reason",
 ];
 
 export const DEFAULT_SMS_TEMPLATES = {
@@ -54,6 +59,8 @@ export const DEFAULT_SMS_TEMPLATES = {
     "You were marked late and moved back in line (Queue #{queueNumber}, position {queuePosition}). Please validate your QR at {branch} within {minutes} minutes or this reservation will be forfeited.",
   templateForfeited:
     "Your reservation (Queue #{queueNumber}) at {branch} on {date} was forfeited because you did not check in on time. You may still book a new slot on the same schedule if slots are available.",
+  templateClinicCancelled:
+    "The clinic at {branch} is closed on {date} ({reason}). Your reservation was cancelled. Please book another posted day.",
 };
 
 /** Previous merged Queue Started template — migrate RTDB copies back to the simple default. */
@@ -145,6 +152,23 @@ const parsePenaltyTimerMinutes = (value) => {
 const parsePenaltyGraceMinutes = (value) => {
   const validation = validatePenaltyGraceMinutes(value);
   return validation.valid ? validation.value : DEFAULT_PENALTY_GRACE_MINUTES;
+};
+
+export const validateSlotCapacity = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return { valid: false, error: "Slot capacity cannot be empty" };
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed)) {
+    return { valid: false, error: "Slot capacity must be a whole number" };
+  }
+  if (parsed < MIN_SLOT_CAPACITY) {
+    return { valid: false, error: `Slot capacity must be at least ${MIN_SLOT_CAPACITY}` };
+  }
+  if (parsed > MAX_SLOT_CAPACITY) {
+    return { valid: false, error: `Slot capacity cannot exceed ${MAX_SLOT_CAPACITY}` };
+  }
+  return { valid: true, value: parsed };
 };
 
 /**
@@ -255,6 +279,9 @@ export const validateSmsConfiguration = (input = {}) => {
   const forfeited = validateSmsTemplate(input.templateForfeited, "Forfeiture message");
   if (!forfeited.valid) return forfeited;
 
+  const clinicCancelled = validateSmsTemplate(input.templateClinicCancelled, "Clinic closed message");
+  if (!clinicCancelled.valid) return clinicCancelled;
+
   return {
     valid: true,
     value: {
@@ -265,6 +292,7 @@ export const validateSmsConfiguration = (input = {}) => {
       templateSlotReservedActiveQueue: activeSlot.value,
       templatePenalized: penalized.value,
       templateForfeited: forfeited.value,
+      templateClinicCancelled: clinicCancelled.value,
     },
   };
 };
@@ -303,6 +331,10 @@ const parseSmsConfig = (data) => {
     data?.templateForfeited ?? DEFAULT_SMS_TEMPLATES.templateForfeited,
     "Forfeiture message"
   );
+  const clinicCancelled = validateSmsTemplate(
+    data?.templateClinicCancelled ?? DEFAULT_SMS_TEMPLATES.templateClinicCancelled,
+    "Clinic closed message"
+  );
 
   return {
     nearingTurnAheadCount: aheadValidation.valid
@@ -326,6 +358,9 @@ const parseSmsConfig = (data) => {
     templateForfeited: forfeited.valid
       ? forfeited.value
       : DEFAULT_SMS_TEMPLATES.templateForfeited,
+    templateClinicCancelled: clinicCancelled.valid
+      ? clinicCancelled.value
+      : DEFAULT_SMS_TEMPLATES.templateClinicCancelled,
   };
 };
 
@@ -721,7 +756,8 @@ export const updateSmsConfiguration = async (branchId, input) => {
     current.templateNearingTurn === next.templateNearingTurn &&
     current.templateSlotReservedActiveQueue === next.templateSlotReservedActiveQueue &&
     current.templatePenalized === next.templatePenalized &&
-    current.templateForfeited === next.templateForfeited;
+    current.templateForfeited === next.templateForfeited &&
+    current.templateClinicCancelled === next.templateClinicCancelled;
 
   if (unchanged) {
     return current;
@@ -759,6 +795,9 @@ export const updateSmsConfiguration = async (branchId, input) => {
   if (current.templateForfeited !== next.templateForfeited) {
     changes.push("forfeiture SMS template");
   }
+  if (current.templateClinicCancelled !== next.templateClinicCancelled) {
+    changes.push("clinic-closed SMS template");
+  }
 
   logAuditEvent({
     action: AUDIT_ACTIONS.SYSTEM_CONFIGURATION_CHANGED,
@@ -775,6 +814,44 @@ export const updateSmsConfiguration = async (branchId, input) => {
 /**
  * Push/toast copy for NEARING_TURN — count-synced, not admin-editable.
  */
+export const getDefaultSlotCapacity = async (branchId) => {
+  if (!isUsableBranchId(branchId)) return DEFAULT_SLOT_CAPACITY;
+  try {
+    const snap = await get(ref(database, `${branchConfigPath(branchId)}/defaultSlotCapacity`));
+    const parsed = validateSlotCapacity(snap.val());
+    return parsed.valid ? parsed.value : DEFAULT_SLOT_CAPACITY;
+  } catch (error) {
+    if (!isPermissionDenied(error)) {
+      console.error("Failed to read default slot capacity:", error);
+    }
+    return DEFAULT_SLOT_CAPACITY;
+  }
+};
+
+export const updateDefaultSlotCapacity = async (branchId, newValue) => {
+  if (!isUsableBranchId(branchId)) {
+    throw new Error("Branch is required to update the default slot capacity");
+  }
+  const validation = validateSlotCapacity(newValue);
+  if (!validation.valid) throw new Error(validation.error);
+  await ensureBranchSystemConfiguration(branchId);
+  const current = await getDefaultSlotCapacity(branchId);
+  if (current === validation.value) return validation.value;
+  await update(ref(database, branchConfigPath(branchId)), {
+    defaultSlotCapacity: validation.value,
+    updatedAt: Date.now(),
+  });
+  logAuditEvent({
+    action: AUDIT_ACTIONS.SYSTEM_CONFIGURATION_CHANGED,
+    category: AUDIT_CATEGORIES.SYSTEM_MANAGEMENT,
+    description: `Changed default slot capacity from ${current} to ${validation.value}`,
+    targetType: "systemConfiguration",
+    targetId: branchId,
+    branchId,
+  });
+  return validation.value;
+};
+
 export const buildNearingTurnPushMessage = (count = DEFAULT_NEARING_TURN_AHEAD) => {
   const safeCount = Number.isInteger(count) ? count : DEFAULT_NEARING_TURN_AHEAD;
   return `There are only ${safeCount} patients ahead of you. Please proceed to the clinic.`;

@@ -24,6 +24,7 @@ export const NOTIFICATION_EVENTS = {
   CONSULTATION_COMPLETED: 'CONSULTATION_COMPLETED',
   PENALIZED: 'PENALIZED',
   FORFEITED: 'FORFEITED',
+  RESERVATION_CANCELLED_BY_CLINIC: 'RESERVATION_CANCELLED_BY_CLINIC',
   CHECK_IN_REQUESTED: 'CHECK_IN_REQUESTED',
 };
 
@@ -119,6 +120,12 @@ const NOTIFICATION_CONFIG = {
     type: 'error',
     title: 'Reservation Forfeited',
     message: "Your reservation has been forfeited because you did not check in on time.",
+    duration: 8000,
+  },
+  [NOTIFICATION_EVENTS.RESERVATION_CANCELLED_BY_CLINIC]: {
+    type: 'warning',
+    title: 'Reservation Cancelled',
+    message: 'The clinic closed this day and cancelled your reservation. Please book another posted day.',
     duration: 8000,
   },
   [NOTIFICATION_EVENTS.CHECK_IN_REQUESTED]: {

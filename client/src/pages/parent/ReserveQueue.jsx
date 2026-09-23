@@ -1,11 +1,11 @@
-import { CalendarPlus, CalendarDays, Clock, MapPin, Users, CheckCircle2, AlertCircle, Baby, Plus } from "lucide-react";
+import { CheckCircle2, Baby, Plus } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { 
   subscribeToParentReservations,
   subscribeToScheduleReservations, 
-  createReservation, 
+  claimParentReservation, 
   checkExistingReservationOnDate, 
   checkCompletedConsultationOnDate,
   getReservationsBySchedule,
@@ -19,11 +19,11 @@ import { getBranchConfigurations } from "../../services/branchConfigurationServi
 import { useAuth } from "../../hooks/useAuth";
 import MessageModal from "../../components/common/MessageModal";
 import QueueRulesAgreementModal from "../../components/parent/QueueRulesAgreementModal";
+import ParentScheduleCalendar from "../../components/parent/ParentScheduleCalendar";
 import ChildProfileForm, {
   emptyChildProfile,
   isChildProfileValid
 } from "../../components/parent/ChildProfileForm";
-import { formatBranchLabel, branchesMatch } from "../../utils/stringUtils";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleSchedulesBlock } from "../../components/onboarding/TourSampleViews";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
@@ -72,15 +72,6 @@ export default function ReserveQueue() {
     setGeneratedQueuePosition(null);
     setActiveReservationId(null);
   });
-
-  const formatTime = (time) => {
-    if (!time) return '';
-    const [hours, minutes] = time.split(':');
-    const h = parseInt(hours, 10);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const formattedH = h % 12 || 12;
-    return `${formattedH}:${minutes} ${ampm}`;
-  };
 
   useEffect(() => {
     let unsubParent = () => {};
@@ -160,6 +151,16 @@ export default function ReserveQueue() {
   const handleReserveClick = async (schedule) => {
     if (isAgreementModalOpen || isPatientInfoModalOpen || isSubmitting) return;
 
+    if (schedule.dayClosed) {
+      setMessageModalState({
+        isOpen: true,
+        type: "warning",
+        title: "Clinic Closed",
+        message: "The clinic is closed on this date."
+      });
+      return;
+    }
+
     // Check Capacity
     const currentCount = getReservationCount(schedule.id);
     if (currentCount >= schedule.slotCapacity) {
@@ -226,12 +227,7 @@ export default function ReserveQueue() {
 
     setIsSubmitting(true);
     try {
-      const reservationId = await createReservation({
-        parentId: user.uid,
-        parentEmail: user.email,
-        scheduleId: selectedSchedule.id,
-        status: "reserved",
-      });
+      const reservationId = await claimParentReservation(selectedSchedule.id);
 
       const updatedReservations = await getReservationsBySchedule(selectedSchedule.id);
       const newRes = updatedReservations.find(r => r.id === reservationId);
@@ -353,158 +349,16 @@ export default function ReserveQueue() {
         <div className="flex justify-center items-center py-20">
           <span className="pq-spinner" />
         </div>
-      ) : schedules.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5" data-tour="reserve-schedule-list">
-          {schedules.map((schedule) => {
-            const currentReservations = getReservationCount(schedule.id);
-            
-            if (currentReservations === undefined) {
-              return (
-                <div key={schedule.id} className="pq-glass p-5 flex flex-col min-h-[250px] animate-pulse">
-                  <div className="w-1/2 h-6 rounded mb-4" style={{ background: "color-mix(in srgb, var(--pq-ink) 10%, white)" }}></div>
-                  <div className="space-y-3 mb-6 flex-1">
-                    <div className="w-3/4 h-4 rounded" style={{ background: "color-mix(in srgb, var(--pq-ink) 10%, white)" }}></div>
-                    <div className="w-2/3 h-4 rounded" style={{ background: "color-mix(in srgb, var(--pq-ink) 10%, white)" }}></div>
-                    <div className="w-1/2 h-4 rounded" style={{ background: "color-mix(in srgb, var(--pq-ink) 10%, white)" }}></div>
-                  </div>
-                  <div className="w-full h-10 rounded-xl" style={{ background: "color-mix(in srgb, var(--pq-ink) 10%, white)" }}></div>
-                </div>
-              );
-            }
-
-            const availableSlots = schedule.slotCapacity - currentReservations;
-            const isFull = availableSlots <= 0;
-            const isEnded = schedule.queueStatus === 'closed' || schedule.queueStatus === 'ended' || schedule.queueStatus === 'completed';
-            
-            // Check if parent has an active reservation on this schedule's clinicDate
-            const hasReservedOnDate = parentReservationsList.some(r => 
-              ACTIVE_RESERVATION_STATUSES.includes(r.status) && 
-              schedules.find(s => s.id === r.scheduleId)?.clinicDate === schedule.clinicDate
-            );
-
-            // Check if parent already completed a consultation with this doctor on this calendar day
-            const hasCompletedOnDate = parentReservationsList.some(r => {
-              if (r.status !== "completed" && r.status !== "consultation_completed") return false;
-              const resSchedule = schedules.find(s => s.id === r.scheduleId);
-              if (!resSchedule) return false;
-              if (resSchedule.clinicDate !== schedule.clinicDate) return false;
-              if (schedule.doctorId && resSchedule.doctorId && resSchedule.doctorId !== schedule.doctorId) return false;
-              return true;
-            });
-
-            const buttonDisabled = isFull || hasReservedOnDate || isEnded || isAgreementModalOpen || isSubmitting;
-
-            return (
-              <div key={schedule.id} className="pq-glass p-5 flex flex-col">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex flex-col">
-                    <h3 className="text-lg font-bold flex items-center">
-                      <MapPin className="w-5 h-5 mr-2 pq-faint shrink-0" />
-                      {formatBranchLabel(schedule.branch)}
-                    </h3>
-                    <p className="text-xs pq-muted whitespace-pre-line ml-7 mt-0.5 line-clamp-2">
-                      {branches.find(b => branchesMatch(b.name, schedule.branch) || b.id === schedule.branchId)?.clinicAddress || "No clinic address provided."}
-                    </p>
-                  </div>
-                  {schedule.queueStatus === 'not_started' ? (
-                    <div className="pq-chip pq-chip-wait">
-                      <Clock className="w-3.5 h-3.5 mr-1.5" />
-                      Reservations Open
-                    </div>
-                  ) : schedule.queueStatus === 'active' ? (
-                    <div className="pq-chip pq-chip-live">
-                      <div className="pq-pip mr-1.5"></div>
-                      Active Queue
-                    </div>
-                  ) : schedule.queueStatus === 'paused' ? (
-                    <div className="pq-chip pq-chip-wait">
-                      <AlertCircle className="w-3.5 h-3.5 mr-1.5" />
-                      Paused
-                    </div>
-                  ) : schedule.queueStatus === 'closed' ? (
-                    <div className="pq-chip pq-chip-wait">
-                      <div className="w-2 h-2 rounded-full mr-1.5" style={{ background: "var(--pq-wait)" }}></div>
-                      Queue Closed
-                    </div>
-                  ) : (
-                    <div className="pq-chip pq-chip-info">
-                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                      {schedule.queueStatus || 'Published'}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-3 mb-6 flex-1">
-                  <div className="flex items-center text-sm">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center mr-3" style={{ background: "color-mix(in srgb, var(--pq-ink) 6%, white)" }}>
-                      <CalendarDays className="w-4 h-4 pq-muted" />
-                    </div>
-                    <span className="pq-muted font-medium">Date: <span>{new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span></span>
-                  </div>
-                  
-                  <div className="flex items-center text-sm">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center mr-3" style={{ background: "color-mix(in srgb, var(--pq-ink) 6%, white)" }}>
-                      <Clock className="w-4 h-4 pq-muted" />
-                    </div>
-                    <span className="pq-muted font-medium">Clinic Hours: <span>{formatTime(schedule.openingTime)} - {formatTime(schedule.closingTime)}</span></span>
-                  </div>
-
-                  <div className="flex items-center text-sm">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center mr-3" style={{ background: "color-mix(in srgb, var(--pq-ink) 6%, white)" }}>
-                      <Users className="w-4 h-4 pq-muted" />
-                    </div>
-                    <span className="pq-muted font-medium">
-                      Available Slots: <span className="font-bold" style={{ color: isFull ? "var(--pq-alert)" : "var(--pq-ink)" }}>{availableSlots} / {schedule.slotCapacity}</span>
-                    </span>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={() => handleReserveClick(schedule)}
-                  disabled={buttonDisabled}
-                  className={`w-full py-2.5 font-bold rounded-[0.95rem] min-h-[44px] flex items-center justify-center ${
-                    isEnded
-                      ? 'pq-btn-secondary cursor-not-allowed text-sm'
-                      : hasReservedOnDate 
-                        ? 'pq-btn-secondary cursor-not-allowed'
-                        : hasCompletedOnDate
-                          ? 'pq-btn-warn text-sm'
-                          : isFull 
-                            ? 'pq-btn-secondary cursor-not-allowed text-xs px-3 leading-snug' 
-                            : 'pq-btn-primary'
-                  }`}
-                >
-                  {!hasReservedOnDate && !hasCompletedOnDate && !isEnded && <CalendarPlus className={`w-4 h-4 mr-2 flex-shrink-0 ${isFull ? 'hidden' : ''}`} />}
-                  <span>
-                    {isEnded
-                      ? 'Queue Closed'
-                      : hasReservedOnDate 
-                        ? 'Already Reserved'
-                        : hasCompletedOnDate
-                          ? 'Consultation Completed Today'
-                          : isFull 
-                            ? 'Slots are currently full. Please wait until a slot becomes available.' 
-                            : 'Reserve Slot'}
-                  </span>
-                </button>
-              </div>
-            );
-          })}
-        </div>
       ) : (
-        <div className="pq-glass overflow-hidden" data-tour="reserve-schedule-list">
-          <div className="p-8 md:p-12 text-center">
-            <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-6" style={{ background: "color-mix(in srgb, var(--pq-ink) 8%, white)", color: "var(--pq-ink-faint)" }}>
-              <CalendarDays className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-bold mb-2">No Available Schedules</h2>
-            <p className="pq-muted max-w-md mx-auto text-sm">
-              There are currently no published clinic schedules available for reservation. Please check back later.
-            </p>
-          </div>
-        </div>
+        <ParentScheduleCalendar
+          branches={branches}
+          schedules={schedules}
+          reservations={parentReservationsList}
+          capacityMap={scheduleCapacities}
+          onReserve={handleReserveClick}
+          onMessage={(state) => setMessageModalState({ isOpen: true, ...state })}
+        />
       )}
-
 
 
       <QueueRulesAgreementModal

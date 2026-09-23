@@ -5,6 +5,7 @@ import { ref, query, limitToLast } from "firebase/database";
 import { database } from "../../firebase/database";
 import { subscribeOnValue } from "../../firebase/rtdbSubscribe";
 import { PqSpinner } from "../../components/parent/pqUi";
+import { manilaDateString } from "../../utils/manilaDate";
 
 const PREVIEW_LOG_COUNT = 8;
 const PREVIEW_BRANCH_COUNT = 4;
@@ -48,13 +49,7 @@ const formatFeedTime = (timestamp) => {
   }).format(d);
 };
 
-const getTodayStr = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+const getTodayStr = () => manilaDateString();
 
 const pickRelevantSchedule = (publishedList, todayStr) => {
   const currentlyOperating = publishedList.filter((s) =>
