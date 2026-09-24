@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { AlertTriangle, Eye, EyeOff, Lock } from "lucide-react";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
+import ModalScrim from "./ModalScrim";
 
 export default function DeleteAccountModal({
   isOpen,
@@ -40,7 +41,7 @@ export default function DeleteAccountModal({
   const canConfirm = confirmText.trim() === "DELETE" && password.length > 0 && !isLoading;
 
   return (
-    <div className="pq-modal-scrim z-[60]">
+    <ModalScrim className="z-[60]">
       <div
         className="pq-modal w-full max-w-md overflow-hidden flex flex-col"
         role="dialog"
@@ -130,6 +131,6 @@ export default function DeleteAccountModal({
           </button>
         </div>
       </div>
-    </div>
+    </ModalScrim>
   );
 }

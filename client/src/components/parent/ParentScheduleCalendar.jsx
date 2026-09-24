@@ -175,7 +175,7 @@ export default function ParentScheduleCalendar({
             <div>
               <p className="font-extrabold">{formatBranchLabel(activeToday.branch)}</p>
               <p className="pq-muted text-sm">
-                {activeToday.queueStatus === "paused" ? "Paused" : "Open"} ┬╖ {formatTime(activeToday.openingTime)} ΓÇô {formatTime(activeToday.closingTime)}
+                {activeToday.queueStatus === "paused" ? "Paused" : "Open"} · {formatTime(activeToday.openingTime)} – {formatTime(activeToday.closingTime)}
               </p>
               {parentTicket ? (
                 <p className="text-sm mt-1">Your queue number is {parentTicket.queueNumber}.</p>
@@ -193,8 +193,8 @@ export default function ParentScheduleCalendar({
         {nextSession ? (
           <p className="font-semibold">
             {nextSession.clinicDate === today ? "Today" : formatManilaLong(nextSession.clinicDate)}
-            {" ┬╖ "}
-            {formatTime(nextSession.openingTime)} ΓÇô {formatTime(nextSession.closingTime)}
+            {" · "}
+            {formatTime(nextSession.openingTime)} – {formatTime(nextSession.closingTime)}
           </p>
         ) : (
           <p className="pq-muted text-sm">No upcoming session.</p>

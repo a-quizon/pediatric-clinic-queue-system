@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { AlertTriangle, Info } from "lucide-react";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
+import ModalScrim from "./ModalScrim";
 
 export default function ConfirmationModal({
   isOpen,
@@ -40,7 +41,7 @@ export default function ConfirmationModal({
   };
 
   return (
-    <div className="pq-modal-scrim z-[60]" onClick={handleOverlayClick}>
+    <ModalScrim className="z-[60]" onClick={handleOverlayClick}>
       <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col" role="dialog" aria-modal="true">
         <div className="p-6">
           <div className="flex items-start gap-4">
@@ -86,6 +87,6 @@ export default function ConfirmationModal({
           </button>
         </div>
       </div>
-    </div>
+    </ModalScrim>
   );
 }

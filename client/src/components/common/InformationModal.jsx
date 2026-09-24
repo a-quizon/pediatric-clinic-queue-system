@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Info, CheckCircle, AlertTriangle, X } from 'lucide-react';
 import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
+import ModalScrim from './ModalScrim';
 
 export default function InformationModal({ 
   isOpen, 
@@ -56,10 +57,7 @@ export default function InformationModal({
   };
 
   return (
-    <div 
-      className="pq-modal-scrim z-[60]"
-      onClick={handleOverlayClick}
-    >
+    <ModalScrim className="z-[60]" onClick={handleOverlayClick}>
       <div 
         className="pq-modal w-full max-w-md overflow-hidden flex flex-col relative"
         role="dialog"
@@ -96,6 +94,6 @@ export default function InformationModal({
           </button>
         </div>
       </div>
-    </div>
+    </ModalScrim>
   );
 }

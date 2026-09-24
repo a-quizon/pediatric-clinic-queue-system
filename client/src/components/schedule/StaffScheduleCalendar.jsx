@@ -38,6 +38,7 @@ import {
   startQueueConfirmMessage,
 } from "../../utils/scheduleCalendar";
 import ConfirmationModal from "../common/ConfirmationModal";
+import ModalScrim from "../common/ModalScrim";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const LIVE_QUEUE_STATUSES = ["active", "paused", "closed"];
@@ -458,7 +459,7 @@ export default function StaffScheduleCalendar({
       {previewText ? <p className="sr-only">{previewText}</p> : null}
 
       {dayModal?.mode === "post" && (
-        <div className="pq-modal-scrim">
+        <ModalScrim>
           <div className="pq-modal w-full max-w-sm p-5">
             <h3 className="text-lg font-extrabold mb-1">Post {formatManilaLong(dayModal.dateStr)}</h3>
             <p className="pq-muted text-sm mb-4">Parents can reserve as soon as this is posted.</p>
@@ -476,11 +477,11 @@ export default function StaffScheduleCalendar({
               <button type="button" className="pq-btn-primary" onClick={postDay} disabled={busy}>Post day</button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       {publishedModal && (
-        <div className="pq-modal-scrim">
+        <ModalScrim>
           <div className="pq-modal w-full max-w-sm p-5">
             <h3 className="text-lg font-extrabold mb-1">{formatManilaLong(publishedModal.dateStr)}</h3>
             <p className="pq-muted text-sm mb-1">
@@ -586,11 +587,11 @@ export default function StaffScheduleCalendar({
               </div>
             )}
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       {rangeOpen && (
-        <div className="pq-modal-scrim">
+        <ModalScrim>
           <div className="pq-modal w-full max-w-sm p-5">
             <h3 className="text-lg font-extrabold mb-3">Publish a range</h3>
             <label className="pq-label" htmlFor="rangeStart">From</label>
@@ -604,7 +605,7 @@ export default function StaffScheduleCalendar({
               <button type="button" className="pq-btn-primary" onClick={reviewRange} disabled={busy}>Review</button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       <ConfirmationModal
