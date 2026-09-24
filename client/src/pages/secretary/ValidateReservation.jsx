@@ -134,7 +134,7 @@ export default function ValidateReservation() {
       return;
     }
 
-    if (["completed", "consultation_completed", "cancelled", "penalized", "late_limit_reached"].includes(reservation.status)) {
+    if (["completed", "consultation_completed", "cancelled", "cancelled_by_clinic", "forfeited", "expired", "validation_expired", "penalized", "late_limit_reached"].includes(reservation.status)) {
       setShowExpiredModal(true);
     } else if (reservation.status === "in_consultation" || reservation.status === "with_doctor") {
       setShowInConsultationModal(true);

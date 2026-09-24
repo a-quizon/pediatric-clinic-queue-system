@@ -16,6 +16,47 @@ import {
   PENALTY_TIMER_FORFEIT_REASON,
   canExpirePenaltyTimer,
 } from "../utils/penaltyTimer";
+import {
+  assertCanCancelReservation,
+  assertCanCheckIn,
+  assertCanCompleteConsultation,
+  assertCanSendToDoctor,
+  assertCanStartConsultation,
+  assertCanUpdatePatientInfo,
+} from "../utils/reservationTransitions";
+
+const requireReservation = async (reservationId) => {
+  const snap = await get(ref(database, `reservations/${reservationId}`));
+  if (!snap.exists()) {
+    throw new Error("Reservation not found.");
+  }
+  return { id: reservationId, ...snap.val() };
+};
+
+const resolveActor = async () => {
+  const user = auth.currentUser;
+  if (!user) {
+    return { actorUid: null, actorRole: null };
+  }
+  try {
+    const profileSnap = await get(ref(database, `users/${user.uid}`));
+    const role = profileSnap.exists() ? profileSnap.val()?.role || null : null;
+    return { actorUid: user.uid, actorRole: role };
+  } catch {
+    return { actorUid: user.uid, actorRole: null };
+  }
+};
+
+const recalculateQueueBestEffort = async (scheduleId) => {
+  if (!scheduleId) return;
+  try {
+    await recalculateRollingValidation(scheduleId);
+    await recalculateEntireQueue(scheduleId);
+  } catch (error) {
+    // Parents may lack write access to other tickets; Cloud Functions recalculate via Admin SDK (C2/C4).
+    console.warn("Client queue recalculation deferred to server:", error?.message || error);
+  }
+};
 
 const generateReservationCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -423,16 +464,16 @@ export const subscribeToAllReservations = (callback) => {
 };
 
 export const cancelReservation = async (reservationId) => {
-  const snap = await get(ref(database, `reservations/${reservationId}`));
-  const scheduleId = snap.exists() ? snap.val().scheduleId : null;
+  const reservation = await requireReservation(reservationId);
+  const actor = await resolveActor();
+  const gate = assertCanCancelReservation(reservation, actor);
+  if (!gate.ok) throw new Error(gate.message);
+
   await update(ref(database, `reservations/${reservationId}`), {
     status: "cancelled",
-    cancelledAt: Date.now()
+    cancelledAt: Date.now(),
   });
-  if (scheduleId) {
-    await recalculateRollingValidation(scheduleId);
-    await recalculateEntireQueue(scheduleId);
-  }
+  await recalculateQueueBestEffort(reservation.scheduleId);
 };
 
 export const validateReservationByCode = async (code) => {
@@ -455,8 +496,10 @@ export const validateReservationByCode = async (code) => {
 };
 
 export const checkInReservation = async (reservationId, secretaryUid) => {
-  const snap = await get(ref(database, `reservations/${reservationId}`));
-  const scheduleId = snap.exists() ? snap.val().scheduleId : null;
+  const reservation = await requireReservation(reservationId);
+  const gate = assertCanCheckIn(reservation);
+  if (!gate.ok) throw new Error(gate.message);
+
   await update(ref(database, `reservations/${reservationId}`), {
     checkedIn: true,
     checkedInAt: Date.now(),
@@ -467,57 +510,56 @@ export const checkInReservation = async (reservationId, secretaryUid) => {
     becameCurrentTurnAt: null,
     penaltyTimerClearedAt: Date.now(),
   });
-  if (scheduleId) {
-    await recalculateRollingValidation(scheduleId);
-    await recalculateEntireQueue(scheduleId);
-  }
+  await recalculateQueueBestEffort(reservation.scheduleId);
 };
 
 export const startConsultation = async (reservationId) => {
-  const snap = await get(ref(database, `reservations/${reservationId}`));
-  const scheduleId = snap.exists() ? snap.val().scheduleId : null;
+  const reservation = await requireReservation(reservationId);
+  const gate = assertCanStartConsultation(reservation);
+  if (!gate.ok) throw new Error(gate.message);
+
   await update(ref(database, `reservations/${reservationId}`), {
     status: "in_consultation",
-    consultationStartedAt: Date.now()
+    consultationStartedAt: Date.now(),
   });
-  if (scheduleId) {
-    await recalculateRollingValidation(scheduleId);
-    await recalculateEntireQueue(scheduleId);
-  }
+  await recalculateQueueBestEffort(reservation.scheduleId);
 };
 
 export const sendToDoctor = async (reservationId) => {
-  const snap = await get(ref(database, `reservations/${reservationId}`));
-  const scheduleId = snap.exists() ? snap.val().scheduleId : null;
+  const reservation = await requireReservation(reservationId);
+  const gate = assertCanSendToDoctor(reservation);
+  if (!gate.ok) throw new Error(gate.message);
+
   await update(ref(database, `reservations/${reservationId}`), {
     status: "with_doctor",
     sentToDoctorAt: Date.now(),
-    consultationStartedAt: Date.now()
+    consultationStartedAt: Date.now(),
   });
-  if (scheduleId) {
-    await recalculateRollingValidation(scheduleId);
-    await recalculateEntireQueue(scheduleId);
-  }
+  await recalculateQueueBestEffort(reservation.scheduleId);
 };
 
 export const completeConsultation = async (reservationId, doctorNotes) => {
-  const snap = await get(ref(database, `reservations/${reservationId}`));
-  const scheduleId = snap.exists() ? snap.val().scheduleId : null;
+  const reservation = await requireReservation(reservationId);
+  const gate = assertCanCompleteConsultation(reservation);
+  if (!gate.ok) throw new Error(gate.message);
+
   await update(ref(database, `reservations/${reservationId}`), {
     status: "consultation_completed",
     consultationCompletedAt: Date.now(),
-    doctorNotes: doctorNotes || ""
+    doctorNotes: doctorNotes || "",
   });
-  if (scheduleId) {
-    await recalculateRollingValidation(scheduleId);
-    await recalculateEntireQueue(scheduleId);
-  }
+  await recalculateQueueBestEffort(reservation.scheduleId);
 };
 
 export const updatePatientInfo = async (reservationId, patientInfo) => {
+  const reservation = await requireReservation(reservationId);
+  const actor = await resolveActor();
+  const gate = assertCanUpdatePatientInfo(reservation, actor);
+  if (!gate.ok) throw new Error(gate.message);
+
   await update(ref(database, `reservations/${reservationId}`), {
     ...patientInfo,
-    patientInfoCompleted: true
+    patientInfoCompleted: true,
   });
 };
 

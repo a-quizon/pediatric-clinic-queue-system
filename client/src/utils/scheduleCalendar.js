@@ -2,7 +2,12 @@ import { branchesMatch } from "./stringUtils";
 import { ACTIVE_RESERVATION_STATUSES } from "../services/reservationService";
 
 export const IN_CLINIC_STATUSES = ["checked_in", "with_doctor", "in_consultation"];
-export const CLINIC_CANCELLABLE_STATUSES = ["reserved", "waiting"];
+export const CLINIC_CANCELLABLE_STATUSES = [
+  "reserved",
+  "waiting",
+  "validation_open",
+  "waiting_for_window",
+];
 
 export function slotsTaken(schedule, reservations = []) {
   if (schedule?.booking && schedule.booking.activeSlotCount != null) {
