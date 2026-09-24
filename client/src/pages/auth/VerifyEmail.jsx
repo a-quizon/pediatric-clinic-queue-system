@@ -28,12 +28,10 @@ export default function VerifyEmail() {
 
   useEffect(() => {
     if (!loading && user) {
-      if (role === 'doctor') {
+      if (role === 'doctor' || role === 'admin') {
         navigate('/doctor', { replace: true });
       } else if (role === 'secretary') {
         navigate('/secretary', { replace: true });
-      } else if (role === 'admin') {
-        navigate('/admin', { replace: true });
       } else if (user.emailVerified) {
         const firebaseUser = auth.currentUser;
         if (firebaseUser) {

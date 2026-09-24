@@ -16,7 +16,7 @@ Three people use it every clinic day:
 - **Secretaries** run the front desk at one branch (including pause/resume/close/end if the doctor is busy).
 - **Doctors** see patients and control the live session (pause, resume, close). Completing a consultation is doctor-only.
 
-An **Admin** works in the background (staff accounts, branches, reports) and does not run the queue.
+The **Doctor** also acts as clinic admin (staff accounts, branches, audit logs, reports) in addition to running the queue.
 
 ---
 
@@ -54,10 +54,10 @@ There is one active doctor account. They can:
 - Start a queue
 - Pause, resume, or close the live session (Secretary can do these four session actions too)
 - Complete a consultation (with optional notes)
+- Manage users, branches, and audit logs (Clinic admin menu)
+- View clinic overview reports under Reports
 
-### Admin
-
-Creates staff accounts, manages branches, and reviews reports. They do not check in patients or run the floor.
+There is no separate Admin role in the app.
 
 ---
 

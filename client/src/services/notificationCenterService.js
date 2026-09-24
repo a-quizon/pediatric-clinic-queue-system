@@ -15,7 +15,9 @@ export const cleanupNonParentNotifications = async () => {
     if (!uid) return;
 
     const roleSnapshot = await get(ref(database, `users/${uid}/role`));
-    if (!roleSnapshot.exists() || roleSnapshot.val() !== "admin") return;
+    const role = roleSnapshot.exists() ? roleSnapshot.val() : null;
+    // Doctor owns clinic-admin cleanup; admin kept during transition
+    if (role !== "doctor" && role !== "admin") return;
 
     const snapshot = await get(ref(database, "users"));
     if (!snapshot.exists()) return;

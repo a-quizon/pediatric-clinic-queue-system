@@ -21,7 +21,7 @@ export default function NotificationObserver() {
   const { user, role } = useAuth();
 
   useEffect(() => {
-    if (role === 'admin') {
+    if (role === 'doctor' || role === 'admin') {
       cleanupNonParentNotifications();
     }
   }, [role]);

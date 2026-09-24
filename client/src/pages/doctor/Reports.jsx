@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Users, AlertCircle, Activity, CheckCircle, XCircle, MapPin, Inbox, ChevronLeft, ChevronRight, RefreshCcw } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Users, AlertCircle, Activity, CheckCircle, XCircle, MapPin, Inbox, ChevronLeft, ChevronRight, RefreshCcw, BarChart3, Building2 } from "lucide-react";
 import { useReportsData } from "../../hooks/useReportsData";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, Legend } from 'recharts';
 import { PqSpinner } from "../../components/parent/pqUi";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleDoctorReports } from "../../components/onboarding/DoctorTourSampleViews";
+import ClinicOverviewReports from "../../components/admin/ClinicOverviewReports";
 
 const DATE_RANGES = ["Today", "This Week", "This Month", "This Year"];
 
@@ -14,12 +16,11 @@ const CHART_MUTED = "#5a7a88";
 const CHART_LINE = "#2f6fdb";
 const CHART_GRID = "rgba(22, 52, 74, 0.1)";
 
-export default function Reports() {
+function ClinicSessionsReports() {
   const { loading, error, dataset, unfilteredDataset, filters } = useReportsData();
   const { branch, setBranch, dateRange, setDateRange } = filters;
   const [branches, setBranches] = useState([]);
 
-  // Pagination state must be declared before any conditional returns
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -27,16 +28,9 @@ export default function Reports() {
     getBranchConfigurations().then(setBranches);
   }, []);
 
-  // Reset pagination when dataset changes
   useEffect(() => {
     setCurrentPage(1);
   }, [dataset]);
-
-  const showReportsSample = useTourSample(["doctor-reports-filters", "doctor-reports-history"]);
-
-  if (showReportsSample) {
-    return <TourSampleDoctorReports />;
-  }
 
   if (error) return <div className="pq-error-text text-center py-10 text-base">Failed to load reports data.</div>;
 
@@ -53,20 +47,19 @@ export default function Reports() {
     forfeited: 0,
   });
 
-  const completionRate = aggregated.totalReservations > 0 
-    ? ((aggregated.checkedUp / aggregated.totalReservations) * 100).toFixed(0) 
+  const completionRate = aggregated.totalReservations > 0
+    ? ((aggregated.checkedUp / aggregated.totalReservations) * 100).toFixed(0)
     : 0;
 
-  // Chart Data Preparation
   const trendDataMap = dataset.reduce((acc, curr) => {
-    const date = curr.clinicDate; 
+    const date = curr.clinicDate;
     if (!acc[date]) {
       acc[date] = { date, reservations: 0 };
     }
     acc[date].reservations += curr.metrics.totalReservations;
     return acc;
   }, {});
-  
+
   const trendData = Object.values(trendDataMap).sort((a, b) => new Date(a.date) - new Date(b.date));
 
   const outcomeData = [
@@ -116,7 +109,7 @@ export default function Reports() {
               <span className="pq-faint" aria-hidden="true">•</span>
               <span className="font-extrabold tracking-tight">{dateRange}</span>
               {isFiltered && (
-                <button 
+                <button
                   type="button"
                   onClick={handleResetFilters}
                   className="pq-btn-ghost min-h-[44px] text-sm"
@@ -127,13 +120,13 @@ export default function Reports() {
               )}
             </div>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
             <div className="relative min-w-[180px] flex-1 lg:flex-none">
               <div className="pq-field-icon">
                 <MapPin className="w-4 h-4" aria-hidden="true" />
               </div>
-              <select 
+              <select
                 value={branch}
                 onChange={(e) => setBranch(e.target.value)}
                 className="pq-input pl-10 appearance-none cursor-pointer"
@@ -172,12 +165,12 @@ export default function Reports() {
             <Inbox className="w-8 h-8" aria-hidden="true" />
           </div>
           <h3 className="text-lg font-extrabold tracking-tight mb-1">
-            {unfilteredDataset && unfilteredDataset.length === 0 
-              ? "No completed clinic sessions yet" 
+            {unfilteredDataset && unfilteredDataset.length === 0
+              ? "No completed clinic sessions yet"
               : "No reports available for these filters"}
           </h3>
           <p className="pq-muted text-sm max-w-sm mx-auto">
-            {unfilteredDataset && unfilteredDataset.length === 0 
+            {unfilteredDataset && unfilteredDataset.length === 0
               ? "Complete a clinic session to start viewing analytics and historical reports."
               : "Try adjusting your branch or date range to see more results."}
           </p>
@@ -216,28 +209,28 @@ export default function Reports() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_GRID} />
-                    <XAxis 
-                      dataKey="date" 
+                    <XAxis
+                      dataKey="date"
                       axisLine={false}
                       tickLine={false}
                       tick={{ fill: CHART_MUTED, fontSize: 12, fontFamily: "Lexend, Segoe UI, sans-serif" }}
                       dy={10}
                     />
-                    <YAxis 
+                    <YAxis
                       axisLine={false}
                       tickLine={false}
                       tick={{ fill: CHART_MUTED, fontSize: 12, fontFamily: "Lexend, Segoe UI, sans-serif" }}
                       allowDecimals={false}
                     />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={tooltipStyle}
                       labelStyle={{ fontWeight: 800, color: CHART_INK, marginBottom: 4 }}
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="reservations" 
+                    <Line
+                      type="monotone"
+                      dataKey="reservations"
                       name="Reservations"
-                      stroke={CHART_LINE} 
+                      stroke={CHART_LINE}
                       strokeWidth={3}
                       dot={{ r: 4, strokeWidth: 2, fill: "#fff", stroke: CHART_LINE }}
                       activeDot={{ r: 6, strokeWidth: 0, fill: CHART_LINE }}
@@ -266,11 +259,11 @@ export default function Reports() {
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={tooltipStyle}
                       />
-                      <Legend 
-                        verticalAlign="bottom" 
+                      <Legend
+                        verticalAlign="bottom"
                         height={36}
                         iconType="circle"
                       />
@@ -364,14 +357,14 @@ export default function Reports() {
                 </div>
               </>
             )}
-            
+
             {totalPages > 1 && (
               <div className="p-4 flex items-center justify-between" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
                 <span className="text-sm pq-muted">
                   Showing <span className="font-semibold" style={{ color: "var(--pq-ink)" }}>{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-semibold" style={{ color: "var(--pq-ink)" }}>{Math.min(currentPage * itemsPerPage, sortedDataset.length)}</span> of <span className="font-semibold" style={{ color: "var(--pq-ink)" }}>{sortedDataset.length}</span> sessions
                 </span>
                 <div className="flex gap-2">
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
@@ -380,7 +373,7 @@ export default function Reports() {
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
@@ -395,6 +388,54 @@ export default function Reports() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+export default function Reports() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "overview" ? "overview" : "sessions";
+
+  const setTab = (tab) => {
+    if (tab === "overview") {
+      setSearchParams({ tab: "overview" }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  };
+
+  const showReportsSample = useTourSample(["doctor-reports-filters", "doctor-reports-history"]);
+
+  if (showReportsSample) {
+    return <TourSampleDoctorReports />;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="pq-tablist" role="tablist" aria-label="Reports views">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "sessions"}
+          className="pq-tab"
+          onClick={() => setTab("sessions")}
+        >
+          <BarChart3 className="w-4 h-4" aria-hidden="true" />
+          Clinic Sessions
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "overview"}
+          className="pq-tab"
+          onClick={() => setTab("overview")}
+        >
+          <Building2 className="w-4 h-4" aria-hidden="true" />
+          Clinic Overview
+        </button>
+      </div>
+
+      {activeTab === "overview" ? <ClinicOverviewReports /> : <ClinicSessionsReports />}
     </div>
   );
 }

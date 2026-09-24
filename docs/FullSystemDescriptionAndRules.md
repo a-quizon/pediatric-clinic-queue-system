@@ -29,11 +29,10 @@ Default physical branches in the product: **Angeles** and **Magalang**.
 | Role | Who | What they do (summary) |
 |------|-----|-------------------------|
 | **Parent / Guardian** | Self-registering end users | Reserve slots, enter child/patient info, monitor queue, receive SMS/push/in-app alerts, present QR ticket at clinic, manage child profiles and notification prefs |
-| **Secretary** | Front-desk staff, **one assigned branch** | Create/publish schedules, start the queue, validate check-in, manage queue (send to doctor / penalize / remind), pause/resume/close/end session, create walk-ins, view full-screen queue monitor |
-| **Doctor** | Clinical provider (system enforces **one active doctor** account) | Create/publish schedules (any branch), start the queue, live queue view, queue session control (pause / resume / close / complete schedule), complete consultations with optional notes, session reports |
-| **Admin** | Back-office operator | Staff & parent user management, branch configuration, system settings (penalty move-back + SMS templates/threshold), audit activity / reports |
+| **Secretary** | Front-desk staff, **one assigned branch** | Create/publish schedules, start the queue, validate check-in, manage queue (send to doctor / penalize / remind), pause/resume/close/end session, create walk-ins, view full-screen queue monitor; queue/SMS settings for assigned branch |
+| **Doctor** | Clinical provider + clinic admin (system enforces **one active doctor**) | Create/publish schedules (any branch), start/control queue, complete consultations, session reports; staff & parent user management; branch configuration; audit logs; clinic overview reports |
 
-Parents are the only role that receives **persistent Notification Center records**, **Web Push**, and **clinic SMS**. Staff get **local UI toasts** only when they perform actions.
+Parents are the only role that receives **persistent Notification Center records**, **Web Push**, and **clinic SMS**. Staff get **local UI toasts** only when they perform actions. The former **Admin** role is retired; leftover `role: "admin"` accounts are dual-allowed during transition then deactivated.
 
 ### 1.3 Tech Stack
 
@@ -82,9 +81,9 @@ State model: `AuthContext` + Firebase `onValue` listeners. No Redux / Zustand / 
 
 **Note:** Server OTP also supports `purpose: login` (custom token), but the **Login page does not use passwordless SMS login** — only register + phone-number change use OTP in the UI.
 
-**Staff (secretary / doctor / admin):** Created by Admin; login with email/password; **no** email-verification or child-onboarding gates.
+**Staff (secretary / doctor):** Created by the Doctor (clinic admin); login with email/password; **no** email-verification or child-onboarding gates.
 
-**Password reset:** Public `/forgot-password` and Admin “Reset Password” both call Firebase `sendPasswordResetEmail()`. Before the email is sent, the server consumes one slot under `passwordResetLimits/{emailKey}` (**5 per email per Asia/Manila calendar day**, Forgot Password and Admin Reset share the same counter). Over-limit requests are blocked with “You've reached today's password reset limit. Please try again tomorrow.” Completing the reset on `/reset-password` does not consume a slot. This cap is separate from SMS OTP resend cooldown.
+**Password reset:** Public `/forgot-password` and Doctor “Reset Password” (Users) both call Firebase `sendPasswordResetEmail()`. Before the email is sent, the server consumes one slot under `passwordResetLimits/{emailKey}` (**5 per email per Asia/Manila calendar day**, Forgot Password and Doctor Reset share the same counter). Over-limit requests are blocked with “You've reached today's password reset limit. Please try again tomorrow.” Completing the reset on `/reset-password` does not consume a slot. This cap is separate from SMS OTP resend cooldown.
 
 **Route guards:** `ProtectedRoute` → (parents) `VerifiedRoute` → (parents) `OnboardingRoute` → `RoleRoute`.
 
@@ -199,24 +198,26 @@ Secretary or Doctor **starts** the queue; doctor **controls** the live session a
 
 ---
 
-### 2.5 Admin — what they see and do
+### 2.5 Doctor clinic admin — what they see and do
 
-**Routes under `/admin/*`:**
+Former Admin back-office surfaces now live under `/doctor/*` (Clinic admin nav):
 
 | Path | Capability |
 |------|------------|
-| `/admin` | Dashboard — high-level stats (parents, staff, branches, ops) plus recent audit preview |
-| `/admin/users` | Create / edit / activate / deactivate / delete staff & parents |
-| `/admin/branches` | Branch name, address, weekly clinic hours |
-| `/admin/audit-logs` | Audit logs + admin report charts (`/admin/activity` redirects here) |
-| `/admin/profile` | Redirects to Dashboard |
+| `/doctor/users` | Create / edit / activate / deactivate / delete staff & parents |
+| `/doctor/branches` | Branch name, address, weekly clinic hours |
+| `/doctor/audit-logs` | Audit logs (read-only). `/admin/activity` and `/admin/audit-logs?tab=reports` redirect here / to reports |
+| `/doctor/reports?tab=overview` | Clinic-wide adoption / utilization charts (former admin reports) |
+
+Legacy `/admin/*` URLs redirect to the doctor equivalents. System/queue/SMS settings remain on `/secretary/settings`.
 
 #### Staff creation rules (important)
 
 - Secretaries must receive an `assignedBranch`.
 - System rejects creating a **second active doctor**.
-- Staff creation uses a **secondary Firebase Auth app** so the admin session stays logged in.
-- Admin deactivation (`deactivationSource: admin`) blocks login until admin reactivates.
+- Staff creation uses a **secondary Firebase Auth app** so the doctor session stays logged in.
+- Administrative deactivation (`deactivationSource: admin`) blocks staff login until the Doctor reactivates.
+- The **last active Doctor** cannot be deactivated or deleted.
 - Deletes revoke Auth + profile; reservation/audit history is retained (no physical delete of clinical history).
 
 ---
@@ -528,7 +529,7 @@ Secretary may read/write **only their assigned branch**. Doctors may read any br
 2. **Notification Center** — persistent RTDB records under `notifications/{parentId}`.
 3. **Web Push / native local notifications** — background/closed app (`devicePushEnabled` + OS permission + VAPID subscription).
 
-Staff (secretary/doctor/admin): **local toasts only**; no Notification Center; cleanup removes accidental non-parent notification nodes.
+Staff (secretary/doctor): **local toasts only**; no Notification Center; cleanup removes accidental non-parent notification nodes (Doctor runs cleanup on login).
 
 ### 5.2 Event catalog (parents)
 
@@ -574,13 +575,13 @@ From `database.rules.json`:
 
 | Node | Read | Write |
 |------|------|-------|
-| `users` | Admin list; own profile | Own (active) / admin; parent reactivation edge cases |
+| `users` | Doctor (or leftover admin) list; own profile | Own (active) / doctor (or leftover admin); parent reactivation edge cases |
 | `notifications` | Own | Own (active parent) |
-| `branchConfigurations` | Authenticated | Admin |
+| `branchConfigurations` | Authenticated | Doctor (or leftover admin) |
 | `schedules` | Authenticated | Active secretary / doctor |
 | `reservations` | Authenticated | Active parent / doctor / secretary |
-| `auditLogs` | Admin | Admin / doctor / secretary |
-| `systemConfiguration/{branchId}` | Admin, doctor, parent; secretary own branch | Admin; secretary own branch |
+| `auditLogs` | Doctor (or leftover admin) | Admin / doctor / secretary |
+| `systemConfiguration/{branchId}` | Admin, doctor, parent; secretary own branch | Admin, doctor; secretary own branch |
 | `systemConfiguration/{branchId}/sms` | + parents | (same write as parent node) |
 | `smsOtps`, `phoneVerifications`, `passwordResetLimits` | **denied** | **denied** (Admin SDK only) |
 
@@ -605,7 +606,7 @@ App-level isolation still matters: secretaries filter by `assignedBranch`; role 
 
 ## 9. END-TO-END CLINIC DAY (HAPPY PATH)
 
-1. Admin has branches + one doctor + branch secretaries configured; SMS/queue settings saved as needed.
+1. Doctor has branches + branch secretaries configured; SMS/queue settings saved as needed.
 2. Secretary or Doctor drafts and **publishes** a schedule. Parents see that day on the reservation calendar.
 3. Parents **reserve** → Queue Rules agreement (checkbox agree, that branch's live config) → receive ticket numbers → **Save Information** → confirmation SMS/push.
 4. Secretary or Doctor **starts queue** → QUEUE_STARTED SMS/push.

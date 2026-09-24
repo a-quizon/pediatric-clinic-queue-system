@@ -9,9 +9,9 @@ Read when modifying Firebase data, server routes, or environment setup.
 {
   uid, name, email, phone,
   isPhoneVerified: true,      // parents; set after SMS OTP during registration
-  role: "parent" | "secretary" | "doctor" | "admin",
+  role: "parent" | "secretary" | "doctor" | "admin", // admin = legacy/transition only; do not assign in UI
   status: "active" | "inactive",
-  deactivationSource: "self" | "admin" | null,
+  deactivationSource: "self" | "admin" | null, // "admin" = administrative (doctor-performed)
   isDeleted: false,               // parent soft-delete tombstone; Auth is revoked
   deletedAt,                      // epoch ms when soft-deleted
   onboardingComplete: true,       // parents; false until first child profile during onboarding

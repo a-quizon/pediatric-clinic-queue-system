@@ -123,7 +123,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
           closeConfirm();
         } catch (error) {
           console.error(error);
-          toast.error("Failed to change user status.");
+          toast.error(error.message || "Failed to change user status.");
         } finally {
           setIsTogglingStatus(false);
         }

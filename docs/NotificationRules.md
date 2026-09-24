@@ -60,9 +60,9 @@ The Doctor does not receive persistent database notifications or push notificati
 
 ---
 
-## 7. Admin Notifications
-**None.** 
-The Admin role does not participate in the Notification System.
+## 7. Staff Notifications
+**None as persistent/push.**
+Doctors and Secretaries receive local toasts only. There is no separate Admin notification channel (the former Admin role is retired; clinic-admin powers live on the Doctor).
 
 ---
 
@@ -112,7 +112,7 @@ A notification transitions from `read: false` to `read: true` via a direct datab
 ---
 
 ## 12. Notification Cleanup Rules
-* **Non-Parent Cleanup**: The system actively enforces role isolation. A function `cleanupNonParentNotifications` scans users; if a Doctor, Secretary, or Admin somehow ends up with notification records, the function forcefully deletes them to maintain a clean database.
+* **Non-Parent Cleanup**: The system actively enforces role isolation. A function `cleanupNonParentNotifications` (run by the Doctor on login) scans users; if a Doctor or Secretary somehow ends up with notification records, the function forcefully deletes them to maintain a clean database.
 * **Logout Cleanup**: When a Parent logs out, the system triggers `cleanupPushSubscriptionOnLogout`, which removes this device's Web Push subscription so a shared/public browser stops receiving alerts.
 * **Migration**: A `migrateUserNotifications` function safely moves legacy notifications from `users/${parentId}/notifications` to the dedicated `notifications/${parentId}` node.
 * **Expired subscriptions**: HTTP 404/410 responses from the push service delete that subscription node.
@@ -157,7 +157,7 @@ When modifying the Notification System, developers must verify the following con
 - [ ] ✓ Parent `inAppNotificationsEnabled` / `devicePushEnabled` match Profile toggles; OS Allow/Deny updates device-level push.
 - [ ] ✓ Push subscription for this device is wiped from the database upon logout.
 - [ ] ✓ Closed-browser push still delivers via `/sw.js` + `web-push`.
-- [ ] ✓ Role filtering correctly blocks Doctors, Secretaries, and Admins from receiving persistent notifications.
+- [ ] ✓ Role filtering correctly blocks Doctors and Secretaries from receiving persistent notifications.
 - [ ] ✓ `NEARING_TURN` threshold and SMS templates come from `systemConfiguration/{branchId}/sms` (defaults when missing); push/toast near-turn text stays count-synced only.
 - [ ] ✓ `NEARING_TURN` SMS sends once per reservation (`reservations/{id}/nearTurnSmsSent`) **only when the queue starts**, for tickets with `0 < aheadOfYou <=` that branch’s count (not when already first; not on later position changes).
 - [ ] ✓ `SLOT_RESERVED` SMS sends once per reservation (`reservations/{id}/slotReservedSmsSent`).

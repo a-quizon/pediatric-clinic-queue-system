@@ -5,7 +5,7 @@ import { subscribeToBranchConfigurations } from "../../services/branchConfigurat
 import { handlePasswordChangeRequest, usePasswordValidation } from "../../utils/passwordUtils";
 import { formatName, formatBranchLabel } from "../../utils/stringUtils";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
-import { User as UserIcon, Save, MapPin, Lock, ChevronRight, Info, BarChart3, Eye, EyeOff, RotateCcw } from "lucide-react";
+import { User as UserIcon, Save, MapPin, Lock, ChevronRight, BarChart3, Eye, EyeOff, RotateCcw, UserCog, ScrollText } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import LogoutButton from "../../components/common/LogoutButton";
 import toast from "react-hot-toast";
@@ -44,8 +44,15 @@ export default function Profile() {
 
   // Mobile navigation state via URL params
   const [searchParams, setSearchParams] = useSearchParams();
-  const mobileView = searchParams.get("view") || "hub";
+  const rawView = searchParams.get("view") || "hub";
+  const mobileView = rawView === "system" ? "hub" : rawView;
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (rawView === "system") {
+      setSearchParams({}, { replace: true });
+    }
+  }, [rawView, setSearchParams]);
 
   const setMobileView = (view) => {
     if (view === "hub") {
@@ -459,14 +466,40 @@ export default function Profile() {
                 <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />
               </button>
 
-              <button type="button" onClick={() => setMobileView("system")} className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+              <button type="button" onClick={() => navigate("/doctor/users")} className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
                 <div className="flex items-center">
-                  <div className="w-11 h-11 rounded-2xl mr-4 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--pq-mark-gold-bright) 28%, white)", color: "var(--pq-mark-gold)" }}>
-                    <Info className="w-5 h-5" aria-hidden="true" />
+                  <div className="w-11 h-11 rounded-2xl mr-4 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
+                    <UserCog className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <div className="text-left">
-                    <h3 className="font-extrabold">About System</h3>
-                    <p className="text-xs pq-muted mt-0.5">App version and information</p>
+                    <h3 className="font-extrabold">Users</h3>
+                    <p className="text-xs pq-muted mt-0.5">Manage staff and parent accounts</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />
+              </button>
+
+              <button type="button" onClick={() => navigate("/doctor/branches")} className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+                <div className="flex items-center">
+                  <div className="w-11 h-11 rounded-2xl mr-4 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--pq-mark-gold-bright) 28%, white)", color: "var(--pq-mark-gold)" }}>
+                    <MapPin className="w-5 h-5" aria-hidden="true" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-extrabold">Branches</h3>
+                    <p className="text-xs pq-muted mt-0.5">Clinic locations and hours</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />
+              </button>
+
+              <button type="button" onClick={() => navigate("/doctor/audit-logs")} className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+                <div className="flex items-center">
+                  <div className="w-11 h-11 rounded-2xl mr-4 flex items-center justify-center" style={{ background: "var(--pq-wait-wash)", color: "var(--pq-wait)" }}>
+                    <ScrollText className="w-5 h-5" aria-hidden="true" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-extrabold">Audit Logs</h3>
+                    <p className="text-xs pq-muted mt-0.5">Review clinic activity history</p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />
@@ -496,23 +529,6 @@ export default function Profile() {
           <div className="space-y-6">
             {renderProfileCard()}
             {renderSecurityCard()}
-          </div>
-        )}
-
-        {mobileView === "system" && (
-          <div className="space-y-6">
-            <div className="pq-glass overflow-hidden p-8 text-center mt-2">
-              <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-5" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue)" }}>
-                <Info className="w-10 h-10" aria-hidden="true" />
-              </div>
-              <h3 className="text-lg font-extrabold tracking-tight">PlusQueue</h3>
-              <p className="text-sm pq-muted mt-2 mb-8 px-4">A modern solution for managing clinic queues and schedules.</p>
-              
-              <div className="pq-row text-sm">
-                <span className="font-extrabold pq-muted uppercase tracking-wider text-[11px]">Application Version</span>
-                <span className="font-extrabold">v1.0.0</span>
-              </div>
-            </div>
           </div>
         )}
       </div>
