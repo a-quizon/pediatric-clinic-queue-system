@@ -197,7 +197,12 @@ export function AuthProvider({ children }) {
     }, []);
 
     useEffect(() => {
-        if (!user?.uid || user.role !== "parent" || typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+        if (
+            !user?.uid ||
+            (user.role !== "parent" && user.role !== "doctor" && user.role !== "admin") ||
+            typeof navigator === "undefined" ||
+            !("serviceWorker" in navigator)
+        ) {
             return undefined;
         }
 

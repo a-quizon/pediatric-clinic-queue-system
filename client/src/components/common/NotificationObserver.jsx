@@ -26,6 +26,48 @@ export default function NotificationObserver() {
     }
   }, [role]);
 
+  // In-app fallback for doctor suspicious-account alerts (when push is denied / offline).
+  useEffect(() => {
+    if (!user?.uid || (role !== 'doctor' && role !== 'admin')) return undefined;
+
+    let unsub = () => {};
+    let cancelled = false;
+    const seen = new Set();
+
+    import('../../services/suspiciousAccountService').then(({ subscribeDoctorAlerts, markDoctorAlertRead }) => {
+      if (cancelled) return;
+      subscribeDoctorAlerts(user.uid, (alerts) => {
+        alerts.forEach((alert) => {
+          if (alert.read || seen.has(alert.id)) return;
+          if (alert.type !== 'SUSPICIOUS_ACCOUNT') return;
+          seen.add(alert.id);
+          notificationService.notify(NOTIFICATION_EVENTS.SUSPICIOUS_ACCOUNT, {
+            dedupeKey: `doctor_alert_${alert.id}`,
+            customMessage: alert.body || alert.message,
+            showToast: true,
+            metadata: {
+              parentId: alert.parentId,
+              auditLogId: alert.auditLogId,
+              url: alert.url,
+            },
+          });
+          markDoctorAlertRead(user.uid, alert.id).catch(() => {});
+        });
+      }).then((unsubscribeFn) => {
+        if (cancelled) {
+          unsubscribeFn?.();
+          return;
+        }
+        unsub = unsubscribeFn || (() => {});
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [user?.uid, role]);
+
   const isInitialSchedulesLoad = useRef(true);
   const isInitialReservationsLoad = useRef(true);
 

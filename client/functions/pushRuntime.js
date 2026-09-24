@@ -244,6 +244,85 @@ async function sendPushToParent(parentId, notification, notificationId) {
   return { sent, pruned: Object.keys(gone).length };
 }
 
+/**
+ * Narrow doctor/admin exception for abuse alerts (e.g. SUSPICIOUS_ACCOUNT).
+ * Reuses the same VAPID + pushSubscriptions storage as parents.
+ */
+async function sendPushToDoctor(doctorId, notification, notificationId) {
+  if (!configureVapid()) {
+    console.warn("[functions/push] VAPID not configured");
+    return { sent: 0, failed: 0, reason: "vapid_not_configured" };
+  }
+
+  const safeNotificationId = notificationId ? sanitizeKey(notificationId) : null;
+  if (safeNotificationId) {
+    const flagSnap = await db()
+      .ref(`users/${doctorId}/pushDispatchClaims/${safeNotificationId}`)
+      .once("value");
+    if (flagSnap.exists()) {
+      return { sent: 0, failed: 0, reason: "already_dispatched" };
+    }
+  }
+
+  const userSnap = await db().ref(`users/${doctorId}`).once("value");
+  const user = userSnap.val();
+  if (!user || (user.role !== "doctor" && user.role !== "admin")) {
+    return { sent: 0, failed: 0, reason: "not_doctor" };
+  }
+  if (user.status === "inactive" || user.isDeleted === true) {
+    return { sent: 0, failed: 0, reason: "inactive_or_deleted" };
+  }
+
+  const entries = collectSubscriptions(user.pushSubscriptions);
+  if (!entries.length) {
+    console.warn(`[functions/push] no_subscriptions doctorId=${doctorId}`);
+    return { sent: 0, failed: 0, reason: "no_subscriptions" };
+  }
+
+  const payload = {
+    title: notification.title,
+    body: notification.body || notification.message,
+    type: notification.type || "SUSPICIOUS_ACCOUNT",
+    tag: notification.dedupeKey || notification.id || notification.type || "SUSPICIOUS_ACCOUNT",
+    url: notification.url || "/doctor/audit-logs",
+    icon: "/brand/plusqueue-logo.png",
+    reservationId: notification.reservationId || null,
+  };
+
+  let sent = 0;
+  const gone = {};
+  await Promise.all(
+    entries.map(async ({ key, subscription }) => {
+      try {
+        await webpush.sendNotification(subscription, JSON.stringify(payload), {
+          TTL: 60 * 60,
+          urgency: "high",
+        });
+        sent += 1;
+      } catch (err) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          gone[key] = null;
+        } else {
+          console.error(`[functions/push] send failed doctorId=${doctorId}:`, err.message);
+        }
+      }
+    })
+  );
+
+  if (Object.keys(gone).length) {
+    await db().ref(`users/${doctorId}/pushSubscriptions`).update(gone);
+  }
+
+  if (sent > 0 && safeNotificationId) {
+    await db().ref(`users/${doctorId}/pushDispatchClaims/${safeNotificationId}`).set(Date.now());
+    console.log(`[functions/push] sent=${sent} doctorId=${doctorId} type=${payload.type}`);
+  } else if (sent === 0) {
+    console.warn(`[functions/push] zero sends doctorId=${doctorId} type=${payload.type}`);
+  }
+
+  return { sent, pruned: Object.keys(gone).length };
+}
+
 function computeReservationState(reservation, allReservations = []) {
   if (!reservation) return null;
   if (reservation.status === "cancelled") return "CANCELLED";
@@ -666,6 +745,7 @@ module.exports = {
   handleReservationChange,
   handleScheduleChange,
   sendPushToParent,
+  sendPushToDoctor,
   configureVapid,
   notifyParentsScheduleAvailable,
 };

@@ -40,11 +40,12 @@ The system uses strict `NOTIFICATION_EVENTS` as the single source of truth for t
 | **PENALIZED** | Patient was moved backward in line; late timer started or kept. | Secretary applies penalty. | Specific Parent |
 | **FORFEITED** | Patient did not check in before the late timer expired, or Move-Back is 0. | Secretary Penalize or timer auto-expiry. | Specific Parent |
 | **RESERVATION_CANCELLED_BY_CLINIC** | The clinic closed the reserved day. The parent rebooks on another open day. | Secretary or doctor closes that date while the reservation is still `reserved` or `waiting`. | Specific Parent |
+| **SUSPICIOUS_ACCOUNT** | Parent flagged for repeated no-shows (no QR validation after past clinic dates). Deep link opens Audit Logs. | Cloud Function detector (forfeit/expiry or nightly 20:00 Manila). | Active Doctor (Web Push + `doctorAlerts` toast fallback) |
 
 ---
 
 ## 4. Parent Notifications
-Parents are the **only** entity in the system that receives persistent notifications and Web Push. All events listed in Section 3 are strictly routed to the relevant Parent. The Notification Center actively subscribes to `notifications/${parentId}` to render these alerts.
+Parents are the **primary** recipients of persistent Notification Center records and routine clinic Web Push. All parent-facing events in Section 3 are routed to the relevant Parent. The Notification Center actively subscribes to `notifications/${parentId}` to render these alerts.
 
 ---
 
@@ -55,14 +56,19 @@ The Secretary does not receive any persistent database notifications or push not
 ---
 
 ## 6. Doctor Notifications
-**None.** 
-The Doctor does not receive persistent database notifications or push notifications. Similar to the Secretary, they only see local UI feedback toasts confirming their actions (e.g., "Consultation Completed").
+**Exception: suspicious-account abuse alerts only.**
+Routine clinic events do not notify the doctor. When a parent is flagged as suspicious, the doctor receives:
+* Web Push (`SUSPICIOUS_ACCOUNT`) if they granted notification permission (subscription under `users/{doctorUid}/pushSubscriptions`)
+* In-app toast via `doctorAlerts/{doctorUid}` when the doctor app is open
+* Audit Logs entry with evidence and Deactivate / Dismiss actions (`/doctor/audit-logs?highlight={logId}`)
+
+The system never auto-deactivates the parent.
 
 ---
 
 ## 7. Staff Notifications
-**None as persistent/push.**
-Doctors and Secretaries receive local toasts only. There is no separate Admin notification channel (the former Admin role is retired; clinic-admin powers live on the Doctor).
+**Persistent Notification Center remains parent-only.**
+Secretaries receive local toasts only. Doctors additionally receive the narrow `SUSPICIOUS_ACCOUNT` push/toast exception above. There is no separate Admin notification channel (the former Admin role is retired; clinic-admin powers live on the Doctor).
 
 ---
 
@@ -130,15 +136,15 @@ A notification transitions from `read: false` to `read: true` via a direct datab
 
 ## 14. Rule Priority Order
 1. **Role Restriction Rule (Highest)**
-   * *Only Parents may have notification records. All other roles are blocked or actively cleaned up.*
+   * *Routine persistent notifications and clinic Web Push are parent-only. The sole staff exception is doctor `SUSPICIOUS_ACCOUNT` abuse alerts (`doctorAlerts` + optional doctor push subscription).*
 2. **Deduplication Rule**
    * *A notification event will be entirely dropped if it matches a recently cached signature or an existing `dedupeKey` record.*
 3. **Database Storage Rule**
-   * *Valid notifications are written to Firebase for historical tracking and the Notification Center.*
+   * *Valid parent notifications are written to Firebase for historical tracking and the Notification Center. Doctor abuse alerts use `doctorAlerts/{doctorUid}`.*
 4. **Push Notification Rule**
-   * *Web Push is sent to the parent's registered devices after the record is stored. It never replaces in-app storage.*
+   * *Web Push is sent to registered devices after the record is stored. It never replaces in-app storage.*
 
-*Why this order?* Role restriction ensures data privacy and database optimization (preventing doctors/secretaries from bloating the DB with irrelevant alerts). Deduplication prevents spamming the user and the database.
+*Why this order?* Role restriction ensures data privacy and database optimization (preventing secretaries from bloating the DB with irrelevant alerts, while still allowing a narrow doctor abuse channel). Deduplication prevents spamming the user and the database.
 
 ---
 

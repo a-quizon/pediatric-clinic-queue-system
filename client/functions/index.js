@@ -69,6 +69,12 @@ exports.onReservationWrite = rtdb
         await recalculateEntireQueueAdmin(after.scheduleId);
       }
       await handleReservationChange(before, after);
+      try {
+        const { maybeEvaluateAfterReservationChange } = require("./suspiciousAccountRuntime");
+        await maybeEvaluateAfterReservationChange(before, after);
+      } catch (suspiciousErr) {
+        console.error("onReservationWrite suspicious eval failed:", suspiciousErr);
+      }
     } catch (err) {
       console.error("onReservationWrite failed:", err);
     }
@@ -110,6 +116,26 @@ exports.expirePenaltyTimers = functions
       }
     } catch (err) {
       console.error("expirePenaltyTimers failed:", err);
+    }
+    return null;
+  });
+
+/**
+ * After clinic hours: scan parents for suspicious no-show patterns (Rules A/B/C).
+ */
+exports.evaluateSuspiciousAccounts = functions
+  .region("asia-southeast1")
+  .pubsub.schedule("0 20 * * *")
+  .timeZone("Asia/Manila")
+  .onRun(async () => {
+    const { evaluateAllSuspiciousParents } = require("./suspiciousAccountRuntime");
+    try {
+      const result = await evaluateAllSuspiciousParents();
+      console.log(
+        `evaluateSuspiciousAccounts evaluated=${result.evaluated} flagged=${result.flagged}`
+      );
+    } catch (err) {
+      console.error("evaluateSuspiciousAccounts failed:", err);
     }
     return null;
   });

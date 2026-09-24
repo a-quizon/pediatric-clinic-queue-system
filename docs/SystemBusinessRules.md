@@ -108,6 +108,18 @@ Notifications provide real-time transparency, reducing physical clinic congestio
 * **Penalty Updates**: Alerts parents if they are penalized for absence (including SMS that the countdown has started) or permanently forfeited for not checking in on time.
 * **Schedule Updates**: Informs parents when a reservation schedule is published (once per publish batch), when the queue starts, pauses, closes, and when the session ends. Queue start also sends SMS via textbee.dev.
 * **SMS Authentication**: Parents may sign in with a 6-digit OTP delivered by textbee; OTP records live under `smsOtps` (Admin SDK only) and expire after 5 minutes.
+* **Suspicious account alerts (doctor)**: When Rules A/B/C detect repeated reservation no-shows (past clinic dates without QR check-in), the system flags the parent, writes an audit log, and notifies the doctor via Web Push plus an in-app toast fallback (`doctorAlerts`). The system never auto-deactivates; the doctor reviews and may dismiss or deactivate.
+
+---
+
+## 11b. Suspicious Account Detection
+QR check-in is the proof that a reserved slot was attended. A past reservation with no QR validation (and not cancelled by the parent or clinic) counts as a **no-show**. Parents may hold up to two upcoming reservations; the detector scores each past reservation and flags abuse patterns:
+
+* **Rule A — Consecutive no-shows**: Last 3 past scored reservations were all no-shows.
+* **Rule B — No-show rate**: In the last 30 Manila days, no-show rate ≥ 60% with at least 4 past reservations.
+* **Rule C — Multi-date zero attendance**: In the last 14 Manila days, reservations on ≥ 3 distinct clinic dates and none were QR-validated.
+
+Thresholds live in `suspiciousAccountConfig.js` (client + Cloud Functions). Evaluation runs when a reservation becomes `forfeited`/`expired` and on a nightly Manila 20:00 job. Flagged accounts store `users/{uid}/suspiciousFlag` and appear in Audit Logs with Deactivate / Dismiss actions.
 
 ---
 

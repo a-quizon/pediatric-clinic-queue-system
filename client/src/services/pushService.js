@@ -196,15 +196,20 @@ async function removeSubscriptionFromDatabase(uid, subscriptionJson) {
   localStorage.removeItem(`fcm_token_key_${uid}`);
 }
 
+function isPushEligibleRole(role) {
+  return role === "parent" || role === "doctor" || role === "admin";
+}
+
 /**
  * Request permission (must be called from a user gesture), subscribe with VAPID,
  * and persist the subscription to RTDB + the Express backend.
+ * Parents: clinic workflow pushes. Doctors: suspicious-account abuse alerts only.
  */
 export async function registerPushSubscription(user) {
   try {
     if (!user?.uid) return null;
-    if (user.role && user.role !== "parent") {
-      debugLog("Skipping push registration for non-parent role:", user.role);
+    if (user.role && !isPushEligibleRole(user.role)) {
+      debugLog("Skipping push registration for role:", user.role);
       return null;
     }
 
@@ -298,7 +303,7 @@ export async function registerPushSubscription(user) {
 }
 
 export async function disableDevicePush(user) {
-  if (!user?.uid || (user.role && user.role !== "parent")) return;
+  if (!user?.uid || (user.role && !isPushEligibleRole(user.role))) return;
   try {
     await persistNotificationPreferences(user.uid, {
       devicePushEnabled: false,
@@ -317,7 +322,7 @@ export async function disableDevicePush(user) {
  */
 export async function requestPushPermissionAfterLogin(user) {
   try {
-    if (!user?.uid || (user.role && user.role !== "parent")) return null;
+    if (!user?.uid || (user.role && !isPushEligibleRole(user.role))) return null;
 
     const status = await getOsNotificationPermissionStatus();
     if (status === "unsupported") return null;
@@ -347,7 +352,7 @@ export async function requestPushPermissionAfterLogin(user) {
 
 export async function cleanupPushSubscriptionOnLogout(user) {
   try {
-    if (!user?.uid || (user.role && user.role !== "parent")) return;
+    if (!user?.uid || (user.role && !isPushEligibleRole(user.role))) return;
     if (Capacitor.isNativePlatform()) return;
     if (!checkPushSupport()) {
       localStorage.removeItem(localSubKeyName(user.uid));

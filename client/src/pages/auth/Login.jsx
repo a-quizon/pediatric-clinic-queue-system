@@ -88,6 +88,13 @@ export default function Login() {
           role: "parent",
           devicePushEnabled: userData.devicePushEnabled,
         });
+      } else if (userData.role === "doctor" || userData.role === "admin") {
+        const { requestPushPermissionAfterLogin } = await import("../../services/pushService");
+        await requestPushPermissionAfterLogin({
+          uid: authUser.uid,
+          role: userData.role,
+          devicePushEnabled: userData.devicePushEnabled,
+        });
       }
     } else {
       if (!authUser.emailVerified) {

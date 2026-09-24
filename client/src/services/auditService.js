@@ -18,6 +18,8 @@ export const AUDIT_ACTIONS = {
   USER_DEACTIVATED: "USER_DEACTIVATED",
   USER_EDITED: "USER_EDITED",
   USER_DELETED: "USER_DELETED",
+  ACCOUNT_FLAGGED_SUSPICIOUS: "ACCOUNT_FLAGGED_SUSPICIOUS",
+  SUSPICIOUS_ACCOUNT_DISMISSED: "SUSPICIOUS_ACCOUNT_DISMISSED",
   
   // Branch Management
   BRANCH_CREATED: "BRANCH_CREATED",
@@ -57,6 +59,10 @@ export const AUDIT_ACTIONS = {
  * @param {string} [params.targetId] - The ID of the affected resource
  * @param {string} [params.branchId] - Optional branch context
  * @param {string} [params.actorRole] - Optional explicitly provided role
+ * @param {object} [params.metadata] - Optional structured evidence / context
+ * @param {string} [params.badge] - Optional UI badge (e.g. "Suspicious")
+ * @param {string} [params.recommendation] - Optional doctor-facing recommendation text
+ * @returns {Promise<string|false>} New audit log id, or false on failure
  */
 export const logAuditEvent = async ({
   action,
@@ -65,7 +71,10 @@ export const logAuditEvent = async ({
   targetType = null,
   targetId = null,
   branchId = null,
-  actorRole = null
+  actorRole = null,
+  metadata = null,
+  badge = null,
+  recommendation = null,
 }) => {
   try {
     const currentUser = auth.currentUser;
@@ -109,9 +118,12 @@ export const logAuditEvent = async ({
     if (targetType) logEntry.targetType = targetType;
     if (targetId) logEntry.targetId = targetId;
     if (branchId) logEntry.branchId = branchId;
+    if (metadata && typeof metadata === "object") logEntry.metadata = metadata;
+    if (badge) logEntry.badge = badge;
+    if (recommendation) logEntry.recommendation = recommendation;
 
     await set(newLogRef, logEntry);
-    return true;
+    return newLogRef.key;
 
   } catch (error) {
     // IMPORTANT: Audit logging is secondary to primary business logic.

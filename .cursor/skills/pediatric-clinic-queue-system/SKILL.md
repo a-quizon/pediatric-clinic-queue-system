@@ -99,7 +99,7 @@ Entry points: `client/src/routes/AppRoutes.jsx`, `client/src/context/AuthContext
 3. **One active reservation per parent per clinic date.**
 4. **Secretary branch isolation** — secretaries only see `assignedBranch` (default fallback: `"Angeles"`).
 5. **One active doctor** — in-app staff creation is Secretary-only; Doctor accounts are provisioned via Admin SDK / break-glass only.
-6. **Parents only get persistent notifications** — staff get local toasts only.
+6. **Parents only get persistent Notification Center records** — staff get local toasts; doctors additionally get a narrow `SUSPICIOUS_ACCOUNT` Web Push / `doctorAlerts` exception for abuse flags.
 7. **No physical deletes** — reservations and audit records are permanent.
 8. **Parent cannot cancel after check-in.**
 9. **Slot counting** — only active statuses consume slots; terminal states release them.

@@ -141,6 +141,16 @@ Reservations are never deleted from the database.
 
 ---
 
+## 14b. No-Show Definition (Suspicious Account Detection)
+A reservation is a **no-show** only when all of the following are true (Manila calendar):
+1. `clinicDate` is strictly before today (upcoming reservations never count).
+2. The visit was never QR-validated (`checkedIn !== true` and status not in checked-in / with-doctor / consultation-completed).
+3. Status is not `cancelled` (parent cancel) and not `cancelled_by_clinic`.
+
+Walk-ins without `parentId` are excluded. No-shows feed Rules A/B/C for suspicious parent flagging (see System Business Rules §11b). The system does not invent a separate `no_show` status; scoring uses existing fields.
+
+---
+
 ## 15. Rule Priority Order
 When conflicting reservation events occur, the system evaluates them in this order:
 

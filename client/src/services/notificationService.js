@@ -26,6 +26,7 @@ export const NOTIFICATION_EVENTS = {
   FORFEITED: 'FORFEITED',
   RESERVATION_CANCELLED_BY_CLINIC: 'RESERVATION_CANCELLED_BY_CLINIC',
   CHECK_IN_REQUESTED: 'CHECK_IN_REQUESTED',
+  SUSPICIOUS_ACCOUNT: 'SUSPICIOUS_ACCOUNT',
 };
 
 /**
@@ -132,6 +133,12 @@ const NOTIFICATION_CONFIG = {
     type: 'info',
     title: 'Check-In Requested',
     message: 'Please proceed to the clinic and have your QR Code validated by the secretary.',
+    duration: 6000,
+  },
+  [NOTIFICATION_EVENTS.SUSPICIOUS_ACCOUNT]: {
+    type: 'warning',
+    title: 'Suspicious Account Detected',
+    message: 'A parent account was flagged for repeated reservation no-shows. Review Audit Logs.',
     duration: 6000,
   },
 };
