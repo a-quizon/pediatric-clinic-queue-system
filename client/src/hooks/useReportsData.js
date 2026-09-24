@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { database } from '../firebase/database';
 import { ref, get } from 'firebase/database';
 import { branchesMatch } from '../utils/stringUtils';
+import { manilaDateString } from '../utils/manilaDate';
 
 /** Parse YYYY-MM-DD as a local calendar date (avoids UTC shift from Date("YYYY-MM-DD")). */
 const parseClinicDateLocal = (clinicDate) => {
@@ -135,9 +136,10 @@ export const useReportsData = () => {
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const manilaToday = manilaDateString();
 
       if (dateRange === "Today") {
-        if (itemDate.getTime() !== today.getTime()) return false;
+        if (item.clinicDate !== manilaToday) return false;
       } else if (dateRange === "This Week") {
         const dayOfWeek = today.getDay(); // 0 (Sun) to 6 (Sat)
         const startOfWeek = new Date(today);

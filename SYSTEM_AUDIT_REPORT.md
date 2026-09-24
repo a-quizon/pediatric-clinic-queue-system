@@ -1,31 +1,59 @@
 # System Audit Report — Pediatric Clinic Queue System (Plus Queue)
 
 **Date:** 2026-09-24  
-**Branch:** `main` @ `1e3b570` (plus uncommitted `database.rules.json` / `client/database.rules.json`)  
-**Mode:** Audit only — no code, config, schema, or data fixes applied  
-**Environment used:** Local client/server `.env` → Firebase project **`pediatric-clinic-queue-testing`** (staging). Production (`pediatric-clinic-queue-system`) was **not** targeted.  
-**Methods:** Static analysis, docs↔code traceability, RTDB rules review, service/API code paths, lint + production build + `npm audit`. Live mutating RBAC/E2E against staging was **not** executed (no test fixtures/seed scripts; avoids creating/SMS/push side effects). Local Express `GET /api/health` only.
+**Branch:** `main`  
+**Remediation:** Critical → High → Medium fixes applied 2026-09-24 (see §12). Remaining: H9 dep audit, leftover Medium/Low, admin dual-allow finish, demo seed scripts.  
+**Environment used for audit:** Local → **`pediatric-clinic-queue-testing`**. Production was not targeted.  
+**Regression tests:** `npm test` (Node built-in runner) — C4 transitions + H2 booking caps.
+
+---
+
+## 12. Remediation log (2026-09-24)
+
+| ID | Status | Notes |
+|----|--------|-------|
+| C1 | **Fixed (partial)** | Full-tree reservation read blocked; staff + `parentId` / `scheduleId` queries allowed (schedule mates still visible — denormalized public queue would be needed for full isolation) |
+| C2 | **Fixed** | Parent write only own `parentId`; staff retain write; CF Admin recalculates queue so parents need not update peers |
+| C3 | **Fixed** | `users/$uid/role` (+ branch fields) `.validate` — only doctor/admin may change |
+| C4 | **Fixed** | `reservationTransitions.js` + service guards; tests in `client/tests/` |
+| C5 | **Fixed** | Prod Functions require `RTDB_URL`; staging keeps testing default |
+| H1 | **Fixed** | `/sms-tester` DEV-only; SMS test API always needs `SMS_TEST_SECRET` |
+| H2 | **Fixed** | Atomic `parentBookingCaps/{uid}` transaction + tests |
+| H3 | **Fixed** | Secretary schedule writes scoped to assigned branch |
+| H4 | **Fixed** | `users/$uid` read = self or staff |
+| H5 | **Fixed** | `CORS_ORIGINS` whitelist (empty = permissive for local) |
+| H6 | **Fixed** | In-memory rate limits on resolve-identifier + password-reset claim |
+| H7 | **Fixed** | Validate UI rejects terminal statuses incl. forfeited / clinic-cancelled |
+| H8 | **Fixed** | `updateQueueStatus` rejects `dayClosed` |
+| H9 | **Deferred** | `npm audit` vulns — upgrade carefully in a dedicated pass |
+| M1 | **Fixed** | Publish no longer calls SCHEDULE_AVAILABLE; docs updated |
+| M5 | **Fixed** | Audit log write = doctor/admin only (not secretary) |
+| M10 | **Fixed** | Reports “Today” uses Manila date |
+| M14 | **Fixed** | `client/.env` removed from git index |
+| M2–M4, M6–M9, M11–M13, Lows | **Open** | Not blocking demo core security |
+
+**Deploy reminder:** Deploy `database.rules.json` + Functions to **staging** before demo. Set `CORS_ORIGINS` and production `RTDB_URL` when promoting.
 
 ---
 
 ## 1. Summary
 
-**Overall health:** Core happy-path architecture is coherent (claim API → RTDB → queue engine → dual push/SMS engines). Production **build succeeds**. The app is **not demo-safe on security**: RTDB rules allow broad reservation/user reads and unrestricted reservation/status writes for any active parent/staff. There are **no automated tests** and **no CI**. Several mid-change items are incomplete (SCHEDULE_AVAILABLE still fires; admin dual-allow leftover; no demo seed/reset).
+**Overall health (post-remediation):** Critical IDOR/privilege and transition holes addressed in rules + services; claim path has atomic multi-date caps; build and new unit tests pass. Remaining risk: schedule-scoped reservation reads still expose other patients on the same day to parents; dependency CVEs (H9); admin dual-allow unfinished.
 
-| Severity | Count |
-|----------|------:|
-| Critical | 5 |
-| High | 9 |
-| Medium | 14 |
-| Low | 8 |
+| Severity | Original | Fixed / deferred |
+|----------|--------:|------------------:|
+| Critical | 5 | 5 fixed (C1 partial) |
+| High | 9 | 8 fixed, H9 deferred |
+| Medium | 14 | 4 fixed (M1,M5,M10,M14), rest open |
+| Low | 8 | open |
 
-### Top 5 to fix before demo day
+### Top remaining before demo day
 
-1. **C1–C3 — Harden RTDB rules:** reservation read/write ownership + field validation; lock down `users/{uid}.role` (and other privileged fields).  
-2. **C4 — Guard reservation state transitions** in `reservationService` (and ideally rules): no cancel after check-in; no complete/check-in from terminal states.  
-3. **H1 — Remove or gate `/sms-tester`** from the shipped SPA; ensure SMS test API cannot send without a secret even in staging demos.  
-4. **H2 — Confirm Functions `RTDB_URL`** for any production Functions deploy (default currently hardcodes staging).  
-5. **M1 / known work — Decide on SCHEDULE_AVAILABLE:** remove or keep; currently still notifies all parents on every publish batch.
+1. Deploy hardened rules + Functions to staging and smoke-test parent cancel / staff queue.  
+2. Set `CORS_ORIGINS` for hosted origins; `SMS_TEST_SECRET` if using tester locally.  
+3. H9 — patch react-router / audit when time allows.  
+4. Finish admin → doctor checklist (deactivate leftover admin).  
+5. Optional: denormalize public queue board to finish C1 schedule-mate PHI.
 
 ---
 
@@ -36,14 +64,16 @@
 | DFA-style schedule calendar (staff + parent) | **Done** | `StaffScheduleCalendar`, `ParentScheduleCalendar`, `scheduleCalendarService` |
 | Publish Range + Copy Previous Week | **Done** (still present) | UI buttons + service methods |
 | Date modal Start Queue + close clinic; Start Queue on Manage Queue | **Done** | Calendar modal + `StartTodayQueue` on Manage Queue / Doctor Queue Control |
-| Remove “schedule available” parent notification | **Not started** | Still in docs, client, server, Functions; still called after publish |
+| Remove “schedule available” parent notification | **Done** | Publish path quiet; docs updated |
 | Admin → Doctor transfer | **In progress** | Powers under `/doctor/*`; leftover `admin` dual-allowed; orphan `admin/Dashboard.jsx` |
-| Reservation multi-booking limit | **Done** (per **parent**, not per child) | Max 2 upcoming active dates; 1 per clinic date; `bookingLocks` |
+| Reservation multi-booking limit | **Done** (+ atomic cap) | Max 2 dates; `bookingLocks` + `parentBookingCaps` |
 | Separate demo env + seed/reset | **Partial** | Staging project exists; **no** seed/reset scripts |
 
 ---
 
-## 3. Findings table
+## 3. Findings table (original audit)
+
+Original findings retained below for history. See §12 for fix status.
 
 | ID | Sev | Area | Feature | What happens | How to reproduce (verified / suspected) | Expected | Actual | Suspected cause | Suggested fix | Effort |
 |----|-----|------|---------|--------------|-------------------------------------------|----------|--------|-----------------|---------------|--------|
