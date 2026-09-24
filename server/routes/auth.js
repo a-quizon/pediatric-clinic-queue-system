@@ -2,8 +2,23 @@ const express = require("express");
 const { initFirebaseAdmin, getDb } = require("../services/firebaseAdmin");
 const { resolveAccountByIdentifier } = require("../services/phoneLookup");
 const { claimPasswordResetSlot } = require("../services/passwordResetLimitService");
+const { createRateLimiter, clientIp } = require("../middleware/rateLimit");
 
 const router = express.Router();
+
+const resolveIdentifierLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  keyFn: (req) => `resolve:${clientIp(req)}`,
+  message: "Too many login lookups. Please wait and try again.",
+});
+
+const passwordResetClaimLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  keyFn: (req) => `reset:${clientIp(req)}`,
+  message: "Too many password reset attempts. Please wait and try again.",
+});
 
 function mapAuthHelperError(err) {
   const code = err.code || "internal";
@@ -26,7 +41,7 @@ function mapAuthHelperError(err) {
  * Resolves email or phone → Firebase Auth email for password login.
  * Phone matching accepts +63 / 09 / 9… legacy formats and phone|phoneNumber fields.
  */
-router.post("/auth/resolve-identifier", async (req, res) => {
+router.post("/auth/resolve-identifier", resolveIdentifierLimiter, async (req, res) => {
   try {
     initFirebaseAdmin();
     const resolved = await resolveAccountByIdentifier(getDb(), req.body?.identifier);
@@ -51,7 +66,7 @@ router.post("/auth/resolve-identifier", async (req, res) => {
  * Body: { email }
  * Consumes one daily reset slot (Asia/Manila) before sendPasswordResetEmail.
  */
-router.post("/auth/password-reset/claim", async (req, res) => {
+router.post("/auth/password-reset/claim", passwordResetClaimLimiter, async (req, res) => {
   try {
     initFirebaseAdmin();
     const result = await claimPasswordResetSlot(req.body?.email);

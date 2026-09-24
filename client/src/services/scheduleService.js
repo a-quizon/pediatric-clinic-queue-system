@@ -144,10 +144,15 @@ export const updateQueueStatus = async (scheduleId, queueStatus) => {
 
   if (snap.exists()) {
     scheduleData = snap.val();
+    if (scheduleData.dayClosed) {
+      throw new Error("Cannot change queue status on a closed clinic day.");
+    }
     if (queueStatus === "active" && !scheduleData.queueStartedAt) {
       updates.queueStartedAt = serverTimestamp();
       isFirstStart = true;
     }
+  } else {
+    throw new Error("Schedule not found.");
   }
 
   await update(ref(database, `schedules/${scheduleId}`), updates);

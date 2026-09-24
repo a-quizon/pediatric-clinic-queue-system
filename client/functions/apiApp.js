@@ -87,7 +87,22 @@ async function requireAuth(req, res) {
 
 function createApiApp() {
   const app = express();
-  app.use(cors({ origin: true }));
+  const corsOrigins = (process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  app.use(
+    cors(
+      corsOrigins.length
+        ? {
+            origin(origin, callback) {
+              if (!origin || corsOrigins.includes(origin)) callback(null, true);
+              else callback(new Error("Not allowed by CORS"));
+            },
+          }
+        : { origin: true }
+    )
+  );
   app.use(express.json({ limit: "256kb" }));
 
   app.get("/api/health", (_req, res) => {

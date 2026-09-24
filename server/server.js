@@ -15,7 +15,26 @@ const reservationsRouter = require("./routes/reservations");
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 
-app.use(cors());
+const corsOrigins = (process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+app.use(
+  cors(
+    corsOrigins.length
+      ? {
+          origin(origin, callback) {
+            if (!origin || corsOrigins.includes(origin)) {
+              callback(null, true);
+            } else {
+              callback(new Error("Not allowed by CORS"));
+            }
+          },
+        }
+      : undefined
+  )
+);
 app.use(express.json({ limit: "256kb" }));
 
 app.get("/", (_req, res) => {

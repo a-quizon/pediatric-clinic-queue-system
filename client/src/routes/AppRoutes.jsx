@@ -73,7 +73,7 @@ export default function AppRoutes() {
           <DoctorTourController />
           <Routes>
         <Route path="/" element={<Login />} />
-        <Route path="/sms-tester" element={<SmsTester />} />
+        {import.meta.env.DEV ? <Route path="/sms-tester" element={<SmsTester />} /> : null}
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />

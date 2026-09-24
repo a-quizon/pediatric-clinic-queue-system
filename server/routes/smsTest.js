@@ -11,16 +11,13 @@ const router = express.Router();
  * Body: { phone: string, message?: string }
  */
 router.post("/sms/test", async (req, res) => {
-  const isProd = process.env.NODE_ENV === "production";
   const secret = (process.env.SMS_TEST_SECRET || "").trim();
-  if (isProd) {
-    const provided = req.headers["x-sms-test-secret"] || req.body?.secret;
-    if (!secret || provided !== secret) {
-      return res.status(403).json({
-        success: false,
-        message: "SMS tester is disabled in production without a valid SMS_TEST_SECRET.",
-      });
-    }
+  const provided = req.headers["x-sms-test-secret"] || req.body?.secret;
+  if (!secret || provided !== secret) {
+    return res.status(403).json({
+      success: false,
+      message: "SMS tester requires a valid SMS_TEST_SECRET.",
+    });
   }
 
   if (!isSmsConfigured()) {
