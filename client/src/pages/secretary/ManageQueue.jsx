@@ -14,6 +14,7 @@ import ReservationPatientNames from "../../components/common/ReservationPatientN
 import QueueSessionControls from "../../components/common/QueueSessionControls";
 import StartTodayQueue from "../../components/common/StartTodayQueue";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
+import ModalScrim from "../../components/common/ModalScrim";
 import WalkInPatientModal from "../../components/secretary/WalkInPatientModal";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 import { PqSpinner } from "../../components/parent/pqUi";
@@ -715,8 +716,8 @@ export default function ManageQueue({ hideHeader = false }) {
       </section>
 
       {isContactModalOpen && (
-        <div
-          className="pq-modal-scrim z-[60]"
+        <ModalScrim
+          className="z-[60]"
           onClick={(e) => {
             if (e.target === e.currentTarget && !isCancelling) closeContactModal();
           }}
@@ -812,7 +813,7 @@ export default function ManageQueue({ hideHeader = false }) {
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       <ConfirmationModal

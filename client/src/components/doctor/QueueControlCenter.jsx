@@ -10,6 +10,7 @@ import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 import QueueSessionControls from "../common/QueueSessionControls";
 import StartTodayQueue from "../common/StartTodayQueue";
+import ModalScrim from "../common/ModalScrim";
 import WalkInPatientModal from "../secretary/WalkInPatientModal";
 import toast from "react-hot-toast";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
@@ -370,7 +371,7 @@ export default function QueueControlCenter() {
       </div>
 
       {isInfoModalOpen && infoPatient && (
-        <div className="pq-modal-scrim">
+        <ModalScrim className="z-[60]">
           <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="patient-details-title">
             <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="patient-details-title" className="text-lg font-extrabold tracking-tight flex items-center">
@@ -448,11 +449,11 @@ export default function QueueControlCenter() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       {isCompleteModalOpen && selectedPatient && (
-        <div className="pq-modal-scrim">
+        <ModalScrim className="z-[60]">
           <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="complete-consult-title">
             <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="complete-consult-title" className="text-lg font-extrabold tracking-tight flex items-center">
@@ -532,7 +533,7 @@ export default function QueueControlCenter() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       {isWalkInOpen ? (

@@ -3,6 +3,7 @@ import { Play, Pause, Square, Lock, X } from "lucide-react";
 import { updateQueueStatus, completeSchedule } from "../../services/scheduleService";
 import toast from "react-hot-toast";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
+import ModalScrim from "./ModalScrim";
 
 export default function QueueSessionControls({
   schedule,
@@ -216,7 +217,7 @@ export default function QueueSessionControls({
       </div>
 
       {isCloseQueueModalOpen && (
-        <div className="pq-modal-scrim">
+        <ModalScrim className="z-[60]">
           <div className="pq-modal w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="close-queue-title">
             <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="close-queue-title" className="text-lg font-extrabold tracking-tight flex items-center" style={{ color: "var(--pq-wait)" }}>
@@ -250,11 +251,11 @@ export default function QueueSessionControls({
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       {isEndSessionModalOpen && (
-        <div className="pq-modal-scrim">
+        <ModalScrim className="z-[60]">
           <div className="pq-modal w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="end-session-title">
             <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="end-session-title" className="text-lg font-extrabold tracking-tight flex items-center" style={{ color: "var(--pq-alert)" }}>
@@ -288,7 +289,7 @@ export default function QueueSessionControls({
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
     </>
   );
