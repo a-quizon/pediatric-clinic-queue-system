@@ -5,11 +5,12 @@ import { subscribeToScheduleReservations, startConsultation, completeConsultatio
 import { getNextEligiblePatient } from "../../services/queueEligibilityService";
 import { isReservationExpired } from "../../services/timeService";
 import { sortActiveQueue } from "../../services/queueEngine";
-import { Activity, CheckCircle, User, AlertCircle, FileText, X, Clock, MapPin, Users, CheckCircle2 } from "lucide-react";
+import { Activity, CheckCircle, User, AlertCircle, FileText, X, Clock, MapPin, Users, CheckCircle2, UserPlus } from "lucide-react";
 import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal";
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 import QueueSessionControls from "../common/QueueSessionControls";
 import StartTodayQueue from "../common/StartTodayQueue";
+import WalkInPatientModal from "../secretary/WalkInPatientModal";
 import toast from "react-hot-toast";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
@@ -37,6 +38,7 @@ export default function QueueControlCenter() {
 
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [infoPatient, setInfoPatient] = useState(null);
+  const [isWalkInOpen, setIsWalkInOpen] = useState(false);
   useHistoryOverlay(isInfoModalOpen, () => setIsInfoModalOpen(false));
   useHistoryOverlay(isCompleteModalOpen, () => setIsCompleteModalOpen(false));
 
@@ -100,6 +102,23 @@ export default function QueueControlCenter() {
   }, [scheduleReservations]);
 
   const canEndSession = waitingQueue.length === 0 && !inConsultation;
+  const activeSlotCount = scheduleReservations.filter((r) =>
+    ACTIVE_RESERVATION_STATUSES.includes(r.status)
+  ).length;
+  const slotCapacity = Number(activeSchedule?.slotCapacity || 0);
+  const walkInQueueOpen = ["active", "paused"].includes(activeSchedule?.queueStatus);
+  const walkInDayClosed = Boolean(activeSchedule?.dayClosed);
+  const walkInFull = slotCapacity > 0 && activeSlotCount >= slotCapacity;
+  const canAddWalkIn = Boolean(activeSchedule) && walkInQueueOpen && !walkInDayClosed && !walkInFull;
+  const walkInDisabledReason = !activeSchedule
+    ? "No live queue is running."
+    : walkInDayClosed
+      ? "This clinic day is closed."
+      : !walkInQueueOpen
+        ? "Walk-ins are only available while the queue is active or paused."
+        : walkInFull
+          ? "This day is full. A slot opens when someone cancels or finishes."
+          : "";
   const showQueueSample = useTourSample([
     "doctor-queue-list",
     "doctor-queue-start",
@@ -192,6 +211,21 @@ export default function QueueControlCenter() {
             schedule={activeSchedule}
             canEndSession={canEndSession}
           />
+        </div>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={() => setIsWalkInOpen(true)}
+            disabled={!canAddWalkIn}
+            className="pq-btn-primary w-full sm:w-auto"
+            title={walkInDisabledReason || "Add a walk-in patient to this queue"}
+          >
+            <UserPlus className="w-4 h-4 shrink-0" aria-hidden="true" />
+            Add Walk-in
+          </button>
+          {walkInDisabledReason ? (
+            <p className="text-xs pq-muted">{walkInDisabledReason}</p>
+          ) : null}
         </div>
       </div>
 
@@ -500,6 +534,14 @@ export default function QueueControlCenter() {
           </div>
         </div>
       )}
+
+      {isWalkInOpen ? (
+        <WalkInPatientModal
+          isOpen
+          onClose={() => setIsWalkInOpen(false)}
+          schedule={activeSchedule}
+        />
+      ) : null}
     </div>
   );
 }

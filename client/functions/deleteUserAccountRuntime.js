@@ -116,19 +116,13 @@ async function deleteUserAccount({ admin, callerUid, targetUid }) {
     throw makeError("Admin accounts cannot be deleted.", 400, "failed-precondition");
   }
 
-  if (target?.role === "doctor" && target.status === "active") {
-    const usersSnap = await db.ref("users").once("value");
-    const users = usersSnap.exists() ? usersSnap.val() : {};
-    const otherActiveDoctor = Object.entries(users).some(
-      ([uid, user]) => uid !== targetUid && user?.role === "doctor" && user?.status === "active"
+  // Doctor accounts are never deleted in-app; replacement uses Admin SDK / break-glass.
+  if (target?.role === "doctor") {
+    throw makeError(
+      "Doctor accounts cannot be deleted in the app. Use break-glass recovery if a doctor must be replaced.",
+      400,
+      "failed-precondition"
     );
-    if (!otherActiveDoctor) {
-      throw makeError(
-        "Cannot delete the only active Doctor account. Deactivate or create another Doctor first.",
-        400,
-        "failed-precondition"
-      );
-    }
   }
 
   await forfeitActiveReservations(db, targetUid);

@@ -142,8 +142,9 @@ export const createReservation = async (reservationData) => {
 const MAX_WALK_IN_CHILDREN = 10;
 
 /**
- * Secretary-created walk-in: no parent account, immediately checked in.
+ * Staff-created walk-in: no parent account, immediately checked in.
  * Uses the same reservation/queue record as parent bookings.
+ * @returns {{ reservationId: string, queueNumber: number }}
  */
 export const createWalkInReservation = async ({
   scheduleId,
@@ -154,7 +155,7 @@ export const createWalkInReservation = async ({
   parentPhone = "",
 }) => {
   if (!scheduleId) throw new Error("Schedule is required.");
-  if (!secretaryUid) throw new Error("Secretary identity is required.");
+  if (!secretaryUid) throw new Error("Staff identity is required.");
 
   const schedule = await getScheduleById(scheduleId);
   if (!schedule) throw new Error("Schedule not found.");
@@ -165,6 +166,11 @@ export const createWalkInReservation = async ({
   const queueStatus = schedule.queueStatus;
   if (queueStatus === "closed" || queueStatus === "ended" || queueStatus === "completed") {
     throw new Error("This clinic queue has closed to new reservations.");
+  }
+
+  const trimmedConcern = String(concern || "").trim();
+  if (!trimmedConcern) {
+    throw new Error("A visit concern is required.");
   }
 
   const existing = await getReservationsBySchedule(scheduleId);
@@ -202,7 +208,7 @@ export const createWalkInReservation = async ({
     throw new Error("Each child must have a sex selected.");
   }
 
-  const patientPayload = buildPatientInfoPayload(normalizedChildren, concern);
+  const patientPayload = buildPatientInfoPayload(normalizedChildren, trimmedConcern);
   const trimmedParentName = String(parentName || "").trim();
   const trimmedParentPhone = String(parentPhone || "").trim();
   const data = await callClaimReservation({
@@ -215,7 +221,22 @@ export const createWalkInReservation = async ({
   });
   await recalculateRollingValidation(scheduleId);
   await recalculateEntireQueue(scheduleId);
-  return data.reservationId;
+
+  const reservationId = data.reservationId;
+  const queueNumber = Number(data.queueNumber) || null;
+  const childLabel = normalizedChildren.map((c) => c.childName).filter(Boolean).join(", ") || "patient";
+  logAuditEvent({
+    action: AUDIT_ACTIONS.WALK_IN_CREATED,
+    category: AUDIT_CATEGORIES.QUEUE_INTERVENTION,
+    description: queueNumber
+      ? `Created walk-in Queue #${queueNumber} (${childLabel})`
+      : `Created walk-in for ${childLabel}`,
+    targetType: "reservation",
+    targetId: reservationId,
+    branchId: schedule?.branchId || schedule?.branch || null,
+  });
+
+  return { reservationId, queueNumber };
 };
 
 export const getReservationsBySchedule = async (scheduleId) => {

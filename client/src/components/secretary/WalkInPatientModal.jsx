@@ -1,22 +1,34 @@
-import React, { useState, useEffect, useRef } from "react";
-import { X, AlertCircle, Phone } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, AlertCircle, Phone, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
-import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import {
   subscribeToScheduleReservations,
   createWalkInReservation,
   ACTIVE_RESERVATION_STATUSES,
 } from "../../services/reservationService";
 import { getChildAgeError } from "../parent/ChildProfileForm";
-import { scheduleMatchesAssignedBranch, formatBranchLabel } from "../../utils/stringUtils";
-import { manilaDateString } from "../../utils/manilaDate";
+import { formatBranchLabel } from "../../utils/stringUtils";
 import { formatToE164 } from "../../utils/phoneUtils";
 import MessageModal from "../common/MessageModal";
+import ModalScrim from "../common/ModalScrim";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 const MAX_CHILDREN = 10;
 
 const emptyChild = () => ({ childName: "", age: "", sex: "" });
+
+const initialFormState = () => ({
+  childCountInput: "1",
+  children: [emptyChild()],
+  parentName: "",
+  parentPhoneLocal: "",
+  parentPhoneError: "",
+  showPhoneIn: false,
+  showMoreChildren: false,
+  concern: "",
+  concernError: "",
+  childCountError: "",
+});
 
 const formatTime = (time) => {
   if (!time) return "";
@@ -27,38 +39,13 @@ const formatTime = (time) => {
   return `${h12}:${minutes} ${ampm}`;
 };
 
-const getLocalDateString = () => manilaDateString();
-
-const isQueueEnded = (schedule) =>
-  ["closed", "ended", "completed"].includes(schedule?.queueStatus);
-
-const isUpcomingQueue = (schedule) => {
+const isQueueAcceptingWalkIns = (schedule) => {
   const qs = schedule?.queueStatus;
-  return !qs || qs === "not_started";
-};
-
-const isStartedOpenQueue = (schedule) => {
-  const qs = schedule?.queueStatus;
-  return qs === "active" || qs === "paused";
-};
-
-/** Published upcoming (not started) or currently started (active/paused). Closed/ended stay out. */
-const isWalkInScheduleEligible = (schedule) =>
-  schedule?.status === "published" &&
-  !schedule?.dayClosed &&
-  !isQueueEnded(schedule) &&
-  (isUpcomingQueue(schedule) || isStartedOpenQueue(schedule));
-
-const getScheduleSessionLabel = (schedule) => {
-  if (schedule?.queueStatus === "active") return "Active Now";
-  if (schedule?.queueStatus === "paused") return "Paused";
-  return "Upcoming";
-};
-
-const getScheduleSessionChipClass = (schedule) => {
-  if (schedule?.queueStatus === "active") return "pq-chip pq-chip-live";
-  if (schedule?.queueStatus === "paused") return "pq-chip pq-chip-wait";
-  return "pq-chip pq-chip-info";
+  return (
+    schedule?.status === "published" &&
+    !schedule?.dayClosed &&
+    (qs === "active" || qs === "paused")
+  );
 };
 
 /** Resize children[] to match a validated count; keep existing entries for groups that remain. */
@@ -78,20 +65,18 @@ const parseChildCount = (raw) => {
   return n;
 };
 
-export default function WalkInPatientModal({ isOpen, onClose }) {
-  useHistoryOverlay(isOpen, onClose);
+/**
+ * Desk walk-in form bound to the live Manage Queue / Doctor queue schedule.
+ * @param {{ isOpen: boolean, onClose: () => void, schedule: object | null }} props
+ */
+export default function WalkInPatientModal({ isOpen, onClose, schedule = null }) {
   const { user } = useAuth();
-  const [schedules, setSchedules] = useState([]);
-  const [scheduleCapacities, setScheduleCapacities] = useState({});
-  const [selectedScheduleId, setSelectedScheduleId] = useState("");
-  const [childCountInput, setChildCountInput] = useState("1");
-  const [children, setChildren] = useState([emptyChild()]);
-  const [parentName, setParentName] = useState("");
-  const [parentPhoneLocal, setParentPhoneLocal] = useState("");
-  const [parentPhoneError, setParentPhoneError] = useState("");
-  const [concern, setConcern] = useState("");
+  const nameInputRef = useRef(null);
+  const submitLockRef = useRef(false);
+
+  const [activeCount, setActiveCount] = useState(0);
+  const [form, setForm] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [childCountError, setChildCountError] = useState("");
   const [messageModal, setMessageModal] = useState({
     isOpen: false,
     type: "info",
@@ -99,135 +84,118 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
     message: "",
   });
 
-  const activeListenersRef = useRef({});
-  const assignedBranch = user?.assignedBranch;
-  const assignedBranchId = user?.assignedBranchId;
+  const {
+    childCountInput,
+    children,
+    parentName,
+    parentPhoneLocal,
+    parentPhoneError,
+    showPhoneIn,
+    showMoreChildren,
+    concern,
+    concernError,
+    childCountError,
+  } = form;
 
-  const resetForm = () => {
-    setSelectedScheduleId("");
-    setChildCountInput("1");
-    setChildren([emptyChild()]);
-    setParentName("");
-    setParentPhoneLocal("");
-    setParentPhoneError("");
-    setConcern("");
-    setChildCountError("");
-    setIsSubmitting(false);
+  const patchForm = (partial) => setForm((prev) => ({ ...prev, ...partial }));
+
+  const handleClose = () => {
+    if (isSubmitting) return;
+    onClose();
   };
 
-  useEffect(() => {
-    if (!isOpen) return undefined;
+  useHistoryOverlay(isOpen, handleClose);
 
-    const unsub = subscribeToPublishedSchedules((data) => {
-      const today = getLocalDateString();
-      const filtered = data
-        .filter((s) => scheduleMatchesAssignedBranch(s, user))
-        .filter(isWalkInScheduleEligible)
-        .filter((s) => String(s.clinicDate || "") >= today)
-        .sort((a, b) => {
-          const aLive = isStartedOpenQueue(a) ? 0 : 1;
-          const bLive = isStartedOpenQueue(b) ? 0 : 1;
-          if (aLive !== bLive) return aLive - bLive;
-          const dateDiff = new Date(a.clinicDate) - new Date(b.clinicDate);
-          if (dateDiff !== 0) return dateDiff;
-          return String(a.openingTime || "").localeCompare(String(b.openingTime || ""));
-        });
-      setSchedules(filtered);
+  useEffect(() => {
+    if (!isOpen || !schedule?.id) return undefined;
+
+    const unsub = subscribeToScheduleReservations(schedule.id, (data) => {
+      const count = data.filter((r) => ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
+      setActiveCount(count);
     });
 
-    return () => {
-      unsub();
-      Object.values(activeListenersRef.current).forEach((unsubFn) => unsubFn && unsubFn());
-      activeListenersRef.current = {};
-    };
-    // Intentionally depend on branch identity, not the whole user object (avoids resubscribe churn).
-  }, [isOpen, assignedBranch, assignedBranchId, user]);
+    return () => unsub();
+  }, [isOpen, schedule?.id]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
-
-    const currentIds = new Set(schedules.map((s) => s.id));
-
-    schedules.forEach((schedule) => {
-      if (activeListenersRef.current[schedule.id]) return;
-      activeListenersRef.current[schedule.id] = subscribeToScheduleReservations(
-        schedule.id,
-        (data) => {
-          const count = data.filter((r) => ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
-          setScheduleCapacities((prev) => ({ ...prev, [schedule.id]: count }));
-        }
-      );
-    });
-
-    Object.keys(activeListenersRef.current).forEach((id) => {
-      if (!currentIds.has(id)) {
-        activeListenersRef.current[id]?.();
-        delete activeListenersRef.current[id];
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !isSubmitting && !messageModal.isOpen) {
+        onClose();
       }
-    });
-  }, [isOpen, schedules]);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, isSubmitting, messageModal.isOpen, onClose]);
 
-  // Reset only when the modal closes — not on unrelated re-renders.
   useEffect(() => {
-    if (!isOpen) {
-      resetForm();
-    }
+    if (!isOpen) return undefined;
+    const t = window.setTimeout(() => {
+      nameInputRef.current?.focus();
+    }, 50);
+    return () => window.clearTimeout(t);
   }, [isOpen]);
-
-  // Clear selection if the chosen schedule disappears from the list (e.g. ended).
-  useEffect(() => {
-    if (!selectedScheduleId) return;
-    if (!schedules.some((s) => s.id === selectedScheduleId)) {
-      setSelectedScheduleId("");
-    }
-  }, [schedules, selectedScheduleId]);
 
   const applyChildCountToFields = (raw) => {
     const n = parseChildCount(raw);
     if (n == null) {
-      setChildCountError(`Enter a whole number from 1 to ${MAX_CHILDREN}.`);
+      patchForm({ childCountError: `Enter a whole number from 1 to ${MAX_CHILDREN}.` });
       return false;
     }
-    setChildCountError("");
-    setChildCountInput(String(n));
-    setChildren((prev) => resizeChildren(prev, n));
+    setForm((prev) => ({
+      ...prev,
+      childCountError: "",
+      childCountInput: String(n),
+      children: resizeChildren(prev.children, n),
+    }));
     return true;
   };
 
   const handleChildCountChange = (e) => {
-    // Allow free typing (including empty). Never coerce invalid/empty back to 1.
     const raw = e.target.value.replace(/[^0-9]/g, "");
-    setChildCountInput(raw);
-    if (childCountError) setChildCountError("");
-
-    // When the typed value is already a complete valid count, resize field groups
-    // reactively (preserving data for groups that remain).
-    const n = parseChildCount(raw);
-    if (n != null) {
-      setChildren((prev) => resizeChildren(prev, n));
-    }
+    setForm((prev) => {
+      const n = parseChildCount(raw);
+      return {
+        ...prev,
+        childCountInput: raw,
+        childCountError: "",
+        children: n != null ? resizeChildren(prev.children, n) : prev.children,
+      };
+    });
   };
 
   const handleChildCountBlur = () => {
     if (childCountInput === "") {
-      setChildCountError(`Enter a whole number from 1 to ${MAX_CHILDREN}.`);
+      patchForm({ childCountError: `Enter a whole number from 1 to ${MAX_CHILDREN}.` });
       return;
     }
     applyChildCountToFields(childCountInput);
   };
 
   const updateChild = (index, partial) => {
-    setChildren((prev) => prev.map((child, i) => (i === index ? { ...child, ...partial } : child)));
+    setForm((prev) => ({
+      ...prev,
+      children: prev.children.map((child, i) => (i === index ? { ...child, ...partial } : child)),
+    }));
   };
 
   const handleAgeChange = (index, rawVal) => {
     updateChild(index, { age: rawVal.replace(/[^0-9]/g, "") });
   };
 
-  const selectedSchedule = schedules.find((s) => s.id === selectedScheduleId) || null;
-  const selectedCount = selectedSchedule ? scheduleCapacities[selectedSchedule.id] ?? 0 : 0;
-  const selectedIsFull =
-    selectedSchedule && selectedCount >= Number(selectedSchedule.slotCapacity || 0);
+  const capacity = Number(schedule?.slotCapacity || 0);
+  const remaining = Math.max(capacity - activeCount, 0);
+  const isFull = capacity > 0 && activeCount >= capacity;
+  const accepting = isQueueAcceptingWalkIns(schedule);
+  const blockReason = !schedule
+    ? "No live queue is selected."
+    : schedule.dayClosed
+      ? "This clinic day is closed."
+      : !accepting
+        ? "Walk-ins can only be added while the queue is active or paused."
+        : isFull
+          ? "This day is full. A slot opens when someone cancels or finishes."
+          : "";
 
   const parsedCount = parseChildCount(childCountInput);
   const childCountValid = parsedCount != null;
@@ -242,36 +210,43 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
       return nameOk && /^\d+$/.test(age) && !getChildAgeError(age) && sexOk;
     });
 
+  const concernValid = Boolean(concern.trim());
   const parentPhoneValid = parentPhoneLocal === "" || parentPhoneLocal.length === 10;
 
   const canSubmit =
-    selectedSchedule &&
-    !selectedIsFull &&
+    accepting &&
+    !isFull &&
     childCountValid &&
     fieldsMatchCount &&
     childrenValid &&
+    concernValid &&
     parentPhoneValid &&
     !isSubmitting;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!user?.uid) return;
+    if (!user?.uid || !schedule?.id || isSubmitting || submitLockRef.current) return;
 
     const n = parseChildCount(childCountInput);
     if (n == null) {
-      setChildCountError(`Enter a whole number from 1 to ${MAX_CHILDREN}.`);
+      patchForm({ childCountError: `Enter a whole number from 1 to ${MAX_CHILDREN}.` });
       return;
     }
-    setChildCountError("");
-    setChildCountInput(String(n));
 
-    const schedule = schedules.find((s) => s.id === selectedScheduleId);
-    if (!schedule) return;
-    const activeCount = scheduleCapacities[schedule.id] ?? 0;
-    if (activeCount >= Number(schedule.slotCapacity || 0)) return;
+    if (!concern.trim()) {
+      patchForm({ concernError: "A visit concern is required.", childCountError: "", childCountInput: String(n) });
+      return;
+    }
+
+    if (!accepting || isFull) return;
 
     const finalChildren = resizeChildren(children, n);
-    setChildren(finalChildren);
+    patchForm({
+      children: finalChildren,
+      childCountInput: String(n),
+      childCountError: "",
+      concernError: "",
+    });
 
     const allValid = finalChildren.every((c) => {
       const nameOk = Boolean(c.childName?.trim());
@@ -282,14 +257,15 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
     if (!allValid) return;
 
     if (parentPhoneLocal && parentPhoneLocal.length !== 10) {
-      setParentPhoneError("Enter a valid 10-digit mobile number, or leave this blank.");
+      patchForm({ parentPhoneError: "Enter a valid 10-digit mobile number, or leave this blank." });
       return;
     }
-    setParentPhoneError("");
+    patchForm({ parentPhoneError: "" });
 
+    submitLockRef.current = true;
     setIsSubmitting(true);
     try {
-      await createWalkInReservation({
+      const result = await createWalkInReservation({
         scheduleId: schedule.id,
         children: finalChildren,
         concern,
@@ -297,14 +273,14 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
         parentName,
         parentPhone: parentPhoneLocal ? formatToE164(parentPhoneLocal) : "",
       });
+      const ticket = result?.queueNumber != null ? `#${result.queueNumber}` : "a ticket";
       setMessageModal({
         isOpen: true,
         type: "success",
         title: "Walk-in Checked In",
-        message:
-          "The walk-in patient has been added to the queue and marked as checked in.",
+        message: `Queue number ${ticket} — tell them their number. They are checked in and waiting in line.`,
       });
-      resetForm();
+      setForm(initialFormState());
     } catch (err) {
       console.error("Walk-in reservation failed", err);
       setMessageModal({
@@ -314,6 +290,7 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
         message: err?.message || "Could not create the walk-in reservation. Please try again.",
       });
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -324,32 +301,30 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
     if (wasSuccess) onClose();
   };
 
-  const formatScheduleOption = (schedule) => {
-    const count = scheduleCapacities[schedule.id] ?? 0;
-    const capacity = Number(schedule.slotCapacity || 0);
-    const remaining = Math.max(capacity - count, 0);
-    const dateLabel = new Date(schedule.clinicDate).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-    const timeLabel = `${formatTime(schedule.openingTime)} – ${formatTime(schedule.closingTime)}`;
-    const fullTag = remaining <= 0 ? " (Full)" : ` (${remaining}/${capacity} slots left)`;
-    const sessionTag = ` — ${getScheduleSessionLabel(schedule)}`;
-    return `${formatBranchLabel(schedule.branch)} · ${dateLabel} · ${timeLabel}${fullTag}${sessionTag}`;
-  };
+  const scheduleSummary = schedule
+    ? `${formatBranchLabel(schedule.branch)} · ${formatTime(schedule.openingTime)} – ${formatTime(schedule.closingTime)}`
+    : "";
 
   if (!isOpen) return null;
 
   return (
     <>
-      <div className="pq-modal-scrim z-50">
-        <div className="pq-modal w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="walkin-title">
+      <ModalScrim className="z-50" onClick={(e) => e.target === e.currentTarget && !isSubmitting && handleClose()}>
+        <div
+          className="pq-modal w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="walkin-title"
+          data-tour="walkin-form"
+        >
           <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
-            <h2 id="walkin-title" className="text-lg font-extrabold tracking-tight">Walk-in Patient</h2>
+            <h2 id="walkin-title" className="text-lg font-extrabold tracking-tight">
+              Add Walk-in
+            </h2>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
+              disabled={isSubmitting}
               className="pq-icon-btn"
               aria-label="Close"
             >
@@ -358,256 +333,316 @@ export default function WalkInPatientModal({ isOpen, onClose }) {
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-            <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1">
-              <section>
-                <label htmlFor="walkin-schedule" className="pq-label">1. Select schedule</label>
-                {schedules.length === 0 ? (
-                  <p className="text-sm pq-muted pq-row block min-h-0">
-                    No published or active schedules available for your assigned branch.
-                  </p>
-                ) : (
-                  <select
-                    id="walkin-schedule"
-                    value={selectedScheduleId}
-                    onChange={(e) => setSelectedScheduleId(e.target.value)}
-                    required
-                    className="pq-input"
-                  >
-                    <option value="">Select a schedule</option>
-                    {schedules.map((schedule) => {
-                      const count = scheduleCapacities[schedule.id] ?? 0;
-                      const capacity = Number(schedule.slotCapacity || 0);
-                      const isFull = count >= capacity;
-                      return (
-                        <option key={schedule.id} value={schedule.id} disabled={isFull}>
-                          {formatScheduleOption(schedule)}
-                        </option>
-                      );
-                    })}
-                  </select>
-                )}
-                {selectedSchedule && (
-                  <p className="mt-2 flex items-center gap-2">
-                    <span className={getScheduleSessionChipClass(selectedSchedule)}>
-                      {getScheduleSessionLabel(selectedSchedule)}
-                    </span>
-                    <span className="text-xs pq-muted">
-                      {isStartedOpenQueue(selectedSchedule)
-                        ? "This walk-in will join the live queue."
-                        : "This walk-in will be checked in before the queue starts."}
-                    </span>
-                  </p>
-                )}
-                {selectedIsFull && (
-                  <p className="mt-1.5 pq-error-text flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
-                    This schedule is full.
-                  </p>
-                )}
-              </section>
+            <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
+              {schedule && (
+                <div className="pq-row min-h-0 flex-col items-stretch gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-extrabold tracking-tight truncate">{scheduleSummary}</p>
+                    <p className="text-xs pq-muted">
+                      {schedule.queueStatus === "paused" ? "Paused — joins the live line" : "Active — joins the live line"}
+                    </p>
+                  </div>
+                  <span className={`pq-chip shrink-0 ${isFull ? "pq-chip-alert" : "pq-chip-info"}`}>
+                    {remaining}/{capacity} slots left
+                  </span>
+                </div>
+              )}
 
-              <section>
-                <h3 className="text-sm font-extrabold tracking-tight mb-2">2. Parent contact (optional)</h3>
-                <p className="text-xs pq-muted mb-3">
-                  Fill these in for phone-in bookings so the clinic can text reservation details. Leave blank for in-person walk-ins.
+              {blockReason ? (
+                <p className="pq-error-text flex items-start gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" aria-hidden="true" />
+                  {blockReason}
                 </p>
-                <div className="space-y-3">
-                  <div>
-                    <label htmlFor="walkin-parent-name" className="pq-label">
-                      Parent's Name
+              ) : null}
+
+              <section className="space-y-3">
+                <div
+                  className="space-y-3"
+                  style={{
+                    display: "block",
+                    minHeight: 0,
+                    padding: "1rem",
+                    borderRadius: "0.9rem",
+                    background: "color-mix(in srgb, #ffffff 55%, transparent)",
+                    border: "1px solid var(--pq-glass-line)",
+                  }}
+                >
+                  <div className="min-w-0">
+                    <label htmlFor="walkin-child-0-name" className="pq-label">
+                      Child name <span style={{ color: "var(--pq-alert)" }}>*</span>
                     </label>
                     <input
-                      id="walkin-parent-name"
+                      ref={nameInputRef}
+                      id="walkin-child-0-name"
                       type="text"
-                      value={parentName}
-                      onChange={(e) => setParentName(e.target.value)}
-                      placeholder="Optional"
-                      autoComplete="name"
+                      value={children[0]?.childName || ""}
+                      onChange={(e) => updateChild(0, { childName: e.target.value })}
+                      placeholder="Full name"
+                      autoComplete="off"
                       className="pq-input"
+                      disabled={Boolean(blockReason)}
                     />
                   </div>
-                  <div>
-                    <label htmlFor="walkin-parent-phone" className="pq-label">
-                      Parent's Phone Number
-                    </label>
-                    <div className="relative">
-                      <div className="pq-field-icon gap-2">
-                        <Phone className="h-5 w-5" aria-hidden="true" />
-                        <span className="pq-muted font-medium">+63</span>
-                      </div>
+                  <div className="grid gap-3" style={{ gridTemplateColumns: "5.75rem minmax(0, 1fr)" }}>
+                    <div className="min-w-0">
+                      <label htmlFor="walkin-child-0-age" className="pq-label">
+                        Age <span style={{ color: "var(--pq-alert)" }}>*</span>
+                      </label>
                       <input
-                        id="walkin-parent-phone"
-                        type="tel"
+                        id="walkin-child-0-age"
+                        type="text"
                         inputMode="numeric"
-                        maxLength={10}
-                        value={parentPhoneLocal}
-                        onChange={(e) => {
-                          const sanitized = e.target.value.replace(/\D/g, "").slice(0, 10);
-                          setParentPhoneLocal(sanitized);
-                          if (parentPhoneError) setParentPhoneError("");
+                        value={children[0]?.age || ""}
+                        onChange={(e) => handleAgeChange(0, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
                         }}
-                        autoComplete="tel-national"
-                        className={`pq-input pl-20 ${parentPhoneError ? "pq-input-error" : ""}`}
-                        placeholder="9123456789"
+                        placeholder="Yrs"
+                        className={`pq-input ${getChildAgeError(children[0]?.age || "") ? "pq-input-error" : ""}`}
+                        disabled={Boolean(blockReason)}
                       />
+                      {getChildAgeError(children[0]?.age || "") && (
+                        <p className="mt-1 pq-error-text">{getChildAgeError(children[0]?.age || "")}</p>
+                      )}
                     </div>
-                    {parentPhoneError && (
-                      <p className="mt-1.5 pq-error-text flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
-                        {parentPhoneError}
-                      </p>
-                    )}
+                    <div className="min-w-0">
+                      <label htmlFor="walkin-child-0-sex" className="pq-label">
+                        Sex <span style={{ color: "var(--pq-alert)" }}>*</span>
+                      </label>
+                      <select
+                        id="walkin-child-0-sex"
+                        value={children[0]?.sex || ""}
+                        onChange={(e) => updateChild(0, { sex: e.target.value })}
+                        className="pq-input cursor-pointer min-w-0"
+                        disabled={Boolean(blockReason)}
+                      >
+                        <option value="">Select</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
                   </div>
+                </div>
+
+                <div>
+                  <label htmlFor="walkin-concern" className="pq-label">
+                    Concern / reason <span style={{ color: "var(--pq-alert)" }}>*</span>
+                  </label>
+                  <textarea
+                    id="walkin-concern"
+                    value={concern}
+                    onChange={(e) => patchForm({ concern: e.target.value, concernError: "" })}
+                    placeholder="Brief reason for the visit"
+                    rows={2}
+                    className={`pq-input resize-none ${concernError ? "pq-input-error" : ""}`}
+                    disabled={Boolean(blockReason)}
+                    required
+                  />
+                  {concernError && (
+                    <p className="mt-1.5 pq-error-text flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                      {concernError}
+                    </p>
+                  )}
                 </div>
               </section>
 
-              <section>
-                <label htmlFor="walkin-child-count" className="pq-label">
-                  3. How many children will be checked in?
-                </label>
-                <input
-                  id="walkin-child-count"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={childCountInput}
-                  onChange={handleChildCountChange}
-                  onBlur={handleChildCountBlur}
-                  placeholder={`1–${MAX_CHILDREN}`}
-                  className={`pq-input ${childCountError ? "pq-input-error" : ""}`}
-                />
-                {childCountError && (
-                  <p className="mt-1.5 pq-error-text flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
-                    {childCountError}
-                  </p>
-                )}
-              </section>
-
-              {fieldsMatchCount && (
-                <section className="space-y-3">
-                  <h3 className="text-sm font-extrabold tracking-tight">4. Child details</h3>
-                  {children.map((child, index) => {
-                    const ageError = getChildAgeError(child.age || "");
-                    return (
-                      <div
-                        key={index}
-                        className="space-y-3"
-                        style={{
-                          display: "block",
-                          minHeight: 0,
-                          padding: "1rem",
-                          borderRadius: "0.9rem",
-                          background: "color-mix(in srgb, #ffffff 55%, transparent)",
-                          border: "1px solid var(--pq-glass-line)",
-                        }}
-                      >
-                        <p className="pq-stat-label">
-                          Child {index + 1}
-                        </p>
-                        <div className="min-w-0">
-                          <label
-                            htmlFor={`walkin-child-${index}-name`}
-                            className="pq-label"
-                          >
-                            Child Name <span style={{ color: "var(--pq-alert)" }}>*</span>
-                          </label>
-                          <input
-                            id={`walkin-child-${index}-name`}
-                            type="text"
-                            value={child.childName}
-                            onChange={(e) => updateChild(index, { childName: e.target.value })}
-                            placeholder="Enter child's full name"
-                            className="pq-input"
-                          />
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  className="pq-btn-ghost w-full justify-between"
+                  onClick={() => patchForm({ showPhoneIn: !showPhoneIn })}
+                  aria-expanded={showPhoneIn}
+                >
+                  <span>Phone-in details (optional)</span>
+                  {showPhoneIn ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {showPhoneIn && (
+                  <div className="space-y-3 pt-1">
+                    <p className="text-xs pq-muted">
+                      For phone bookings so the clinic can text reservation details. Leave blank for in-person walk-ins.
+                    </p>
+                    <div>
+                      <label htmlFor="walkin-parent-name" className="pq-label">
+                        Parent&apos;s name
+                      </label>
+                      <input
+                        id="walkin-parent-name"
+                        type="text"
+                        value={parentName}
+                        onChange={(e) => patchForm({ parentName: e.target.value })}
+                        placeholder="Optional"
+                        autoComplete="name"
+                        className="pq-input"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="walkin-parent-phone" className="pq-label">
+                        Parent&apos;s phone
+                      </label>
+                      <div className="relative">
+                        <div className="pq-field-icon gap-2">
+                          <Phone className="h-5 w-5" aria-hidden="true" />
+                          <span className="pq-muted font-medium">+63</span>
                         </div>
-                        <div
-                          className="grid gap-3"
-                          style={{ gridTemplateColumns: "5.75rem minmax(0, 1fr)" }}
-                        >
-                          <div className="min-w-0">
-                            <label
-                              htmlFor={`walkin-child-${index}-age`}
-                              className="pq-label"
-                            >
-                              Age <span style={{ color: "var(--pq-alert)" }}>*</span>
-                            </label>
-                            <input
-                              id={`walkin-child-${index}-age`}
-                              type="text"
-                              inputMode="numeric"
-                              value={child.age}
-                              onChange={(e) => handleAgeChange(index, e.target.value)}
-                              onKeyDown={(e) => {
-                                if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
-                              }}
-                              placeholder="Yrs"
-                              className={`pq-input ${ageError ? "pq-input-error" : ""}`}
-                            />
-                            {ageError && (
-                              <p className="mt-1 pq-error-text">{ageError}</p>
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <label
-                              htmlFor={`walkin-child-${index}-sex`}
-                              className="pq-label"
-                            >
-                              Sex <span style={{ color: "var(--pq-alert)" }}>*</span>
-                            </label>
-                            <select
-                              id={`walkin-child-${index}-sex`}
-                              value={child.sex || ""}
-                              onChange={(e) => updateChild(index, { sex: e.target.value })}
-                              className="pq-input cursor-pointer min-w-0"
-                            >
-                              <option value="">Select</option>
-                              <option value="Male">Male</option>
-                              <option value="Female">Female</option>
-                            </select>
-                          </div>
-                        </div>
+                        <input
+                          id="walkin-parent-phone"
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength={10}
+                          value={parentPhoneLocal}
+                          onChange={(e) => {
+                            const sanitized = e.target.value.replace(/\D/g, "").slice(0, 10);
+                            patchForm({ parentPhoneLocal: sanitized, parentPhoneError: "" });
+                          }}
+                          autoComplete="tel-national"
+                          className={`pq-input pl-20 ${parentPhoneError ? "pq-input-error" : ""}`}
+                          placeholder="9123456789"
+                        />
                       </div>
-                    );
-                  })}
-                </section>
-              )}
+                      {parentPhoneError && (
+                        <p className="mt-1.5 pq-error-text flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                          {parentPhoneError}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
-              <section>
-                <h3 className="text-sm font-extrabold tracking-tight mb-2">5. Concern</h3>
-                <label htmlFor="walkin-concern" className="pq-label">
-                  Concern / Reason for Visit
-                </label>
-                <textarea
-                  id="walkin-concern"
-                  value={concern}
-                  onChange={(e) => setConcern(e.target.value)}
-                  placeholder="Optional: briefly describe the symptoms or reason for visit"
-                  rows={3}
-                  className="pq-input resize-none"
-                />
-              </section>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  className="pq-btn-ghost w-full justify-between"
+                  onClick={() => {
+                    if (showMoreChildren) {
+                      setForm((prev) => ({
+                        ...prev,
+                        showMoreChildren: false,
+                        childCountInput: "1",
+                        children: resizeChildren(prev.children, 1),
+                        childCountError: "",
+                      }));
+                    } else {
+                      patchForm({ showMoreChildren: true });
+                    }
+                  }}
+                  aria-expanded={showMoreChildren}
+                >
+                  <span>More children (same ticket)</span>
+                  {showMoreChildren ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {showMoreChildren && (
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label htmlFor="walkin-child-count" className="pq-label">
+                        How many children?
+                      </label>
+                      <input
+                        id="walkin-child-count"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={childCountInput}
+                        onChange={handleChildCountChange}
+                        onBlur={handleChildCountBlur}
+                        placeholder={`1–${MAX_CHILDREN}`}
+                        className={`pq-input ${childCountError ? "pq-input-error" : ""}`}
+                      />
+                      {childCountError && (
+                        <p className="mt-1.5 pq-error-text flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                          {childCountError}
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs pq-muted">Still one slot and one queue number.</p>
+                    </div>
+                    {fieldsMatchCount &&
+                      children.slice(1).map((child, offset) => {
+                        const index = offset + 1;
+                        const ageError = getChildAgeError(child.age || "");
+                        return (
+                          <div
+                            key={index}
+                            className="space-y-3"
+                            style={{
+                              display: "block",
+                              minHeight: 0,
+                              padding: "1rem",
+                              borderRadius: "0.9rem",
+                              background: "color-mix(in srgb, #ffffff 55%, transparent)",
+                              border: "1px solid var(--pq-glass-line)",
+                            }}
+                          >
+                            <p className="pq-stat-label">Child {index + 1}</p>
+                            <div className="min-w-0">
+                              <label htmlFor={`walkin-child-${index}-name`} className="pq-label">
+                                Child name <span style={{ color: "var(--pq-alert)" }}>*</span>
+                              </label>
+                              <input
+                                id={`walkin-child-${index}-name`}
+                                type="text"
+                                value={child.childName}
+                                onChange={(e) => updateChild(index, { childName: e.target.value })}
+                                placeholder="Full name"
+                                className="pq-input"
+                              />
+                            </div>
+                            <div className="grid gap-3" style={{ gridTemplateColumns: "5.75rem minmax(0, 1fr)" }}>
+                              <div className="min-w-0">
+                                <label htmlFor={`walkin-child-${index}-age`} className="pq-label">
+                                  Age <span style={{ color: "var(--pq-alert)" }}>*</span>
+                                </label>
+                                <input
+                                  id={`walkin-child-${index}-age`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={child.age}
+                                  onChange={(e) => handleAgeChange(index, e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
+                                  }}
+                                  placeholder="Yrs"
+                                  className={`pq-input ${ageError ? "pq-input-error" : ""}`}
+                                />
+                                {ageError && <p className="mt-1 pq-error-text">{ageError}</p>}
+                              </div>
+                              <div className="min-w-0">
+                                <label htmlFor={`walkin-child-${index}-sex`} className="pq-label">
+                                  Sex <span style={{ color: "var(--pq-alert)" }}>*</span>
+                                </label>
+                                <select
+                                  id={`walkin-child-${index}-sex`}
+                                  value={child.sex || ""}
+                                  onChange={(e) => updateChild(index, { sex: e.target.value })}
+                                  className="pq-input cursor-pointer min-w-0"
+                                >
+                                  <option value="">Select</option>
+                                  <option value="Male">Male</option>
+                                  <option value="Female">Female</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="px-6 py-4 flex gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
-              <button
-                type="button"
-                onClick={onClose}
-                className="pq-btn-secondary flex-1"
-              >
+              <button type="button" onClick={handleClose} disabled={isSubmitting} className="pq-btn-secondary flex-1">
                 Cancel
               </button>
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className="pq-btn-primary flex-1"
-              >
+              <button type="submit" disabled={!canSubmit} className="pq-btn-primary flex-1">
                 {isSubmitting ? "Checking in..." : "Check In Walk-in"}
               </button>
             </div>
           </form>
         </div>
-      </div>
+      </ModalScrim>
 
       <MessageModal
         isOpen={messageModal.isOpen}

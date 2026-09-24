@@ -7,7 +7,10 @@
         ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'secretary')",
         ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor') && (root.child('users').child(auth.uid).child('status').val() === 'active' || (!root.child('users').child(auth.uid).child('status').exists() && newData.child('status').val() === 'active') || (auth.uid === $uid && root.child('users').child($uid).child('role').val() === 'parent' && root.child('users').child($uid).child('status').val() === 'inactive' && root.child('users').child($uid).child('isDeleted').val() !== true && newData.child('status').val() === 'active' && newData.child('isDeleted').val() !== true))",
         "role": {
-          ".validate": "!data.exists() || newData.val() === data.val() || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor'"
+          ".validate": "newData.isString() && ((data.exists() && newData.val() === data.val()) || (!data.exists() && auth.uid === $uid && newData.val() === 'parent') || ((root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor') && newData.val() === 'secretary'))"
+        },
+        "status": {
+          ".validate": "!data.exists() || newData.val() === data.val() || auth.uid !== $uid || root.child('users').child($uid).child('role').val() !== 'doctor' || newData.val() === 'active'"
         },
         "assignedBranchId": {
           ".validate": "!data.exists() || newData.val() === data.val() || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor'"

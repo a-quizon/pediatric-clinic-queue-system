@@ -47,26 +47,25 @@ export const SECRETARY_TOUR_STEPS = [
     description:
       "Pause holds the floor, Close stops new reservations, and End Clinic Session finishes the day after the queue is empty. None of these buttons run during the tour.",
     disableActiveInteraction: true,
-    onNextNavigate: "/secretary/profile",
   },
   {
     id: "walkin-open",
-    route: "/secretary/profile",
+    route: "/secretary/queue",
     exact: true,
     targets: ["walkin-open"],
-    title: "Walk-in Patient",
+    title: "Add a walk-in",
     description:
-      "Desk arrivals without a reservation start here. Next we'll open a filled-in sample form — it will not check anyone in.",
+      "Desk arrivals without a reservation start here on Manage Queue. Next we'll open a filled-in sample form — it will not check anyone in.",
     disableActiveInteraction: true,
   },
   {
     id: "walkin-form",
-    route: "/secretary/profile",
+    route: "/secretary/queue",
     exact: true,
     targets: ["walkin-form"],
     title: "Fill in the walk-in",
     description:
-      "Pick the schedule, how many children, then name, age, and sex, plus an optional concern. This is a walkthrough only — Check In Walk-in is disabled.",
+      "Enter the child's name, age, sex, and visit concern. Optional phone-in details and extra children stay collapsed. This is a walkthrough only — Check In Walk-in is disabled.",
     disableActiveInteraction: true,
     onNextNavigate: "/secretary/validate",
   },

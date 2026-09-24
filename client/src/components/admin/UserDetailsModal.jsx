@@ -4,11 +4,13 @@ import { updateUser, toggleUserStatus, sendAdminPasswordResetEmail } from "../..
 import { formatName, branchesMatch } from "../../utils/stringUtils";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
+import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 import ConfirmationModal from "../common/ConfirmationModal";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
+  const { user: currentUser } = useAuth();
   useHistoryOverlay(Boolean(isOpen && user?.id), onClose);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
@@ -59,6 +61,10 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
   }, [branches, user, isOpen]);
 
   if (!isOpen || !user || !user.id) return null;
+
+  const isDoctorTarget = user.role === "doctor";
+  const isSelf = Boolean(currentUser?.uid && user.id === currentUser.uid);
+  const canToggleStatus = !isDoctorTarget && !isSelf && user.id !== "admin";
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -335,16 +341,18 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
                 <span className="hidden sm:inline lg:hidden">Reset</span>
               </button>
 
-              <button
-                type="button"
-                onClick={handleToggleStatus}
-                disabled={isTogglingStatus || user.id === "admin"}
-                className={`order-3 sm:order-2 w-full sm:w-auto text-sm ${user.status === "active" ? "pq-btn-danger" : "pq-btn-live"}`}
-              >
-                {user.status === "active" ? <AlertTriangle className="w-4 h-4" aria-hidden="true" /> : <CheckCircle className="w-4 h-4" aria-hidden="true" />}
-                <span className="sm:hidden lg:inline">{user.status === "active" ? "Deactivate Account" : "Activate Account"}</span>
-                <span className="hidden sm:inline lg:hidden">{user.status === "active" ? "Deactivate" : "Activate"}</span>
-              </button>
+              {canToggleStatus && (
+                <button
+                  type="button"
+                  onClick={handleToggleStatus}
+                  disabled={isTogglingStatus}
+                  className={`order-3 sm:order-2 w-full sm:w-auto text-sm ${user.status === "active" ? "pq-btn-danger" : "pq-btn-live"}`}
+                >
+                  {user.status === "active" ? <AlertTriangle className="w-4 h-4" aria-hidden="true" /> : <CheckCircle className="w-4 h-4" aria-hidden="true" />}
+                  <span className="sm:hidden lg:inline">{user.status === "active" ? "Deactivate Account" : "Activate Account"}</span>
+                  <span className="hidden sm:inline lg:hidden">{user.status === "active" ? "Deactivate" : "Activate"}</span>
+                </button>
+              )}
             </div>
           )}
         </div>

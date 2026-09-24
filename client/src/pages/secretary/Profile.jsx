@@ -1,20 +1,14 @@
-import React, { useState } from "react";
-import { User, Mail, MapPin, Phone, UserPlus, Settings, ChevronRight, RotateCcw } from "lucide-react";
+import { User, Mail, MapPin, Phone, Settings, ChevronRight, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { useTourPreview, useTourSample } from "../../hooks/useTourPreview";
+import { useTourPreview } from "../../hooks/useTourPreview";
 import { SECRETARY_TOUR_STEPS_KEY, clearTourStepProgress } from "../../services/firstVisitService";
 import LogoutButton from "../../components/common/LogoutButton";
-import WalkInPatientModal from "../../components/secretary/WalkInPatientModal";
-import { TourSampleWalkInModal } from "../../components/onboarding/SecretaryTourSampleViews";
 
 export default function Profile() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { startTourReplay } = useTourPreview();
-  const showWalkInSample = useTourSample(["walkin-open", "walkin-form"]);
-  const walkInTour = showWalkInSample;
-  const [isWalkInOpen, setIsWalkInOpen] = useState(false);
 
   if (!user) return null;
 
@@ -54,18 +48,6 @@ export default function Profile() {
             </div>
           </div>
         </section>
-
-        <button
-          type="button"
-          data-tour="walkin-open"
-          onClick={() => {
-            if (!walkInTour) setIsWalkInOpen(true);
-          }}
-          className="pq-btn-primary w-full"
-        >
-          <UserPlus className="w-5 h-5" aria-hidden="true" />
-          Walk-in Patient
-        </button>
 
         <button
           type="button"
@@ -111,9 +93,6 @@ export default function Profile() {
       <div className="mt-auto pt-8">
         <LogoutButton className="pq-btn-danger w-full" />
       </div>
-
-      <WalkInPatientModal isOpen={isWalkInOpen && !showWalkInSample} onClose={() => setIsWalkInOpen(false)} />
-      {showWalkInSample ? <TourSampleWalkInModal /> : null}
     </div>
   );
 }

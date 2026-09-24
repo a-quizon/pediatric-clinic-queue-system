@@ -1,6 +1,6 @@
 # Clinic Admin Break-Glass Recovery
 
-Use only when the **last active Doctor** cannot sign in (forgotten password and Forgot Password failed, Auth disabled, or accidental deactivation blocked by safeguards).
+Use when the **Doctor** cannot sign in (forgotten password and Forgot Password failed, Auth disabled) or when a **Doctor account must be created or replaced**. In-app User Management cannot create, deactivate, or delete Doctor accounts.
 
 **Never run against production until the project owner explicitly approves the target Firebase project.**
 
@@ -21,6 +21,48 @@ Confirm with `firebase use` / Console before any Admin SDK write.
 ## Break-glass (Firebase Admin SDK)
 
 Prerequisites: service account for the **correct** project; Node with `firebase-admin`.
+
+### Create or replace a Doctor account
+
+The app never mints Doctor roles. Use Admin SDK (or Firebase Console Auth + RTDB) for the **first** doctor and for **replacement**. Keep **one active doctor** system-wide.
+
+```js
+// staging first — set PROJECT explicitly; never invent a second active doctor
+const admin = require("firebase-admin");
+admin.initializeApp({
+  credential: admin.credential.cert(require("./serviceAccountKey.json")),
+  databaseURL: "https://<PROJECT_ID>-default-rtdb.firebaseio.com",
+});
+
+// Optional: deactivate the outgoing doctor before creating a replacement
+// await admin.database().ref("users/<OLD_DOCTOR_UID>").update({
+//   status: "inactive",
+//   deactivationSource: "admin",
+//   updatedAt: Date.now(),
+// });
+
+const userRecord = await admin.auth().createUser({
+  email: "<doctor@email>",
+  password: "<temporary-strong-password>",
+  displayName: "<Doctor Name>",
+  emailVerified: true,
+});
+
+const now = Date.now();
+await admin.database().ref(`users/${userRecord.uid}`).set({
+  uid: userRecord.uid,
+  name: "<Doctor Name>",
+  email: "<doctor@email>",
+  phone: "",
+  role: "doctor",
+  status: "active",
+  hasCompletedTour: false,
+  createdAt: now,
+  updatedAt: now,
+});
+```
+
+After login, the doctor should change the temporary password.
 
 ### Reactivate an inactive doctor profile (RTDB)
 
@@ -61,10 +103,10 @@ await admin.database().ref(`users/<ADMIN_UID>`).update({
 });
 ```
 
-Then sign in and restore doctor access. Do **not** create a second active doctor.
+Then sign in and restore doctor access. Do **not** leave two active doctor accounts.
 
 ## Rules
 
 - Always try **staging** first and verify login.
-- Do not delete Auth users as part of recovery.
+- Do not delete Auth users as part of routine recovery (prefer deactivate + create replacement only when necessary).
 - Record uid/email and timestamp in your deployment notes.

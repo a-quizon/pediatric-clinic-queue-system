@@ -144,12 +144,22 @@ export default function UserManagement() {
       toast.error("Admin accounts cannot be deleted.");
       return;
     }
+    if (user.role === "doctor") {
+      toast.error("Doctor accounts cannot be deleted in the app.");
+      return;
+    }
     if (currentUser?.uid && user.id === currentUser.uid) {
       toast.error("You cannot delete your own account.");
       return;
     }
     setUserToDelete(user);
   };
+
+  const canDeleteUser = (user) =>
+    user?.id &&
+    user.role !== "admin" &&
+    user.role !== "doctor" &&
+    !(currentUser?.uid && user.id === currentUser.uid);
 
   const confirmDeleteUser = async () => {
     if (!userToDelete?.id) return;
@@ -259,12 +269,12 @@ export default function UserManagement() {
                   style={{ borderTop: "1px solid var(--pq-glass-line)" }}
                 >
                   <div className="flex justify-between items-start gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openUserDetails(user)}
-                      aria-label={`View details for ${user.name || "user"}`}
-                      className="min-w-0 text-left flex-1"
-                    >
+                  <button
+                    type="button"
+                    onClick={() => openUserDetails(user)}
+                    aria-label={`View details for ${user.name || "user"}`}
+                    className="min-w-0 text-left flex-1"
+                  >
                       <h3 className="font-extrabold tracking-tight text-base">{user.name || "Unnamed"}</h3>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         <span className={`${roleChip(user.role)} capitalize`}>
@@ -294,15 +304,17 @@ export default function UserManagement() {
                     )}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={(e) => requestDeleteUser(e, user)}
-                    className="pq-btn-ghost mt-3 ml-auto text-sm"
-                    style={{ color: "var(--pq-alert)" }}
-                  >
-                    <Trash2 className="w-4 h-4" aria-hidden="true" />
-                    Delete
-                  </button>
+                  {canDeleteUser(user) && (
+                    <button
+                      type="button"
+                      onClick={(e) => requestDeleteUser(e, user)}
+                      className="pq-btn-ghost mt-3 ml-auto text-sm"
+                      style={{ color: "var(--pq-alert)" }}
+                    >
+                      <Trash2 className="w-4 h-4" aria-hidden="true" />
+                      Delete
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -361,15 +373,17 @@ export default function UserManagement() {
                         </span>
                       </td>
                       <td className="pr-6 text-right">
-                        <button
-                          type="button"
-                          onClick={(e) => requestDeleteUser(e, user)}
-                          className="pq-btn-ghost text-sm"
-                          style={{ color: "var(--pq-alert)" }}
-                        >
-                          <Trash2 className="w-4 h-4" aria-hidden="true" />
-                          Delete
-                        </button>
+                        {canDeleteUser(user) && (
+                          <button
+                            type="button"
+                            onClick={(e) => requestDeleteUser(e, user)}
+                            className="pq-btn-ghost text-sm"
+                            style={{ color: "var(--pq-alert)" }}
+                          >
+                            <Trash2 className="w-4 h-4" aria-hidden="true" />
+                            Delete
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

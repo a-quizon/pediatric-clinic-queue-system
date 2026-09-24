@@ -3,9 +3,11 @@ import { ref, push, set, get, update, remove, serverTimestamp, query, orderByChi
 import { subscribeOnValue } from "../firebase/rtdbSubscribe";
 import { getReservationsBySchedule } from "./reservationService";
 import { recalculateRollingValidation } from "./rollingValidationService";
+import { recalculateEntireQueue } from "./queueEngine";
 import { validateScheduleClosingTime } from "./branchConfigurationService";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { branchesMatch } from "../utils/stringUtils";
+import { isLiveQueueStatus } from "../utils/penaltyTimer";
 
 export { validateScheduleClosingTime };
 
@@ -156,9 +158,15 @@ export const updateQueueStatus = async (scheduleId, queueStatus) => {
   }
 
   await update(ref(database, `schedules/${scheduleId}`), updates);
-  
+
   if (queueStatus === "active") {
     await recalculateRollingValidation(scheduleId);
+  }
+
+  // Stamp becameCurrentTurnAt on the first penalize target once the queue is live.
+  // Without this, Penalize stays disabled forever for patients already waiting at start.
+  if (isLiveQueueStatus(queueStatus)) {
+    await recalculateEntireQueue(scheduleId);
   }
 
   // Audit Logs

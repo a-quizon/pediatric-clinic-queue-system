@@ -98,7 +98,7 @@ Entry points: `client/src/routes/AppRoutes.jsx`, `client/src/context/AuthContext
 2. **Permanent vs dynamic queue numbers** — `queueNumber` never changes; `queueOrder`/`sortTimestamp` change with penalties.
 3. **One active reservation per parent per clinic date.**
 4. **Secretary branch isolation** — secretaries only see `assignedBranch` (default fallback: `"Angeles"`).
-5. **One active doctor** — `adminService.createStaffAccount()` rejects a second active doctor.
+5. **One active doctor** — in-app staff creation is Secretary-only; Doctor accounts are provisioned via Admin SDK / break-glass only.
 6. **Parents only get persistent notifications** — staff get local toasts only.
 7. **No physical deletes** — reservations and audit records are permanent.
 8. **Parent cannot cancel after check-in.**
@@ -148,7 +148,7 @@ Server push listeners require `serviceAccountKey.json` or `FIREBASE_SERVICE_ACCO
 4. Update `docs/NotificationRules.md`
 
 ### Admin staff creation
-`adminService.createStaffAccount()` (used by Doctor Users UI) uses a secondary Firebase app so the doctor stays logged in. Last active doctor cannot be deactivated or deleted.
+`adminService.createStaffAccount()` (Doctor Users → Add Staff) creates **Secretary** accounts only via a secondary Firebase app so the doctor stays logged in. Doctor create/deactivate/delete is blocked in-app; use `docs/AdminBreakGlass.md`.
 
 ### Android (Capacitor)
 ```bash

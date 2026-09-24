@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Users, UserCheck, UserPlus, Clock, CheckCircle, Activity, PlayCircle, AlertTriangle, Monitor } from "lucide-react";
-import { subscribeToScheduleReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder, cancelReservation, forfeitReservationIfTimerExpired } from "../../services/reservationService";
+import { subscribeToScheduleReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder, cancelReservation, forfeitReservationIfTimerExpired, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { subscribeToQueueConfiguration } from "../../services/systemConfigurationService";
-import { computeReservationState, QUEUE_STATES, sortActiveQueue } from "../../services/queueEngine";
+import { computeReservationState, QUEUE_STATES, sortActiveQueue, recalculateEntireQueue } from "../../services/queueEngine";
 import { useAuth } from "../../hooks/useAuth";
 import { get, ref } from "firebase/database";
 import { database } from "../../firebase/database";
@@ -14,19 +14,22 @@ import ReservationPatientNames from "../../components/common/ReservationPatientN
 import QueueSessionControls from "../../components/common/QueueSessionControls";
 import StartTodayQueue from "../../components/common/StartTodayQueue";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
+import WalkInPatientModal from "../../components/secretary/WalkInPatientModal";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 import { PqSpinner } from "../../components/parent/pqUi";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { useTourSample } from "../../hooks/useTourPreview";
-import { TourSampleManageQueue } from "../../components/onboarding/SecretaryTourSampleViews";
+import { TourSampleManageQueue, TourSampleWalkInModal } from "../../components/onboarding/SecretaryTourSampleViews";
 import { getServerTime, formatRemainingTime } from "../../services/timeService";
 import {
   getPenaltyTimerRemainingMs,
   getPenaltyGraceRemainingMs,
   isPenaltyGraceElapsed,
+  isLiveQueueStatus,
+  isWalkInReservation as isWalkInReservationUtil,
 } from "../../utils/penaltyTimer";
 
-const isWalkInReservation = (res) => res?.source === "walk_in";
+const isWalkInReservation = (res) => isWalkInReservationUtil(res);
 
 function QueuePageIntro({ branchName }) {
   return (
@@ -74,7 +77,14 @@ function SessionDurationMeter({ startedAt, nowTs, className = "" }) {
 
 export default function ManageQueue({ hideHeader = false }) {
   const { user } = useAuth();
-  const showQueueSample = useTourSample(["queue-list", "queue-penalize", "queue-control"]);
+  const showQueueSample = useTourSample([
+    "queue-list",
+    "queue-penalize",
+    "queue-control",
+    "walkin-open",
+    "walkin-form",
+  ]);
+  const showWalkInFormSample = useTourSample(["walkin-form"]);
   const [reservations, setReservations] = useState([]);
   const [schedules, setSchedules] = useState({});
   const [schedulesLoaded, setSchedulesLoaded] = useState(false);
@@ -91,8 +101,10 @@ export default function ManageQueue({ hideHeader = false }) {
   const [contactReservation, setContactReservation] = useState(null);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isWalkInOpen, setIsWalkInOpen] = useState(false);
   const forfeitingRef = useRef(new Set());
   const penalizeLockRef = useRef(false);
+  const currentTurnStampRef = useRef(null);
 
   const closeContactModal = () => {
     if (isCancelling) return;
@@ -148,10 +160,13 @@ export default function ManageQueue({ hideHeader = false }) {
   useEffect(() => {
     if (!activeStartedSchedule) {
       setReservations([]);
+      setReservationsLoaded(false);
+      currentTurnStampRef.current = null;
       return;
     }
 
     setReservationsLoaded(false);
+    currentTurnStampRef.current = null;
     const unsubReservations = subscribeToScheduleReservations(activeStartedSchedule.id, (data) => {
       setReservations(data);
       setReservationsLoaded(true);
@@ -159,6 +174,41 @@ export default function ManageQueue({ hideHeader = false }) {
 
     return () => unsubReservations();
   }, [activeStartedSchedule?.id]);
+
+  // Heal queues that went live before becameCurrentTurnAt stamping existed / ran.
+  useEffect(() => {
+    if (!activeStartedSchedule?.id || !reservationsLoaded) return;
+    if (!isLiveQueueStatus(activeStartedSchedule.queueStatus)) return;
+
+    const waiting = sortActiveQueue(
+      reservations.filter((r) => ["checked_in", "reserved", "waiting"].includes(r.status))
+    );
+    const firstUncheckedIdx = waiting.findIndex(
+      (r) => r.status === "reserved" || r.status === "waiting"
+    );
+    const firstWaitingIsWalkIn = waiting[0]?.source === "walk_in";
+    const targetIdx = firstWaitingIsWalkIn ? 0 : firstUncheckedIdx;
+    const target = targetIdx >= 0 ? waiting[targetIdx] : null;
+
+    if (!target) {
+      currentTurnStampRef.current = null;
+      return;
+    }
+    if (target.becameCurrentTurnAt) {
+      currentTurnStampRef.current = target.id;
+      return;
+    }
+    if (currentTurnStampRef.current === target.id) return;
+
+    const targetId = target.id;
+    currentTurnStampRef.current = targetId;
+    recalculateEntireQueue(activeStartedSchedule.id).catch((err) => {
+      if (currentTurnStampRef.current === targetId) {
+        currentTurnStampRef.current = null;
+      }
+      console.error("Failed to stamp current-turn grace timer", err);
+    });
+  }, [activeStartedSchedule?.id, activeStartedSchedule?.queueStatus, reservations, reservationsLoaded]);
 
   useEffect(() => {
     reservations.forEach((r) => {
@@ -179,6 +229,7 @@ export default function ManageQueue({ hideHeader = false }) {
       <div className="space-y-6 pb-8">
         {!hideHeader && <QueuePageIntro branchName={user.assignedBranch} />}
         <TourSampleManageQueue />
+        {showWalkInFormSample ? <TourSampleWalkInModal /> : null}
       </div>
     );
   }
@@ -321,6 +372,22 @@ export default function ManageQueue({ hideHeader = false }) {
       ? Math.ceil((30000 - nextEligibleElapsed) / 1000)
       : 0;
 
+  const activeSlotCount = activeReservations.filter((r) =>
+    ACTIVE_RESERVATION_STATUSES.includes(r.status)
+  ).length;
+  const slotCapacity = Number(activeStartedSchedule.slotCapacity || 0);
+  const walkInQueueOpen = ["active", "paused"].includes(activeStartedSchedule.queueStatus);
+  const walkInDayClosed = Boolean(activeStartedSchedule.dayClosed);
+  const walkInFull = slotCapacity > 0 && activeSlotCount >= slotCapacity;
+  const canAddWalkIn = walkInQueueOpen && !walkInDayClosed && !walkInFull;
+  const walkInDisabledReason = walkInDayClosed
+    ? "This clinic day is closed."
+    : !walkInQueueOpen
+      ? "Walk-ins are only available while the queue is active or paused."
+      : walkInFull
+        ? "This day is full. A slot opens when someone cancels or finishes."
+        : "";
+
   const handleRequestCheckIn = async () => {
     if (!nextEligibleRes) {
       toast.error("All patients in queue are already checked in or processed.");
@@ -423,16 +490,27 @@ export default function ManageQueue({ hideHeader = false }) {
           <div className="flex flex-col gap-3 @2xl:flex-row @2xl:items-center">
             <button
               type="button"
+              data-tour="walkin-open"
+              onClick={() => setIsWalkInOpen(true)}
+              disabled={!canAddWalkIn}
+              className="pq-btn-primary pq-btn-pill w-full @2xl:flex-1"
+              title={walkInDisabledReason || "Add a walk-in patient to this queue"}
+            >
+              <UserPlus className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className="whitespace-nowrap">Add Walk-in</span>
+            </button>
+            <button
+              type="button"
               onClick={handleRequestCheckIn}
               disabled={requestingCheckIn || nextEligibleCooldownSec > 0}
-              className="pq-btn-primary pq-btn-pill w-full @2xl:flex-1"
+              className="pq-btn-secondary pq-btn-pill w-full @2xl:flex-1"
               title={
                 nextEligibleCooldownSec > 0
                   ? "Check-in request already sent. Please wait before sending another reminder."
                   : "Remind the next awaiting patient to proceed to the clinic for QR validation"
               }
             >
-              <UserPlus className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <UserCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
               <span className="whitespace-nowrap">
                 {nextEligibleCooldownSec > 0
                   ? `Request Check-In (${nextEligibleCooldownSec}s)`
@@ -448,6 +526,9 @@ export default function ManageQueue({ hideHeader = false }) {
               {inConsultationPatients.length + waitingQueue.length} Total Active
             </div>
           </div>
+          {walkInDisabledReason ? (
+            <p className="text-xs pq-muted">{walkInDisabledReason}</p>
+          ) : null}
         </div>
       </section>
 
@@ -581,7 +662,10 @@ export default function ManageQueue({ hideHeader = false }) {
                       {canSendToDoctor && (
                         <button
                           type="button"
-                          onClick={() => handleSendToDoctor(res)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSendToDoctor(res);
+                          }}
                           disabled={actionLoading === res.id}
                           className="pq-btn-primary flex-1"
                           title="Send patient to Doctor room"
@@ -594,21 +678,26 @@ export default function ManageQueue({ hideHeader = false }) {
                       {isPenalizeTarget && (
                         <button
                           type="button"
-                          onClick={() => handlePenalize(res)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePenalize(res);
+                          }}
                           disabled={actionLoading === res.id || !canPenalize}
                           className="pq-btn-warn flex-1"
                           title={
                             canPenalize
                               ? "Penalize absent patient (#1 waiting patient)"
-                              : "Wait for the grace period after this parent became next in line"
+                              : graceRemainingMs == null
+                                ? "Preparing grace timer…"
+                                : "Wait for the grace period after this parent became next in line"
                           }
                         >
                           <AlertTriangle className="w-4 h-4" aria-hidden="true" />
                           {canPenalize
                             ? "Penalize"
                             : graceRemainingMs == null
-                              ? "Penalize"
-                              : `Penalize (${Math.ceil(graceRemainingMs / 1000)}s)`}
+                              ? "Preparing…"
+                              : `Penalize (${formatRemainingTime(graceRemainingMs)})`}
                         </button>
                       )}
                     </div>
@@ -739,6 +828,14 @@ export default function ManageQueue({ hideHeader = false }) {
           if (!isCancelling) setIsCancelConfirmOpen(false);
         }}
       />
+
+      {isWalkInOpen ? (
+        <WalkInPatientModal
+          isOpen
+          onClose={() => setIsWalkInOpen(false)}
+          schedule={activeStartedSchedule}
+        />
+      ) : null}
     </div>
   );
 }

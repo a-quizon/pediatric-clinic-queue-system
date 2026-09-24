@@ -6,6 +6,7 @@ import {
   Pause,
   QrCode,
   Square,
+  UserPlus,
   Users,
 } from "lucide-react";
 import { SampleQrGraphic } from "./TourSampleViews";
@@ -69,6 +70,21 @@ export function TourSampleManageQueue() {
             <button type="button" tabIndex={-1} className="pq-session-orb pq-session-orb-stop" aria-label="End Clinic Session">
               <Square className="w-4 h-4" aria-hidden="true" />
             </button>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-col gap-3 @2xl:flex-row @2xl:items-center">
+          <button
+            type="button"
+            tabIndex={-1}
+            data-tour="walkin-open"
+            className="pq-btn-primary pq-btn-pill w-full @2xl:flex-1"
+          >
+            <UserPlus className="w-4 h-4 shrink-0" aria-hidden="true" />
+            <span className="whitespace-nowrap">Add Walk-in</span>
+          </button>
+          <div className="pq-session-count @2xl:flex-1" role="status">
+            <Users className="w-4 h-4" aria-hidden="true" />
+            {sample.waiting.length} Total Active
           </div>
         </div>
       </section>
@@ -138,45 +154,25 @@ export function TourSampleWalkInModal() {
 
   return (
     <div className="pq-tour-sample">
-    <div
-      className="pq-glass w-full max-w-lg mx-auto min-w-0 flex flex-col overflow-hidden pointer-events-none"
-      data-tour="walkin-form"
-    >
-      <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
-        <h2 id="walkin-title" className="text-base sm:text-lg font-extrabold tracking-tight min-w-0 truncate">Walk-in Patient</h2>
-        <SampleFlag />
-      </div>
-      <div className="px-4 sm:px-6 py-5 space-y-6">
-        <p className="text-[11px] font-semibold pq-muted">Tour preview — this form does not check anyone in.</p>
-        <section>
-          <label htmlFor="tour-walkin-schedule" className="pq-label">1. Select schedule</label>
-          <select id="tour-walkin-schedule" value="sample" readOnly className="pq-input" tabIndex={-1}>
-            <option value="sample">{sample.scheduleLabel}</option>
-          </select>
-          <p className="mt-2 flex items-center gap-2">
-            <span className="pq-chip pq-chip-live">Active Now</span>
-            <span className="text-xs pq-muted">This walk-in will join the live queue.</span>
-          </p>
-        </section>
-        <section>
-          <h3 className="text-sm font-extrabold tracking-tight mb-2">2. Parent contact (optional)</h3>
-          <div className="space-y-3">
-            <div>
-              <label className="pq-label">Parent&apos;s Name</label>
-              <input readOnly tabIndex={-1} value={sample.parentName} className="pq-input" />
+      <div
+        className="pq-modal w-full max-w-lg mx-auto min-w-0 flex flex-col overflow-hidden pointer-events-none"
+        data-tour="walkin-form"
+      >
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <h2 id="walkin-title" className="text-base sm:text-lg font-extrabold tracking-tight min-w-0 truncate">
+            Add Walk-in
+          </h2>
+          <SampleFlag />
+        </div>
+        <div className="px-4 sm:px-6 py-5 space-y-5">
+          <p className="text-[11px] font-semibold pq-muted">Tour preview — this form does not check anyone in.</p>
+          <div className="pq-row min-h-0 flex-col items-stretch gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-extrabold tracking-tight truncate">{sample.scheduleLabel}</p>
+              <p className="text-xs pq-muted">Active — joins the live line</p>
             </div>
-            <div>
-              <label className="pq-label">Parent&apos;s Phone Number</label>
-              <input readOnly tabIndex={-1} value={sample.parentPhone} className="pq-input" />
-            </div>
+            <span className="pq-chip pq-chip-info shrink-0">12/30 slots left</span>
           </div>
-        </section>
-        <section>
-          <label className="pq-label">3. How many children will be checked in?</label>
-          <input readOnly tabIndex={-1} value={sample.childCount} className="pq-input" />
-        </section>
-        <section className="space-y-3">
-          <h3 className="text-sm font-extrabold tracking-tight">4. Child details</h3>
           <div
             className="space-y-3"
             style={{
@@ -186,9 +182,8 @@ export function TourSampleWalkInModal() {
               border: "1px solid var(--pq-glass-line)",
             }}
           >
-            <p className="pq-stat-label">Child 1</p>
             <div>
-              <label className="pq-label">Child Name</label>
+              <label className="pq-label">Child name</label>
               <input readOnly tabIndex={-1} value={sample.childName} className="pq-input" />
             </div>
             <div className="grid gap-3" style={{ gridTemplateColumns: "5.75rem minmax(0, 1fr)" }}>
@@ -202,18 +197,20 @@ export function TourSampleWalkInModal() {
               </div>
             </div>
           </div>
-        </section>
-        <section>
-          <h3 className="text-sm font-extrabold tracking-tight mb-2">5. Concern</h3>
-          <label className="pq-label">Concern / Reason for Visit</label>
-          <textarea readOnly tabIndex={-1} value={sample.concern} rows={3} className="pq-input resize-none" />
-        </section>
+          <div>
+            <label className="pq-label">Concern / reason</label>
+            <textarea readOnly tabIndex={-1} value={sample.concern} rows={2} className="pq-input resize-none" />
+          </div>
+        </div>
+        <div className="px-4 sm:px-6 py-4 flex gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+          <button type="button" tabIndex={-1} className="pq-btn-secondary flex-1">
+            Cancel
+          </button>
+          <button type="button" tabIndex={-1} disabled className="pq-btn-primary flex-1">
+            Check In Walk-in
+          </button>
+        </div>
       </div>
-      <div className="px-4 sm:px-6 py-4 flex gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
-        <button type="button" tabIndex={-1} className="pq-btn-secondary flex-1">Cancel</button>
-        <button type="button" tabIndex={-1} disabled className="pq-btn-primary flex-1">Check In Walk-in</button>
-      </div>
-    </div>
     </div>
   );
 }

@@ -8,6 +8,8 @@ import { auth } from "../firebase/auth";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { sendPasswordResetLink } from "./passwordResetService";
 
+const PROFILE_UPDATE_ALLOWLIST = ["name", "phone", "assignedBranch", "assignedBranchId"];
+
 export const getActiveDoctor = async () => {
   const snapshot = await get(ref(database, "users"));
   if (!snapshot.exists()) return null;
@@ -16,13 +18,15 @@ export const getActiveDoctor = async () => {
 };
 
 export const createStaffAccount = async (staffData) => {
-  // staffData: { role, name, email, phone, password, assignedBranch (optional for doctor) }
-  
-  if (staffData.role === "doctor") {
-    const activeDoctor = await getActiveDoctor();
-    if (activeDoctor) {
-      throw new Error("Only one active Doctor account is allowed. Please deactivate the current Doctor before creating a new one.");
-    }
+  // In-app staff creation is Secretary-only. Doctor accounts are created via Admin SDK / break-glass.
+  if (staffData?.role !== "secretary") {
+    throw new Error(
+      "Only Secretary accounts can be created in the app. Doctor accounts require break-glass recovery."
+    );
+  }
+
+  if (!staffData.assignedBranch) {
+    throw new Error("Assigned Branch is required for Secretary.");
   }
 
   // Secondary app so the current doctor (clinic admin) stays logged in
@@ -62,20 +66,16 @@ export const createStaffAccount = async (staffData) => {
       name: staffData.name,
       email: staffData.email,
       phone: staffData.phone || "",
-      role: staffData.role,
+      role: "secretary",
       status: "active",
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      hasCompletedTour: false,
+      assignedBranch: staffData.assignedBranch,
     };
 
-    if (staffData.role === "secretary" || staffData.role === "doctor") {
-      dbPayload.hasCompletedTour = false;
-    }
-    if (staffData.role === "secretary") {
-      dbPayload.assignedBranch = staffData.assignedBranch;
-      if (staffData.assignedBranchId) {
-        dbPayload.assignedBranchId = staffData.assignedBranchId;
-      }
+    if (staffData.assignedBranchId) {
+      dbPayload.assignedBranchId = staffData.assignedBranchId;
     }
 
     await set(ref(database, `users/${user.uid}`), dbPayload);
@@ -90,7 +90,7 @@ export const createStaffAccount = async (staffData) => {
     logAuditEvent({
       action: AUDIT_ACTIONS.USER_CREATED,
       category: AUDIT_CATEGORIES.USER_MANAGEMENT,
-      description: `Created a new ${staffData.role} account for ${staffData.name}`,
+      description: `Created a new secretary account for ${staffData.name}`,
       targetType: "user",
       targetId: user.uid
     });
@@ -107,9 +107,20 @@ export const createStaffAccount = async (staffData) => {
 };
 
 export const updateUser = async (uid, updates) => {
+  const sanitized = {};
+  for (const key of PROFILE_UPDATE_ALLOWLIST) {
+    if (Object.prototype.hasOwnProperty.call(updates, key)) {
+      sanitized[key] = updates[key];
+    }
+  }
+
+  if (Object.keys(sanitized).length === 0) {
+    throw new Error("No allowed profile fields to update.");
+  }
+
   const userRef = ref(database, `users/${uid}`);
   const payload = {
-    ...updates,
+    ...sanitized,
     updatedAt: Date.now()
   };
   
@@ -126,24 +137,20 @@ export const updateUser = async (uid, updates) => {
 };
 
 export const toggleUserStatus = async (uid, currentStatus) => {
-  const newStatus = currentStatus === "active" ? "inactive" : "active";
-
-  if (newStatus === "inactive") {
-    const targetSnap = await get(ref(database, `users/${uid}`));
-    const target = targetSnap.exists() ? targetSnap.val() : null;
-    if (target?.role === "doctor" && target.status === "active") {
-      const usersSnap = await get(ref(database, "users"));
-      const users = usersSnap.exists() ? usersSnap.val() : {};
-      const otherActiveDoctor = Object.entries(users).some(
-        ([id, user]) => id !== uid && user?.role === "doctor" && user?.status === "active"
-      );
-      if (!otherActiveDoctor) {
-        throw new Error(
-          "Cannot deactivate the only active Doctor account. Create another Doctor first, or use break-glass recovery if locked out."
-        );
-      }
-    }
+  if (!auth.currentUser) throw new Error("Authentication required.");
+  if (auth.currentUser.uid === uid) {
+    throw new Error("You cannot deactivate or reactivate your own account.");
   }
+
+  const targetSnap = await get(ref(database, `users/${uid}`));
+  const target = targetSnap.exists() ? targetSnap.val() : null;
+  if (target?.role === "doctor") {
+    throw new Error(
+      "Doctor accounts cannot be deactivated or reactivated in the app. Use break-glass recovery if needed."
+    );
+  }
+
+  const newStatus = currentStatus === "active" ? "inactive" : "active";
 
   const userRef = ref(database, `users/${uid}`);
   const { update } = await import("firebase/database");
@@ -185,18 +192,10 @@ export const deleteUserAccount = async (uid) => {
   if (target?.role === "admin") {
     throw new Error("Admin accounts cannot be deleted.");
   }
-  if (target?.role === "doctor" && target.status === "active") {
-    const activeDoctor = await getActiveDoctor();
-    if (activeDoctor && (activeDoctor.uid === uid || !activeDoctor.uid)) {
-      const usersSnap = await get(ref(database, "users"));
-      const users = usersSnap.exists() ? usersSnap.val() : {};
-      const otherActiveDoctor = Object.entries(users).some(
-        ([id, user]) => id !== uid && user?.role === "doctor" && user?.status === "active"
-      );
-      if (!otherActiveDoctor) {
-        throw new Error("Cannot delete the only active Doctor account. Deactivate or create another Doctor first.");
-      }
-    }
+  if (target?.role === "doctor") {
+    throw new Error(
+      "Doctor accounts cannot be deleted in the app. Use break-glass recovery if a doctor must be replaced."
+    );
   }
 
   let completed = false;
