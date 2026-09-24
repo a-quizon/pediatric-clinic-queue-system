@@ -9,9 +9,9 @@ Read when modifying Firebase data, server routes, or environment setup.
 {
   uid, name, email, phone,
   isPhoneVerified: true,      // parents; set after SMS OTP during registration
-  role: "parent" | "secretary" | "doctor" | "admin",
+  role: "parent" | "secretary" | "doctor" | "admin", // admin = legacy/transition only; do not assign in UI
   status: "active" | "inactive",
-  deactivationSource: "self" | "admin" | null,
+  deactivationSource: "self" | "admin" | null, // "admin" = administrative (doctor-performed)
   isDeleted: false,               // parent soft-delete tombstone; Auth is revoked
   deletedAt,                      // epoch ms when soft-deleted
   onboardingComplete: true,       // parents; false until first child profile during onboarding
@@ -61,11 +61,26 @@ Default branches: **Angeles**, **Magalang**.
   slotCapacity,                    // lateLimit on old schedules is ignored
 
   status: "draft" | "published" | "completed",
+  dayClosed, closureId, closureReason, closureNote,
+  booking: { activeSlotCount, nextQueueNumber },
   queueStatus: "not_started" | "active" | "paused" | "closed" | "completed",
   queueStartedAt, publishedAt, completedAt,
   isReady, doctorId
 }
 ```
+
+### `clinicClosures/{closureId}`
+```js
+{
+  branch, branchId,
+  startDate, endDate,              // inclusive YYYY-MM-DD, Asia/Manila
+  reason: "emergency" | "vacation" | "holiday" | "other",
+  note, createdBy, createdAt
+}
+```
+
+### `bookingLocks/{parentId}/{clinicDate}`
+Server-only lock so one parent cannot hold two active reservations on the same clinic date. Client writes are denied.
 
 ### `reservations/{reservationId}`
 ```js
@@ -79,7 +94,7 @@ Default branches: **Angeles**, **Magalang**.
   penaltySmsSent: { [count]: true }, // late/moved SMS claimed per penaltyCount
   status: "reserved" | "waiting" | "checked_in" | "with_doctor" |
           "in_consultation" | "consultation_completed" | "cancelled" |
-          "forfeited" | "expired" | ...,
+          "cancelled_by_clinic" | "forfeited" | "expired" | ...,
   childName, age, sex, concern,    // legacy mirrors (first selected child + shared concern)
   children: [                      // 1+ patients on this reservation (1 slot)
     { childId, childName, age, sex }
@@ -109,6 +124,7 @@ Default branches: **Angeles**, **Magalang**.
 ```js
 {
   penaltyMoveBack: 2,              // 0–10; 0 = immediate forfeit on penalty
+  defaultSlotCapacity: 30,         // fallback when a day is posted from the calendar
   penaltyGraceMinutes: 2,          // 0–5; wait after becoming current-turn before Penalize
   penaltyTimerMinutes: 15,         // 5–30; check-in deadline after first penalty
   sms: {

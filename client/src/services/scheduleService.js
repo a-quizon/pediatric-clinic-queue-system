@@ -79,10 +79,23 @@ export const updateSchedule = async ( scheduleId, updatedData ) => {
 };
 
 export const deleteSchedule = async (scheduleId) => {
-  await remove(ref(database,`schedules/${scheduleId}`));
+  const snapshot = await get(ref(database, `schedules/${scheduleId}`));
+  if (snapshot.exists()) {
+    const schedule = snapshot.val();
+    if (schedule.dayClosed) {
+      throw new Error("A closed clinic day is kept on record.");
+    }
+    if (schedule.status === "published" || schedule.status === "completed") {
+      const reservations = await getReservationsBySchedule(scheduleId);
+      if (reservations.length > 0) {
+        throw new Error("This schedule has reservations and cannot be deleted.");
+      }
+    }
+  }
+  await remove(ref(database, `schedules/${scheduleId}`));
 };
 
-export const publishSchedule = async ( scheduleId ) => {
+export const publishSchedule = async (scheduleId, options = {}) => {
   let currentSchedule = null;
   const snapshot = await get(ref(database, `schedules/${scheduleId}`));
   if (snapshot.exists()) {
@@ -100,7 +113,7 @@ export const publishSchedule = async ( scheduleId ) => {
     publishedAt: Date.now(),
   });
 
-  if (currentSchedule) {
+  if (currentSchedule && options.audit !== false) {
     logAuditEvent({
       action: AUDIT_ACTIONS.SCHEDULE_PUBLISHED,
       category: AUDIT_CATEGORIES.SCHEDULE_MANAGEMENT,
@@ -183,7 +196,7 @@ export const completeSchedule = async ( scheduleId ) => {
 
   const reservations = await getReservationsBySchedule(scheduleId);
   const updates = {};
-  const finalStatuses = ["cancelled", "completed", "consultation_completed", "forfeited", "penalized", "late_limit_reached", "expired", "validation_expired"];
+  const finalStatuses = ["cancelled", "cancelled_by_clinic", "completed", "consultation_completed", "forfeited", "penalized", "late_limit_reached", "expired", "validation_expired"];
   reservations.forEach(res => {
     if (!finalStatuses.includes(res.status)) {
       updates[`reservations/${res.id}/status`] = "completed";

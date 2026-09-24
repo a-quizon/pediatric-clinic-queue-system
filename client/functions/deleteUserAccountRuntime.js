@@ -101,12 +101,17 @@ async function deleteUserAccount({ admin, callerUid, targetUid }) {
   const db = admin.database();
   const callerSnap = await db.ref(`users/${callerUid}`).once("value");
   const caller = callerSnap.exists() ? callerSnap.val() : null;
-  if (!caller || caller.role !== "admin" || caller.status !== "active") {
-    throw makeError("Only an active admin can delete accounts.", 403, "permission-denied");
+  const callerCanDelete =
+    caller &&
+    caller.status === "active" &&
+    (caller.role === "doctor" || caller.role === "admin");
+  if (!callerCanDelete) {
+    throw makeError("Only an active doctor can delete accounts.", 403, "permission-denied");
   }
 
   const targetSnap = await db.ref(`users/${targetUid}`).once("value");
   const target = targetSnap.exists() ? targetSnap.val() : null;
+  // Transition: leftover admin accounts stay undeletable until cleanup.
   if (target?.role === "admin") {
     throw makeError("Admin accounts cannot be deleted.", 400, "failed-precondition");
   }

@@ -121,7 +121,7 @@ export default function ParentNotifications() {
           </div>
           <h3 className="text-lg font-bold">No Notifications Yet</h3>
           <p className="text-sm pq-muted max-w-sm mx-auto mt-1">
-            You're all caught up! Real-time alerts about your queue turn, schedule publications, and clinic updates will appear here.
+            You're all caught up! Real-time alerts about your queue turn and clinic updates will appear here.
           </p>
         </div>
       ) : (

@@ -11,6 +11,7 @@ const SMS_NOTIFICATION_EVENTS = new Set([
   "NEARING_TURN",
   "PENALIZED",
   "FORFEITED",
+  "RESERVATION_CANCELLED_BY_CLINIC",
 ]);
 
 const MIN_NEARING_TURN_AHEAD = 1;
@@ -27,6 +28,7 @@ const ALLOWED_PLACEHOLDERS = new Set([
   "date",
   "timeRange",
   "doctor",
+  "reason",
 ]);
 
 /** Previous merged Queue Started template — migrate RTDB copies back to the simple default. */
@@ -36,6 +38,9 @@ const LEGACY_MERGED_QUEUE_STARTED_TEMPLATE =
   "Here's your Reservation details:\n" +
   "Date: {date}\n" +
   "Queue Number: {queueNumber}";
+
+const LEGACY_CLINIC_CANCELLED_TEMPLATE =
+  "The clinic at {branch} is closed on {date} ({reason}). Your reservation was cancelled. Please book another posted day.";
 
 const DEFAULT_SMS_TEMPLATES = {
   templateSlotReserved:
@@ -57,6 +62,8 @@ const DEFAULT_SMS_TEMPLATES = {
     "You were marked late and moved back in line (Queue #{queueNumber}, position {queuePosition}). Please validate your QR at {branch} within {minutes} minutes or this reservation will be forfeited.",
   templateForfeited:
     "Your reservation (Queue #{queueNumber}) at {branch} on {date} was forfeited because you did not check in on time. You may still book a new slot on the same schedule if slots are available.",
+  templateClinicCancelled:
+    "The clinic at {branch} is closed on {date} ({reason}). Your reservation was cancelled. It does not count as a no-show. Book another open day when you are ready.",
 };
 
 function db() {
@@ -145,6 +152,12 @@ function parseSmsConfig(data) {
     templateForfeited: sanitizeTemplate(
       data?.templateForfeited,
       DEFAULT_SMS_TEMPLATES.templateForfeited
+    ),
+    templateClinicCancelled: sanitizeTemplate(
+      String(data?.templateClinicCancelled || "").trim() === LEGACY_CLINIC_CANCELLED_TEMPLATE
+        ? DEFAULT_SMS_TEMPLATES.templateClinicCancelled
+        : data?.templateClinicCancelled,
+      DEFAULT_SMS_TEMPLATES.templateClinicCancelled
     ),
   };
 }
@@ -276,6 +289,7 @@ async function buildTemplateVars(eventId, context = {}, config) {
     date: dateLabel,
     timeRange,
     doctor: doctorName,
+    reason: context.reason || "Closed",
   };
 }
 
@@ -297,6 +311,8 @@ async function buildSmsMessage(eventId, context = {}) {
     template = config.templatePenalized;
   } else if (eventId === "FORFEITED") {
     template = config.templateForfeited;
+  } else if (eventId === "RESERVATION_CANCELLED_BY_CLINIC") {
+    template = config.templateClinicCancelled;
   } else {
     return context.customMessage || null;
   }

@@ -21,7 +21,7 @@ export default function NotificationObserver() {
   const { user, role } = useAuth();
 
   useEffect(() => {
-    if (role === 'admin') {
+    if (role === 'doctor' || role === 'admin') {
       cleanupNonParentNotifications();
     }
   }, [role]);
@@ -94,25 +94,7 @@ export default function NotificationObserver() {
       Object.entries(currentSchedules).forEach(([schedId, sched]) => {
         const prevSched = prevSchedulesRef.current[schedId];
 
-        if (!prevSched) {
-          // New schedule published today or future
-          if (sched.status === 'published') {
-            notificationService.notify(NOTIFICATION_EVENTS.SCHEDULE_AVAILABLE, {
-              entityId: schedId,
-              parentId: user?.uid,
-              dedupeKey: `sched_avail_${schedId}`,
-            });
-          }
-        } else {
-          // Check if draft schedule transitioned to published
-          if (prevSched.status !== 'published' && sched.status === 'published') {
-            notificationService.notify(NOTIFICATION_EVENTS.SCHEDULE_AVAILABLE, {
-              entityId: schedId,
-              parentId: user?.uid,
-              dedupeKey: `sched_avail_${schedId}`,
-            });
-          }
-
+        if (prevSched) {
           // Check transitions in queueStatus / status
           const prevStatus = prevSched.queueStatus;
           const currStatus = sched.queueStatus;

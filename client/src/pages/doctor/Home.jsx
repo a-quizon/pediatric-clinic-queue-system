@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import QueueControlCenter from "../../components/doctor/QueueControlCenter";
 import { sortSchedules } from "../../utils/scheduleUtils";
+import { manilaDateString } from "../../utils/manilaDate";
 import { PqSpinner } from "../../components/parent/pqUi";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
@@ -42,15 +43,14 @@ export default function Home() {
   }, [schedules]);
 
   const dashboardSchedules = useMemo(() => {
-    const todayStr = new Date().toLocaleDateString('en-CA');
-    const todayFallback = new Date().toDateString();
+    const todayStr = manilaDateString();
 
     const validForDashboard = scheduleList.filter(s => {
       if (hiddenSchedules.includes(s.id)) return false;
       if (s.status === 'draft') return false;
       
       const isCompleted = s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended';
-      const isToday = s.clinicDate === todayStr || new Date(s.clinicDate).toDateString() === todayFallback;
+      const isToday = s.clinicDate === todayStr;
       
       // Keep if not completed (Current schedules), OR if completed today
       return !isCompleted || isToday;
@@ -151,7 +151,7 @@ export default function Home() {
     if (published) return published;
 
     // 4. The most recently completed schedule for today
-    const todayStr = new Date().toLocaleDateString('en-CA');
+    const todayStr = manilaDateString();
     const completedToday = scheduleList.filter(s => s.status === 'completed' && s.clinicDate === todayStr);
     
     if (completedToday.length > 0) {
@@ -444,7 +444,7 @@ export default function Home() {
           <div className="flex-[2] pq-glass p-6 md:p-8 flex flex-col justify-center items-center text-center">
             <Activity className="w-16 h-16 mb-4 pq-faint" aria-hidden="true" />
             <h2 className="text-xl font-extrabold tracking-tight mb-2">No Clinic Schedule Today</h2>
-            <p className="pq-muted max-w-sm">You don't have a published schedule for today. Publish a schedule to begin monitoring today's clinic.</p>
+            <p className="pq-muted max-w-sm">You don't have a published schedule for today. Publish a schedule from the calendar to begin monitoring today's clinic.</p>
           </div>
         )}
 

@@ -39,9 +39,7 @@ import DoctorSchedules from "../pages/doctor/Schedules";
 import DoctorReports from "../pages/doctor/Reports";
 import DoctorProfile from "../pages/doctor/Profile";
 
-// Admin Layout and Pages
-import AdminLayout from "../components/admin/AdminLayout";
-import AdminDashboard from "../pages/admin/Dashboard";
+// Admin pages reused under Doctor clinic-admin routes
 import AdminUserManagement from "../pages/admin/UserManagement";
 import AdminBranchManagement from "../pages/admin/BranchManagement";
 import AdminAuditLogs from "../pages/admin/AuditLogs";
@@ -60,7 +58,7 @@ import { TourPreviewProvider } from "../context/TourPreviewContext";
 
 function RedirectAdminActivity() {
   const { search } = useLocation();
-  return <Navigate to={`/admin/audit-logs${search}`} replace />;
+  return <Navigate to={`/doctor/audit-logs${search}`} replace />;
 }
 
 export default function AppRoutes() {
@@ -108,25 +106,26 @@ export default function AppRoutes() {
         </Route>
         
         {/* Doctor Routes */}
-        <Route path="/doctor" element={<ProtectedRoute> <RoleRoute allowedRole="doctor"><DoctorLayout /></RoleRoute> </ProtectedRoute>}>
+        <Route path="/doctor" element={<ProtectedRoute> <RoleRoute allowedRoles={["doctor", "admin"]}><DoctorLayout /></RoleRoute> </ProtectedRoute>}>
           <Route index element={<DoctorHome />} />
           <Route path="queue" element={<DoctorQueue />} />
           <Route path="schedules" element={<DoctorSchedules />} />
           <Route path="reports" element={<DoctorReports />} />
-
-          <Route path="profile" element={<DoctorProfile />} />
-        </Route>
-
-        {/* Admin Routes */}
-        <Route path="/admin" element={<ProtectedRoute> <RoleRoute allowedRole="admin"><AdminLayout /></RoleRoute> </ProtectedRoute>}>
-          <Route index element={<AdminDashboard />} />
           <Route path="users" element={<AdminUserManagement />} />
           <Route path="branches" element={<AdminBranchManagement />} />
           <Route path="audit-logs" element={<AdminAuditLogs />} />
-          <Route path="activity" element={<RedirectAdminActivity />} />
-          <Route path="settings" element={<Navigate to="/admin" replace />} />
-          <Route path="profile" element={<Navigate to="/admin" replace />} />
+          <Route path="profile" element={<DoctorProfile />} />
         </Route>
+
+        {/* Admin → Doctor redirects (transition; leftover admin role still dual-allowed in rules/API) */}
+        <Route path="/admin" element={<Navigate to="/doctor" replace />} />
+        <Route path="/admin/users" element={<Navigate to="/doctor/users" replace />} />
+        <Route path="/admin/branches" element={<Navigate to="/doctor/branches" replace />} />
+        <Route path="/admin/audit-logs" element={<Navigate to="/doctor/audit-logs" replace />} />
+        <Route path="/admin/activity" element={<RedirectAdminActivity />} />
+        <Route path="/admin/settings" element={<Navigate to="/doctor" replace />} />
+        <Route path="/admin/profile" element={<Navigate to="/doctor/profile" replace />} />
+        <Route path="/admin/*" element={<Navigate to="/doctor" replace />} />
 
         {/* Fallback Catch-All Route */}
           <Route path="*" element={<Navigate to="/" replace />} />

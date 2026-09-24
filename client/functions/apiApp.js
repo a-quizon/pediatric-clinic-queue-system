@@ -17,6 +17,8 @@ const {
 } = require("./otpService");
 const { resolveAccountByIdentifier } = require("./phoneLookup");
 const { claimPasswordResetSlot } = require("./passwordResetLimitService");
+const { claimReservationSlot } = require("./claimReservationRuntime");
+const { notifyParentsScheduleAvailable } = require("./pushRuntime");
 
 function mapOtpError(err) {
   const code = err.code || "internal";
@@ -194,6 +196,74 @@ function createApiApp() {
       return res.json(result);
     } catch (err) {
       return sendError(res, err);
+    }
+  });
+
+  app.post("/api/reservations/claim", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await claimReservationSlot({
+        admin,
+        callerUid: decoded.uid,
+        payload: req.body,
+      });
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] reservations/claim:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not reserve a slot.",
+      });
+    }
+  });
+
+  app.post("/api/schedules/notify-available", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const roleSnap = await admin.database().ref(`users/${decoded.uid}/role`).once("value");
+      const role = roleSnap.exists() ? roleSnap.val() : null;
+      if (!["doctor", "secretary", "admin"].includes(role)) {
+        return res.status(403).json({
+          success: false,
+          error: "permission-denied",
+          message: "Only clinic staff can notify parents.",
+        });
+      }
+      const batchId = String(req.body?.batchId || "").trim();
+      if (!batchId) {
+        return res.status(400).json({
+          success: false,
+          error: "invalid-argument",
+          message: "batchId is required.",
+        });
+      }
+      const result = await notifyParentsScheduleAvailable({
+        batchId,
+        branchId: req.body?.branchId || null,
+        branchName: req.body?.branchName || "",
+        postedCount: Number(req.body?.postedCount || 0),
+        startDate: req.body?.startDate || null,
+        endDate: req.body?.endDate || null,
+      });
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      console.error("[functions/api] schedules/notify-available:", err.message);
+      return res.status(500).json({
+        success: false,
+        error: "internal",
+        message: err.message || "Could not notify parents.",
+      });
     }
   });
 

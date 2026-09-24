@@ -28,9 +28,8 @@ export default function Login() {
   useEffect(() => {
     if (!authLoading && user) {
       if (role) {
-        if (role === 'doctor') navigate('/doctor', { replace: true });
+        if (role === 'doctor' || role === 'admin') navigate('/doctor', { replace: true });
         else if (role === 'secretary') navigate('/secretary', { replace: true });
-        else if (role === 'admin') navigate('/admin', { replace: true });
         else {
           navigate(getParentPostAuthPath(user, auth.currentUser), { replace: true });
         }
@@ -40,7 +39,7 @@ export default function Login() {
           navigate('/verify-email', { replace: true });
         } else if (firebaseUser && firebaseUser.emailVerified) {
           signOut(auth).then(() => {
-            toast.error('Account profile not found. Please contact the administrator.');
+            toast.error('Account profile not found. Please contact the clinic.');
           });
         }
       }
@@ -97,7 +96,7 @@ export default function Login() {
         return;
       }
       await signOut(auth);
-      toast.error('Account profile not found. Please contact the administrator.');
+      toast.error('Account profile not found. Please contact the clinic.');
     }
   };
 

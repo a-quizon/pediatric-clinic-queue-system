@@ -1,5 +1,6 @@
-const { getDb } = require("./firebaseAdmin");
+const { admin, getDb } = require("./firebaseAdmin");
 const { handleReservationChange, handleScheduleChange } = require("./notificationEngine");
+const { releaseSlotIfTerminal } = require("../../client/functions/slotRelease");
 
 function cloneRecord(key, value) {
   if (!value || typeof value !== "object") return null;
@@ -41,6 +42,7 @@ async function startRealtimePushListeners() {
     const after = cloneRecord(snap.key, snap.val());
     prevReservations[snap.key] = after;
     try {
+      await releaseSlotIfTerminal(admin, before, after);
       await handleReservationChange(before, after);
     } catch (err) {
       console.error("[pushListeners] reservation change failed:", err);

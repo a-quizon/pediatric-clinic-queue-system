@@ -1,6 +1,7 @@
 import React from 'react';
 import { Calendar, Clock, MapPin, CalendarCheck, PlayCircle } from 'lucide-react';
 import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
+import ModalScrim from '../common/ModalScrim';
 
 export default function ScheduleConfirmModal({
   isOpen,
@@ -43,7 +44,7 @@ export default function ScheduleConfirmModal({
   };
 
   return (
-    <div className="pq-modal-scrim z-50">
+    <ModalScrim className="z-50">
       <div className="pq-modal w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="schedule-confirm-title">
         <div className="p-6">
           <div className="flex flex-col items-center text-center mb-5">
@@ -98,6 +99,6 @@ export default function ScheduleConfirmModal({
           </div>
         </div>
       </div>
-    </div>
+    </ModalScrim>
   );
 }

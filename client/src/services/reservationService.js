@@ -1,4 +1,6 @@
 import { database } from "../firebase/database";
+import { auth } from "../firebase/auth";
+import { getPushApiBase } from "./pushService";
 import { ref, push, set, get, update, query, orderByChild, equalTo, serverTimestamp, runTransaction } from "firebase/database";
 import { subscribeOnValue } from "../firebase/rtdbSubscribe";
 import { recalculateRollingValidation } from "./rollingValidationService";
@@ -22,6 +24,45 @@ const generateReservationCode = () => {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
+};
+
+const callClaimReservation = async (payload) => {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error("You must be signed in.");
+  }
+  const token = await user.getIdToken();
+  let response;
+  try {
+    response = await fetch(`${getPushApiBase()}/api/reservations/claim`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    const wrapped = new Error("Unable to reach the clinic server. Please try again.");
+    wrapped.cause = error;
+    throw wrapped;
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const wrapped = new Error(body.message || "Could not reserve a slot.");
+    wrapped.cause = body;
+    throw wrapped;
+  }
+  return body;
+};
+
+export const claimParentReservation = async (scheduleId) => {
+  const data = await callClaimReservation({ mode: "parent", scheduleId });
+  if (scheduleId) {
+    await recalculateRollingValidation(scheduleId);
+    await recalculateEntireQueue(scheduleId);
+  }
+  return data.reservationId;
 };
 
 export const createReservation = async (reservationData) => {
@@ -121,23 +162,19 @@ export const createWalkInReservation = async ({
   }
 
   const patientPayload = buildPatientInfoPayload(normalizedChildren, concern);
-  const checkedInAt = Date.now();
   const trimmedParentName = String(parentName || "").trim();
   const trimmedParentPhone = String(parentPhone || "").trim();
-
-  return createReservation({
+  const data = await callClaimReservation({
+    mode: "walk_in",
     scheduleId,
-    status: "checked_in",
-    source: "walk_in",
-    createdBy: secretaryUid,
-    ...patientPayload,
-    ...(trimmedParentName ? { parentName: trimmedParentName } : {}),
-    ...(trimmedParentPhone ? { parentPhone: trimmedParentPhone } : {}),
-    patientInfoCompleted: true,
-    checkedIn: true,
-    checkedInAt,
-    checkedInBy: secretaryUid,
+    children: patientPayload.children,
+    concern: patientPayload.concern,
+    parentName: trimmedParentName,
+    parentPhone: trimmedParentPhone,
   });
+  await recalculateRollingValidation(scheduleId);
+  await recalculateEntireQueue(scheduleId);
+  return data.reservationId;
 };
 
 export const getReservationsBySchedule = async (scheduleId) => {
@@ -156,7 +193,7 @@ export const getReservationsBySchedule = async (scheduleId) => {
 
 export const checkExistingReservation = async (scheduleId, parentId) => {
   const reservations = await getReservationsBySchedule(scheduleId);
-  const inactiveStatuses = ["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"];
+  const inactiveStatuses = ["cancelled", "cancelled_by_clinic", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"];
   return reservations.some((res) => res.parentId === parentId && !inactiveStatuses.includes(res.status));
 };
 
@@ -173,7 +210,7 @@ export const checkExistingReservationOnDate = async (parentId, clinicDate) => {
   const parentReservations = Object.values(resSnapshot.val());
 
   // Filter for active reservations first to minimize schedule fetches
-  const inactiveStatuses = ["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"];
+  const inactiveStatuses = ["cancelled", "cancelled_by_clinic", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"];
   const activeReservations = parentReservations.filter(res => !inactiveStatuses.includes(res.status));
   
   if (activeReservations.length === 0) return false;
@@ -248,6 +285,34 @@ export const checkCompletedConsultationOnDate = async (parentId, clinicDate, doc
 
 // list of active reservation statuses na nag-ooccupy pa ng slot at nasa queue
 export const ACTIVE_RESERVATION_STATUSES = ["reserved", "checked_in", "waiting", "in_consultation", "with_doctor", "validation_open", "waiting_for_window"];
+
+/** Max active upcoming reservations a parent may hold across different clinic dates. */
+export const MAX_ACTIVE_UPCOMING_RESERVATIONS = 2;
+
+export const MULTI_DATE_CAP_MESSAGE =
+  "You already have 2 upcoming reservations. Cancel one or wait until a visit is finished before booking another.";
+
+/**
+ * Unique clinic dates where this parent still holds an active reservation.
+ * Pass schedulesById for legacy rows that lack clinicDate on the reservation.
+ */
+export const getActiveUpcomingDates = (reservations = [], schedulesById = {}) => {
+  const dates = new Set();
+  (reservations || []).forEach((reservation) => {
+    if (!ACTIVE_RESERVATION_STATUSES.includes(reservation.status)) return;
+    const fromReservation = reservation.clinicDate;
+    const fromSchedule = schedulesById[reservation.scheduleId]?.clinicDate;
+    const date = fromReservation || fromSchedule;
+    if (date) dates.add(date);
+  });
+  return dates;
+};
+
+export const wouldExceedMultiDateCap = (reservations, schedulesById, targetClinicDate) => {
+  const dates = getActiveUpcomingDates(reservations, schedulesById);
+  if (dates.has(targetClinicDate)) return false;
+  return dates.size >= MAX_ACTIVE_UPCOMING_RESERVATIONS;
+};
 
 export const calculateDynamicQueuePositions = (reservations) => {
   const groupedBySchedule = {};

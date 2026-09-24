@@ -12,9 +12,9 @@ The Pediatric Clinic Queue Management System is designed to digitize and orchest
 ## 2. System Actors
 
 * **Parent / Guardian**: The end-user who consumes clinic services. They browse available schedules, reserve slots, monitor their dynamic queue position remotely, and bring the patient to the clinic for QR validation.
-* **Secretary**: The frontline branch manager. They create and publish reservation schedules for their assigned branch, start the clinic queue, physically verify patient arrivals (Check In), enforce attendance policies (Penalize, including walk-ins already marked checked-in), control the flow of patients into the doctor's room (Send to Doctor), and can pause/resume/close/end the live session from Manage Queue.
-* **Doctor**: The primary medical provider. They can create and publish reservation schedules (any branch), start the clinic queue, control the live consultation room (pause/resume/close queue via Queue Control — Secretary can trigger the same four session actions), add optional consultation notes, and finalize medical visits (Complete Consultation).
-* **Admin**: The system operator. They manage the internal business structure by creating staff accounts (Secretaries) and defining the clinic's physical locations (Branches). 
+* **Secretary**: The frontline branch manager. They manage open clinic days for their assigned branch (hold/close/resume, capacity overrides), start the clinic queue, physically verify patient arrivals (Check In), enforce attendance policies (Penalize, including walk-ins already marked checked-in), control the flow of patients into the doctor's room (Send to Doctor), and can pause/resume/close/end the live session from Manage Queue.
+* **Doctor**: The primary medical provider. They can manage open clinic days for any branch (hold/close/resume, capacity overrides), start the clinic queue, control the live consultation room (pause/resume/close queue via Queue Control — Secretary can trigger the same four session actions), add optional consultation notes, and finalize medical visits (Complete Consultation).
+* **Doctor (clinic admin)**: The practicing doctor is also the clinic administrator. There is one active doctor system-wide. They manage staff accounts (Secretaries; and a replacement Doctor only after the current Doctor is deactivated), define Branches, and may view audit logs and clinic-wide reports. They also run the queue and schedules. 
 
 ---
 
@@ -46,7 +46,7 @@ The complete business workflow follows this sequence:
 ## 5. Reservation Workflow
 Reservations act as the gateway into the Queue Engine. 
 * **Creation Requirements**: To successfully create a reservation, the following rigid conditions must be met:
-  1. The target schedule must be `published`.
+  1. The target schedule must be `published` and accepting bookings.
   2. The schedule must have active slot capacity available.
   3. The parent must not already have an active, non-terminal reservation for that specific clinic date.
 *(Note: Branch clinic operating hours are enforced when the Secretary creates or edits the Schedule. The Reservation System simply trusts the already-validated Published Schedule.)*
@@ -84,18 +84,19 @@ Slot availability strictly dictates clinic capacity.
 
 ## 9. Branch Management
 Branches represent the physical infrastructure of the business.
-* **Configuration**: Admins define Branch Names, Clinic Addresses, and operational metadata.
+* **Configuration**: The Doctor (clinic admin) defines Branch Names, Clinic Addresses, and operational metadata.
 * **Secretary Assignment**: Secretaries are strictly bound to a single Branch Configuration, ensuring they only see data relevant to their physical location.
-* **Schedule Creation**: Secretaries create clinic schedules locked to their assigned Branch. Doctors may create schedules for any branch. Both roles use the same schedule fields and publish flow.
+* **Schedule Creation**: Secretaries publish clinic days for their assigned branch (publish range, copy previous week, or post a day). Doctors may publish or close days for any branch.
 
 ---
 
 ## 10. User Management
 User Management ensures role-based access control.
-* **Admin**: Operates purely in the back-office. They create Doctor and Secretary accounts, assign roles, and bind Secretaries to Branches. They may deactivate accounts (`deactivationSource: admin`), which blocks login until an Admin reactivates them. They may permanently delete staff and parent accounts, which revokes Firebase Authentication and removes the user profile. Historical reservations and audit records are never physically deleted. They do not interact with patients.
-* **Doctor & Secretary**: Staff accounts created by the Admin.
+* **Doctor (clinic admin)**: Creates Secretary accounts (and a Doctor account only when no active Doctor exists), assigns secretaries to Branches, deactivates accounts (`deactivationSource: admin` meaning administrative deactivation), and may permanently delete staff and parent accounts. The last active Doctor cannot be deactivated or deleted. Historical reservations and audit records are never physically deleted. The Doctor also runs clinical operations (schedules, queue, consultations).
+* **Secretary**: Staff accounts created by the Doctor.
 * **Parent**: Self-registering consumer accounts that authenticate via the public-facing app. New parents must verify their **phone number via SMS OTP** before account creation, then verify their email and create at least one child profile before entering the parent portal. Login uses a single **Email or Phone Number** field plus **Password** (phone is resolved to the account email server-side). Existing parents without that onboarding flag are grandfathered. Parents may self-deactivate (`status: inactive`, `deactivationSource: self`); logging in reactivates the account. Parents may soft-delete their account: Firebase Auth is revoked, the profile is marked `isDeleted`, and historical queue/appointment records are retained for analytics. Active reservations are cancelled on deactivate and forfeited on delete so they do not hold clinic slots.
-* **Password reset**: Forgot Password (all roles) and Admin Reset Password share a **5-request daily cap per email**, using server time in **Asia/Manila**. The 6th request that day is blocked with a “try again tomorrow” message. Completing a reset from the email link does not count. This is separate from the SMS OTP resend cooldown. 
+* **Password reset**: Forgot Password (all roles) and Doctor “Reset Password” (user management) share a **5-request daily cap per email**, using server time in **Asia/Manila**. The 6th request that day is blocked with a “try again tomorrow” message. Completing a reset from the email link does not count. This is separate from the SMS OTP resend cooldown.
+* **Legacy Admin role**: No longer assigned in the app. During a transition release the system may still accept an existing `role: "admin"` account for clinic-admin powers; deactivate that login after the Doctor is verified. 
 
 ---
 
@@ -105,7 +106,7 @@ Notifications provide real-time transparency, reducing physical clinic congestio
 * **Queue Updates**: When the queue starts, parents who are approaching but not already first (`0 < aheadOfYou <=` the branch Near Turn threshold; default 3 via `systemConfiguration/{branchId}/sms`) get `NEARING_TURN` SMS once (`nearTurnSmsSent`). Later line movement does not re-send it. Also pings when state shifts to "Almost Next" or "You're Next", or when the Secretary requests they approach the desk.
 * **Consultation Updates**: Confirms when they enter and exit the consultation room.
 * **Penalty Updates**: Alerts parents if they are penalized for absence (including SMS that the countdown has started) or permanently forfeited for not checking in on time.
-* **Schedule Updates**: Informs parents when a new schedule becomes available, when the queue starts/pauses/closes, and when the session ends. Queue start also sends SMS via textbee.dev.
+* **Schedule Updates**: Informs parents when a reservation schedule is published (once per publish batch), when the queue starts, pauses, closes, and when the session ends. Queue start also sends SMS via textbee.dev.
 * **SMS Authentication**: Parents may sign in with a 6-digit OTP delivered by textbee; OTP records live under `smsOtps` (Admin SDK only) and expire after 5 minutes.
 
 ---
@@ -127,8 +128,8 @@ When conflicting business operations arise, the system obeys this hierarchy:
 ## 13. System-wide Restrictions
 * **One Active Consultation**: Only one patient may be `with_doctor` at a time.
 * **Secretary Branch Isolation**: A Secretary can only view and manage the queue for their assigned branch.
-* **Schedule Ownership**: Secretary and Doctor may create, edit, publish, and start clinic schedules. Secretaries are locked to their assigned branch; Doctors may operate on any branch. The Doctor also retains live Queue Control (pause/resume/close) and Complete Consultation.
-* **Admin Exclusivity**: Only the Admin can create or modify staff accounts.
+* **Schedule Ownership**: Secretary and Doctor may hold, close, resume, adjust capacity, and start clinic schedules. Secretaries are locked to their assigned branch; Doctors may operate on any branch. The Doctor also retains live Queue Control (pause/resume/close) and Complete Consultation.
+* **Doctor Exclusivity**: Only the Doctor (clinic admin) can create or modify staff accounts and branches, and read the full audit log.
 * **Parent Immutability**: Parents cannot modify or cancel reservations once they are physically `checked_in`.
 
 ---

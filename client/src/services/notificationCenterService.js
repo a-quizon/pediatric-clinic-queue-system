@@ -15,7 +15,9 @@ export const cleanupNonParentNotifications = async () => {
     if (!uid) return;
 
     const roleSnapshot = await get(ref(database, `users/${uid}/role`));
-    if (!roleSnapshot.exists() || roleSnapshot.val() !== "admin") return;
+    const role = roleSnapshot.exists() ? roleSnapshot.val() : null;
+    // Doctor owns clinic-admin cleanup; admin kept during transition
+    if (role !== "doctor" && role !== "admin") return;
 
     const snapshot = await get(ref(database, "users"));
     if (!snapshot.exists()) return;
@@ -133,7 +135,8 @@ export const subscribeToUserNotifications = (parentId, callback) => {
   return subscribeOnValue(notifRef, (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.val();
-      const list = Object.values(data).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const list = Object.values(data)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       callback(list);
     } else {
       callback([]);

@@ -16,7 +16,7 @@ Three people use it every clinic day:
 - **Secretaries** run the front desk at one branch (including pause/resume/close/end if the doctor is busy).
 - **Doctors** see patients and control the live session (pause, resume, close). Completing a consultation is doctor-only.
 
-An **Admin** works in the background (staff accounts, branches, reports) and does not run the queue.
+The **Doctor** also acts as clinic admin (staff accounts, branches, audit logs, reports) in addition to running the queue.
 
 ---
 
@@ -54,10 +54,10 @@ There is one active doctor account. They can:
 - Start a queue
 - Pause, resume, or close the live session (Secretary can do these four session actions too)
 - Complete a consultation (with optional notes)
+- Manage users, branches, and audit logs (Clinic admin menu)
+- View clinic overview reports under Reports
 
-### Admin
-
-Creates staff accounts, manages branches, and reviews reports. They do not check in patients or run the floor.
+There is no separate Admin role in the app.
 
 ---
 
@@ -279,7 +279,7 @@ Each branch secretary can edit the wording; the table uses the system’s defaul
 | Secretary **penalizes** (move-back is not 0) | Marked late, moved back, check in within the countdown or the slot will be forfeited | Warn them they are about to lose the slot |
 | Reservation is **forfeited** (timer ran out, or move-back is 0) | Slot was given up because they did not check in on time; they may book again if slots remain | Tell them the visit is no longer held |
 
-Parents also get **in-app** notices (and optional phone banners) for things that are not sent as SMS, such as: new schedule published, queue paused/resumed/closed, “you’re next,” check-in reminder from the secretary, QR verified, sent to doctor, and consultation completed.
+Parents also get **in-app** notices (and optional phone banners) for things that are not sent as SMS, such as: queue paused/resumed/closed, “you’re next,” check-in reminder from the secretary, QR verified, sent to doctor, and consultation completed.
 
 A separate verification text (“Your verification code is… expires in 5 minutes”) is sent when a parent registers or changes their phone number. That is for signing up, not for the queue.
 

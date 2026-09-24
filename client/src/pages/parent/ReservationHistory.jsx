@@ -37,7 +37,7 @@ export default function ReservationHistory() {
     if (user) {
       unsub = subscribeToParentReservations(user.uid, (data) => {
         const history = data.filter(r => 
-          ["cancelled", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"].includes(r.status)
+          ["cancelled", "cancelled_by_clinic", "completed", "consultation_completed", "expired", "validation_expired", "forfeited", "penalized", "late_limit_reached"].includes(r.status)
         );
         setReservations(history);
         setLoading(false);
@@ -54,7 +54,7 @@ export default function ReservationHistory() {
     .filter(res => {
       if (activeFilter === "All") return true;
       if (activeFilter === "Completed") return ["completed", "consultation_completed"].includes(res.status);
-      if (activeFilter === "Cancelled") return res.status === "cancelled";
+      if (activeFilter === "Cancelled") return res.status === "cancelled" || res.status === "cancelled_by_clinic";
       if (activeFilter === "Forfeited" || activeFilter === "Late Limit Reached") return ["forfeited", "penalized", "late_limit_reached"].includes(res.status);
       if (activeFilter === "With Notes") {
         return ["completed", "consultation_completed"].includes(res.status) && !!res.doctorNotes && res.doctorNotes.trim() !== "";
@@ -71,8 +71,8 @@ export default function ReservationHistory() {
     if (["completed", "consultation_completed"].includes(status)) {
       return { label: "Completed", color: "pq-chip pq-chip-live" };
     }
-    if (status === "cancelled") {
-      return { label: "Cancelled", color: "pq-chip pq-chip-alert" };
+    if (status === "cancelled" || status === "cancelled_by_clinic") {
+      return { label: status === "cancelled_by_clinic" ? "Cancelled by clinic" : "Cancelled", color: "pq-chip pq-chip-alert" };
     }
     if (["forfeited", "penalized", "late_limit_reached"].includes(status)) {
       return { label: "Forfeited", color: "pq-chip pq-chip-alert" };
@@ -179,14 +179,28 @@ export default function ReservationHistory() {
 
                 <div className="flex justify-between items-center pt-2.5 mt-auto gap-2" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
                   <div className="text-[11px] pq-faint font-medium">
-                    {label === "Cancelled" ? "Cancelled on" : label === "Completed" ? "Completed on" : label === "Expired" ? "Expired on" : "Logged on"} {timestamp ? new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
+                    {label === "Cancelled" || label === "Cancelled by clinic" ? "Cancelled on" : label === "Completed" ? "Completed on" : label === "Expired" ? "Expired on" : "Logged on"} {timestamp ? new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
                   </div>
-                  {hasNotes && (
-                    <span className="pq-chip pq-chip-info flex-shrink-0">
-                      <FileText className="w-3 h-3 mr-1" />
-                      With Notes
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {res.status === "cancelled_by_clinic" && (
+                      <button
+                        type="button"
+                        className="pq-btn-secondary text-xs"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate("/parent/reserve");
+                        }}
+                      >
+                        Book another date
+                      </button>
+                    )}
+                    {hasNotes && (
+                      <span className="pq-chip pq-chip-info">
+                        <FileText className="w-3 h-3 mr-1" />
+                        With Notes
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );

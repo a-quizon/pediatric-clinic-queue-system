@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, Users, User, BarChart3, ArrowLeft, CalendarDays } from "lucide-react";
+import { Home, Users, User, BarChart3, ArrowLeft, CalendarDays, MapPin, ScrollText, Plus, UserCog } from "lucide-react";
 import { PqBrand } from "../parent/pqUi";
 import { goBackOr } from "../../utils/navigationRoots";
+import AddStaffModal from "../admin/AddStaffModal";
 
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const getHeaderInfo = () => {
     const path = location.pathname;
@@ -21,10 +24,18 @@ export default function Layout() {
     if (path.startsWith("/doctor/reports")) {
       return { title: "Reports & Analytics", showBack: true, backPath: "/doctor" };
     }
+    if (path.startsWith("/doctor/users")) {
+      return { title: "Users", showBack: true, backPath: "/doctor/profile", showAddStaff: true };
+    }
+    if (path.startsWith("/doctor/branches")) {
+      return { title: "Branches", showBack: true, backPath: "/doctor/profile", showAddBranch: true };
+    }
+    if (path.startsWith("/doctor/audit-logs")) {
+      return { title: "Audit Logs", showBack: true, backPath: "/doctor/profile" };
+    }
     if (path.startsWith("/doctor/profile")) {
       const view = new URLSearchParams(location.search).get("view");
       if (view === "account") return { title: "Account Settings", showBack: true, backPath: "/doctor/profile" };
-      if (view === "system") return { title: "About System", showBack: true, backPath: "/doctor/profile" };
       return { title: "Profile", showBack: false };
     }
     return { title: "Dashboard", showBack: false };
@@ -32,12 +43,18 @@ export default function Layout() {
 
   const headerInfo = getHeaderInfo();
 
-  const navItems = [
+  const primaryNav = [
     { name: "Dashboard", mobileName: "Home", path: "/doctor", icon: Home, replace: true, tour: "doctor-nav-dashboard" },
     { name: "Queue", path: "/doctor/queue", icon: Users, replace: true, tour: "doctor-nav-queue" },
     { name: "Schedules", path: "/doctor/schedules", icon: CalendarDays, replace: true, tour: "doctor-nav-schedules" },
     { name: "Reports & Analytics", mobileName: "Reports", path: "/doctor/reports", icon: BarChart3, desktopOnly: true, tour: "doctor-nav-reports" },
     { name: "Profile", path: "/doctor/profile", icon: User, replace: true, tour: "doctor-nav-profile" },
+  ];
+
+  const clinicAdminNav = [
+    { name: "Users", path: "/doctor/users", icon: UserCog },
+    { name: "Branches", path: "/doctor/branches", icon: MapPin },
+    { name: "Audit Logs", path: "/doctor/audit-logs", icon: ScrollText },
   ];
 
   const isActive = (path) => {
@@ -51,6 +68,22 @@ export default function Layout() {
     goBackOr(navigate, headerInfo.backPath || "/doctor");
   };
 
+  const renderSideLink = (item) => (
+    <NavLink
+      key={item.name}
+      to={item.path}
+      replace={item.replace === true}
+      aria-current={isActive(item.path) ? "page" : undefined}
+      data-tour={item.tour}
+      className={() =>
+        `pq-side-link ${isActive(item.path) ? "pq-side-link-active" : ""}`
+      }
+    >
+      <item.icon className="w-5 h-5 flex-shrink-0" />
+      <span>{item.name}</span>
+    </NavLink>
+  );
+
   return (
     <div className="pq-shell flex h-screen md:flex-row flex-col overflow-hidden">
       <aside className="hidden md:flex flex-col w-64 pq-glass-nav z-20 flex-shrink-0 rounded-none border-y-0 border-l-0">
@@ -58,21 +91,11 @@ export default function Layout() {
           <PqBrand size={36} />
         </div>
         <nav className="flex-1 py-6 px-4 space-y-1.5 overflow-y-auto" aria-label="Doctor">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              replace={item.replace === true}
-              aria-current={isActive(item.path) ? "page" : undefined}
-              data-tour={item.tour}
-              className={() =>
-                `pq-side-link ${isActive(item.path) ? "pq-side-link-active" : ""}`
-              }
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              <span>{item.name}</span>
-            </NavLink>
-          ))}
+          {primaryNav.map(renderSideLink)}
+          <div className="pt-4 mt-2" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <p className="px-3 mb-2 text-xs font-bold uppercase tracking-wide pq-faint">Clinic admin</p>
+            {clinicAdminNav.map(renderSideLink)}
+          </div>
         </nav>
       </aside>
 
@@ -97,17 +120,47 @@ export default function Layout() {
                 {headerInfo.title}
               </h1>
             </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {headerInfo.showAddStaff ? (
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="pq-btn-primary"
+                >
+                  <Plus className="w-5 h-5" aria-hidden="true" />
+                  <span className="hidden sm:inline">Add Staff</span>
+                  <span className="sm:hidden">Add</span>
+                </button>
+              ) : null}
+              {headerInfo.showAddBranch ? (
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent("openAddBranchModal"))}
+                  className="pq-btn-primary"
+                >
+                  <Plus className="w-5 h-5" aria-hidden="true" />
+                  <span className="hidden sm:inline">Add Branch</span>
+                  <span className="sm:hidden">Add</span>
+                </button>
+              ) : null}
+            </div>
           </header>
         </div>
 
-        <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-5xl mx-auto w-full flex-1">
+        <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-5xl mx-auto w-full flex-1 min-w-0">
           <Outlet />
         </div>
+
+        <AddStaffModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSuccess={() => setIsAddModalOpen(false)}
+        />
       </main>
 
       <nav className="md:hidden pq-dock-wrap" aria-label="Main">
         <div className="pq-dock">
-          {navItems.filter((item) => !item.desktopOnly).map((item) => {
+          {primaryNav.filter((item) => !item.desktopOnly).map((item) => {
             const active = isActive(item.path);
             const label = item.mobileName || item.name;
             return (

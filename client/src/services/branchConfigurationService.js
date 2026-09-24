@@ -4,6 +4,7 @@ import { subscribeOnValue } from "../firebase/rtdbSubscribe";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { getReservationsBySchedule } from "./reservationService";
 import { branchesMatch, normalizeBranchName } from "../utils/stringUtils";
+import { manilaDateString, manilaNowMinutes, manilaWeekdayIndex, WEEKDAY_KEYS } from "../utils/manilaDate";
 
 const defaultSchedule = () => ({
   monday: { isOpen: false, openingTime: "", closingTime: "" },
@@ -237,16 +238,7 @@ export const getClinicHours = async (branchName, clinicDate) => {
   
   if (!branch || !branch.schedule) return null;
 
-  const [year, month, day] = clinicDate.split('-');
-  const localDate = new Date(year, month - 1, day);
-  const dayIndex = localDate.getDay();
-  
-  const daysMap = {
-    0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday',
-    4: 'thursday', 5: 'friday', 6: 'saturday'
-  };
-
-  const daySchedule = branch.schedule[daysMap[dayIndex]];
+  const daySchedule = branch.schedule[WEEKDAY_KEYS[manilaWeekdayIndex(clinicDate)]];
   if (daySchedule && daySchedule.isOpen) {
     return {
       openingTime: daySchedule.openingTime,
@@ -263,12 +255,7 @@ export const validateScheduleClosingTime = async (branchName, clinicDate) => {
     return { valid: true };
   }
 
-  // check if selected schedule date matches today's local date
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const todayStr = `${year}-${month}-${day}`;
+  const todayStr = manilaDateString();
 
   if (clinicDate !== todayStr) {
     return { valid: true };
@@ -283,7 +270,7 @@ export const validateScheduleClosingTime = async (branchName, clinicDate) => {
     };
   }
 
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentMinutes = manilaNowMinutes();
   const [closeH, closeM] = hours.closingTime.split(":").map(Number);
   const closingMinutes = closeH * 60 + closeM;
 
@@ -316,7 +303,7 @@ export const checkBranchInUse = async (branchName) => {
 
   let hasActiveReservations = false;
   if (scheduleIds.length > 0) {
-    const inactiveStatuses = ["cancelled", "completed", "consultation_completed", "forfeited", "penalized", "late_limit_reached", "expired", "validation_expired"];
+    const inactiveStatuses = ["cancelled", "cancelled_by_clinic", "completed", "consultation_completed", "forfeited", "penalized", "late_limit_reached", "expired", "validation_expired"];
     
     const reservationsArrays = await Promise.all(
       scheduleIds.map(id => getReservationsBySchedule(id))

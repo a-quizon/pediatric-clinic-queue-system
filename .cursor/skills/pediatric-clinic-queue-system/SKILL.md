@@ -10,7 +10,7 @@ description: >-
 
 # Pediatric Clinic Queue System
 
-Capstone app that digitizes pediatric clinic patient flow across branches. Parents reserve slots and monitor queue position; secretaries and doctors create/publish schedules; secretaries start the floor (check-in, penalties, send-to-doctor) and configure per-branch queue/SMS rules; doctors also start queues, control the live session, and complete consultations; admins manage staff and branches.
+Capstone app that digitizes pediatric clinic patient flow across branches. Parents reserve slots and monitor queue position; secretaries and doctors publish clinic days, start the floor (check-in, penalties, send-to-doctor), and configure per-branch queue/SMS rules; doctors also start queues, control the live session, complete consultations, and manage staff, branches, and audit logs (clinic admin). There is no separate Admin role.
 
 ## Before You Code
 
@@ -85,10 +85,10 @@ UI (pages/components)
 |------|------|-----------------|
 | parent | `/parent/*` | Required (`VerifiedRoute`) plus `OnboardingRoute` (`onboardingComplete`) |
 | secretary | `/secretary/*` | No |
-| doctor | `/doctor/*` | No |
-| admin | `/admin/*` | No |
+| doctor | `/doctor/*` (includes Users, Branches, Audit Logs) | No |
 
 Guard chain: `ProtectedRoute` → `VerifiedRoute` (parents) → `OnboardingRoute` (parents) → `RoleRoute`.
+Leftover `admin` role (transition only) is dual-allowed into `/doctor/*`; deactivate after verification.
 
 Entry points: `client/src/routes/AppRoutes.jsx`, `client/src/context/AuthContext.jsx`.
 
@@ -148,7 +148,7 @@ Server push listeners require `serviceAccountKey.json` or `FIREBASE_SERVICE_ACCO
 4. Update `docs/NotificationRules.md`
 
 ### Admin staff creation
-`adminService.createStaffAccount()` uses a secondary Firebase app so admin stays logged in.
+`adminService.createStaffAccount()` (used by Doctor Users UI) uses a secondary Firebase app so the doctor stays logged in. Last active doctor cannot be deactivated or deleted.
 
 ### Android (Capacitor)
 ```bash

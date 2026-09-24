@@ -16,7 +16,7 @@ export const TOUR_STEPS = [
     exact: true,
     targets: ["parent-book-cta", "nav-reserve"],
     title: "Book a reservation",
-    description: "Start here to reserve a slot on a published clinic date.",
+    description: "Start here to reserve a slot on a published clinic date. You may hold up to two upcoming reservations at a time.",
     onNextNavigate: "/parent/reserve",
   },
   {

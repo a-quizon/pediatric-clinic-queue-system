@@ -13,6 +13,7 @@ import { computeReservationState, computeAheadOfYou, QUEUE_STATES } from "../../
 import PushNotificationSettings from "../../components/parent/PushNotificationSettings";
 import { getReservationChildDisplayName } from "../../utils/reservationPatients";
 import { formatBranchLabel, branchesMatch } from "../../utils/stringUtils";
+import { manilaDateString } from "../../utils/manilaDate";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleQueueMonitor } from "../../components/onboarding/TourSampleViews";
 
@@ -81,13 +82,7 @@ export default function Dashboard() {
 
   const schedule = activeReservation ? schedules[activeReservation.scheduleId] : null;
 
-  const todayStr = useMemo(() => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }, []);
+  const todayStr = useMemo(() => manilaDateString(), []);
 
   const todaySchedule = useMemo(() => {
     const allScheds = Object.values(schedules || {});

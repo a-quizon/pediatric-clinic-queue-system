@@ -35,6 +35,7 @@ A reservation follows a strict linear progression, with early exits for cancella
 | **in_consultation** | Patient is actively being seen. | Interchangeable with `with_doctor`. | `consultation_completed` |
 | **consultation_completed**| The medical visit is finished. | Doctor clicks "Complete Consultation". | *(Terminal State)* |
 | **cancelled** | The reservation was abandoned. | Parent clicks "Cancel". | *(Terminal State)* |
+| **cancelled_by_clinic** | The clinic closed the day. The parent rebooks on another open day. | Secretary or doctor closes that date. | *(Terminal State)* |
 | **forfeited** | Penalty timer expired without check-in, or Penalty Move-Back is 0. Slot is lost. | Secretary Penalize (timer or move-back 0), or timer auto-expiry. | *(Terminal State)* |
 
 
@@ -42,11 +43,12 @@ A reservation follows a strict linear progression, with early exits for cancella
 
 ## 4. Reservation Creation Rules
 * **Creation Requirements**: To successfully create a reservation, the following rigid conditions must be met:
-  1. The target schedule must be `published`.
+  1. The target schedule must be `published` and accepting bookings (not closed).
   2. The schedule must have active slot capacity available.
-  3. The branch's clinic operating hours must still be valid for that date.
+  3. The branch's clinic operating hours must still be valid for that date, and the date must fall inside the 60-day booking window.
   4. The parent must not already have an active, non-terminal reservation for that specific clinic date.
-  5. For parent self-booking only, the parent must open the Queue Rules agreement for **that schedule's branch**, tick that they understand and agree, and tap **Proceed** before the slot is created. Cancel/back creates nothing. Secretary walk-in and phone-in bookings skip this step.
+  5. The parent must not already hold two active upcoming reservations on other clinic dates (across all branches).
+  6. For parent self-booking only, the parent must open the Queue Rules agreement for **that schedule's branch**, tick that they understand and agree, and tap **Proceed** before the slot is created. Cancel/back creates nothing. Secretary walk-in and phone-in bookings skip this step.
 * **Identity Generation**: Upon creation, the system generates a 6-character alphanumeric `reservationCode`.
 * **Queue Number Assignment**: The system queries existing reservations for that schedule and assigns the next incremental integer as the permanent `queueNumber`.
 * **Patients**: After the slot is claimed, the parent selects one or more saved child profiles and a single `concern` string. The reservation stores `children[]` plus legacy `childName` / `age` / `sex` mirrored from the first selected child. Multiple children still consume **one** slot.
@@ -87,14 +89,17 @@ A reservation follows a strict linear progression, with early exits for cancella
 
 ## 9. Slot Management Rules
 Slots are evaluated dynamically at runtime by counting active reservations.
-* **Total Capacity**: Defined by the Secretary upon Schedule creation (e.g., 30 slots).
+* **Booking window**: Parents may book today through the next 60 Manila calendar days, but only on days staff have published. Days outside that max-advance window are not bookable.
+* **Publish**: Staff publish a date range or copy the previous week to open days for booking. Unpublished days are not bookable. Closing a day cancels waiting reservations with `cancelled_by_clinic` (not a no-show).
+* **Total Capacity**: Defined when the day is published (range capacity or copy from the prior week), or overridden by staff for that day (e.g., 30 slots).
 * **Consumption**: Any reservation that is `reserved`, `waiting`, `checked_in`, `with_doctor`, or `in_consultation` counts as 1 consumed slot.
-* **Release**: Any reservation that reaches a terminal state (`cancelled`, `forfeited`, or `consultation_completed`) is excluded from the active count, immediately releasing the slot back to the public pool for a new reservation.
+* **Release**: Any reservation that reaches a terminal state (`cancelled`, `cancelled_by_clinic`, `forfeited`, or `consultation_completed`) is excluded from the active count and releases the slot. A completed visit does not keep the slot. The last slot is claimed in a Cloud Function transaction so two parents cannot book it at the same time. A parent cancellation, a clinic cancellation, and a forfeit all free the slot.
+* **Capacity reduction**: Lowering `slotCapacity` after bookings exist never cancels or renumbers existing reservations. New bookings stop until the active count is below capacity again.
 
 ---
 
 ## 10. Parent Rules
-* **Reserve**: May book one active reservation per clinic day. Before the slot is created, the parent must read and agree to that branch's Queue Rules (Penalty Move-Back, forfeiture timer, grace wait, and the same-day / any-branch limit). That reservation may include one or more saved child profiles plus a single shared visit concern. Multiple children still consume one slot and one queue ticket.
+* **Reserve**: May book one active reservation per clinic day, and at most two active upcoming reservations across all dates and branches. Before the slot is created, the parent must read and agree to that branch's Queue Rules (Penalty Move-Back, forfeiture timer, grace wait, same-day / any-branch limit, and the two-upcoming cap). That reservation may include one or more saved child profiles plus a single shared visit concern. Multiple children still consume one slot and one queue ticket.
 * **Child Profiles**: Parents manage reusable child records (name, age, sex) from Profile. Selecting patients at reservation time snapshots those profiles onto the reservation.
 * **View Ticket**: Can view their live digital ticket, displaying their permanent `queueNumber`, generated QR code, and `reservationCode`.
 * **View Queue Status**: Can monitor their dynamic `queueState` (e.g., "Almost Next") and `aheadOfYou` count relative to the live clinic floor.
@@ -104,7 +109,7 @@ Slots are evaluated dynamically at runtime by counting active reservations.
 ---
 
 ## 11. Secretary Rules
-* **Schedule Creation**: Defines the framework (date, time, slot capacity) for their assigned branch; creates drafts, publishes schedules, and starts the queue. The Doctor role has the same create/publish/start actions across all branches.
+* **Schedule Creation**: Secretaries publish clinic days (publish range, copy previous week, or post a single day) for their assigned branch, set capacity, close days when needed, and start the queue. The Doctor role has the same publish/close/start actions across all branches.
 * **Monitor Floor**: Observes the physical clinic flow.
 * **Check In**: Validates QR codes or the 6-character reservation code (camera auto-starts on the Validation screen; manual entry auto-submits at full length).
 * **Walk-in Patient**: From Profile, the secretary may create a reservation for one or more children without a parent account (in person or phone-in). The record is stored with `source: "walk_in"`, `createdBy` set to the secretary’s uid, and **no** `parentId` / `parentEmail` (the one-active-reservation-per-parent rule does not apply). Optional `parentName` and `parentPhone` (E.164) may be stored when the secretary fills them in; they are omitted when blank. Patient data uses the same `children[]` + shared `concern` model as parent bookings; multiple children still consume **one** slot and one queue ticket. On submit the reservation is created already `checked_in` (QR/code validation is skipped) and injected into the Queue Engine like any other reservation, so it appears on Manage Queue, the doctor’s live queue, and doctor Reports once the schedule completes. If `parentPhone` is set, the engines send **one** confirmed-reservation SMS to that number (same `slotReservedSmsSent` claim): `templateSlotReserved` when the queue is still `not_started`, or the existing parent-side **Active Queue Reservation** template (`templateSlotReservedActiveQueue`) when the queue is already `active` / `paused`. They do **not** send Queue Started, Near Turn, Penalized, or Forfeited SMS (those still require `parentId`). Closed / ended / completed queues are not available for walk-in creation. In-person walk-ins with no phone receive no SMS.
@@ -114,7 +119,7 @@ Slots are evaluated dynamically at runtime by counting active reservations.
 ---
 
 ## 12. Doctor Rules
-* **Schedule Creation**: Creates drafts, publishes schedules for any branch, and starts the queue (`queueStatus: active`). Same schedule fields, validation, and publish flow as Secretary.
+* **Schedule Creation**: The Doctor may publish or close clinic days for any branch and start the queue (`queueStatus: active`).
 * **Queue Control**: Pauses, resumes, or closes the live queue during a clinic session.
 * **Consultation**: Receives the patient.
 * **Completion**: Ends the reservation lifecycle by completing the consultation and providing optional notes.
@@ -123,9 +128,9 @@ Slots are evaluated dynamically at runtime by counting active reservations.
 
 ## 13. Historical Records
 Reservations are never deleted from the database. 
-* **Archiving**: Once a reservation reaches a terminal state (`consultation_completed`, `cancelled`, `forfeited`), it is permanently excluded from dynamic queue sorting and capacity (except completed, which still counts against capacity).
-* **Preservation**: The original `queueNumber`, timestamps (`createdAt`, `completedAt`), attached `doctorNotes`, and the final `status` are preserved indefinitely.
-* **Parent View**: Parents access these records via their "Reservation History" page.
+* **Archiving**: Once a reservation reaches a terminal state (`consultation_completed`, `cancelled`, `cancelled_by_clinic`, `forfeited`), it is permanently excluded from dynamic queue sorting and from slot capacity.
+* **Preservation**: The original `queueNumber`, timestamps (`createdAt`, `completedAt`), attached `doctorNotes`, and the final `status` are preserved indefinitely. A completed consultation does not keep occupying a slot.
+* **Parent View**: Parents access these records via their "Reservation History" page. Clinic-cancelled reservations appear as "Cancelled by clinic".
 
 ---
 
@@ -141,7 +146,7 @@ When conflicting reservation events occur, the system evaluates them in this ord
 
 1. **Terminal State Rule**: Once a reservation is cancelled, forfeited, or completed, no further state mutations can occur on it.
 2. **Duplication Rule**: A parent cannot create a reservation if an active one already exists for that day.
-3. **Capacity Rule**: A reservation cannot be created if active + completed reservations >= slot capacity.
+3. **Capacity Rule**: A reservation cannot be created if active reservations >= slot capacity.
 4. **Active Consultation Rule**: A reservation cannot transition to `with_doctor` if another reservation holds that state.
 5. **Penalty Timer Rule**: A reservation forfeits immediately if Penalty Move-Back is `0`. Otherwise Penalize only shifts position and starts (or keeps) the first penalty timer; forfeiture happens when that timer expires without QR/code check-in.
 

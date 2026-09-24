@@ -28,7 +28,7 @@ On a phone, Validate Reservation is shortened to **Validate**, and Manage Queue 
 
 ## 1. Logging In
 
-Sign in with the email (or phone) and password given to you by the administrator.
+Sign in with the email (or phone) and password given to you by the doctor.
 
 1. Open the app in a browser.
 2. Type your **email or phone number**.
@@ -36,9 +36,9 @@ Sign in with the email (or phone) and password given to you by the administrator
 4. Click **Sign In**.
 5. You are taken to Dashboard.
 
-Forgot your password? Click **Forgot Password?** on the sign-in screen. (There is no password-change box on the secretary Profile page.)
+Forgot your password? Click **Forgot Password?** on the sign-in screen. (There is no password-change box on the secretary Profile page.) If that fails, ask the doctor to send a reset from **Users**.
 
-Do not use **Create Account** on the sign-in screen. That is for parents. Staff accounts are created by the administrator.
+Do not use **Create Account** on the sign-in screen. That is for parents. Staff accounts are created by the doctor.
 
 *[Screenshot: Sign in screen]*
 
@@ -341,7 +341,7 @@ Paused and closed queues show a banner at the top (**Queue Paused** or **Queue C
 
 ### Profile and log out
 
-**Profile** shows your name, email, phone, and assigned branch. You cannot edit these here. Ask the administrator if something is wrong.
+**Profile** shows your name, email, phone, and assigned branch. You cannot edit these here. Ask the doctor if something is wrong.
 
 1. Open **Profile**.
 2. Click **Log Out**.

@@ -17,10 +17,15 @@ After you sign in, use the left menu (computer) or the bar at the bottom (phone)
 | Dashboard | Today’s summary |
 | Queue | Live line and consultation |
 | Schedules | Create, publish, and start clinic days |
-| Reports & Analytics | Completed-day numbers and charts (computer menu; on phone, open it from Profile) |
+| Reports & Analytics | Completed-day numbers, charts, and clinic overview (computer menu; on phone, open it from Profile) |
+| Users | Staff and parent accounts (Clinic admin; computer menu) |
+| Branches | Clinic locations and hours (Clinic admin; computer menu) |
+| Audit Logs | Activity history (Clinic admin; computer menu) |
 | Profile | Your account, password, and log out |
 
-On a phone, Dashboard is **Home**, and Reports & Analytics is not in the bottom bar — open it from **Profile**.
+On a phone, Dashboard is **Home**. Reports, Users, Branches, and Audit Logs are under **Profile**.
+
+Staff accounts for secretaries are created by **you** (Add Staff under Users). Do not use public **Create Account**.
 
 The secretary can also **pause, resume, close, and end** the queue. Use whichever desk is free. Completing a consultation is **doctor-only**.
 
@@ -28,7 +33,7 @@ The secretary can also **pause, resume, close, and end** the queue. Use whicheve
 
 ## 1. Logging In
 
-Sign in with the email (or phone) and password given to you by the administrator.
+Sign in with the email (or phone) and password for your doctor account.
 
 1. Open the app in a browser.
 2. Type your **email or phone number**.
@@ -38,7 +43,7 @@ Sign in with the email (or phone) and password given to you by the administrator
 
 Forgot your password? Click **Forgot Password?** on the sign-in screen. You can also change your password later under Profile → **Security**.
 
-Do not use **Create Account** on the sign-in screen. That is for parents. Staff accounts are created by the administrator.
+Do not use **Create Account** on the sign-in screen. That is for parents. You create secretary (and replacement doctor) accounts under **Users → Add Staff**.
 
 *[Screenshot: Sign in screen]*
 

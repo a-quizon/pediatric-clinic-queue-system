@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, XCircle, AlertCircle, Info } from 'lucide-react';
 import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
+import ModalScrim from './ModalScrim';
 
 export default function MessageModal({ 
   isOpen, 
@@ -30,7 +31,7 @@ export default function MessageModal({
   const Icon = config.icon;
 
   return (
-    <div className="pq-modal-scrim">
+    <ModalScrim>
       <div className="pq-modal w-full max-w-sm overflow-hidden">
         <div className="p-6 text-center">
           <div className={`w-16 h-16 ${config.bg} rounded-full flex items-center justify-center mx-auto mb-4`}>
@@ -47,6 +48,6 @@ export default function MessageModal({
           </button>
         </div>
       </div>
-    </div>
+    </ModalScrim>
   );
 }

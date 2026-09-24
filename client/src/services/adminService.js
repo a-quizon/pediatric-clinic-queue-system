@@ -25,7 +25,7 @@ export const createStaffAccount = async (staffData) => {
     }
   }
 
-  // Create a secondary app to avoid logging out the current Admin
+  // Secondary app so the current doctor (clinic admin) stays logged in
   const secondaryAppName = "SecondaryAppInstance";
   let secondaryApp;
   
@@ -126,12 +126,30 @@ export const updateUser = async (uid, updates) => {
 };
 
 export const toggleUserStatus = async (uid, currentStatus) => {
-  const userRef = ref(database, `users/${uid}`);
   const newStatus = currentStatus === "active" ? "inactive" : "active";
-  
+
+  if (newStatus === "inactive") {
+    const targetSnap = await get(ref(database, `users/${uid}`));
+    const target = targetSnap.exists() ? targetSnap.val() : null;
+    if (target?.role === "doctor" && target.status === "active") {
+      const usersSnap = await get(ref(database, "users"));
+      const users = usersSnap.exists() ? usersSnap.val() : {};
+      const otherActiveDoctor = Object.entries(users).some(
+        ([id, user]) => id !== uid && user?.role === "doctor" && user?.status === "active"
+      );
+      if (!otherActiveDoctor) {
+        throw new Error(
+          "Cannot deactivate the only active Doctor account. Create another Doctor first, or use break-glass recovery if locked out."
+        );
+      }
+    }
+  }
+
+  const userRef = ref(database, `users/${uid}`);
   const { update } = await import("firebase/database");
   await update(userRef, {
     status: newStatus,
+    // "admin" = administrative deactivation (blocks staff self-reactivation)
     deactivationSource: newStatus === "inactive" ? "admin" : null,
     updatedAt: Date.now()
   });

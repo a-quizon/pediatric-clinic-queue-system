@@ -25,7 +25,7 @@ const NOTIFICATION_CONFIG = {
   SCHEDULE_AVAILABLE: {
     type: "info",
     title: "Schedule Available",
-    message: "New clinic schedule is now available for reservation.",
+    message: "There's a reservation schedule available. Open Reserve to book a slot.",
     url: "/parent/reserve",
   },
   SLOT_RESERVED: {
@@ -111,6 +111,12 @@ const NOTIFICATION_CONFIG = {
     title: "Reservation Forfeited",
     message: "Your reservation has been forfeited because you did not check in on time.",
     url: "/parent/notifications",
+  },
+  RESERVATION_CANCELLED_BY_CLINIC: {
+    type: "warning",
+    title: "Reservation Cancelled",
+    message: "The clinic closed this day and cancelled your reservation. It does not count as a no-show. Book another open day when you are ready.",
+    url: "/parent/reserve",
   },
   CHECK_IN_REQUESTED: {
     type: "info",
@@ -292,6 +298,20 @@ function eventsFromReservationChange(before, after) {
         queueNumber: after.queueNumber ?? after.originalQueueNumber ?? after.queuePosition,
         dedupeKey: `forfeited_${id}`,
       });
+    } else if (currStatus === "cancelled_by_clinic") {
+      const reason = after.cancellationReason || "Closed";
+      events.push({
+        eventId: "RESERVATION_CANCELLED_BY_CLINIC",
+        parentId: after.parentId,
+        reservationId: id,
+        scheduleId: after.scheduleId || null,
+        branchId,
+        clinicDate: after.clinicDate || null,
+        reason,
+        queueNumber: after.queueNumber ?? after.originalQueueNumber ?? after.queuePosition,
+        customMessage: `The clinic is closed (${reason}). Your reservation was cancelled. It does not count as a no-show. Book another open day when you are ready.`,
+        dedupeKey: `clinic_cancel_${id}`,
+      });
     }
   }
 
@@ -306,18 +326,7 @@ function eventsFromScheduleChange(before, after, activeParentIds) {
   const prevPublished = before?.status === "published";
   const currPublished = after.status === "published";
 
-  if (!prevPublished && currPublished) {
-    activeParentIds.allParents.forEach((parentId) => {
-      events.push({
-        eventId: "SCHEDULE_AVAILABLE",
-        parentId,
-        entityId: schedId,
-        branchId: after.branch || null,
-        dedupeKey: `sched_avail_${schedId}`,
-      });
-    });
-    return events;
-  }
+  if (!prevPublished && currPublished) return events;
 
   const prevStatus = before?.queueStatus;
   const currStatus = after.queueStatus;
@@ -429,15 +438,6 @@ async function getActiveParentIdsForSchedule(scheduleId) {
   return { parentIds: [...ids], reservations };
 }
 
-async function getAllParentIds() {
-  const snap = await getDb().ref("users").once("value");
-  if (!snap.exists()) return [];
-  const users = snap.val();
-  return Object.entries(users)
-    .filter(([, user]) => user && user.role === "parent" && user.status !== "inactive" && user.isDeleted !== true)
-    .map(([uid]) => uid);
-}
-
 async function evaluatePositionEvents(schedule, reservations, options = {}) {
   if (!schedule || !["active", "paused", "closed"].includes(schedule.queueStatus)) return;
 
@@ -534,22 +534,13 @@ async function handleScheduleChange(before, after) {
 
   const prevPublished = before?.status === "published";
   const currPublished = after.status === "published";
-  let allParents = [];
-  let forSchedule = [];
-  let reservations = [];
+  // Per-day publish is quiet — staff publish range/copy/post sends one SCHEDULE_AVAILABLE via notifyParentsScheduleAvailable.
+  if (!prevPublished && currPublished) return;
 
-  if (!prevPublished && currPublished) {
-    allParents = await getAllParentIds();
-  } else {
-    const active = await getActiveParentIdsForSchedule(after.id);
-    forSchedule = active.parentIds;
-    reservations = active.reservations;
-  }
-
+  const active = await getActiveParentIdsForSchedule(after.id);
   const events = eventsFromScheduleChange(before, after, {
-    allParents,
-    forSchedule,
-    reservations,
+    forSchedule: active.parentIds,
+    reservations: active.reservations,
   });
   for (const event of events) {
     await deliverNotification(event.eventId, event);
@@ -557,9 +548,63 @@ async function handleScheduleChange(before, after) {
 
   const queueJustStarted =
     (before?.queueStatus === "not_started" || !before?.queueStatus) && after.queueStatus === "active";
-  if (reservations.length) {
-    await evaluatePositionEvents(after, reservations, { sendNearTurnSms: queueJustStarted });
+  if (active.reservations.length) {
+    await evaluatePositionEvents(after, active.reservations, { sendNearTurnSms: queueJustStarted });
   }
+}
+
+async function getAllParentIds() {
+  const snap = await getDb().ref("users").once("value");
+  if (!snap.exists()) return [];
+  return Object.entries(snap.val())
+    .filter(([, user]) => user && user.role === "parent" && user.status !== "inactive" && user.isDeleted !== true)
+    .map(([uid]) => uid);
+}
+
+/**
+ * One Web Push + Notification Center alert for all parents after a publish batch
+ * (range, copy week, or single post). Uses one shared batchId so a multi-day
+ * publish never sends one notice per day.
+ */
+async function notifyParentsScheduleAvailable({
+  batchId,
+  branchId = null,
+  branchName = "",
+  postedCount = 0,
+  startDate = null,
+  endDate = null,
+} = {}) {
+  if (!batchId) throw new Error("batchId is required.");
+  const parents = await getAllParentIds();
+  if (parents.length === 0) return { notified: 0 };
+
+  const branchLabel = String(branchName || "")
+    .replace(/\s*branch\s*$/i, "")
+    .trim();
+  const customMessage = branchLabel
+    ? `There's a reservation schedule available at ${branchLabel}. Open Reserve to book a slot.`
+    : NOTIFICATION_CONFIG.SCHEDULE_AVAILABLE.message;
+
+  const dedupeKey = `sched_avail_batch_${batchId}`;
+  let notified = 0;
+  for (const parentId of parents) {
+    const ok = await deliverNotification("SCHEDULE_AVAILABLE", {
+      parentId,
+      entityId: batchId,
+      branchId,
+      dedupeKey,
+      customMessage,
+      metadata: {
+        batchId,
+        postedCount,
+        startDate,
+        endDate,
+        branchName: branchLabel || null,
+      },
+    });
+    if (ok) notified += 1;
+  }
+  return { notified, parentCount: parents.length };
 }
 
 module.exports = {
@@ -570,4 +615,5 @@ module.exports = {
   handleScheduleChange,
   eventsFromReservationChange,
   computeReservationState,
+  notifyParentsScheduleAvailable,
 };

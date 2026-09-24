@@ -24,6 +24,7 @@ export const NOTIFICATION_EVENTS = {
   CONSULTATION_COMPLETED: 'CONSULTATION_COMPLETED',
   PENALIZED: 'PENALIZED',
   FORFEITED: 'FORFEITED',
+  RESERVATION_CANCELLED_BY_CLINIC: 'RESERVATION_CANCELLED_BY_CLINIC',
   CHECK_IN_REQUESTED: 'CHECK_IN_REQUESTED',
 };
 
@@ -34,7 +35,7 @@ const NOTIFICATION_CONFIG = {
   [NOTIFICATION_EVENTS.SCHEDULE_AVAILABLE]: {
     type: 'info',
     title: 'Schedule Available',
-    message: 'New clinic schedule is now available for reservation.',
+    message: "There's a reservation schedule available. Open Reserve to book a slot.",
     duration: 5000,
   },
   [NOTIFICATION_EVENTS.SLOT_RESERVED]: {
@@ -119,6 +120,12 @@ const NOTIFICATION_CONFIG = {
     type: 'error',
     title: 'Reservation Forfeited',
     message: "Your reservation has been forfeited because you did not check in on time.",
+    duration: 8000,
+  },
+  [NOTIFICATION_EVENTS.RESERVATION_CANCELLED_BY_CLINIC]: {
+    type: 'warning',
+    title: 'Reservation Cancelled',
+    message: 'The clinic closed this day and cancelled your reservation. It does not count as a no-show. Book another open day when you are ready.',
     duration: 8000,
   },
   [NOTIFICATION_EVENTS.CHECK_IN_REQUESTED]: {
