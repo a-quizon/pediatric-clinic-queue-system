@@ -1,9 +1,22 @@
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 
-const DATABASE_URL =
-  process.env.RTDB_URL ||
+/**
+ * C5: Never silently fall back across projects.
+ * Staging may omit RTDB_URL (uses testing default). Production must set RTDB_URL.
+ */
+const GCLOUD_PROJECT = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "";
+const IS_PRODUCTION_PROJECT = GCLOUD_PROJECT === "pediatric-clinic-queue-system";
+const STAGING_RTDB_URL =
   "https://pediatric-clinic-queue-testing-default-rtdb.asia-southeast1.firebasedatabase.app";
+
+if (IS_PRODUCTION_PROJECT && !process.env.RTDB_URL) {
+  throw new Error(
+    "RTDB_URL must be set for production Cloud Functions (pediatric-clinic-queue-system)."
+  );
+}
+
+const DATABASE_URL = process.env.RTDB_URL || STAGING_RTDB_URL;
 
 admin.initializeApp({ databaseURL: DATABASE_URL });
 
@@ -12,6 +25,16 @@ const rtdb = functions.region("asia-southeast1").database;
 function recordFromSnap(id, snap) {
   if (!snap.exists()) return null;
   return { id, ...snap.val() };
+}
+
+function shouldRecalculateQueue(before, after) {
+  if (!after?.scheduleId) return false;
+  if (!before) return true;
+  return (
+    before.status !== after.status ||
+    before.sortTimestamp !== after.sortTimestamp ||
+    before.penaltyCount !== after.penaltyCount
+  );
 }
 
 /**
@@ -28,6 +51,7 @@ exports.api = functions.region("asia-southeast1").https.onRequest((req, res) => 
 
 /**
  * Real-time reservation dispatcher. Sends Web Push even if the parent browser is closed.
+ * Also recalculates queue order via Admin SDK so parents need not write other tickets (C2/C4).
  */
 exports.onReservationWrite = rtdb
   .ref("/reservations/{reservationId}")
@@ -39,7 +63,11 @@ exports.onReservationWrite = rtdb
     try {
       const { releaseSlotIfTerminal } = require("./slotRelease");
       const { handleReservationChange } = require("./pushRuntime");
+      const { recalculateEntireQueueAdmin } = require("./queueRuntime");
       await releaseSlotIfTerminal(admin, before, after);
+      if (shouldRecalculateQueue(before, after)) {
+        await recalculateEntireQueueAdmin(after.scheduleId);
+      }
       await handleReservationChange(before, after);
     } catch (err) {
       console.error("onReservationWrite failed:", err);
