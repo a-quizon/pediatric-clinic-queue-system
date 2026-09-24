@@ -1,6 +1,8 @@
 import { database } from "../firebase/database";
+import { auth } from "../firebase/auth";
 import { ref, push, set, get, update, remove } from "firebase/database";
 import { subscribeOnValue } from "../firebase/rtdbSubscribe";
+import { getPushApiBase } from "./pushService";
 import { getBranchConfigurations } from "./branchConfigurationService";
 import { getReservationsBySchedule, ACTIVE_RESERVATION_STATUSES } from "./reservationService";
 import { createSchedule, publishSchedule, deleteSchedule } from "./scheduleService";
@@ -26,6 +28,37 @@ import {
 } from "../utils/scheduleCalendar";
 
 const closuresRef = ref(database, "clinicClosures");
+
+async function notifyParentsScheduleAvailableOnce({
+  branchId,
+  branchName,
+  postedDates = [],
+}) {
+  if (!postedDates.length) return;
+  const user = auth.currentUser;
+  if (!user) return;
+  const batchId = `${branchId || "branch"}_${postedDates[0]}_${postedDates[postedDates.length - 1]}_${Date.now()}`;
+  try {
+    const token = await user.getIdToken();
+    await fetch(`${getPushApiBase()}/api/schedules/notify-available`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        batchId,
+        branchId: branchId || null,
+        branchName: branchName || "",
+        postedCount: postedDates.length,
+        startDate: postedDates[0],
+        endDate: postedDates[postedDates.length - 1],
+      }),
+    });
+  } catch (error) {
+    console.warn("Could not notify parents about new schedules.", error);
+  }
+}
 
 export const subscribeToClinicClosures = (callback) => {
   if (typeof callback !== "function") return () => {};
@@ -157,7 +190,7 @@ export async function publishSingleDay({ branchId, branchName, dateStr, slotCapa
     throw new Error(`Cannot post ${dateStr}: ${preview[0].skip}.`);
   }
   const { branch } = await contextForBranch(branchId, branchName);
-  return createPublishedDay({
+  const scheduleId = await createPublishedDay({
     branch,
     branchId,
     branchName,
@@ -166,6 +199,12 @@ export async function publishSingleDay({ branchId, branchName, dateStr, slotCapa
     user,
     audit: true,
   });
+  await notifyParentsScheduleAvailableOnce({
+    branchId: branch?.id || branchId,
+    branchName: branch?.name || branchName,
+    postedDates: [dateStr],
+  });
+  return scheduleId;
 }
 
 export async function publishDateRange({ branchId, branchName, startDate, endDate, slotCapacity, user }) {
@@ -194,7 +233,13 @@ export async function publishDateRange({ branchId, branchName, startDate, endDat
     targetType: "schedule",
     branchId: branch?.id || branchId,
   });
-  return { posted: posting.map((item) => item.dateStr), skipped: preview.filter((item) => item.skip) };
+  const posted = posting.map((item) => item.dateStr);
+  await notifyParentsScheduleAvailableOnce({
+    branchId: branch?.id || branchId,
+    branchName: branch?.name || branchName,
+    postedDates: posted,
+  });
+  return { posted, skipped: preview.filter((item) => item.skip) };
 }
 
 export async function copyPreviousWeek({ branchId, branchName, weekStart, user }) {
@@ -248,6 +293,11 @@ export async function copyPreviousWeek({ branchId, branchName, weekStart, user }
     description: `Copied ${copies.length} posted day(s) into the week of ${weekStart} for ${name}`,
     targetType: "schedule",
     branchId: branch?.id || branchId,
+  });
+  await notifyParentsScheduleAvailableOnce({
+    branchId: branch?.id || branchId,
+    branchName: name,
+    postedDates: copies.map((copy) => copy.dateStr),
   });
   return { posted: copies, skipped };
 }

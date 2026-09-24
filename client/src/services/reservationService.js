@@ -286,6 +286,34 @@ export const checkCompletedConsultationOnDate = async (parentId, clinicDate, doc
 // list of active reservation statuses na nag-ooccupy pa ng slot at nasa queue
 export const ACTIVE_RESERVATION_STATUSES = ["reserved", "checked_in", "waiting", "in_consultation", "with_doctor", "validation_open", "waiting_for_window"];
 
+/** Max active upcoming reservations a parent may hold across different clinic dates. */
+export const MAX_ACTIVE_UPCOMING_RESERVATIONS = 2;
+
+export const MULTI_DATE_CAP_MESSAGE =
+  "You already have 2 upcoming reservations. Cancel one or wait until a visit is finished before booking another.";
+
+/**
+ * Unique clinic dates where this parent still holds an active reservation.
+ * Pass schedulesById for legacy rows that lack clinicDate on the reservation.
+ */
+export const getActiveUpcomingDates = (reservations = [], schedulesById = {}) => {
+  const dates = new Set();
+  (reservations || []).forEach((reservation) => {
+    if (!ACTIVE_RESERVATION_STATUSES.includes(reservation.status)) return;
+    const fromReservation = reservation.clinicDate;
+    const fromSchedule = schedulesById[reservation.scheduleId]?.clinicDate;
+    const date = fromReservation || fromSchedule;
+    if (date) dates.add(date);
+  });
+  return dates;
+};
+
+export const wouldExceedMultiDateCap = (reservations, schedulesById, targetClinicDate) => {
+  const dates = getActiveUpcomingDates(reservations, schedulesById);
+  if (dates.has(targetClinicDate)) return false;
+  return dates.size >= MAX_ACTIVE_UPCOMING_RESERVATIONS;
+};
+
 export const calculateDynamicQueuePositions = (reservations) => {
   const groupedBySchedule = {};
   reservations.forEach(r => {

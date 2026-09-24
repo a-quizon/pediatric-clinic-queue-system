@@ -39,11 +39,27 @@ function minutesFromTime(value) {
   return hour * 60 + minute;
 }
 
+const WEEKDAY_KEYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
+
+function manilaWeekdayIndex(dateStr) {
+  return manilaNoonUtc(dateStr).getUTCDay();
+}
+
 module.exports = {
   MANILA_TZ,
   BOOKING_HORIZON_DAYS,
+  WEEKDAY_KEYS,
   manilaDateString,
   manilaNowMinutes,
   addManilaDays,
+  manilaWeekdayIndex,
   minutesFromTime,
 };

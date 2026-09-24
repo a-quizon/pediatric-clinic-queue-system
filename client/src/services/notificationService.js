@@ -9,6 +9,7 @@ import { isInAppNotificationsEnabled } from './notificationPreferencesService';
  * Single source of truth for system notification triggers across the clinic workflow.
  */
 export const NOTIFICATION_EVENTS = {
+  SCHEDULE_AVAILABLE: 'SCHEDULE_AVAILABLE',
   SLOT_RESERVED: 'SLOT_RESERVED',
   QUEUE_STARTED: 'QUEUE_STARTED',
   QUEUE_PAUSED: 'QUEUE_PAUSED',
@@ -31,6 +32,12 @@ export const NOTIFICATION_EVENTS = {
  * Configuration mapping each Event ID to its display hierarchy, title, and message.
  */
 const NOTIFICATION_CONFIG = {
+  [NOTIFICATION_EVENTS.SCHEDULE_AVAILABLE]: {
+    type: 'info',
+    title: 'Schedule Available',
+    message: "There's a reservation schedule available. Open Reserve to book a slot.",
+    duration: 5000,
+  },
   [NOTIFICATION_EVENTS.SLOT_RESERVED]: {
     type: 'success',
     title: 'Reservation Confirmed',
@@ -118,7 +125,7 @@ const NOTIFICATION_CONFIG = {
   [NOTIFICATION_EVENTS.RESERVATION_CANCELLED_BY_CLINIC]: {
     type: 'warning',
     title: 'Reservation Cancelled',
-    message: 'The clinic closed this day and cancelled your reservation. Please book another posted day.',
+    message: 'The clinic closed this day and cancelled your reservation. It does not count as a no-show. Book another open day when you are ready.',
     duration: 8000,
   },
   [NOTIFICATION_EVENTS.CHECK_IN_REQUESTED]: {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { subscribeToScheduleReservations, startConsultation, completeConsultation, expireReservation, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
 import { getNextEligiblePatient } from "../../services/queueEligibilityService";
@@ -8,6 +9,7 @@ import { Activity, CheckCircle, User, AlertCircle, FileText, X, Clock, MapPin, U
 import ScheduleConfirmModal from "../../components/schedule/ScheduleConfirmModal";
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 import QueueSessionControls from "../common/QueueSessionControls";
+import StartTodayQueue from "../common/StartTodayQueue";
 import toast from "react-hot-toast";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
@@ -22,6 +24,7 @@ function WalkInChip({ reservation }) {
 }
 
 export default function QueueControlCenter() {
+  const navigate = useNavigate();
   const [schedules, setSchedules] = useState([]);
   const [schedulesLoaded, setSchedulesLoaded] = useState(false);
   const [reservations, setReservations] = useState([]);
@@ -161,7 +164,9 @@ export default function QueueControlCenter() {
       <div className="space-y-6 pb-6 text-center py-20 pq-glass mt-6">
         <Activity className="w-12 h-12 pq-faint mx-auto mb-4" aria-hidden="true" />
         <h2 className="text-xl font-extrabold tracking-tight mb-2">No Clinic Queue is Currently Active</h2>
-        <p className="pq-muted max-w-md mx-auto mb-6">You don't have an active clinic session running. Go to Schedule Management and click Start Queue on a published schedule to begin today's clinic.</p>
+        <p className="pq-muted max-w-md mx-auto mb-6">No queue is running. Start today's published schedule here, or open the calendar to publish or close a day.</p>
+        <StartTodayQueue schedules={schedules} />
+        <button type="button" className="pq-btn-secondary" onClick={() => navigate("/doctor/schedules")}>Open schedule calendar</button>
       </div>
     );
   }
@@ -186,7 +191,6 @@ export default function QueueControlCenter() {
           <QueueSessionControls
             schedule={activeSchedule}
             canEndSession={canEndSession}
-            includeStartQueue
           />
         </div>
       </div>

@@ -21,6 +21,10 @@ import {
   parentCellKind,
   queueHasEnded,
 } from "../../utils/scheduleCalendar";
+import {
+  ACTIVE_RESERVATION_STATUSES,
+  getActiveUpcomingDates,
+} from "../../services/reservationService";
 
 const BRANCH_KEY = "pq-reserve-branch-id";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -74,7 +78,20 @@ export default function ParentScheduleCalendar({
       (schedule.queueStatus === "active" || schedule.queueStatus === "paused")
   );
   const parentTicket = reservations.find(
-    (reservation) => reservation.scheduleId === activeToday?.id && ["reserved", "waiting", "checked_in", "with_doctor", "in_consultation"].includes(reservation.status)
+    (reservation) => reservation.scheduleId === activeToday?.id && ACTIVE_RESERVATION_STATUSES.includes(reservation.status)
+  );
+
+  const schedulesById = useMemo(() => {
+    const map = {};
+    schedules.forEach((schedule) => {
+      map[schedule.id] = schedule;
+    });
+    return map;
+  }, [schedules]);
+
+  const ownedDates = useMemo(
+    () => getActiveUpcomingDates(reservations, schedulesById),
+    [reservations, schedulesById]
   );
 
   const nextSession = branchSchedules
@@ -100,6 +117,7 @@ export default function ParentScheduleCalendar({
     const taken = schedule?.booking?.activeSlotCount != null
       ? Number(schedule.booking.activeSlotCount)
       : (capacityMap?.[schedule?.id] ?? slotsTaken(schedule, reservations));
+    const owned = ownedDates.has(dateStr);
     const kind = parentCellKind({
       dateStr,
       today,
@@ -107,7 +125,16 @@ export default function ParentScheduleCalendar({
       schedule: closure ? { ...schedule, dayClosed: true } : schedule,
       closure,
       taken,
+      owned,
     });
+    if (kind === "owned") {
+      onMessage({
+        type: "info",
+        title: "Your reservation",
+        message: "You already have a reservation on this date.",
+      });
+      return;
+    }
     if (kind === "available" && schedule) {
       onReserve(schedule);
       return;
@@ -148,7 +175,7 @@ export default function ParentScheduleCalendar({
             <div>
               <p className="font-extrabold">{formatBranchLabel(activeToday.branch)}</p>
               <p className="pq-muted text-sm">
-                {activeToday.queueStatus === "paused" ? "Paused" : "Open"} · {formatTime(activeToday.openingTime)} – {formatTime(activeToday.closingTime)}
+                {activeToday.queueStatus === "paused" ? "Paused" : "Open"} ┬╖ {formatTime(activeToday.openingTime)} ΓÇô {formatTime(activeToday.closingTime)}
               </p>
               {parentTicket ? (
                 <p className="text-sm mt-1">Your queue number is {parentTicket.queueNumber}.</p>
@@ -166,8 +193,8 @@ export default function ParentScheduleCalendar({
         {nextSession ? (
           <p className="font-semibold">
             {nextSession.clinicDate === today ? "Today" : formatManilaLong(nextSession.clinicDate)}
-            {" · "}
-            {formatTime(nextSession.openingTime)} – {formatTime(nextSession.closingTime)}
+            {" ┬╖ "}
+            {formatTime(nextSession.openingTime)} ΓÇô {formatTime(nextSession.closingTime)}
           </p>
         ) : (
           <p className="pq-muted text-sm">No upcoming session.</p>
@@ -187,6 +214,7 @@ export default function ParentScheduleCalendar({
         <div className="flex flex-wrap gap-3 text-xs font-semibold mb-3">
           <span style={{ color: "var(--pq-live)" }}>Green: slots left</span>
           <span style={{ color: "var(--pq-alert)" }}>Red: full</span>
+          <span style={{ color: "var(--pq-mark-blue)" }}>Your reservation</span>
           <span style={{ color: "var(--pq-wait)" }}>Closed</span>
           <span className="pq-muted">Muted: no session or past</span>
         </div>
@@ -208,14 +236,24 @@ export default function ParentScheduleCalendar({
               schedule: closure ? { ...schedule, dayClosed: true, status: schedule?.status || "published" } : schedule,
               closure,
               taken,
+              owned: ownedDates.has(dateStr),
             });
-            const clickable = kind === "available" || kind === "full" || kind === "closed";
+            const clickable = kind === "available" || kind === "full" || kind === "closed" || kind === "owned";
             const style = {
               available: { background: "var(--pq-live-wash)", color: "var(--pq-live)" },
               full: { background: "var(--pq-alert-wash)", color: "var(--pq-alert)" },
               closed: { background: "var(--pq-wait-wash)", color: "var(--pq-wait)" },
+              owned: { background: "color-mix(in srgb, var(--pq-mark-blue) 16%, white)", color: "var(--pq-mark-blue)" },
             }[kind] || { background: "transparent", color: "var(--pq-ink-faint)" };
-            const labels = { available: "Open", full: "Full", closed: "Closed", ended: "Ended", past: "", not_posted: "" };
+            const labels = {
+              available: "Open",
+              full: "Full",
+              closed: "Closed",
+              owned: "Yours",
+              ended: "Ended",
+              past: "",
+              not_posted: "",
+            };
             const Tag = clickable ? "button" : "div";
             return (
               <Tag

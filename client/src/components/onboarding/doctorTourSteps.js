@@ -35,7 +35,7 @@ export const DOCTOR_TOUR_STEPS = [
     targets: ["doctor-queue-start"],
     title: "Start Queue",
     description:
-      "Start Queue opens the day's published schedule and lets patients join the floor. On a live day you can also start from Schedules. This walkthrough will not start a real queue.",
+      "Start today's queue from the schedule calendar: open today's date and choose Start Queue. That opens this floor. This walkthrough will not start a real queue.",
     disableActiveInteraction: true,
   },
   {

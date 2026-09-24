@@ -11,7 +11,9 @@ import {
   getReservationsBySchedule,
   updatePatientInfo,
   cancelReservation,
-  ACTIVE_RESERVATION_STATUSES
+  ACTIVE_RESERVATION_STATUSES,
+  wouldExceedMultiDateCap,
+  MULTI_DATE_CAP_MESSAGE,
 } from "../../services/reservationService";
 import { addChild, subscribeToChildren } from "../../services/childProfileService";
 import { buildPatientInfoPayload } from "../../utils/reservationPatients";
@@ -192,6 +194,17 @@ export default function ReserveQueue() {
         type: 'warning',
         title: 'Active Reservation Exists',
         message: 'You already have an active reservation for this date. You may only reserve one clinic schedule per day.'
+      });
+      return;
+    }
+
+    const schedulesById = Object.fromEntries(schedules.map((item) => [item.id, item]));
+    if (wouldExceedMultiDateCap(parentReservationsList, schedulesById, schedule.clinicDate)) {
+      setMessageModalState({
+        isOpen: true,
+        type: "warning",
+        title: "Upcoming reservation limit",
+        message: MULTI_DATE_CAP_MESSAGE,
       });
       return;
     }

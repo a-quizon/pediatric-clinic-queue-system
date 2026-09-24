@@ -202,7 +202,7 @@ export default function Dashboard() {
             <div className="flex flex-col items-center justify-center py-6 text-center">
               <AlertCircle className="w-10 h-10 pq-faint mb-3" aria-hidden="true" />
               <p className="font-extrabold tracking-tight">No Published Schedule</p>
-              <p className="text-sm pq-muted mt-1 max-w-[250px]">The doctor has not yet published a reservation schedule for your assigned branch.</p>
+              <p className="text-sm pq-muted mt-1 max-w-[250px]">No reservation schedule is published for your assigned branch yet. Open the calendar to publish days.</p>
             </div>
           )}
         </section>

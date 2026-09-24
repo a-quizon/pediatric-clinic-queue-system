@@ -7,7 +7,6 @@ import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 export default function QueueSessionControls({
   schedule,
   canEndSession = false,
-  includeStartQueue = false,
   showStatusBadge = true,
   layout = "inline",
 }) {
@@ -121,11 +120,6 @@ export default function QueueSessionControls({
 
   const actionButtons = (
     <div className={`flex items-center gap-2 min-w-0 ${isCluster ? "shrink-0" : "flex-wrap"}`}>
-      {includeStartQueue && queueStatus === "published" && (
-        <button type="button" onClick={() => handleQueueControl("active")} className="pq-btn-live">
-          <Play className="w-4 h-4" aria-hidden="true" /> Start Queue
-        </button>
-      )}
       {queueStatus === "active" && (
         <>
           <button

@@ -179,14 +179,28 @@ export default function ReservationHistory() {
 
                 <div className="flex justify-between items-center pt-2.5 mt-auto gap-2" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
                   <div className="text-[11px] pq-faint font-medium">
-                    {label === "Cancelled" ? "Cancelled on" : label === "Completed" ? "Completed on" : label === "Expired" ? "Expired on" : "Logged on"} {timestamp ? new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
+                    {label === "Cancelled" || label === "Cancelled by clinic" ? "Cancelled on" : label === "Completed" ? "Completed on" : label === "Expired" ? "Expired on" : "Logged on"} {timestamp ? new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
                   </div>
-                  {hasNotes && (
-                    <span className="pq-chip pq-chip-info flex-shrink-0">
-                      <FileText className="w-3 h-3 mr-1" />
-                      With Notes
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {res.status === "cancelled_by_clinic" && (
+                      <button
+                        type="button"
+                        className="pq-btn-secondary text-xs"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate("/parent/reserve");
+                        }}
+                      >
+                        Book another date
+                      </button>
+                    )}
+                    {hasNotes && (
+                      <span className="pq-chip pq-chip-info">
+                        <FileText className="w-3 h-3 mr-1" />
+                        With Notes
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );

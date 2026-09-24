@@ -6,6 +6,13 @@ const {
   minutesFromTime,
 } = require("./manilaDate");
 
+const CLOSED_MESSAGE = "The clinic is closed on this date.";
+const WINDOW_MESSAGE = "This date is outside the booking window.";
+const FULL_MESSAGE = "This schedule is already full.";
+const MULTI_DATE_CAP = 2;
+const MULTI_DATE_MESSAGE =
+  "You already have 2 upcoming reservations. Cancel one or wait until a visit is finished before booking another.";
+
 const ACTIVE_STATUSES = new Set([
   "reserved",
   "checked_in",
@@ -60,6 +67,13 @@ async function dateIsClosed(db, schedule) {
   });
 }
 
+async function resolveReservationDate(db, reservation) {
+  if (reservation.clinicDate) return reservation.clinicDate;
+  if (!reservation.scheduleId) return null;
+  const scheduleSnap = await db.ref(`schedules/${reservation.scheduleId}`).once("value");
+  return scheduleSnap.exists() ? scheduleSnap.val().clinicDate || null : null;
+}
+
 async function parentBlockedOnDate(db, parentId, clinicDate, doctorId) {
   const snap = await db.ref("reservations").orderByChild("parentId").equalTo(parentId).once("value");
   if (!snap.exists()) return null;
@@ -84,6 +98,22 @@ async function parentBlockedOnDate(db, parentId, clinicDate, doctorId) {
       }
     }
   }
+  return null;
+}
+
+async function parentOverMultiDateCap(db, parentId, clinicDate) {
+  const snap = await db.ref("reservations").orderByChild("parentId").equalTo(parentId).once("value");
+  if (!snap.exists()) return null;
+  const rows = Object.values(snap.val());
+  const activeDates = new Set();
+  for (const reservation of rows) {
+    if (!ACTIVE_STATUSES.has(reservation.status)) continue;
+    const date = await resolveReservationDate(db, reservation);
+    if (!date) continue;
+    activeDates.add(date);
+  }
+  if (activeDates.has(clinicDate)) return null;
+  if (activeDates.size >= MULTI_DATE_CAP) return MULTI_DATE_MESSAGE;
   return null;
 }
 
@@ -141,7 +171,7 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
   if (!scheduleSnap.exists()) throw coded("not-found", "Schedule not found.");
   const schedule = scheduleSnap.val();
   if (schedule.status !== "published") throw coded("failed-precondition", "Schedule is not available for booking.");
-  if (await dateIsClosed(db, schedule)) throw coded("failed-precondition", "The clinic is closed on this date.");
+  if (await dateIsClosed(db, schedule)) throw coded("failed-precondition", CLOSED_MESSAGE);
   if (["closed", "ended", "completed"].includes(schedule.queueStatus) || schedule.status === "completed") {
     throw coded("failed-precondition", "This clinic queue has closed to new reservations.");
   }
@@ -163,7 +193,7 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
     throw coded("failed-precondition", "This date has passed.");
   }
   if (schedule.clinicDate > horizon) {
-    throw coded("failed-precondition", "This date is outside the booking window.");
+    throw coded("failed-precondition", WINDOW_MESSAGE);
   }
   if (schedule.clinicDate === today) {
     const closing = minutesFromTime(schedule.closingTime);
@@ -179,6 +209,8 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
   if (mode === "parent") {
     const blocked = await parentBlockedOnDate(db, callerUid, schedule.clinicDate, schedule.doctorId);
     if (blocked) throw coded("failed-precondition", blocked);
+    const overCap = await parentOverMultiDateCap(db, callerUid, schedule.clinicDate);
+    if (overCap) throw coded("failed-precondition", overCap);
     lockRef = db.ref(`bookingLocks/${callerUid}/${schedule.clinicDate}`);
     const lock = await lockRef.transaction((current) => {
       if (current) return;
@@ -212,7 +244,7 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
       return { activeSlotCount: count + 1, nextQueueNumber: next + 1 };
     });
     if (!claimed.committed) {
-      throw coded("failed-precondition", "This schedule is already full.");
+      throw coded("failed-precondition", FULL_MESSAGE);
     }
     slotTaken = true;
     const queueNumber = Number(claimed.snapshot.val().nextQueueNumber) - 1;
@@ -289,4 +321,4 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
   }
 }
 
-module.exports = { claimReservationSlot };
+module.exports = { claimReservationSlot, MULTI_DATE_CAP };

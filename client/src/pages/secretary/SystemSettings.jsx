@@ -376,7 +376,7 @@ export default function SystemSettings() {
                   Default slots per day ({MIN_SLOT_CAPACITY}–{MAX_SLOT_CAPACITY})
                 </label>
                 <p className="pq-muted text-sm">
-                  Used when a day is posted from the schedule calendar. A day can still use a different number.
+                  Default capacity for each open clinic day. You can still change one day from the schedule calendar.
                 </p>
               </div>
               <div className="w-full sm:w-32 shrink-0">

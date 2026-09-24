@@ -159,8 +159,9 @@ export default function QueueRulesAgreementModal({
                   </>
                 )}
                 <li>
-                  You may hold only one active reservation per day, even at a different branch. Cancelled or forfeited
-                  tickets no longer count.
+                  You may hold only one active reservation per day, even at a different branch. You may also hold at most
+                  two upcoming reservations at a time across all dates. Cancelled, clinic-cancelled, forfeited, or
+                  completed tickets no longer count.
                 </li>
               </ul>
             </div>

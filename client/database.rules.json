@@ -34,7 +34,7 @@
       ".read": "auth != null",
       ".indexOn": ["status"],
       "$scheduleId": {
-        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'secretary') && root.child('users').child(auth.uid).child('status').val() === 'active' && (!newData.exists() || newData.child('booking').val() == data.child('booking').val() || (!data.exists() && !newData.child('booking').exists()))"
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'secretary') && root.child('users').child(auth.uid).child('status').val() === 'active' && (!newData.exists() || (newData.child('booking').child('activeSlotCount').val() == data.child('booking').child('activeSlotCount').val() && newData.child('booking').child('nextQueueNumber').val() == data.child('booking').child('nextQueueNumber').val()))"
       }
     },
     "clinicClosures": {

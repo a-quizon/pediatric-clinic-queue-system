@@ -39,6 +39,9 @@ const LEGACY_MERGED_QUEUE_STARTED_TEMPLATE =
   "Date: {date}\n" +
   "Queue Number: {queueNumber}";
 
+const LEGACY_CLINIC_CANCELLED_TEMPLATE =
+  "The clinic at {branch} is closed on {date} ({reason}). Your reservation was cancelled. Please book another posted day.";
+
 const DEFAULT_SMS_TEMPLATES = {
   templateSlotReserved:
     "Your clinic reservation is confirmed.\n" +
@@ -60,7 +63,7 @@ const DEFAULT_SMS_TEMPLATES = {
   templateForfeited:
     "Your reservation (Queue #{queueNumber}) at {branch} on {date} was forfeited because you did not check in on time. You may still book a new slot on the same schedule if slots are available.",
   templateClinicCancelled:
-    "The clinic at {branch} is closed on {date} ({reason}). Your reservation was cancelled. Please book another posted day.",
+    "The clinic at {branch} is closed on {date} ({reason}). Your reservation was cancelled. It does not count as a no-show. Book another open day when you are ready.",
 };
 
 function db() {
@@ -151,7 +154,9 @@ function parseSmsConfig(data) {
       DEFAULT_SMS_TEMPLATES.templateForfeited
     ),
     templateClinicCancelled: sanitizeTemplate(
-      data?.templateClinicCancelled,
+      String(data?.templateClinicCancelled || "").trim() === LEGACY_CLINIC_CANCELLED_TEMPLATE
+        ? DEFAULT_SMS_TEMPLATES.templateClinicCancelled
+        : data?.templateClinicCancelled,
       DEFAULT_SMS_TEMPLATES.templateClinicCancelled
     ),
   };

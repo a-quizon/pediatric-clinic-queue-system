@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { Users, UserCheck, UserPlus, Clock, CheckCircle, Activity, PlayCircle, AlertTriangle, Monitor } from "lucide-react";
 import { subscribeToScheduleReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder, cancelReservation, forfeitReservationIfTimerExpired } from "../../services/reservationService";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
@@ -11,6 +12,7 @@ import toast from "react-hot-toast";
 import { getReservationChildDisplayName } from "../../utils/reservationPatients";
 import ReservationPatientNames from "../../components/common/ReservationPatientNames";
 import QueueSessionControls from "../../components/common/QueueSessionControls";
+import StartTodayQueue from "../../components/common/StartTodayQueue";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 import { PqSpinner } from "../../components/parent/pqUi";
@@ -197,9 +199,11 @@ export default function ManageQueue({ hideHeader = false }) {
         <div className="pq-glass p-12 text-center max-w-xl mx-auto">
           <Clock className="w-12 h-12 pq-faint mx-auto mb-4" aria-hidden="true" />
           <h2 className="text-xl font-extrabold tracking-tight mb-2">No Active Queue For {user.assignedBranch}</h2>
-          <p className="pq-muted text-sm leading-relaxed max-w-md mx-auto">
-            There is currently no active clinic queue running for your assigned branch ({user.assignedBranch}). Wait for the Doctor to start the session for this branch.
+          <p className="pq-muted text-sm leading-relaxed max-w-md mx-auto mb-6">
+            No queue is running for {user.assignedBranch}. Start today's published schedule here, or open the calendar to publish or close a day.
           </p>
+          <StartTodayQueue schedules={schedules} user={user} limitToAssignedBranch />
+          <Link to="/secretary/schedules" className="pq-btn-secondary">Open schedule calendar</Link>
         </div>
       </div>
     );

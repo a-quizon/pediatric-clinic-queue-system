@@ -22,6 +22,12 @@ const ACTIVE_RESERVATION_STATUSES = [
 ];
 
 const NOTIFICATION_CONFIG = {
+  SCHEDULE_AVAILABLE: {
+    type: "info",
+    title: "Schedule Available",
+    message: "There's a reservation schedule available. Open Reserve to book a slot.",
+    url: "/parent/reserve",
+  },
   SLOT_RESERVED: {
     type: "success",
     title: "Reservation Confirmed",
@@ -109,7 +115,7 @@ const NOTIFICATION_CONFIG = {
   RESERVATION_CANCELLED_BY_CLINIC: {
     type: "warning",
     title: "Reservation Cancelled",
-    message: "The clinic closed this day and cancelled your reservation. Please book another posted day.",
+    message: "The clinic closed this day and cancelled your reservation. It does not count as a no-show. Book another open day when you are ready.",
     url: "/parent/reserve",
   },
   CHECK_IN_REQUESTED: {
@@ -413,7 +419,7 @@ function eventsFromReservationChange(before, after) {
         clinicDate: after.clinicDate || null,
         reason,
         queueNumber: after.queueNumber ?? after.originalQueueNumber ?? after.queuePosition,
-        customMessage: `The clinic is closed (${reason}). Your reservation was cancelled. Please book another posted day.`,
+        customMessage: `The clinic is closed (${reason}). Your reservation was cancelled. It does not count as a no-show. Book another open day when you are ready.`,
         dedupeKey: `clinic_cancel_${id}`,
       });
     }
@@ -607,9 +613,59 @@ async function handleScheduleChange(before, after) {
   }
 }
 
+async function getAllParentIds() {
+  const snap = await db().ref("users").once("value");
+  if (!snap.exists()) return [];
+  return Object.entries(snap.val())
+    .filter(([, user]) => user && user.role === "parent" && user.status !== "inactive" && user.isDeleted !== true)
+    .map(([uid]) => uid);
+}
+
+async function notifyParentsScheduleAvailable({
+  batchId,
+  branchId = null,
+  branchName = "",
+  postedCount = 0,
+  startDate = null,
+  endDate = null,
+} = {}) {
+  if (!batchId) throw new Error("batchId is required.");
+  const parents = await getAllParentIds();
+  if (parents.length === 0) return { notified: 0 };
+
+  const branchLabel = String(branchName || "")
+    .replace(/\s*branch\s*$/i, "")
+    .trim();
+  const customMessage = branchLabel
+    ? `There's a reservation schedule available at ${branchLabel}. Open Reserve to book a slot.`
+    : NOTIFICATION_CONFIG.SCHEDULE_AVAILABLE.message;
+
+  const dedupeKey = `sched_avail_batch_${batchId}`;
+  let notified = 0;
+  for (const parentId of parents) {
+    const ok = await deliverNotification("SCHEDULE_AVAILABLE", {
+      parentId,
+      entityId: batchId,
+      branchId,
+      dedupeKey,
+      customMessage,
+      metadata: {
+        batchId,
+        postedCount,
+        startDate,
+        endDate,
+        branchName: branchLabel || null,
+      },
+    });
+    if (ok) notified += 1;
+  }
+  return { notified, parentCount: parents.length };
+}
+
 module.exports = {
   handleReservationChange,
   handleScheduleChange,
   sendPushToParent,
   configureVapid,
+  notifyParentsScheduleAvailable,
 };

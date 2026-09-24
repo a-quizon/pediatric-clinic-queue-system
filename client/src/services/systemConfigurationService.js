@@ -60,7 +60,7 @@ export const DEFAULT_SMS_TEMPLATES = {
   templateForfeited:
     "Your reservation (Queue #{queueNumber}) at {branch} on {date} was forfeited because you did not check in on time. You may still book a new slot on the same schedule if slots are available.",
   templateClinicCancelled:
-    "The clinic at {branch} is closed on {date} ({reason}). Your reservation was cancelled. Please book another posted day.",
+    "The clinic at {branch} is closed on {date} ({reason}). Your reservation was cancelled. It does not count as a no-show. Book another open day when you are ready.",
 };
 
 /** Previous merged Queue Started template — migrate RTDB copies back to the simple default. */
@@ -70,6 +70,10 @@ const LEGACY_MERGED_QUEUE_STARTED_TEMPLATE =
   "Here's your Reservation details:\n" +
   "Date: {date}\n" +
   "Queue Number: {queueNumber}";
+
+/** Previous clinic-cancelled SMS that told parents to book a "posted" day. */
+const LEGACY_CLINIC_CANCELLED_TEMPLATE =
+  "The clinic at {branch} is closed on {date} ({reason}). Your reservation was cancelled. Please book another posted day.";
 
 export const isUsableBranchId = (branchId) =>
   typeof branchId === "string" && branchId.trim() !== "" && !LEGACY_GLOBAL_KEYS.has(branchId);
@@ -331,8 +335,12 @@ const parseSmsConfig = (data) => {
     data?.templateForfeited ?? DEFAULT_SMS_TEMPLATES.templateForfeited,
     "Forfeiture message"
   );
+  const clinicCancelledSource =
+    String(data?.templateClinicCancelled || "").trim() === LEGACY_CLINIC_CANCELLED_TEMPLATE
+      ? DEFAULT_SMS_TEMPLATES.templateClinicCancelled
+      : (data?.templateClinicCancelled ?? DEFAULT_SMS_TEMPLATES.templateClinicCancelled);
   const clinicCancelled = validateSmsTemplate(
-    data?.templateClinicCancelled ?? DEFAULT_SMS_TEMPLATES.templateClinicCancelled,
+    clinicCancelledSource,
     "Clinic closed message"
   );
 

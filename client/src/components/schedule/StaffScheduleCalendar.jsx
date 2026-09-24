@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
 import { getDefaultSlotCapacity } from "../../services/systemConfigurationService";
+import { updateQueueStatus } from "../../services/scheduleService";
 import {
   subscribeToClinicClosures,
   previewPublishDates,
@@ -32,10 +34,13 @@ import {
   closureForDate,
   scheduleForDate,
   slotsTaken,
+  queueHasEnded,
+  startQueueConfirmMessage,
 } from "../../utils/scheduleCalendar";
 import ConfirmationModal from "../common/ConfirmationModal";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const LIVE_QUEUE_STATUSES = ["active", "paused", "closed"];
 
 export default function StaffScheduleCalendar({
   branches,
@@ -43,10 +48,10 @@ export default function StaffScheduleCalendar({
   reservations,
   lockBranch,
   onChanged,
-  onEdit,
-  onOpen,
+  queuePath,
 }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const today = manilaDateString();
   const horizon = bookingHorizonEnd(today);
   const [cursor, setCursor] = useState(() => {
@@ -58,15 +63,14 @@ export default function StaffScheduleCalendar({
   const [defaultCapacity, setDefaultCapacity] = useState(30);
   const [dayModal, setDayModal] = useState(null);
   const [rangeOpen, setRangeOpen] = useState(false);
-  const [closeOpen, setCloseOpen] = useState(false);
   const [rangeForm, setRangeForm] = useState({ start: today, end: addManilaDays(today, 6), capacity: "30" });
   const [closeForm, setCloseForm] = useState({
-    start: today,
-    end: today,
     reason: "emergency",
     note: "",
+    endDate: today,
     allBranches: false,
   });
+  const [closingMode, setClosingMode] = useState(false);
   const [previewText, setPreviewText] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(null);
@@ -103,7 +107,14 @@ export default function StaffScheduleCalendar({
     if (onChanged) await onChanged();
   };
 
+  const closeDayModal = () => {
+    setDayModal(null);
+    setClosingMode(false);
+    setCloseForm({ reason: "emergency", note: "", endDate: today, allBranches: false });
+  };
+
   const openDay = (dateStr) => {
+    if (dateStr < today) return;
     const schedule = scheduleForDate(schedules, dateStr, branch?.id, branch?.name);
     const closure = closureForDate(closures, dateStr, branch?.id, branch?.name) || (schedule?.dayClosed ? {
       reason: schedule.closureReason,
@@ -112,7 +123,7 @@ export default function StaffScheduleCalendar({
       startDate: dateStr,
       endDate: dateStr,
     } : null);
-    if (dateStr < today) return;
+
     if (closure) {
       setConfirm({
         title: "Clinic closed",
@@ -121,26 +132,37 @@ export default function StaffScheduleCalendar({
         }`,
         confirmText: closure.startDate > today ? "Remove closure" : "OK",
         destructive: Boolean(closure.startDate > today),
-        hideCancel: !(closure.startDate > today),
         action: async () => {
-          await removeClosure(closure.id);
-          toast.success("Closure removed.");
-          await refresh();
+          if (closure.startDate > today && closure.id) {
+            await removeClosure(closure.id);
+            toast.success("Closure removed.");
+            await refresh();
+          }
         },
       });
       return;
     }
+
     if (schedule?.status === "draft") {
-      onEdit?.(schedule);
+      toast("This day is still a draft. Post it again from an empty day, or ask an admin if it is stuck.");
       return;
     }
-    if (schedule) {
-      onOpen?.(schedule);
+
+    if (schedule?.status === "published") {
+      setClosingMode(false);
+      setCloseForm({
+        reason: "emergency",
+        note: "",
+        endDate: dateStr,
+        allBranches: false,
+      });
+      setDayModal({ mode: "published", dateStr, schedule });
       return;
     }
+
     const weekday = branch?.schedule?.[WEEKDAY_KEYS[manilaWeekdayIndex(dateStr)]];
     if (!weekday?.isOpen || dateStr > horizon) return;
-    setDayModal({ dateStr, capacity: String(defaultCapacity) });
+    setDayModal({ mode: "post", dateStr, capacity: String(defaultCapacity) });
   };
 
   const postDay = async () => {
@@ -155,13 +177,43 @@ export default function StaffScheduleCalendar({
         user,
       });
       toast.success(`Posted ${formatManilaLong(dayModal.dateStr)}.`);
-      setDayModal(null);
+      closeDayModal();
       await refresh();
     } catch (error) {
       toast.error(error.message || "Could not post this day.");
     } finally {
       setBusy(false);
     }
+  };
+
+  const startQueue = async () => {
+    if (!dayModal?.schedule) return;
+    setBusy(true);
+    try {
+      await updateQueueStatus(dayModal.schedule.id, "active");
+      toast.success("Clinic queue has been started.");
+      closeDayModal();
+      await refresh();
+      if (queuePath) navigate(queuePath);
+    } catch (error) {
+      toast.error(error.message || "Could not start the queue.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const requestStartQueue = () => {
+    if (!dayModal?.schedule) return;
+    const schedule = dayModal.schedule;
+    setConfirm({
+      title: "Start this queue?",
+      message: startQueueConfirmMessage(schedule, {
+        formatDate: formatManilaLong,
+        formatBranch: formatBranchLabel,
+      }),
+      confirmText: "Start Queue",
+      action: startQueue,
+    });
   };
 
   const reviewRange = async () => {
@@ -232,19 +284,21 @@ export default function StaffScheduleCalendar({
     });
   };
 
-  const reviewClose = async () => {
-    if (!branch) return;
+  const reviewCloseDay = async () => {
+    if (!branch || !dayModal) return;
+    const startDate = dayModal.dateStr;
+    const endDate = closeForm.endDate >= startDate ? closeForm.endDate : startDate;
     setBusy(true);
     try {
       const preview = await previewClosure({
         branchId: branch.id,
         branchName: branch.name,
-        startDate: closeForm.start,
-        endDate: closeForm.end,
+        startDate,
+        endDate,
         allBranches: !lockBranch && closeForm.allBranches,
       });
       if (preview.blocking.length > 0) {
-        toast.error("Finish or forfeit patients who are already in the clinic before closing these days.");
+        toast.error("Finish or forfeit patients who are already in the clinic before closing.");
         return;
       }
       if (preview.overlaps.length > 0) {
@@ -252,29 +306,32 @@ export default function StaffScheduleCalendar({
         return;
       }
       const count = preview.cancellable.length;
+      const dayLabel = startDate === endDate
+        ? formatManilaLong(startDate)
+        : `${formatManilaLong(startDate)} – ${formatManilaLong(endDate)}`;
       setConfirm({
-        title: "Close these days?",
-        message: `${preview.dates.length} day(s) will be marked closed. ${count} reservation(s) will be cancelled and those parents will rebook themselves. Nothing is moved.`,
+        title: "Close the clinic?",
+        message: `${dayLabel} will be closed. ${count} reservation(s) will be cancelled and those parents can book another date. This does not count as a no-show.`,
         confirmText: "Close clinic",
         destructive: true,
         action: async () => {
           const result = await applyClosure({
             branchId: branch.id,
             branchName: branch.name,
-            startDate: closeForm.start,
-            endDate: closeForm.end,
+            startDate,
+            endDate,
             reason: closeForm.reason,
             note: closeForm.note,
             user,
             allBranches: !lockBranch && closeForm.allBranches,
           });
-          toast.success(`Closed the clinic. Cancelled ${result.cancelled} reservation(s).`);
-          setCloseOpen(false);
+          toast.success(`Clinic closed. Cancelled ${result.cancelled} reservation(s).`);
+          closeDayModal();
           await refresh();
         },
       });
     } catch (error) {
-      toast.error(error.message || "Could not close these days.");
+      toast.error(error.message || "Could not close the clinic.");
     } finally {
       setBusy(false);
     }
@@ -296,12 +353,28 @@ export default function StaffScheduleCalendar({
     }
   };
 
+  const publishedModal = dayModal?.mode === "published" ? dayModal : null;
+  const publishedSchedule = publishedModal?.schedule;
+  const taken = publishedSchedule ? slotsTaken(publishedSchedule, reservations) : 0;
+  const capacity = Number(publishedSchedule?.slotCapacity || 0);
+  const canStartQueue =
+    publishedSchedule &&
+    publishedModal.dateStr === today &&
+    !queueHasEnded(publishedSchedule) &&
+    !LIVE_QUEUE_STATUSES.includes(publishedSchedule.queueStatus);
+  const queueLive =
+    publishedSchedule && LIVE_QUEUE_STATUSES.includes(publishedSchedule.queueStatus);
+  const canClose =
+    publishedSchedule &&
+    !queueHasEnded(publishedSchedule) &&
+    publishedSchedule.queueStatus !== "closed";
+
   return (
     <section className="pq-glass p-4 sm:p-5 mb-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
         <div>
           <h2 className="text-lg font-extrabold tracking-tight">Schedule calendar</h2>
-          <p className="pq-muted text-sm">Post a day, a range, or copy last week. Empty days are not open for parents.</p>
+          <p className="pq-muted text-sm">Post a day, a range, or copy last week. Open a posted day to start the queue or close the clinic.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {!lockBranch && (
@@ -318,7 +391,6 @@ export default function StaffScheduleCalendar({
           )}
           <button type="button" className="pq-btn-secondary" onClick={() => setRangeOpen(true)}>Publish range</button>
           <button type="button" className="pq-btn-secondary" onClick={reviewCopy}>Copy previous week</button>
-          <button type="button" className="pq-btn-secondary" onClick={() => setCloseOpen(true)}>Mark closed</button>
         </div>
       </div>
 
@@ -340,11 +412,11 @@ export default function StaffScheduleCalendar({
           if (!dateStr) return <div key={`blank-${index}`} />;
           const schedule = scheduleForDate(schedules, dateStr, branch?.id, branch?.name);
           const closure = closureForDate(closures, dateStr, branch?.id, branch?.name);
-          const taken = slotsTaken(schedule, reservations);
+          const dayTaken = slotsTaken(schedule, reservations);
           const closed = Boolean(closure || schedule?.dayClosed);
           const draft = schedule?.status === "draft";
           const posted = schedule?.status === "published" && !closed;
-          const full = posted && taken >= Number(schedule.slotCapacity || 0);
+          const full = posted && dayTaken >= Number(schedule.slotCapacity || 0);
           let background = "transparent";
           let color = "var(--pq-ink-faint)";
           let label = "Not posted";
@@ -362,7 +434,7 @@ export default function StaffScheduleCalendar({
           } else if (posted) {
             background = "var(--pq-live-wash)";
             color = "var(--pq-live)";
-            label = `${Math.max(0, Number(schedule.slotCapacity || 0) - taken)} left`;
+            label = `${Math.max(0, Number(schedule.slotCapacity || 0) - dayTaken)} left`;
           }
           return (
             <button
@@ -385,7 +457,7 @@ export default function StaffScheduleCalendar({
       </div>
       {previewText ? <p className="sr-only">{previewText}</p> : null}
 
-      {dayModal && (
+      {dayModal?.mode === "post" && (
         <div className="pq-modal-scrim">
           <div className="pq-modal w-full max-w-sm p-5">
             <h3 className="text-lg font-extrabold mb-1">Post {formatManilaLong(dayModal.dateStr)}</h3>
@@ -400,9 +472,119 @@ export default function StaffScheduleCalendar({
               onChange={(event) => setDayModal({ ...dayModal, capacity: event.target.value })}
             />
             <div className="flex gap-2 justify-end">
-              <button type="button" className="pq-btn-secondary" onClick={() => setDayModal(null)} disabled={busy}>Cancel</button>
+              <button type="button" className="pq-btn-secondary" onClick={closeDayModal} disabled={busy}>Cancel</button>
               <button type="button" className="pq-btn-primary" onClick={postDay} disabled={busy}>Post day</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {publishedModal && (
+        <div className="pq-modal-scrim">
+          <div className="pq-modal w-full max-w-sm p-5">
+            <h3 className="text-lg font-extrabold mb-1">{formatManilaLong(publishedModal.dateStr)}</h3>
+            <p className="pq-muted text-sm mb-1">
+              {formatBranchLabel(branch?.name)} · {taken}/{capacity || "—"} reserved
+            </p>
+            <p className="text-sm font-semibold mb-4" style={{ color: queueLive ? "var(--pq-live)" : "var(--pq-ink)" }}>
+              {queueHasEnded(publishedSchedule)
+                ? "Queue ended"
+                : queueLive
+                  ? `Queue ${publishedSchedule.queueStatus}`
+                  : "Posted — queue not started"}
+            </p>
+
+            {!closingMode ? (
+              <div className="flex flex-col gap-2">
+                {canStartQueue && (
+                  <button type="button" className="pq-btn-live w-full justify-center" onClick={requestStartQueue} disabled={busy}>
+                    <Play className="w-4 h-4" aria-hidden="true" />
+                    Start Queue
+                  </button>
+                )}
+                {queueLive && queuePath && (
+                  <button
+                    type="button"
+                    className="pq-btn-primary w-full justify-center"
+                    onClick={() => {
+                      closeDayModal();
+                      navigate(queuePath);
+                    }}
+                    disabled={busy}
+                  >
+                    Open live queue
+                  </button>
+                )}
+                {canClose && (
+                  <button
+                    type="button"
+                    className="pq-btn-danger w-full justify-center"
+                    onClick={() => setClosingMode(true)}
+                    disabled={busy}
+                  >
+                    Close Clinic
+                  </button>
+                )}
+                <button type="button" className="pq-btn-secondary w-full justify-center" onClick={closeDayModal} disabled={busy}>
+                  Done
+                </button>
+              </div>
+            ) : (
+              <div>
+                <p className="pq-muted text-sm mb-3">
+                  Waiting reservations will be cancelled so parents can book another date. This does not count as a no-show.
+                </p>
+                <label className="pq-label" htmlFor="closeThrough">Through (optional range)</label>
+                <input
+                  id="closeThrough"
+                  type="date"
+                  className="pq-input mb-3"
+                  min={publishedModal.dateStr}
+                  value={closeForm.endDate}
+                  onChange={(event) => setCloseForm({ ...closeForm, endDate: event.target.value })}
+                />
+                <label className="pq-label" htmlFor="closeReason">Reason</label>
+                <select
+                  id="closeReason"
+                  className="pq-input mb-3"
+                  value={closeForm.reason}
+                  onChange={(event) => setCloseForm({ ...closeForm, reason: event.target.value })}
+                >
+                  {CLOSURE_REASONS.map((reason) => (
+                    <option key={reason.id} value={reason.id}>{reason.label}</option>
+                  ))}
+                </select>
+                <label className="pq-label" htmlFor="closeNote">Note for parents</label>
+                <textarea
+                  id="closeNote"
+                  className="pq-input mb-3"
+                  rows={3}
+                  value={closeForm.note}
+                  onChange={(event) => setCloseForm({ ...closeForm, note: event.target.value })}
+                />
+                <p className="text-xs pq-muted mb-3">
+                  Parents will see: {closureAnnouncement(closeForm.reason, closeForm.note)}
+                </p>
+                {!lockBranch && (
+                  <label className="flex items-center gap-2 text-sm mb-4">
+                    <input
+                      type="checkbox"
+                      checked={closeForm.allBranches}
+                      onChange={(event) => setCloseForm({ ...closeForm, allBranches: event.target.checked })}
+                    />
+                    Apply to all branches
+                  </label>
+                )}
+                <div className="flex gap-2 justify-end">
+                  <button type="button" className="pq-btn-secondary" onClick={() => setClosingMode(false)} disabled={busy}>
+                    Back
+                  </button>
+                  <button type="button" className="pq-btn-primary" onClick={reviewCloseDay} disabled={busy}>
+                    Review close
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -420,36 +602,6 @@ export default function StaffScheduleCalendar({
             <div className="flex gap-2 justify-end">
               <button type="button" className="pq-btn-secondary" onClick={() => setRangeOpen(false)} disabled={busy}>Cancel</button>
               <button type="button" className="pq-btn-primary" onClick={reviewRange} disabled={busy}>Review</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {closeOpen && (
-        <div className="pq-modal-scrim">
-          <div className="pq-modal w-full max-w-sm p-5">
-            <h3 className="text-lg font-extrabold mb-3">Mark days closed</h3>
-            <label className="pq-label" htmlFor="closeStart">From</label>
-            <input id="closeStart" type="date" className="pq-input mb-3" min={today} value={closeForm.start} onChange={(event) => setCloseForm({ ...closeForm, start: event.target.value })} />
-            <label className="pq-label" htmlFor="closeEnd">To</label>
-            <input id="closeEnd" type="date" className="pq-input mb-3" min={closeForm.start} value={closeForm.end} onChange={(event) => setCloseForm({ ...closeForm, end: event.target.value })} />
-            <label className="pq-label" htmlFor="closeReason">Reason</label>
-            <select id="closeReason" className="pq-input mb-3" value={closeForm.reason} onChange={(event) => setCloseForm({ ...closeForm, reason: event.target.value })}>
-              {CLOSURE_REASONS.map((reason) => (
-                <option key={reason.id} value={reason.id}>{reason.label}</option>
-              ))}
-            </select>
-            <label className="pq-label" htmlFor="closeNote">Note for parents</label>
-            <textarea id="closeNote" className="pq-input mb-3" rows={3} value={closeForm.note} onChange={(event) => setCloseForm({ ...closeForm, note: event.target.value })} />
-            {!lockBranch && (
-              <label className="flex items-center gap-2 text-sm mb-4">
-                <input type="checkbox" checked={closeForm.allBranches} onChange={(event) => setCloseForm({ ...closeForm, allBranches: event.target.checked })} />
-                Apply to all branches
-              </label>
-            )}
-            <div className="flex gap-2 justify-end">
-              <button type="button" className="pq-btn-secondary" onClick={() => setCloseOpen(false)} disabled={busy}>Cancel</button>
-              <button type="button" className="pq-btn-primary" onClick={reviewClose} disabled={busy}>Review</button>
             </div>
           </div>
         </div>

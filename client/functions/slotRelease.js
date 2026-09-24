@@ -35,6 +35,7 @@ async function decrementBooking(db, scheduleId) {
   await bookingRef.transaction((current) => {
     if (!current) return;
     return {
+      ...current,
       activeSlotCount: Math.max(0, Number(current.activeSlotCount || 0) - 1),
       nextQueueNumber: current.nextQueueNumber || 1,
     };

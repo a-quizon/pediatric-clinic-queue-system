@@ -444,7 +444,7 @@ export default function Home() {
           <div className="flex-[2] pq-glass p-6 md:p-8 flex flex-col justify-center items-center text-center">
             <Activity className="w-16 h-16 mb-4 pq-faint" aria-hidden="true" />
             <h2 className="text-xl font-extrabold tracking-tight mb-2">No Clinic Schedule Today</h2>
-            <p className="pq-muted max-w-sm">You don't have a published schedule for today. Publish a schedule to begin monitoring today's clinic.</p>
+            <p className="pq-muted max-w-sm">You don't have a published schedule for today. Publish a schedule from the calendar to begin monitoring today's clinic.</p>
           </div>
         )}
 
