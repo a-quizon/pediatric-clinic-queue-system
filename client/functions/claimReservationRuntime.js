@@ -5,6 +5,7 @@ const {
   BOOKING_HORIZON_DAYS,
   minutesFromTime,
 } = require("./manilaDate");
+const { claimParentDateCap, releaseParentDateCap } = require("./parentBookingCap");
 
 const CLOSED_MESSAGE = "The clinic is closed on this date.";
 const WINDOW_MESSAGE = "This date is outside the booking window.";
@@ -206,17 +207,33 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
   if (capacity < 1) throw coded("failed-precondition", "This schedule has no slots.");
 
   let lockRef = null;
+  let capRef = null;
   if (mode === "parent") {
     const blocked = await parentBlockedOnDate(db, callerUid, schedule.clinicDate, schedule.doctorId);
     if (blocked) throw coded("failed-precondition", blocked);
+    // Fast-fail advisory check (atomic guarantee is claimParentDateCap).
     const overCap = await parentOverMultiDateCap(db, callerUid, schedule.clinicDate);
     if (overCap) throw coded("failed-precondition", overCap);
+    capRef = await claimParentDateCap(db, callerUid, schedule.clinicDate, scheduleId, {
+      cap: MULTI_DATE_CAP,
+      onOverCap: () => {
+        throw coded("failed-precondition", MULTI_DATE_MESSAGE);
+      },
+    });
+    if (!capRef) {
+      throw coded("failed-precondition", MULTI_DATE_MESSAGE);
+    }
     lockRef = db.ref(`bookingLocks/${callerUid}/${schedule.clinicDate}`);
     const lock = await lockRef.transaction((current) => {
       if (current) return;
       return scheduleId;
     });
     if (!lock.committed) {
+      try {
+        await releaseParentDateCap(db, callerUid, schedule.clinicDate);
+      } catch (capError) {
+        console.error("claimReservationSlot cap cleanup failed:", capError);
+      }
       throw coded("failed-precondition", "You already have an active reservation for this date.");
     }
   }
@@ -315,6 +332,13 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
         await lockRef.remove();
       } catch (lockError) {
         console.error("claimReservationSlot lock cleanup failed:", lockError);
+      }
+    }
+    if (capRef && mode === "parent") {
+      try {
+        await releaseParentDateCap(db, callerUid, schedule.clinicDate);
+      } catch (capError) {
+        console.error("claimReservationSlot cap cleanup failed:", capError);
       }
     }
     throw error;

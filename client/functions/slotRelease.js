@@ -57,6 +57,12 @@ async function clearBookingLock(db, reservation) {
       await lockRef.remove();
     }
   }
+  try {
+    const { releaseParentDateCap } = require("./parentBookingCap");
+    await releaseParentDateCap(db, reservation.parentId, clinicDate);
+  } catch (error) {
+    console.error("clearBookingLock cap release failed:", error);
+  }
 }
 
 async function releaseSlotIfTerminal(admin, before, after) {
