@@ -12,9 +12,9 @@ import {
 import {
   DOCTOR_TOUR_STEPS,
   areAllDoctorTourStepsComplete,
-  findVisibleTourTarget,
   getRemainingDoctorStepsForPath,
   pathMatchesDoctorStep,
+  resolveDoctorTourElement,
   shouldRunDoctorTour,
 } from "./doctorTourSteps";
 import {
@@ -40,11 +40,11 @@ async function waitForStepTarget(step, timeoutMs = 2500) {
   if (!step) return false;
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
-    if (findVisibleTourTarget(step.targets)) return true;
+    if (resolveDoctorTourElement(step)) return true;
     await waitForPaint();
     await waitForMs(50);
   }
-  return Boolean(findVisibleTourTarget(step.targets));
+  return Boolean(resolveDoctorTourElement(step));
 }
 
 function nextGlobalStep(stepId) {
@@ -174,7 +174,7 @@ export default function DoctorTourController() {
 
         const chrome = getTourDriverChrome();
         instance = driver({
-          steps: mapTourDriverSteps(stepsToDrive, findVisibleTourTarget),
+          steps: mapTourDriverSteps(stepsToDrive, resolveDoctorTourElement),
           animate: true,
           smoothScroll: true,
           allowClose: false,
@@ -187,7 +187,7 @@ export default function DoctorTourController() {
           popoverClass: "pq-driver-popover",
           popoverOffset: chrome.popoverOffset,
           showProgress: stepsToDrive.length > 1,
-          progressText: "{{current}} of {{total}}",
+          progressText: "Step {{current}} of {{total}}",
           nextBtnText: "Next",
           prevBtnText: "Back",
           doneBtnText: doneLabel,

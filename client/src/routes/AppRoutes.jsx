@@ -46,9 +46,11 @@ import AdminAuditLogs from "../pages/admin/AuditLogs";
 
 import OnboardingRoute from "./OnboardingRoute";
 import RoleRoute from "./RoleRoute";
+import MustChangePasswordRoute from "./MustChangePasswordRoute";
 import NativeNotificationBridge from "../components/common/NativeNotificationBridge";
 import NativeBackButtonHandler from "../components/common/NativeBackButtonHandler";
 import OnboardingChildProfile from "../pages/auth/OnboardingChildProfile";
+import ForcedPasswordChange from "../pages/auth/ForcedPasswordChange";
 import SmsTester from "../pages/dev/SmsTester";
 import SplashGate from "../components/onboarding/SplashGate";
 import ParentTourController from "../components/onboarding/ParentTourController";
@@ -95,8 +97,9 @@ export default function AppRoutes() {
         </Route>
 
         {/* Secretary Routes */}
-        <Route path="/secretary/monitor" element={<ProtectedRoute> <RoleRoute allowedRole="secretary"><SecretaryQueueMonitor /></RoleRoute> </ProtectedRoute>} />
-        <Route path="/secretary" element={<ProtectedRoute> <RoleRoute allowedRole="secretary"><SecretaryLayout /></RoleRoute> </ProtectedRoute>}>
+        <Route path="/secretary/change-password" element={<ProtectedRoute> <RoleRoute allowedRole="secretary"><MustChangePasswordRoute><ForcedPasswordChange /></MustChangePasswordRoute></RoleRoute> </ProtectedRoute>} />
+        <Route path="/secretary/monitor" element={<ProtectedRoute> <RoleRoute allowedRole="secretary"><MustChangePasswordRoute><SecretaryQueueMonitor /></MustChangePasswordRoute></RoleRoute> </ProtectedRoute>} />
+        <Route path="/secretary" element={<ProtectedRoute> <RoleRoute allowedRole="secretary"><MustChangePasswordRoute><SecretaryLayout /></MustChangePasswordRoute></RoleRoute> </ProtectedRoute>}>
           <Route index element={<SecretaryDashboard />} />
           <Route path="schedules" element={<SecretarySchedules />} />
           <Route path="validate" element={<SecretaryValidateReservation />} />

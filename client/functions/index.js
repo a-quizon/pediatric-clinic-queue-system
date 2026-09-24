@@ -168,6 +168,24 @@ exports.claimReservationSlot = functions.region("asia-southeast1").https.onCall(
   }
 });
 
+function mapAdminCallableError(err, fallbackMessage) {
+  const code = err.code && typeof err.code === "string" && !String(err.code).startsWith("auth/")
+    ? err.code
+    : "internal";
+  const allowed = new Set([
+    "unauthenticated",
+    "permission-denied",
+    "invalid-argument",
+    "failed-precondition",
+    "not-found",
+    "internal",
+  ]);
+  throw new functions.https.HttpsError(
+    allowed.has(code) ? code : "internal",
+    err.message || fallbackMessage
+  );
+}
+
 /**
  * Admin-only account deletion (Firebase Auth + RTDB profile).
  */
@@ -179,20 +197,42 @@ exports.deleteUserAccount = functions.region("asia-southeast1").https.onCall(asy
     const callerUid = context?.auth?.uid || data?.auth?.uid;
     return await deleteUserAccount({ admin, callerUid, targetUid });
   } catch (err) {
-    const code = err.code && typeof err.code === "string" && !String(err.code).startsWith("auth/")
-      ? err.code
-      : "internal";
-    const allowed = new Set([
-      "unauthenticated",
-      "permission-denied",
-      "invalid-argument",
-      "failed-precondition",
-      "not-found",
-      "internal",
-    ]);
-    throw new functions.https.HttpsError(
-      allowed.has(code) ? code : "internal",
-      err.message || "Failed to delete user."
-    );
+    mapAdminCallableError(err, "Failed to delete user.");
+  }
+});
+
+/**
+ * Doctor resets a secretary password directly (no email). Returns one-time temp password.
+ */
+exports.resetSecretaryPassword = functions.region("asia-southeast1").https.onCall(async (data, context) => {
+  const { resetSecretaryPassword } = require("./resetSecretaryPasswordRuntime");
+  try {
+    const payload = data && typeof data === "object" && data.data && !data.uid ? data.data : data;
+    const targetUid = payload?.uid;
+    const callerUid = context?.auth?.uid || data?.auth?.uid;
+    return await resetSecretaryPassword({ admin, callerUid, targetUid });
+  } catch (err) {
+    // Do not include any password material in logs.
+    console.error("[resetSecretaryPassword]", err.message);
+    mapAdminCallableError(err, "Failed to reset secretary password.");
+  }
+});
+
+/**
+ * Doctor updates staff profile fields. Parent profile edits are rejected (403).
+ */
+exports.updateUserAccount = functions.region("asia-southeast1").https.onCall(async (data, context) => {
+  const { updateUserAccount } = require("./updateUserAccountRuntime");
+  try {
+    const payload = data && typeof data === "object" && data.data && !data.uid ? data.data : data;
+    const callerUid = context?.auth?.uid || data?.auth?.uid;
+    return await updateUserAccount({
+      admin,
+      callerUid,
+      targetUid: payload?.uid,
+      updates: payload?.updates,
+    });
+  } catch (err) {
+    mapAdminCallableError(err, "Failed to update user.");
   }
 });

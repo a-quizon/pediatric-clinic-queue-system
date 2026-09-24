@@ -30,6 +30,7 @@ import {
   MIN_PENALTY_GRACE_MINUTES,
   MAX_PENALTY_GRACE_MINUTES,
 } from "../../services/systemConfigurationService";
+import { TourSampleSettings } from "../../components/onboarding/SecretaryTourSampleViews";
 
 export default function SystemSettings() {
   const { user } = useAuth();
@@ -57,12 +58,13 @@ export default function SystemSettings() {
   const [smsError, setSmsError] = useState(null);
 
   useEffect(() => {
+    if (tourLock) return undefined;
     if (!branchId) {
       setLoading(false);
-      return;
+      return undefined;
     }
     fetchConfig();
-  }, [branchId]);
+  }, [branchId, tourLock]);
 
   const fetchConfig = async () => {
     try {
@@ -254,6 +256,10 @@ export default function SystemSettings() {
     );
   };
 
+  if (tourLock) {
+    return <TourSampleSettings />;
+  }
+
   if (!branchId) {
     return (
       <div className="pq-glass p-8 text-center max-w-xl mx-auto">
@@ -350,7 +356,7 @@ export default function SystemSettings() {
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <label htmlFor="penaltyTimerMinutes" className="pq-label">
-                  Penalty Timer ({MIN_PENALTY_TIMER_MINUTES}–{MAX_PENALTY_TIMER_MINUTES} min)
+                Validation Period ({MIN_PENALTY_TIMER_MINUTES}–{MAX_PENALTY_TIMER_MINUTES} min)
                 </label>
                 <p className="pq-muted text-sm">
                   After Penalize, the parent must validate their QR within this time or they are forfeited. Later penalties keep the first expiry.

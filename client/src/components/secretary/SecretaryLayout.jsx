@@ -2,6 +2,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Home, QrCode, Users, User, CalendarDays, ChevronLeft } from "lucide-react";
 import { PqBrand } from "../parent/pqUi";
 import { goBackOr } from "../../utils/navigationRoots";
+import LogoutButton from "../common/LogoutButton";
 
 export default function SecretaryLayout() {
   const location = useLocation();
@@ -54,7 +55,7 @@ export default function SecretaryLayout() {
         <div className="p-6 flex items-center" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <PqBrand size={36} />
         </div>
-        <nav className="flex-1 py-6 px-4 space-y-1.5 overflow-y-auto" aria-label="Secretary">
+        <nav className="flex-1 min-h-0 py-4 px-4 space-y-1.5 overflow-y-auto" aria-label="Secretary">
           {navItems.map((item) => (
             <NavLink
               key={item.name}
@@ -71,6 +72,9 @@ export default function SecretaryLayout() {
             </NavLink>
           ))}
         </nav>
+        <div className="p-4 mt-auto" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+          <LogoutButton className="pq-btn-danger w-full" />
+        </div>
       </aside>
 
       <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-[6.5rem] h-full relative flex flex-col bg-transparent">

@@ -94,3 +94,46 @@ export const TOUR_SAMPLE_CHILD = {
 };
 
 export const TOUR_SAMPLE_CONCERN = "Fever and cough (sample)";
+
+export const TOUR_SAMPLE_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** Compact sample month grid for the parent Reserve calendar tour. */
+export function getParentTourSampleCalendarCells(clinicDateYmd) {
+  const focusDay = Number(clinicDateYmd.slice(-2)) || 12;
+  const cells = [null, null, null, null, null, null];
+  for (let day = focusDay - 5; day <= focusDay + 8; day += 1) {
+    if (day < 1) {
+      cells.push(null);
+      continue;
+    }
+    if (day === focusDay) {
+      cells.push({
+        day,
+        label: "Open",
+        kind: "available",
+        highlight: true,
+        style: { background: "var(--pq-live-wash)", color: "var(--pq-live)" },
+      });
+    } else if (day === focusDay - 2) {
+      cells.push({
+        day,
+        label: "Full",
+        kind: "full",
+        style: { background: "var(--pq-alert-wash)", color: "var(--pq-alert)" },
+      });
+    } else if (day === focusDay + 2) {
+      cells.push({
+        day,
+        label: "Closed",
+        kind: "closed",
+        style: { background: "var(--pq-wait-wash)", color: "var(--pq-wait)" },
+      });
+    } else if (day < focusDay) {
+      cells.push({ day, label: "", kind: "past" });
+    } else {
+      cells.push({ day, label: "", kind: "not_posted" });
+    }
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}

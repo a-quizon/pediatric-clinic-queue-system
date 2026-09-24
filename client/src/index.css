@@ -1179,6 +1179,12 @@ svg.pq-field-icon {
   .pq-splash-bar-fill {
     animation: none;
   }
+  .driver-overlay,
+  .driver-popover,
+  .pq-driver-popover {
+    transition: none !important;
+    animation: none !important;
+  }
   .pq-btn-primary:active:not(:disabled),
   .pq-btn-live:active:not(:disabled),
   .pq-icon-btn:active:not(:disabled),
@@ -1489,7 +1495,9 @@ svg.pq-field-icon {
     width: calc(100vw - 1.25rem);
     max-width: calc(100vw - 1.25rem);
     max-height: none;
-    padding: 0.85rem 0.9rem 0.75rem;
+    padding: 0.85rem 0.9rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    border-bottom-left-radius: 1.1rem;
+    border-bottom-right-radius: 1.1rem;
   }
 
   .pq-driver-popover .driver-popover-description {

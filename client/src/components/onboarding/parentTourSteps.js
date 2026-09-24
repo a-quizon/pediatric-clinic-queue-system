@@ -1,4 +1,7 @@
-import { getCompletedTourSteps } from "../../services/firstVisitService";
+import {
+  PARENT_TOUR_STEPS_KEY,
+  getCompletedTourSteps,
+} from "../../services/firstVisitService.js";
 
 export const TOUR_STEPS = [
   {
@@ -6,8 +9,9 @@ export const TOUR_STEPS = [
     route: "/parent",
     exact: true,
     targets: ["parent-queue-monitor"],
-    title: "Live queue lives here",
-    description: "After you book, Home shows your queue number, patients ahead, and who is with the doctor. This is sample data so you can see the layout — it is not a real reservation.",
+    title: "Your live queue",
+    description:
+      "After you reserve a queue slot, Home shows your queue number, how many patients are ahead, and who is with the doctor. This is sample data so you can see the layout — it is not a real reservation.",
     disableActiveInteraction: true,
   },
   {
@@ -15,17 +19,19 @@ export const TOUR_STEPS = [
     route: "/parent",
     exact: true,
     targets: ["parent-book-cta", "nav-reserve"],
-    title: "Book a reservation",
-    description: "Start here to reserve a slot on a published clinic date. You may hold up to two upcoming reservations at a time.",
+    title: "Reserve a queue slot",
+    description:
+      "Start here to open the reservation calendar and pick a published clinic day. You may hold up to two upcoming reservations at a time, and only one per date.",
     onNextNavigate: "/parent/reserve",
   },
   {
     id: "reserve-schedule",
     route: "/parent/reserve",
     exact: true,
-    targets: ["reserve-schedule-list"],
-    title: "Pick a clinic session",
-    description: "Published sessions look like these sample cards. You cannot reserve two branches on the same date (for example Angeles Saturday and Magalang Saturday), but you can book different dates. Next we'll open the form — nothing is saved during this tour.",
+    targets: ["reserve-schedule-calendar", "reserve-schedule-list"],
+    title: "Pick a day on the calendar",
+    description:
+      "Choose your clinic branch, then tap a green day with open slots. You cannot reserve two branches on the same date, but you can book different dates. This sample calendar does not create a reservation.",
     disableActiveInteraction: true,
   },
   {
@@ -33,8 +39,9 @@ export const TOUR_STEPS = [
     route: "/parent/reserve",
     exact: true,
     targets: ["reserve-patient-form"],
-    title: "Fill in the visit",
-    description: "Choose the children this visit is for, then add a concern. This is a walkthrough only — the tour will not create a real reservation.",
+    title: "Who is this visit for?",
+    description:
+      "After you pick a day, choose the children this visit is for and add a concern. Before confirming a real booking, you will also review that branch’s queue rules. This walkthrough will not create a reservation.",
     disableActiveInteraction: true,
     onNextNavigate: "/parent/reservations",
   },
@@ -43,8 +50,29 @@ export const TOUR_STEPS = [
     route: "/parent/reservations",
     exact: true,
     targets: ["reservation-list"],
-    title: "Tickets and QR check-in",
-    description: "After you book, your ticket shows branch, date, and queue number. This QR is a placeholder — the real code is what you'll show at the clinic to check in.",
+    title: "Your tickets",
+    description:
+      "My Reservations holds your active tickets — branch, date, and reservation code. Open a ticket anytime to show your QR code at the clinic. You can cancel before check-in from the ticket screen.",
+    disableActiveInteraction: true,
+  },
+  {
+    id: "ticket-qr",
+    route: "/parent/reservations",
+    exact: true,
+    targets: ["sample-qr", "ticket-qr-hint"],
+    title: "Show your QR code at the clinic",
+    description:
+      "When you arrive, show this QR code ticket (or your reservation code) to the secretary. Scanning it confirms you are here and keeps your queue slot. The graphic below is a tour placeholder, not a real scannable ticket.",
+    disableActiveInteraction: true,
+  },
+  {
+    id: "parent-late-rules",
+    route: "/parent/reservations",
+    exact: true,
+    targets: ["parent-late-rules"],
+    title: "If you arrive late",
+    description:
+      "If you are next and not at the clinic yet, staff may mark you late. You may be moved back in line and given time to check in with your QR code. If that time runs out, the reservation is forfeited so another family can use the slot.",
     disableActiveInteraction: true,
   },
   {
@@ -53,7 +81,8 @@ export const TOUR_STEPS = [
     exact: true,
     targets: ["nav-notifications"],
     title: "Clinic alerts",
-    description: "Queue and clinic alerts show up here so you do not have to wait in the lobby.",
+    description:
+      "Queue updates, check-in reminders, and forfeiture notices appear here so you do not have to wait in the lobby. The tour will not turn on device notifications.",
     onNextNavigate: "/parent/profile",
   },
   {
@@ -62,7 +91,8 @@ export const TOUR_STEPS = [
     exact: true,
     targets: ["profile-account"],
     title: "Your account",
-    description: "Update your name, phone, and password here anytime.",
+    description:
+      "Update your name, phone, and password here anytime. You can also replay this tutorial from Profile when you need a refresher.",
   },
   {
     id: "profile-notifications",
@@ -70,7 +100,8 @@ export const TOUR_STEPS = [
     exact: true,
     targets: ["profile-notifications"],
     title: "Notification settings",
-    description: "Choose which in-app alerts and device push notifications you receive.",
+    description:
+      "Choose which in-app alerts and device push notifications you receive. Opening settings during the tour does not send a permission prompt.",
   },
   {
     id: "profile-children",
@@ -78,7 +109,8 @@ export const TOUR_STEPS = [
     exact: true,
     targets: ["profile-children"],
     title: "Child profiles",
-    description: "Add and manage the children you book reservations for.",
+    description:
+      "Add and manage the children you book reservations for. You will pick from these profiles when you reserve a queue slot.",
   },
   {
     id: "profile-history",
@@ -86,7 +118,8 @@ export const TOUR_STEPS = [
     exact: true,
     targets: ["profile-history"],
     title: "Reservation history",
-    description: "Past visits live here, including completed consultations.",
+    description:
+      "Past visits live here, including completed, cancelled, and forfeited reservations. Checking in with your QR code helps keep your visit record clear.",
     onNextNavigate: "/parent/profile/history",
   },
   {
@@ -94,8 +127,9 @@ export const TOUR_STEPS = [
     route: "/parent/profile/history",
     exact: true,
     targets: ["history-notes-filter", "reservation-history"],
-    title: "Doctor's notes",
-    description: "Open a completed visit to read the doctor's notes. Use With Notes to find visits that have them.",
+    title: "Doctor’s notes",
+    description:
+      "Open a completed visit to read the doctor’s notes. Use With Notes to find visits that have them.",
   },
 ];
 
@@ -129,22 +163,37 @@ export function findVisibleTourTarget(targets) {
   return null;
 }
 
+/** Prefer the real target; fall back so the popover still appears on empty or slow loads. */
+export function resolveParentTourElement(step) {
+  if (!step) return null;
+  const found = findVisibleTourTarget(step.targets);
+  if (found) return found;
+  if (typeof document === "undefined") return null;
+  return (
+    document.querySelector("main") ||
+    document.getElementById("root") ||
+    document.body
+  );
+}
+
 export function getRemainingStepsForPath(pathname) {
-  const completed = getCompletedTourSteps();
+  const completed = getCompletedTourSteps(PARENT_TOUR_STEPS_KEY);
   return TOUR_STEPS.filter(
     (step) => pathMatchesStep(pathname, step) && !completed.includes(step.id)
   );
 }
 
 export function areAllTourStepsComplete() {
-  const completed = getCompletedTourSteps();
+  const completed = getCompletedTourSteps(PARENT_TOUR_STEPS_KEY);
   return TOUR_STEPS.every((step) => completed.includes(step.id));
 }
 
-export function shouldRunParentTour(user, role, pathname) {
+export function shouldRunParentTour(user, role, pathname, replayRole) {
   if (role !== "parent" || !user) return false;
-  if (user.hasCompletedTour !== false) return false;
   if (user.onboardingComplete === false) return false;
   const path = normalizePath(pathname);
-  return path === "/parent" || path.startsWith("/parent/");
+  const onParent = path === "/parent" || path.startsWith("/parent/");
+  if (!onParent) return false;
+  if (replayRole === "parent") return true;
+  return user.hasCompletedTour === false;
 }

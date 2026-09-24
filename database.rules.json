@@ -17,6 +17,18 @@
         },
         "assignedBranch": {
           ".validate": "!data.exists() || newData.val() === data.val() || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor'"
+        },
+        "name": {
+          ".validate": "auth.uid === $uid || !data.exists() || newData.val() === data.val() || root.child('users').child($uid).child('role').val() !== 'parent'"
+        },
+        "phone": {
+          ".validate": "auth.uid === $uid || !data.exists() || newData.val() === data.val() || root.child('users').child($uid).child('role').val() !== 'parent'"
+        },
+        "email": {
+          ".validate": "auth.uid === $uid || !data.exists() || newData.val() === data.val() || root.child('users').child($uid).child('role').val() !== 'parent'"
+        },
+        "mustChangePassword": {
+          ".validate": "auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor'"
         }
       }
     },

@@ -52,6 +52,7 @@ export default function Profile() {
         <button
           type="button"
           onClick={() => navigate("/secretary/settings")}
+          data-tour="profile-system-config"
           className="pq-glass w-full p-5 flex items-center justify-between text-left"
         >
           <div className="flex items-center min-w-0">
@@ -72,6 +73,7 @@ export default function Profile() {
         <button
           type="button"
           onClick={handleReplayTutorial}
+          data-tour="profile-replay"
           className="pq-glass w-full p-5 flex items-center justify-between text-left"
         >
           <div className="flex items-center min-w-0">
@@ -83,14 +85,14 @@ export default function Profile() {
             </div>
             <div className="min-w-0">
               <span className="font-extrabold tracking-tight block">Replay Tutorial</span>
-              <span className="pq-muted text-sm">Walk through Manage Queue, walk-in, QR check-in, and settings again.</span>
+              <span className="pq-muted text-sm">Walk through Dashboard, Manage Queue, QR check-in, schedules, and settings again.</span>
             </div>
           </div>
           <ChevronRight className="w-5 h-5 pq-faint shrink-0" aria-hidden="true" />
         </button>
       </div>
 
-      <div className="mt-auto pt-8">
+      <div className="mt-auto pt-8 md:hidden">
         <LogoutButton className="pq-btn-danger w-full" />
       </div>
     </div>

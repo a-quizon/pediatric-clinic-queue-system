@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useTourPreview } from "../../hooks/useTourPreview";
 import {
+  PARENT_TOUR_STEPS_KEY,
   clearTourStepProgress,
   getCompletedTourSteps,
   markTourStepComplete,
@@ -13,8 +14,19 @@ import {
   areAllTourStepsComplete,
   findVisibleTourTarget,
   getRemainingStepsForPath,
+  pathMatchesStep,
+  resolveParentTourElement,
   shouldRunParentTour,
 } from "./parentTourSteps";
+import {
+  bindTourViewport,
+  decorateTourPopover,
+  getTourDriverChrome,
+  mapTourDriverSteps,
+  scrollTourTargetIntoView,
+  clampActiveTourPopover,
+  prefersReducedTourMotion,
+} from "./tourLayout";
 
 function waitForPaint() {
   return new Promise((resolve) => {
@@ -22,10 +34,20 @@ function waitForPaint() {
   });
 }
 
-function waitForPreview() {
-  return waitForPaint().then(
-    () => new Promise((resolve) => window.setTimeout(resolve, 50))
-  );
+function waitForMs(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function waitForStepTarget(step, timeoutMs = 2500) {
+  if (!step) return false;
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    if (findVisibleTourTarget(step.targets)) return true;
+    await waitForPaint();
+    await waitForMs(50);
+  }
+  // Empty states / slow loads: allow the page shell so the popover still appears.
+  return Boolean(resolveParentTourElement(step));
 }
 
 function nextGlobalStep(stepId) {
@@ -33,24 +55,58 @@ function nextGlobalStep(stepId) {
   return index >= 0 ? TOUR_STEPS[index + 1] || null : null;
 }
 
+function findParentTourTarget(arg) {
+  if (arg && typeof arg === "object" && Array.isArray(arg.targets)) {
+    return findVisibleTourTarget(arg.targets) || resolveParentTourElement(arg);
+  }
+  const found = findVisibleTourTarget(arg);
+  if (found) return found;
+  if (typeof document === "undefined") return null;
+  return document.querySelector("main") || document.getElementById("root") || document.body;
+}
+
 export default function ParentTourController() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, role, updateContextUser } = useAuth();
-  const { setCurrentStepId, clearPreview } = useTourPreview();
+  const { setCurrentStepId, clearPreview, replayRole, clearReplay } = useTourPreview();
   const driverRef = useRef(null);
-  const programmaticRef = useRef(false);
-  const tourPending = shouldRunParentTour(user, role, pathname);
+  const suppressFinishRef = useRef(false);
+  const userRef = useRef(user);
+  const updateContextUserRef = useRef(updateContextUser);
+  const setCurrentStepIdRef = useRef(setCurrentStepId);
+  const clearPreviewRef = useRef(clearPreview);
+  const clearReplayRef = useRef(clearReplay);
+  const navigateRef = useRef(navigate);
+  const tourPending = shouldRunParentTour(user, role, pathname, replayRole);
+
+  userRef.current = user;
+  updateContextUserRef.current = updateContextUser;
+  setCurrentStepIdRef.current = setCurrentStepId;
+  clearPreviewRef.current = clearPreview;
+  clearReplayRef.current = clearReplay;
+  navigateRef.current = navigate;
 
   useEffect(() => {
     if (!tourPending) {
-      if (role === "parent") clearPreview();
+      if (role === "parent") clearPreviewRef.current();
+      return undefined;
+    }
+    const completed = getCompletedTourSteps(PARENT_TOUR_STEPS_KEY);
+    const firstStep = TOUR_STEPS[0];
+    if (
+      replayRole === "parent" &&
+      completed.length === 0 &&
+      firstStep &&
+      !pathMatchesStep(pathname, firstStep)
+    ) {
+      navigateRef.current(firstStep.route);
       return undefined;
     }
     const remaining = getRemainingStepsForPath(pathname);
-    if (remaining[0]) setCurrentStepId(remaining[0].id);
+    if (remaining[0]) setCurrentStepIdRef.current(remaining[0].id);
     return undefined;
-  }, [pathname, tourPending, role, setCurrentStepId, clearPreview]);
+  }, [pathname, tourPending, role, replayRole]);
 
   useEffect(() => {
     if (!tourPending) return undefined;
@@ -60,17 +116,18 @@ export default function ParentTourController() {
     let observer;
 
     const finishTour = () => {
-      const uid = user?.uid;
-      clearPreview();
-      clearTourStepProgress();
-      updateContextUser({ hasCompletedTour: true });
+      const uid = userRef.current?.uid;
+      clearPreviewRef.current();
+      clearReplayRef.current();
+      clearTourStepProgress(PARENT_TOUR_STEPS_KEY);
+      updateContextUserRef.current({ hasCompletedTour: true });
       if (uid) {
         persistParentTourComplete(uid).catch(console.error);
       }
     };
 
     const destroyProgrammatically = () => {
-      programmaticRef.current = true;
+      suppressFinishRef.current = true;
       try {
         driverRef.current?.destroy();
       } catch {
@@ -85,6 +142,16 @@ export default function ParentTourController() {
 
       try {
         const remaining = getRemainingStepsForPath(pathname);
+        const completed = getCompletedTourSteps(PARENT_TOUR_STEPS_KEY);
+        const firstStep = TOUR_STEPS[0];
+        if (
+          replayRole === "parent" &&
+          completed.length === 0 &&
+          firstStep &&
+          !pathMatchesStep(pathname, firstStep)
+        ) {
+          return;
+        }
         if (remaining.length === 0) {
           if (areAllTourStepsComplete()) {
             finishTour();
@@ -92,18 +159,20 @@ export default function ParentTourController() {
           return;
         }
 
-        setCurrentStepId(remaining[0].id);
-        await waitForPreview();
+        setCurrentStepIdRef.current(remaining[0].id);
+        const ready = await waitForStepTarget(remaining[0]);
+        if (cancelled) return;
+        if (!ready) return;
 
-        const hasVisible = remaining.some((step) => findVisibleTourTarget(step.targets));
-        if (!hasVisible) return;
         const stepsToDrive = remaining;
         const lastStep = stepsToDrive[stepsToDrive.length - 1];
-        const unfinished = TOUR_STEPS.filter((step) => !getCompletedTourSteps().includes(step.id));
+        const unfinished = TOUR_STEPS.filter(
+          (step) => !getCompletedTourSteps(PARENT_TOUR_STEPS_KEY).includes(step.id)
+        );
         const lastUnfinished = unfinished[unfinished.length - 1];
         const doneLabel =
           lastStep && lastUnfinished?.id === lastStep.id && !lastStep.onNextNavigate
-            ? "Done"
+            ? "Finish"
             : "Next";
 
         const { driver } = await import("driver.js");
@@ -112,70 +181,76 @@ export default function ParentTourController() {
         let instance;
         const finishAsSkip = () => {
           finishTour();
+          suppressFinishRef.current = true;
           instance?.destroy();
         };
 
+        const chrome = getTourDriverChrome();
+        const reduceMotion = prefersReducedTourMotion();
         instance = driver({
-          steps: stepsToDrive.map((step) => ({
-            element: () => findVisibleTourTarget(step.targets),
-            disableActiveInteraction: Boolean(step.disableActiveInteraction),
-            skipMissingElement: true,
-            waitForElement: 2500,
-            popover: {
-              title: step.title,
-              description: step.description,
-              align: "start",
-            },
-          })),
-          animate: true,
-          smoothScroll: true,
-          allowClose: true,
+          steps: mapTourDriverSteps(stepsToDrive, findParentTourTarget),
+          animate: !reduceMotion,
+          smoothScroll: !reduceMotion,
+          allowClose: false,
           overlayClickBehavior: "close",
+          showButtons: ["next", "previous"],
           overlayColor: "#16344a",
           overlayOpacity: 0.48,
-          stagePadding: 10,
+          stagePadding: chrome.stagePadding,
           stageRadius: 16,
           popoverClass: "pq-driver-popover",
-          popoverOffset: 12,
-          showProgress: stepsToDrive.length > 1,
-          progressText: "{{current}} of {{total}}",
+          popoverOffset: chrome.popoverOffset,
+          showProgress: true,
+          progressText: "Step {{current}} of {{total}}",
           nextBtnText: "Next",
           prevBtnText: "Back",
           doneBtnText: doneLabel,
           disableActiveInteraction: false,
-          onPopoverRender: (popover) => {
-            if (popover.footer.querySelector(".pq-driver-skip")) return;
-            const skip = document.createElement("button");
-            skip.type = "button";
-            skip.className = "pq-driver-skip";
-            skip.textContent = "Skip tour";
-            skip.addEventListener("click", finishAsSkip);
-            popover.footer.insertBefore(skip, popover.footer.firstChild);
+          onPopoverRender: (popover, opts) => {
+            decorateTourPopover(popover, finishAsSkip);
+            const idx = opts?.driver?.getActiveIndex?.() ?? 0;
+            const current = stepsToDrive[idx];
+            const globalIndex = TOUR_STEPS.findIndex((step) => step.id === current?.id);
+            const progressEl =
+              popover.progress ||
+              popover.wrapper?.querySelector?.(".driver-popover-progress-text");
+            if (progressEl && globalIndex >= 0) {
+              progressEl.textContent = `Step ${globalIndex + 1} of ${TOUR_STEPS.length}`;
+            }
           },
-          onHighlightStarted: (_el, _step, { driver: d }) => {
+          onHighlightStarted: (el, _step, { driver: d }) => {
             const idx = d.getActiveIndex() ?? 0;
             const current = stepsToDrive[idx];
-            if (current) setCurrentStepId(current.id);
+            if (current) setCurrentStepIdRef.current(current.id);
+            scrollTourTargetIntoView(el);
+            const globalIndex = TOUR_STEPS.findIndex((step) => step.id === current?.id);
+            const progressEl = document.querySelector(
+              ".driver-popover.pq-driver-popover .driver-popover-progress-text"
+            );
+            if (progressEl && globalIndex >= 0) {
+              progressEl.textContent = `Step ${globalIndex + 1} of ${TOUR_STEPS.length}`;
+            }
           },
           onNextClick: (_el, _step, { driver: d }) => {
             const idx = d.getActiveIndex() ?? 0;
             const current = stepsToDrive[idx];
-            if (current) markTourStepComplete(current.id);
+            if (current) markTourStepComplete(current.id, PARENT_TOUR_STEPS_KEY);
 
             if (!d.isLastStep()) {
               const next = stepsToDrive[idx + 1];
-              if (next) setCurrentStepId(next.id);
-              waitForPreview().then(() => {
-                if (!cancelled) d.moveNext();
+              if (next) setCurrentStepIdRef.current(next.id);
+              waitForStepTarget(next).then((found) => {
+                if (cancelled) return;
+                if (found) d.moveNext();
               });
               return;
             }
 
             if (current?.onNextNavigate) {
               const upcoming = nextGlobalStep(current.id);
-              if (upcoming) setCurrentStepId(upcoming.id);
+              if (upcoming) setCurrentStepIdRef.current(upcoming.id);
               destroyProgrammatically();
-              navigate(current.onNextNavigate);
+              navigateRef.current(current.onNextNavigate);
               return;
             }
 
@@ -187,24 +262,23 @@ export default function ParentTourController() {
           onPrevClick: (_el, _step, { driver: d }) => {
             const idx = d.getActiveIndex() ?? 0;
             const prev = stepsToDrive[idx - 1];
-            if (prev) setCurrentStepId(prev.id);
-            waitForPreview().then(() => {
-              if (!cancelled) d.movePrevious();
+            if (prev) setCurrentStepIdRef.current(prev.id);
+            waitForStepTarget(prev).then((found) => {
+              if (cancelled) return;
+              if (found) d.movePrevious();
             });
           },
-          onCloseClick: finishAsSkip,
           onDestroyStarted: (_el, _step, { driver: d }) => {
-            if (programmaticRef.current) {
-              programmaticRef.current = false;
-              d.destroy();
-              return;
-            }
-            finishTour();
+            const ignore = suppressFinishRef.current;
             d.destroy();
+            if (!ignore && !cancelled) {
+              finishTour();
+            }
           },
         });
 
         driverRef.current = instance;
+        suppressFinishRef.current = false;
         instance.drive();
       } finally {
         starting = false;
@@ -224,15 +298,30 @@ export default function ParentTourController() {
       debounceId = window.setTimeout(start, 120);
     });
     observer.observe(root, { childList: true, subtree: true });
+    const unbindViewport = bindTourViewport((reason) => {
+      if (cancelled || !driverRef.current?.isActive()) return;
+      if (reason === "breakpoint") {
+        destroyProgrammatically();
+        window.setTimeout(start, 80);
+        return;
+      }
+      try {
+        driverRef.current.refresh();
+        window.requestAnimationFrame(() => clampActiveTourPopover());
+      } catch {
+        // Overlay may already be mid-destroy during route change.
+      }
+    });
 
     return () => {
       cancelled = true;
       window.clearTimeout(timeoutId);
       window.clearTimeout(debounceId);
       observer?.disconnect();
+      unbindViewport();
       destroyProgrammatically();
     };
-  }, [pathname, tourPending, navigate, user?.uid, updateContextUser, setCurrentStepId, clearPreview]);
+  }, [pathname, tourPending, replayRole]);
 
   return null;
 }

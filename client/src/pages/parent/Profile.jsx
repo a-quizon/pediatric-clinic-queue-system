@@ -1,13 +1,23 @@
 import React from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { User, History, ChevronRight, Baby, Bell } from "lucide-react";
-import { Link } from "react-router-dom";
+import { User, History, ChevronRight, Baby, Bell, RotateCcw } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import LogoutButton from "../../components/common/LogoutButton";
+import { useTourPreview } from "../../hooks/useTourPreview";
+import { PARENT_TOUR_STEPS_KEY, clearTourStepProgress } from "../../services/firstVisitService";
 
 export default function Profile() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { startTourReplay } = useTourPreview();
 
   if (!user) return null;
+
+  const handleReplayTutorial = () => {
+    clearTourStepProgress(PARENT_TOUR_STEPS_KEY);
+    startTourReplay("parent");
+    navigate("/parent");
+  };
 
   const menuItems = [
     {
@@ -74,6 +84,29 @@ export default function Profile() {
           </Link>
         ))}
       </nav>
+
+      <button
+        type="button"
+        onClick={handleReplayTutorial}
+        data-tour="profile-replay"
+        className="pq-glass w-full p-5 flex items-center justify-between text-left min-h-[72px]"
+      >
+        <div className="flex items-center gap-4 min-w-0">
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}
+          >
+            <RotateCcw className="w-5 h-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-extrabold">Replay Tutorial</h3>
+            <p className="text-sm pq-muted mt-0.5">
+              Walk through Home, reserving a slot, QR check-in, and account settings again.
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="w-5 h-5 pq-faint flex-shrink-0" aria-hidden="true" />
+      </button>
 
       <div className="pt-2">
         <LogoutButton className="pq-btn-danger w-full" />

@@ -12,10 +12,13 @@ import { sortSchedules } from "../../utils/scheduleUtils";
 import { manilaDateString } from "../../utils/manilaDate";
 import { PqSpinner } from "../../components/parent/pqUi";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
+import { useTourSample } from "../../hooks/useTourPreview";
+import { TourSampleDoctorDashboard } from "../../components/onboarding/DoctorTourSampleViews";
 
 export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const showDashboardSample = useTourSample(["doctor-dashboard"]);
 
   const [schedules, setSchedules] = useState({});
   const [schedulesLoaded, setSchedulesLoaded] = useState(false);
@@ -262,8 +265,12 @@ export default function Home() {
 
   const loading = !schedulesLoaded || (!!selectedSchedule && !reservationsLoaded);
 
+  if (showDashboardSample) {
+    return <TourSampleDoctorDashboard />;
+  }
+
   return (
-    <div className="space-y-6 pb-6">
+    <div className="space-y-6 pb-6" data-tour="doctor-dashboard">
       <div className="flex flex-col lg:flex-row gap-6">
         {loading ? (
           <div className="flex-[2] pq-glass p-6 md:p-8 flex flex-col justify-center min-h-[400px]">

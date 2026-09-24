@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { X, Edit2, Shield, Stethoscope, UserCog, User, Mail, Phone, Calendar, Clock, MapPin, CheckCircle, AlertTriangle, Key } from "lucide-react";
-import { updateUser, toggleUserStatus, sendAdminPasswordResetEmail } from "../../services/adminService";
+import { X, Edit2, Shield, Stethoscope, UserCog, User, Mail, Phone, Calendar, Clock, MapPin, CheckCircle, AlertTriangle, Key, Copy, Check } from "lucide-react";
+import {
+  updateUser,
+  toggleUserStatus,
+  sendParentPasswordResetEmail,
+  sendAdminPasswordResetEmail,
+  resetSecretaryPasswordDirect,
+} from "../../services/adminService";
 import { formatName, branchesMatch } from "../../utils/stringUtils";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
+import { canDoctorEditUserProfile } from "../../utils/doctorUserManagementPolicy";
 import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 import ConfirmationModal from "../common/ConfirmationModal";
@@ -18,6 +25,8 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [branches, setBranches] = useState([]);
+  const [tempPasswordReveal, setTempPasswordReveal] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const [confirmConfig, setConfirmConfig] = useState({
     isOpen: false,
@@ -43,6 +52,8 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
         assignedBranch: user.assignedBranch || "Angeles"
       });
       setIsEditing(false);
+      setTempPasswordReveal(null);
+      setCopied(false);
     }
   }, [user, isOpen]);
 
@@ -63,8 +74,11 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
   if (!isOpen || !user || !user.id) return null;
 
   const isDoctorTarget = user.role === "doctor";
+  const isParentTarget = user.role === "parent";
+  const isSecretaryTarget = user.role === "secretary";
   const isSelf = Boolean(currentUser?.uid && user.id === currentUser.uid);
   const canToggleStatus = !isDoctorTarget && !isSelf && user.id !== "admin";
+  const canEditProfile = canDoctorEditUserProfile(user.role) && !isParentTarget;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -77,6 +91,10 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
   };
 
   const handleSave = async () => {
+    if (!canEditProfile) {
+      toast.error("Parent accounts are view-only.");
+      return;
+    }
     if (!formData.name.trim() || !formData.email.trim()) {
       toast.error("Name and Email are required.");
       return;
@@ -106,7 +124,11 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
       onUpdate();
     } catch (error) {
       console.error(error);
-      toast.error("Failed to update user.");
+      if (error.status === 403 || error.code === "permission-denied") {
+        toast.error(error.message || "You do not have permission to edit this account.");
+      } else {
+        toast.error("Failed to update user.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -138,6 +160,37 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
   };
 
   const handlePasswordReset = () => {
+    if (isSecretaryTarget) {
+      setConfirmConfig({
+        isOpen: true,
+        title: "Reset Password",
+        message: `Reset password for ${user.name || "this secretary"}? A temporary password will be generated. No email will be sent.`,
+        confirmText: "Reset Password",
+        isDestructive: false,
+        action: async () => {
+          setIsResettingPassword(true);
+          try {
+            const result = await resetSecretaryPasswordDirect(user.id);
+            closeConfirm();
+            setTempPasswordReveal(result.temporaryPassword);
+            toast.success("Password reset. Share the temporary password with the secretary.");
+            onUpdate();
+          } catch (error) {
+            console.error(error);
+            toast.error(error.message || "Failed to reset secretary password.");
+          } finally {
+            setIsResettingPassword(false);
+          }
+        }
+      });
+      return;
+    }
+
+    if (!user.email) {
+      toast.error("This account has no email on file. A password reset email cannot be sent.");
+      return;
+    }
+
     setConfirmConfig({
       isOpen: true,
       title: "Reset Password",
@@ -147,13 +200,23 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
       action: async () => {
         setIsResettingPassword(true);
         try {
-          await sendAdminPasswordResetEmail(user.email);
+          if (isParentTarget) {
+            await sendParentPasswordResetEmail({
+              email: user.email,
+              uid: user.id,
+              name: user.name,
+            });
+          } else {
+            await sendAdminPasswordResetEmail(user.email);
+          }
           toast.success(`Password reset email sent to ${user.email}`);
           closeConfirm();
         } catch (error) {
           console.error(error);
           if (error.code === "rate_limited") {
             toast.error(error.message || "You've reached today's password reset limit. Please try again tomorrow.");
+          } else if (error.code === "missing_email") {
+            toast.error(error.message);
           } else {
             toast.error("Unable to send the password reset email. Please try again.");
           }
@@ -162,6 +225,18 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
         }
       }
     });
+  };
+
+  const handleCopyTempPassword = async () => {
+    if (!tempPasswordReveal) return;
+    try {
+      await navigator.clipboard.writeText(tempPasswordReveal);
+      setCopied(true);
+      toast.success("Temporary password copied.");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy to clipboard. Please copy it manually.");
+    }
   };
 
   const getRoleIcon = (role) => {
@@ -209,12 +284,18 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
         </div>
 
         <div className="p-6 overflow-y-auto flex-1 space-y-8">
+          {isParentTarget && (
+            <p className="text-sm pq-muted">
+              Parent accounts are view-only. You can deactivate, delete, or send a password reset email.
+            </p>
+          )}
+
           <section>
             <h3 className="pq-stat-label mb-4 pb-2" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>Basic Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label htmlFor="user-detail-name" className="pq-label"><User className="w-3.5 h-3.5" aria-hidden="true" /> Full Name</label>
-                {isEditing ? (
+                {isEditing && canEditProfile ? (
                   <input id="user-detail-name" type="text" name="name" value={formData.name} onChange={handleInputChange} className="pq-input" />
                 ) : (
                   <p className="font-semibold text-base">{user.name}</p>
@@ -224,14 +305,14 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
               <div>
                 <label className="pq-label"><Mail className="w-3.5 h-3.5" aria-hidden="true" /> Email Address</label>
                 <p className="font-semibold text-base">{user.email}</p>
-                {isEditing && (
+                {isEditing && canEditProfile && (
                   <p className="text-xs pq-muted mt-1 italic">Login email cannot be changed by administrators.</p>
                 )}
               </div>
 
               <div>
                 <label htmlFor="user-detail-phone" className="pq-label"><Phone className="w-3.5 h-3.5" aria-hidden="true" /> Phone Number</label>
-                {isEditing ? (
+                {isEditing && canEditProfile ? (
                   <div className="relative">
                     <div className="pq-field-icon">
                       <span className="pq-muted font-medium text-sm">+63</span>
@@ -263,7 +344,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
               {user.role === "secretary" && (
                 <div>
                   <label htmlFor="user-detail-branch" className="pq-label"><MapPin className="w-3.5 h-3.5" aria-hidden="true" /> Assigned Branch</label>
-                  {isEditing ? (
+                  {isEditing && canEditProfile ? (
                     <select id="user-detail-branch" name="assignedBranch" value={formData.assignedBranch} onChange={handleInputChange} className="pq-input">
                       <option value="" disabled>Select assigned branch</option>
                       {branches.map((b) => (
@@ -302,7 +383,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
         </div>
 
         <div className="p-5" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
-          {isEditing ? (
+          {isEditing && canEditProfile ? (
             <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
               <button
                 type="button"
@@ -322,14 +403,16 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
             </div>
           ) : (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setIsEditing(true)}
-                className="order-1 sm:order-3 pq-btn-primary w-full sm:w-auto"
-              >
-                <Edit2 className="w-4 h-4" aria-hidden="true" />
-                Edit Information
-              </button>
+              {canEditProfile && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="order-1 sm:order-3 pq-btn-primary w-full sm:w-auto"
+                >
+                  <Edit2 className="w-4 h-4" aria-hidden="true" />
+                  Edit Information
+                </button>
+              )}
 
               <button
                 type="button"
@@ -368,6 +451,35 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
         isDestructive={confirmConfig.isDestructive}
         isLoading={isTogglingStatus || isResettingPassword}
       />
+
+      {tempPasswordReveal && (
+        <div className="pq-modal-scrim z-[60]">
+          <div className="pq-modal w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="temp-password-title">
+            <div className="p-6 space-y-4">
+              <h3 id="temp-password-title" className="text-lg font-extrabold tracking-tight">Temporary Password</h3>
+              <p className="text-sm pq-muted">
+                Share this password with the secretary once. They must change it on next login. It will not be shown again.
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 pq-input font-mono text-sm break-all select-all">{tempPasswordReveal}</code>
+                <button type="button" onClick={handleCopyTempPassword} className="pq-btn-secondary shrink-0" aria-label="Copy temporary password">
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+              <button
+                type="button"
+                className="pq-btn-primary w-full"
+                onClick={() => {
+                  setTempPasswordReveal(null);
+                  setCopied(false);
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

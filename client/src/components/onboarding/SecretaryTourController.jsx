@@ -15,6 +15,7 @@ import {
   findVisibleTourTarget,
   getRemainingSecretaryStepsForPath,
   pathMatchesSecretaryStep,
+  resolveSecretaryTourElement,
   shouldRunSecretaryTour,
 } from "./secretaryTourSteps";
 import {
@@ -24,6 +25,7 @@ import {
   mapTourDriverSteps,
   scrollTourTargetIntoView,
   clampActiveTourPopover,
+  prefersReducedTourMotion,
 } from "./tourLayout";
 
 function waitForPaint() {
@@ -44,7 +46,8 @@ async function waitForStepTarget(step, timeoutMs = 2500) {
     await waitForPaint();
     await waitForMs(50);
   }
-  return Boolean(findVisibleTourTarget(step.targets));
+  // Graceful empty-state / missing-target: still proceed with a fallback element.
+  return Boolean(resolveSecretaryTourElement(step));
 }
 
 function nextGlobalStep(stepId) {
@@ -159,7 +162,7 @@ export default function SecretaryTourController() {
         const lastUnfinished = unfinished[unfinished.length - 1];
         const doneLabel =
           lastStep && lastUnfinished?.id === lastStep.id && !lastStep.onNextNavigate
-            ? "Done"
+            ? "Finish"
             : "Next";
 
         const { driver } = await import("driver.js");
@@ -172,11 +175,12 @@ export default function SecretaryTourController() {
           instance?.destroy();
         };
 
+        const reduceMotion = prefersReducedTourMotion();
         const chrome = getTourDriverChrome();
         instance = driver({
-          steps: mapTourDriverSteps(stepsToDrive, findVisibleTourTarget),
-          animate: true,
-          smoothScroll: true,
+          steps: mapTourDriverSteps(stepsToDrive, resolveSecretaryTourElement),
+          animate: !reduceMotion,
+          smoothScroll: !reduceMotion,
           allowClose: false,
           overlayClickBehavior: "close",
           showButtons: ["next", "previous"],
@@ -186,14 +190,27 @@ export default function SecretaryTourController() {
           stageRadius: 16,
           popoverClass: "pq-driver-popover",
           popoverOffset: chrome.popoverOffset,
-          showProgress: stepsToDrive.length > 1,
-          progressText: "{{current}} of {{total}}",
+          showProgress: true,
+          progressText: "Step {{current}} of {{total}}",
           nextBtnText: "Next",
           prevBtnText: "Back",
           doneBtnText: doneLabel,
           disableActiveInteraction: false,
           onPopoverRender: (popover) => {
             decorateTourPopover(popover, finishAsSkip);
+            const wrapper = popover?.wrapper;
+            if (wrapper) {
+              wrapper.setAttribute("role", "dialog");
+              wrapper.setAttribute("aria-modal", "true");
+              if (popover.title) {
+                popover.title.id = popover.title.id || "pq-secretary-tour-title";
+                wrapper.setAttribute("aria-labelledby", popover.title.id);
+              }
+              if (popover.description) {
+                popover.description.id = popover.description.id || "pq-secretary-tour-desc";
+                wrapper.setAttribute("aria-describedby", popover.description.id);
+              }
+            }
           },
           onHighlightStarted: (el, _step, { driver: d }) => {
             const idx = d.getActiveIndex() ?? 0;

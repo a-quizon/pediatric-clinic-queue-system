@@ -7,8 +7,18 @@ import { database } from "../firebase/database";
 import { auth } from "../firebase/auth";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { sendPasswordResetLink } from "./passwordResetService";
+import {
+  assertDoctorCanUpdateUserProfile,
+  buildSecretaryPasswordResetAuditDescription,
+} from "../utils/doctorUserManagementPolicy";
 
 const PROFILE_UPDATE_ALLOWLIST = ["name", "phone", "assignedBranch", "assignedBranchId"];
+
+async function getCallerRole() {
+  if (!auth.currentUser) return null;
+  const snap = await get(ref(database, `users/${auth.currentUser.uid}/role`));
+  return snap.exists() ? snap.val() : null;
+}
 
 export const getActiveDoctor = async () => {
   const snapshot = await get(ref(database, "users"));
@@ -107,6 +117,8 @@ export const createStaffAccount = async (staffData) => {
 };
 
 export const updateUser = async (uid, updates) => {
+  if (!auth.currentUser) throw new Error("Authentication required.");
+
   const sanitized = {};
   for (const key of PROFILE_UPDATE_ALLOWLIST) {
     if (Object.prototype.hasOwnProperty.call(updates, key)) {
@@ -118,14 +130,82 @@ export const updateUser = async (uid, updates) => {
     throw new Error("No allowed profile fields to update.");
   }
 
-  const userRef = ref(database, `users/${uid}`);
-  const payload = {
-    ...sanitized,
-    updatedAt: Date.now()
-  };
-  
-  const { update } = await import("firebase/database");
-  await update(userRef, payload);
+  const targetSnap = await get(ref(database, `users/${uid}`));
+  const target = targetSnap.exists() ? targetSnap.val() : null;
+  const callerRole = await getCallerRole();
+
+  const gate = assertDoctorCanUpdateUserProfile({
+    callerRole,
+    targetRole: target?.role,
+    updates: sanitized,
+  });
+  if (!gate.ok) {
+    const err = new Error(gate.message);
+    err.status = gate.status;
+    err.code = "permission-denied";
+    throw err;
+  }
+
+  let completed = false;
+  const token = await auth.currentUser.getIdToken();
+  const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+
+  try {
+    const res = await fetch(`${apiBase}/api/admin/update-user`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ uid, updates: sanitized }),
+    });
+
+    if (res.ok) {
+      completed = true;
+    } else {
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 404) {
+        const err = new Error(body.error || "Failed to update user.");
+        err.status = res.status;
+        err.code = res.status === 403 ? "permission-denied" : "request_failed";
+        throw err;
+      }
+    }
+  } catch (err) {
+    if (err instanceof TypeError) {
+      completed = false;
+    } else {
+      throw err;
+    }
+  }
+
+  if (!completed) {
+    if (target?.role === "parent") {
+      const err = new Error("Doctors cannot edit parent profile information.");
+      err.status = 403;
+      err.code = "permission-denied";
+      throw err;
+    }
+
+    let callableOk = false;
+    try {
+      const functions = getFunctions(app, "asia-southeast1");
+      const callUpdate = httpsCallable(functions, "updateUserAccount");
+      await callUpdate({ uid, updates: sanitized });
+      callableOk = true;
+    } catch {
+      callableOk = false;
+    }
+
+    if (!callableOk) {
+      // Local fallback for staff edits when Admin SDK / Functions are unavailable.
+      const { update } = await import("firebase/database");
+      await update(ref(database, `users/${uid}`), {
+        ...sanitized,
+        updatedAt: Date.now(),
+      });
+    }
+  }
 
   logAuditEvent({
     action: AUDIT_ACTIONS.USER_EDITED,
@@ -151,6 +231,7 @@ export const toggleUserStatus = async (uid, currentStatus) => {
   }
 
   const newStatus = currentStatus === "active" ? "inactive" : "active";
+  const targetLabel = target?.name ? ` for ${target.name}` : "";
 
   const userRef = ref(database, `users/${uid}`);
   const { update } = await import("firebase/database");
@@ -164,7 +245,9 @@ export const toggleUserStatus = async (uid, currentStatus) => {
   logAuditEvent({
     action: newStatus === "active" ? AUDIT_ACTIONS.USER_ACTIVATED : AUDIT_ACTIONS.USER_DEACTIVATED,
     category: AUDIT_CATEGORIES.USER_MANAGEMENT,
-    description: `User account status changed to ${newStatus}`,
+    description: newStatus === "active"
+      ? `Reactivated user account${targetLabel}`
+      : `Deactivated user account${targetLabel}`,
     targetType: "user",
     targetId: uid
   });
@@ -173,11 +256,109 @@ export const toggleUserStatus = async (uid, currentStatus) => {
 };
 
 export const sendAdminPasswordResetEmail = async (email) => {
+  if (!email || !String(email).trim()) {
+    const err = new Error("This account has no email on file. A password reset email cannot be sent.");
+    err.code = "missing_email";
+    throw err;
+  }
+
   const actionCodeSettings = {
     url: `${window.location.origin}/reset-password`,
     handleCodeInApp: false
   };
   return sendPasswordResetLink(email, actionCodeSettings);
+};
+
+/**
+ * Direct secretary password reset (no email). Returns a one-time temporary password.
+ * Never log the returned password.
+ */
+export const resetSecretaryPasswordDirect = async (uid) => {
+  if (!uid) throw new Error("A user id is required.");
+  if (!auth.currentUser) throw new Error("Authentication required.");
+  if (auth.currentUser.uid === uid) {
+    throw new Error("You cannot reset your own password through this action.");
+  }
+
+  const targetSnap = await get(ref(database, `users/${uid}`));
+  const target = targetSnap.exists() ? targetSnap.val() : null;
+  if (target?.role !== "secretary") {
+    const err = new Error("Direct password reset is only allowed for secretary accounts.");
+    err.status = 403;
+    err.code = "permission-denied";
+    throw err;
+  }
+
+  let result = null;
+  const token = await auth.currentUser.getIdToken();
+  const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+
+  try {
+    const res = await fetch(`${apiBase}/api/admin/reset-secretary-password`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ uid }),
+    });
+
+    if (res.ok) {
+      result = await res.json();
+    } else {
+      const body = await res.json().catch(() => ({}));
+      if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 404) {
+        const err = new Error(body.error || "Failed to reset secretary password.");
+        err.status = res.status;
+        err.code = res.status === 403 ? "permission-denied" : "request_failed";
+        throw err;
+      }
+    }
+  } catch (err) {
+    if (err instanceof TypeError) {
+      result = null;
+    } else {
+      throw err;
+    }
+  }
+
+  if (!result?.temporaryPassword) {
+    const functions = getFunctions(app, "asia-southeast1");
+    const callReset = httpsCallable(functions, "resetSecretaryPassword");
+    const response = await callReset({ uid });
+    result = response?.data || response;
+  }
+
+  if (!result?.temporaryPassword) {
+    throw new Error("Failed to reset secretary password.");
+  }
+
+  logAuditEvent({
+    action: AUDIT_ACTIONS.USER_PASSWORD_RESET,
+    category: AUDIT_CATEGORIES.USER_MANAGEMENT,
+    description: buildSecretaryPasswordResetAuditDescription(target?.name || result.secretaryName),
+    targetType: "user",
+    targetId: uid,
+  });
+
+  return {
+    temporaryPassword: result.temporaryPassword,
+    secretaryName: target?.name || result.secretaryName || null,
+  };
+};
+
+/**
+ * Parent (and other non-secretary) password reset via email — audited.
+ */
+export const sendParentPasswordResetEmail = async ({ email, uid, name }) => {
+  await sendAdminPasswordResetEmail(email);
+  logAuditEvent({
+    action: AUDIT_ACTIONS.USER_PASSWORD_RESET,
+    category: AUDIT_CATEGORIES.USER_MANAGEMENT,
+    description: `Sent password reset email for parent${name ? ` ${name}` : ""}`,
+    targetType: "user",
+    targetId: uid || null,
+  });
 };
 
 export const deleteUserAccount = async (uid) => {

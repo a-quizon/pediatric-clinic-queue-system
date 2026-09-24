@@ -1,9 +1,6 @@
-import { ref, update } from "firebase/database";
-import { database } from "../firebase/database";
-
-export const PARENT_TOUR_STEPS_KEY = "pq.parentTour.v1.completedSteps";
-export const SECRETARY_TOUR_STEPS_KEY = "pq.secretaryTour.v1.completedSteps";
-export const DOCTOR_TOUR_STEPS_KEY = "pq.doctorTour.v1.completedSteps";
+export const PARENT_TOUR_STEPS_KEY = "pq.parentTour.v2.completedSteps";
+export const SECRETARY_TOUR_STEPS_KEY = "pq.secretaryTour.v2.completedSteps";
+export const DOCTOR_TOUR_STEPS_KEY = "pq.doctorTour.v2.completedSteps";
 
 function readSession(key) {
   try {
@@ -31,6 +28,8 @@ function removeSession(key) {
 
 export async function persistTourComplete(uid) {
   if (!uid) return;
+  const { ref, update } = await import("firebase/database");
+  const { database } = await import("../firebase/database");
   await update(ref(database, `users/${uid}`), {
     hasCompletedTour: true,
     updatedAt: Date.now(),

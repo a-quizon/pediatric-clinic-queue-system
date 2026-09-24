@@ -29,8 +29,10 @@ export default function Login() {
     if (!authLoading && user) {
       if (role) {
         if (role === 'doctor' || role === 'admin') navigate('/doctor', { replace: true });
-        else if (role === 'secretary') navigate('/secretary', { replace: true });
-        else {
+        else if (role === 'secretary') {
+          if (user?.mustChangePassword) navigate('/secretary/change-password', { replace: true });
+          else navigate('/secretary', { replace: true });
+        } else {
           navigate(getParentPostAuthPath(user, auth.currentUser), { replace: true });
         }
       } else {
@@ -95,6 +97,9 @@ export default function Login() {
           role: userData.role,
           devicePushEnabled: userData.devicePushEnabled,
         });
+      } else if (userData.role === "secretary" && userData.mustChangePassword) {
+        navigate("/secretary/change-password", { replace: true });
+        return;
       }
     } else {
       if (!authUser.emailVerified) {

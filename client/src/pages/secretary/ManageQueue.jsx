@@ -44,6 +44,7 @@ function QueuePageIntro({ branchName }) {
           href="/secretary/monitor"
           target="_blank"
           rel="noopener noreferrer"
+          data-tour="queue-monitor"
           className="pq-btn-secondary shrink-0 self-start"
           aria-label="Live Queue Monitor (opens in a new tab)"
         >
@@ -79,9 +80,12 @@ function SessionDurationMeter({ startedAt, nowTs, className = "" }) {
 export default function ManageQueue({ hideHeader = false }) {
   const { user } = useAuth();
   const showQueueSample = useTourSample([
+    "queue-start",
     "queue-list",
     "queue-penalize",
     "queue-control",
+    "queue-request-checkin",
+    "queue-send-to-doctor",
     "walkin-open",
     "walkin-form",
   ]);
@@ -502,6 +506,7 @@ export default function ManageQueue({ hideHeader = false }) {
             </button>
             <button
               type="button"
+              data-tour="queue-request-checkin"
               onClick={handleRequestCheckIn}
               disabled={requestingCheckIn || nextEligibleCooldownSec > 0}
               className="pq-btn-secondary pq-btn-pill w-full @2xl:flex-1"
@@ -649,7 +654,7 @@ export default function ManageQueue({ hideHeader = false }) {
                     {isWalkInReservation(res) && renderWalkInBadge()}
                     {timerRemainingMs > 0 && (
                       <span className="pq-chip pq-chip-alert shrink-0">
-                        Forfeit in {formatRemainingTime(timerRemainingMs)}
+                        Validation Countdown: {formatRemainingTime(timerRemainingMs)}
                       </span>
                     )}
                   </div>
@@ -663,6 +668,7 @@ export default function ManageQueue({ hideHeader = false }) {
                       {canSendToDoctor && (
                         <button
                           type="button"
+                          data-tour="queue-send-to-doctor"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleSendToDoctor(res);
@@ -679,6 +685,7 @@ export default function ManageQueue({ hideHeader = false }) {
                       {isPenalizeTarget && (
                         <button
                           type="button"
+                          data-tour="queue-penalize"
                           onClick={(e) => {
                             e.stopPropagation();
                             handlePenalize(res);

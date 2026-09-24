@@ -7,12 +7,13 @@ import { subscribeToParentReservations } from "../../services/reservationService
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { useAuth } from "../../hooks/useAuth";
 import { useTourSample } from "../../hooks/useTourPreview";
-import { TourSampleTicket } from "../../components/onboarding/TourSampleViews";
+import { TourSampleLateRules, TourSampleTicket } from "../../components/onboarding/TourSampleViews";
 
 export default function MyReservation() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const showSampleTicket = useTourSample("reservation-list");
+  const showSampleTicket = useTourSample(["reservation-list", "ticket-qr", "parent-late-rules"]);
+  const showLateRules = useTourSample("parent-late-rules");
   
   const [schedules, setSchedules] = useState({});
   const [allReservations, setAllReservations] = useState([]);
@@ -105,6 +106,7 @@ export default function MyReservation() {
           View your active clinic reservations, check-in arrival passes, and real-time queue status.
         </p>
         <TourSampleTicket />
+        {showLateRules ? <TourSampleLateRules /> : null}
       </div>
     );
   }
@@ -160,7 +162,11 @@ export default function MyReservation() {
                       </span>
                     </div>
 
-                    <div className="flex items-center mt-3 pt-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+                    <div
+                      className="flex items-center mt-3 pt-3"
+                      style={{ borderTop: "1px solid var(--pq-glass-line)" }}
+                      data-tour="ticket-qr-hint"
+                    >
                       <TicketIcon className="w-4 h-4 mr-2 pq-faint" />
                       <span className="pq-muted">
                         QR: <span className="font-bold font-mono tracking-wider">{res.reservationCode}</span>
@@ -195,6 +201,8 @@ export default function MyReservation() {
           </div>
         </div>
       )}
+
+      {showLateRules ? <TourSampleLateRules /> : null}
     </div>
   );
 }

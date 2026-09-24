@@ -10,6 +10,8 @@ import { deleteUserAccount } from "../../services/adminService";
 import { useAuth } from "../../hooks/useAuth";
 import { PqSpinner } from "../../components/parent/pqUi";
 import toast from "react-hot-toast";
+import { useTourSample } from "../../hooks/useTourPreview";
+import { TourSampleDoctorUsers } from "../../components/onboarding/DoctorTourSampleViews";
 
 const roleChip = (role) => {
   if (role === "doctor") return "pq-chip pq-chip-info";
@@ -24,6 +26,11 @@ const statusChip = (status) => (
 
 export default function UserManagement() {
   const { user: currentUser } = useAuth();
+  const showUsersSample = useTourSample([
+    "doctor-users-list",
+    "doctor-users-secretary",
+    "doctor-users-parent",
+  ]);
   const [searchParams] = useSearchParams();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -180,9 +187,17 @@ export default function UserManagement() {
     }
   };
 
+  if (showUsersSample) {
+    return (
+      <div className="space-y-4 pb-4 md:pb-8">
+        <TourSampleDoctorUsers />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 pb-4 md:pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
-      <div className="pq-filter-bar p-3 sm:p-4 flex flex-col md:flex-row gap-3">
+      <div className="pq-filter-bar p-3 sm:p-4 flex flex-col md:flex-row gap-3" data-tour="doctor-users-list">
         <div className="relative flex-1">
           <div className="pq-field-icon">
             <Search className="w-5 h-5" aria-hidden="true" />

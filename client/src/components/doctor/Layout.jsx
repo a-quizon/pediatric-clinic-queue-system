@@ -4,6 +4,7 @@ import { Home, Users, User, BarChart3, ArrowLeft, CalendarDays, MapPin, ScrollTe
 import { PqBrand } from "../parent/pqUi";
 import { goBackOr } from "../../utils/navigationRoots";
 import AddStaffModal from "../admin/AddStaffModal";
+import LogoutButton from "../common/LogoutButton";
 
 export default function Layout() {
   const location = useLocation();
@@ -47,14 +48,14 @@ export default function Layout() {
     { name: "Dashboard", mobileName: "Home", path: "/doctor", icon: Home, replace: true, tour: "doctor-nav-dashboard" },
     { name: "Queue", path: "/doctor/queue", icon: Users, replace: true, tour: "doctor-nav-queue" },
     { name: "Schedules", path: "/doctor/schedules", icon: CalendarDays, replace: true, tour: "doctor-nav-schedules" },
-    { name: "Reports & Analytics", mobileName: "Reports", path: "/doctor/reports", icon: BarChart3, desktopOnly: true, tour: "doctor-nav-reports" },
+    { name: "Reports", path: "/doctor/reports", icon: BarChart3, desktopOnly: true, tour: "doctor-nav-reports" },
     { name: "Profile", path: "/doctor/profile", icon: User, replace: true, tour: "doctor-nav-profile" },
   ];
 
   const clinicAdminNav = [
-    { name: "Users", path: "/doctor/users", icon: UserCog },
-    { name: "Branches", path: "/doctor/branches", icon: MapPin },
-    { name: "Audit Logs", path: "/doctor/audit-logs", icon: ScrollText },
+    { name: "Users", path: "/doctor/users", icon: UserCog, tour: "doctor-nav-users" },
+    { name: "Branches", path: "/doctor/branches", icon: MapPin, tour: "doctor-nav-branches" },
+    { name: "Audit Logs", path: "/doctor/audit-logs", icon: ScrollText, tour: "doctor-nav-audit" },
   ];
 
   const isActive = (path) => {
@@ -90,13 +91,23 @@ export default function Layout() {
         <div className="p-6 flex items-center" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <PqBrand size={36} />
         </div>
-        <nav className="flex-1 py-6 px-4 space-y-1.5 overflow-y-auto" aria-label="Doctor">
-          {primaryNav.map(renderSideLink)}
-          <div className="pt-4 mt-2" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
-            <p className="px-3 mb-2 text-xs font-bold uppercase tracking-wide pq-faint">Clinic admin</p>
+        <nav className="flex-1 flex flex-col min-h-0 py-4 px-4 overflow-y-auto" aria-label="Doctor">
+          <div className="space-y-1.5">
+            {primaryNav.map(renderSideLink)}
+          </div>
+          <div
+            className="mt-4 pt-4 space-y-1.5"
+            style={{ borderTop: "1px solid var(--pq-glass-line)" }}
+          >
+            <p className="px-3 mb-2 text-xs font-bold uppercase tracking-wide pq-faint">
+              Clinic admin
+            </p>
             {clinicAdminNav.map(renderSideLink)}
           </div>
         </nav>
+        <div className="p-4 mt-auto" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+          <LogoutButton className="pq-btn-danger w-full" />
+        </div>
       </aside>
 
       <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-[6.5rem] h-full relative flex flex-col bg-transparent">
@@ -126,6 +137,7 @@ export default function Layout() {
                   type="button"
                   onClick={() => setIsAddModalOpen(true)}
                   className="pq-btn-primary"
+                  data-tour="doctor-users-add-staff"
                 >
                   <Plus className="w-5 h-5" aria-hidden="true" />
                   <span className="hidden sm:inline">Add Staff</span>

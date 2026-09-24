@@ -147,7 +147,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="pq-glass p-10">
+      <div className="pq-glass p-10" data-tour="dashboard-overview">
         <PqSpinner label="Loading dashboard" />
       </div>
     );
@@ -161,7 +161,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-6 pb-8" data-tour="dashboard-overview">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <section className="pq-glass p-6 md:p-8">
           <h2 className="text-lg font-extrabold tracking-tight mb-5 flex items-center gap-2">

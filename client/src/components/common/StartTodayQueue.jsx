@@ -39,6 +39,7 @@ export default function StartTodayQueue({ schedules, user, limitToAssignedBranch
             <button
               key={schedule.id}
               type="button"
+              data-tour="queue-start"
               className="pq-btn-live"
               disabled={Boolean(busyId)}
               onClick={() => setPending(schedule)}

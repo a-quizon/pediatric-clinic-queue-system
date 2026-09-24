@@ -233,6 +233,12 @@ export const changeUserPassword = async (currentPassword, newPassword) => {
 
   // Update password
   await updatePassword(user, newPassword);
+
+  // Clear forced-change flag after a successful password update.
+  await update(ref(database, `users/${user.uid}`), {
+    mustChangePassword: false,
+    updatedAt: Date.now(),
+  }).catch(() => {});
 };
 
 export const completeParentOnboarding = async (uid) => {

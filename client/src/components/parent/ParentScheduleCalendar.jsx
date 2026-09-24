@@ -153,7 +153,7 @@ export default function ParentScheduleCalendar({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour="reserve-schedule-calendar">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="text-lg font-extrabold tracking-tight">Reserve a slot</h2>
         <select
@@ -201,7 +201,7 @@ export default function ParentScheduleCalendar({
         )}
       </section>
 
-      <section className="pq-glass p-4">
+      <section className="pq-glass p-4" data-tour="reserve-schedule-list">
         <div className="flex items-center justify-between mb-3">
           <button type="button" className="pq-btn-secondary" aria-label="Previous month" onClick={() => setCursor((current) => shiftMonth(current.year, current.monthIndex, -1))}>
             <ChevronLeft className="w-4 h-4" />

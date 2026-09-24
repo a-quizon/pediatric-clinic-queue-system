@@ -4,6 +4,14 @@ export function isTourPhoneViewport() {
   return window.innerWidth <= TOUR_PHONE_MAX;
 }
 
+export function prefersReducedTourMotion() {
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
+}
+
 export function getTourSafeInsets() {
   const phone = isTourPhoneViewport();
   const safeBottom =
@@ -27,10 +35,16 @@ export function getTourPopoverSide(element) {
   const vh = window.innerHeight;
   const vw = window.innerWidth;
 
+  if (isTourPhoneViewport()) {
+    // Prefer bottom-sheet style placement on phones so the card stays readable.
+    if (rect.top < vh * 0.35) return "bottom";
+    if (rect.height > vh * 0.42) return "over";
+    return "top";
+  }
+
   if (rect.bottom > vh * 0.7 || rect.top > vh - 140) return "top";
   if (vw >= 768 && rect.left < 280 && rect.width < 280) return "right";
   if (rect.top < vh * 0.22) return "bottom";
-  if (isTourPhoneViewport() && rect.height > vh * 0.42) return "over";
   return "bottom";
 }
 
@@ -42,10 +56,11 @@ export function getTourPopoverAlign(side) {
 
 export function scrollTourTargetIntoView(element) {
   if (!element || typeof element.scrollIntoView !== "function") return;
+  const behavior = prefersReducedTourMotion() ? "auto" : "smooth";
   element.scrollIntoView({
     block: "center",
     inline: "nearest",
-    behavior: "smooth",
+    behavior,
   });
 }
 
@@ -76,7 +91,8 @@ export function attachTourSkipButton(popover, onSkip) {
   const skip = document.createElement("button");
   skip.type = "button";
   skip.className = "pq-driver-skip";
-  skip.textContent = "Skip tour";
+  skip.textContent = "Skip";
+  skip.setAttribute("aria-label", "Skip tour");
   skip.addEventListener("click", onSkip);
   popover.footer.insertBefore(skip, popover.footer.firstChild);
 }
@@ -91,10 +107,28 @@ export function decorateTourPopover(popover, onSkip) {
 
 export function mapTourDriverSteps(steps, findTarget) {
   return steps.map((step) => {
-    const target = findTarget(step.targets);
-    const side = getTourPopoverSide(target);
+    const resolve = () => {
+      if (typeof findTarget !== "function") {
+        return document.querySelector("main") || document.body;
+      }
+      try {
+        const viaStep = findTarget(step);
+        if (viaStep) return viaStep;
+      } catch {
+        // Controllers may pass findVisibleTourTarget(ids) instead.
+      }
+      try {
+        const viaIds = findTarget(step.targets);
+        if (viaIds) return viaIds;
+      } catch {
+        // fall through
+      }
+      return document.querySelector("main") || document.body;
+    };
+
+    const side = getTourPopoverSide(resolve());
     return {
-      element: () => findTarget(step.targets),
+      element: resolve,
       disableActiveInteraction: Boolean(step.disableActiveInteraction),
       skipMissingElement: false,
       waitForElement: 2500,
@@ -131,9 +165,27 @@ export function bindTourViewport(onChange) {
   };
   window.addEventListener("resize", queued);
   window.addEventListener("orientationchange", queued);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", queued);
+    window.visualViewport.addEventListener("scroll", queued);
+  }
   return () => {
     window.clearTimeout(timer);
     window.removeEventListener("resize", queued);
     window.removeEventListener("orientationchange", queued);
+    if (window.visualViewport) {
+      window.visualViewport.removeEventListener("resize", queued);
+      window.visualViewport.removeEventListener("scroll", queued);
+    }
+  };
+}
+
+/** Pure helper for tests: keep a popover rect fully inside a viewport box. */
+export function clampRectToViewport(rect, viewport, insets) {
+  const maxLeft = viewport.width - rect.width - insets.right;
+  const maxTop = viewport.height - rect.height - insets.bottom;
+  return {
+    left: Math.min(Math.max(insets.left, rect.left), Math.max(insets.left, maxLeft)),
+    top: Math.min(Math.max(insets.top, rect.top), Math.max(insets.top, maxTop)),
   };
 }

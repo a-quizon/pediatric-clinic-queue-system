@@ -72,6 +72,7 @@ export default function Profile() {
     <button
       type="button"
       onClick={handleReplayTutorial}
+      data-tour="profile-replay"
       className="pq-glass w-full p-5 flex items-center justify-between text-left"
     >
       <div className="flex items-center min-w-0">
@@ -83,7 +84,7 @@ export default function Profile() {
         </div>
         <div className="min-w-0">
           <span className="font-extrabold tracking-tight block">Replay Tutorial</span>
-          <span className="pq-muted text-sm">Walk through Queue, consultations, schedules, and reports again.</span>
+          <span className="pq-muted text-sm">Walk through queue, users, audit logs, and reports again.</span>
         </div>
       </div>
       <ChevronRight className="w-5 h-5 pq-faint shrink-0" aria-hidden="true" />
@@ -184,7 +185,7 @@ export default function Profile() {
   };
 
   const renderProfileCard = () => (
-    <div className="pq-glass overflow-hidden">
+    <div className="pq-glass overflow-hidden" data-tour="doctor-profile-account">
       <div className="p-6 md:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
         <h2 className="text-lg font-extrabold tracking-tight flex items-center">
           <UserIcon className="w-5 h-5 mr-2" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
@@ -429,9 +430,6 @@ export default function Profile() {
         {renderProfileCard()}
         {renderSecurityCard()}
         {renderReplayTutorial()}
-        <div className="pt-4">
-          <LogoutButton className="pq-btn-danger w-full" />
-        </div>
       </div>
 
       <div className="block md:hidden pb-8">
@@ -440,7 +438,7 @@ export default function Profile() {
             {renderMobileSummary()}
             
             <nav className="pq-glass overflow-hidden">
-              <button type="button" onClick={() => setMobileView("account")} className="w-full flex items-center justify-between p-4 min-h-[72px]">
+              <button type="button" onClick={() => setMobileView("account")} data-tour="doctor-profile-account" className="w-full flex items-center justify-between p-4 min-h-[72px]">
                 <div className="flex items-center">
                   <div className="w-11 h-11 rounded-2xl mr-4 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
                     <UserIcon className="w-5 h-5" aria-hidden="true" />
@@ -466,7 +464,7 @@ export default function Profile() {
                 <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />
               </button>
 
-              <button type="button" onClick={() => navigate("/doctor/users")} className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+              <button type="button" onClick={() => navigate("/doctor/users")} data-tour="doctor-nav-users" className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
                 <div className="flex items-center">
                   <div className="w-11 h-11 rounded-2xl mr-4 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
                     <UserCog className="w-5 h-5" aria-hidden="true" />
@@ -479,7 +477,7 @@ export default function Profile() {
                 <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />
               </button>
 
-              <button type="button" onClick={() => navigate("/doctor/branches")} className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+              <button type="button" onClick={() => navigate("/doctor/branches")} data-tour="doctor-nav-branches" className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
                 <div className="flex items-center">
                   <div className="w-11 h-11 rounded-2xl mr-4 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--pq-mark-gold-bright) 28%, white)", color: "var(--pq-mark-gold)" }}>
                     <MapPin className="w-5 h-5" aria-hidden="true" />
@@ -492,7 +490,7 @@ export default function Profile() {
                 <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />
               </button>
 
-              <button type="button" onClick={() => navigate("/doctor/audit-logs")} className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+              <button type="button" onClick={() => navigate("/doctor/audit-logs")} data-tour="doctor-nav-audit" className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
                 <div className="flex items-center">
                   <div className="w-11 h-11 rounded-2xl mr-4 flex items-center justify-center" style={{ background: "var(--pq-wait-wash)", color: "var(--pq-wait)" }}>
                     <ScrollText className="w-5 h-5" aria-hidden="true" />
@@ -505,14 +503,14 @@ export default function Profile() {
                 <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />
               </button>
 
-              <button type="button" onClick={handleReplayTutorial} className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+              <button type="button" onClick={handleReplayTutorial} data-tour="profile-replay" className="w-full flex items-center justify-between p-4 min-h-[72px]" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
                 <div className="flex items-center">
                   <div className="w-11 h-11 rounded-2xl mr-4 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
                     <RotateCcw className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <div className="text-left">
                     <h3 className="font-extrabold">Replay Tutorial</h3>
-                    <p className="text-xs pq-muted mt-0.5">Walk through Queue, consultations, and reports again</p>
+                    <p className="text-xs pq-muted mt-0.5">Walk through queue, users, audit logs, and reports again</p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 pq-faint" aria-hidden="true" />

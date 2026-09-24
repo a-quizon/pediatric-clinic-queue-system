@@ -61,6 +61,7 @@ export default function ScheduleManagement({
     return (
       <TourSampleSchedulePublish
         showForm
+        lockBranch={lockBranch || showSecretaryScheduleSample}
         publishTourId={showDoctorScheduleSample ? "doctor-schedule-publish" : "schedule-publish"}
         formTourId={showDoctorScheduleSample ? "doctor-schedule-form" : "schedule-form"}
       />
