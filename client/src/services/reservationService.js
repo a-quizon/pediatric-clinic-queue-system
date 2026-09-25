@@ -24,6 +24,9 @@ import {
   assertCanStartConsultation,
   assertCanUpdatePatientInfo,
 } from "../utils/reservationTransitions";
+import { finalizeParentClaim } from "../utils/parentClaimFinalize";
+
+export { finalizeParentClaim } from "../utils/parentClaimFinalize";
 
 const requireReservation = async (reservationId) => {
   const snap = await get(ref(database, `reservations/${reservationId}`));
@@ -99,11 +102,11 @@ const callClaimReservation = async (payload) => {
 
 export const claimParentReservation = async (scheduleId) => {
   const data = await callClaimReservation({ mode: "parent", scheduleId });
-  if (scheduleId) {
-    await recalculateRollingValidation(scheduleId);
-    await recalculateEntireQueue(scheduleId);
-  }
-  return data.reservationId;
+  // Best-effort: parent RTDB rules block multi-ticket queue rewrite; Admin CF recalculates.
+  return finalizeParentClaim(scheduleId, data, async (id) => {
+    await recalculateRollingValidation(id);
+    await recalculateEntireQueue(id);
+  });
 };
 
 export const createReservation = async (reservationData) => {

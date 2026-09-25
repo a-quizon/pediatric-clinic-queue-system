@@ -236,28 +236,42 @@ export default function ReserveQueue() {
   };
 
   const handleAgreeToQueueRules = async () => {
-    if (!selectedSchedule || isSubmitting) return;
+    if (!selectedSchedule || isSubmitting || submittingRef.current) return;
 
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
-      const reservationId = await claimParentReservation(selectedSchedule.id);
+      const { reservationId, queueNumber } = await claimParentReservation(selectedSchedule.id);
 
-      const updatedReservations = await getReservationsBySchedule(selectedSchedule.id);
-      const newRes = updatedReservations.find(r => r.id === reservationId);
+      let displayPosition = queueNumber;
+      if (displayPosition == null || Number.isNaN(displayPosition)) {
+        try {
+          const updatedReservations = await getReservationsBySchedule(selectedSchedule.id);
+          const newRes = updatedReservations.find((r) => r.id === reservationId);
+          displayPosition = newRes?.queuePosition ?? newRes?.queueNumber;
+        } catch (readError) {
+          console.warn("Could not refresh queue position after claim:", readError);
+        }
+      }
 
-      setGeneratedQueuePosition(newRes?.queuePosition || "Assigned");
+      setGeneratedQueuePosition(displayPosition || "Assigned");
       setActiveReservationId(reservationId);
       setIsAgreementModalOpen(false);
       setIsPatientInfoModalOpen(true);
     } catch (error) {
       console.error("Failed to create reservation", error);
+      const detail =
+        typeof error?.message === "string" && error.message.trim()
+          ? error.message.trim()
+          : "There was an error processing your reservation. Please try again.";
       setMessageModalState({
         isOpen: true,
         type: 'error',
         title: 'Reservation Failed',
-        message: 'There was an error processing your reservation. Please try again.'
+        message: detail
       });
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
