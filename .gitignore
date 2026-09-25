@@ -4,3 +4,7 @@ manuscript-capstone/
 client/.env
 client/.env.*
 !client/.env.example
+
+# Staged Hosting APK (copy via `npm run apk:stage` before build/deploy)
+client/public/downloads/*.apk
+!client/public/downloads/.gitkeep

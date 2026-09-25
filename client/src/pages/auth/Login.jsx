@@ -14,6 +14,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { auth } from "../../firebase/auth";
 import { signOut } from "firebase/auth";
 import { detectLoginIdentifier } from "../../utils/loginIdentifier";
+import { APP_DOWNLOAD_PAGE_PATH, isNativeApp } from "../../utils/platform";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -226,6 +227,13 @@ export default function Login() {
                 Create Account
               </Link>
             </p>
+            {!isNativeApp() ? (
+              <p className="pq-muted text-sm mt-3">
+                <a href={APP_DOWNLOAD_PAGE_PATH} className="pq-link">
+                  Download Android App
+                </a>
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

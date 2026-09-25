@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex" />
+  <title>PlusQueue — Download Android App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #16344a;
+      --ink-soft: #3a5c6e;
+      --paper: #e4f3f4;
+      --wash-a: #c8e8ee;
+      --wash-b: #f8ddd6;
+      --wash-c: #f6ecc0;
+      --blue: #2f6fdb;
+      --blue-deep: #1e4ea8;
+      --alert: #b4232c;
+      --alert-wash: #fde8e8;
+      --radius: 1.35rem;
+      --font: "Lexend", "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: var(--font);
+      color: var(--ink);
+      background-color: var(--paper);
+      background-image:
+        radial-gradient(120% 80% at 0% 0%, var(--wash-a) 0%, transparent 58%),
+        radial-gradient(90% 70% at 100% 8%, var(--wash-b) 0%, transparent 52%),
+        radial-gradient(80% 60% at 70% 100%, var(--wash-c) 0%, transparent 55%),
+        linear-gradient(165deg, #eaf7f8 0%, #f3ece4 48%, #e7f2f4 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+        max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+    }
+    .card {
+      width: min(100%, 26rem);
+      background: #fff;
+      border: 1px solid rgba(22, 52, 74, 0.1);
+      border-radius: var(--radius);
+      box-shadow: 0 18px 40px -12px rgba(22, 52, 74, 0.32);
+      padding: 1.75rem 1.5rem;
+      text-align: center;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-bottom: 1.25rem;
+    }
+    .brand img { width: 44px; height: 44px; display: block; }
+    .brand span { font-weight: 800; letter-spacing: -0.03em; font-size: 1.15rem; }
+    h1 { margin: 0 0 0.5rem; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; }
+    p { margin: 0 0 1rem; color: var(--ink-soft); font-size: 0.95rem; line-height: 1.5; }
+    .tip {
+      text-align: left;
+      background: color-mix(in srgb, var(--blue) 8%, white);
+      border-radius: 0.95rem;
+      padding: 0.85rem 1rem;
+      font-size: 0.85rem;
+      color: var(--ink-soft);
+      margin-bottom: 1.25rem;
+      line-height: 1.45;
+    }
+    .tip strong { color: var(--ink); }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 48px;
+      border-radius: 0.95rem;
+      font: inherit;
+      font-weight: 700;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s ease, opacity 0.15s ease;
+    }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-primary:hover { background: var(--blue-deep); }
+    .btn-primary[aria-disabled="true"] {
+      background: #9aabb8;
+      pointer-events: none;
+      cursor: not-allowed;
+    }
+    .btn-ghost {
+      margin-top: 0.75rem;
+      background: transparent;
+      color: var(--ink-soft);
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .btn-ghost:hover { color: var(--ink); }
+    .error {
+      display: none;
+      margin: 0 0 1rem;
+      padding: 0.75rem 1rem;
+      background: var(--alert-wash);
+      color: var(--alert);
+      border-radius: 0.95rem;
+      font-size: 0.85rem;
+      line-height: 1.45;
+      text-align: left;
+    }
+    .error.show { display: block; }
+    @media (prefers-reduced-motion: reduce) {
+      .btn { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">
+      <img src="/brand/plusqueue-logo.png" alt="" width="44" height="44" />
+      <span>PlusQueue</span>
+    </div>
+    <h1>Android app download</h1>
+    <p>Install PlusQueue on your Android phone for the best clinic queue experience. This APK is Android-only.</p>
+    <div class="tip">
+      <strong>Install tip:</strong> If Android blocks the install, open Settings → allow installs from this browser (unknown sources), then tap the downloaded file.
+    </div>
+    <p id="apk-error" class="error" role="alert"></p>
+    <a id="download-btn" class="btn btn-primary" href="/downloads/pediatric-clinic.apk" download="pediatric-clinic.apk">
+      Download APK
+    </a>
+    <a class="btn btn-ghost" href="/">Continue with web app</a>
+  </main>
+  <script>
+    (function () {
+      var btn = document.getElementById("download-btn");
+      var err = document.getElementById("apk-error");
+      var apkUrl = "/downloads/pediatric-clinic.apk";
+
+      function showError(message) {
+        err.textContent = message;
+        err.classList.add("show");
+        btn.setAttribute("aria-disabled", "true");
+        btn.removeAttribute("href");
+        btn.removeAttribute("download");
+      }
+
+      fetch(apkUrl, { method: "HEAD", cache: "no-store" })
+        .then(function (res) {
+          if (!res.ok) {
+            showError("The Android APK is temporarily unavailable. Please try again later or continue with the web app.");
+          }
+        })
+        .catch(function () {
+          showError("Could not reach the APK download. Check your connection, or continue with the web app.");
+        });
+    })();
+  </script>
+</body>
+</html>

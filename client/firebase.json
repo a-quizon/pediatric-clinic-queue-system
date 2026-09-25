@@ -33,6 +33,14 @@
           { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
           { "key": "Service-Worker-Allowed", "value": "/" }
         ]
+      },
+      {
+        "source": "/downloads/**.apk",
+        "headers": [
+          { "key": "Content-Type", "value": "application/vnd.android.package-archive" },
+          { "key": "Content-Disposition", "value": "attachment; filename=\"pediatric-clinic.apk\"" },
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
       }
     ],
     "rewrites": [
