@@ -17,17 +17,9 @@ import {
 } from "../../services/reservationService";
 import { addChild, subscribeToChildren } from "../../services/childProfileService";
 import { buildPatientInfoPayload } from "../../utils/reservationPatients";
-import {
-  PATIENT_INFO_CANCEL_FAILED_MESSAGE,
-  PATIENT_INFO_UPDATE_FAILED_MESSAGE,
-  patientInfoCancelSuccessState,
-  patientInfoSubmitSuccessState,
-  preparePatientInfoSubmit,
-} from "../../utils/patientInfoSubmit";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { useAuth } from "../../hooks/useAuth";
 import MessageModal from "../../components/common/MessageModal";
-import ModalScrim from "../../components/common/ModalScrim";
 import QueueRulesAgreementModal from "../../components/parent/QueueRulesAgreementModal";
 import ParentScheduleCalendar from "../../components/parent/ParentScheduleCalendar";
 import ChildProfileForm, {
@@ -289,19 +281,20 @@ export default function ReserveQueue() {
     setIsSubmitting(true);
     try {
       await cancelReservation(activeReservationId);
-      const cleared = patientInfoCancelSuccessState();
-      setActiveReservationId(cleared.activeReservationId);
-      setGeneratedQueuePosition(cleared.generatedQueuePosition);
-      setSelectedSchedule(cleared.selectedSchedule);
-      setSelectedChildIds(cleared.selectedChildIds);
-      setConcern(cleared.concern);
-      setIsAddChildOpen(cleared.isAddChildOpen);
-      setIsPatientInfoModalOpen(cleared.isPatientInfoModalOpen);
+      setActiveReservationId(null);
+      setGeneratedQueuePosition(null);
+      setSelectedSchedule(null);
+      setSelectedChildIds([]);
+      setConcern("");
+      setIsAddChildOpen(false);
+      setIsPatientInfoModalOpen(false);
     } catch (error) {
       console.error("Failed to cancel reservation", error);
       setMessageModalState({
         isOpen: true,
-        ...PATIENT_INFO_CANCEL_FAILED_MESSAGE,
+        type: 'error',
+        title: 'Cancellation Failed',
+        message: 'There was an error cancelling your reservation. Please try again.'
       });
     } finally {
       setIsSubmitting(false);
@@ -338,33 +331,22 @@ export default function ReserveQueue() {
   };
 
   const handleSubmitPatientInfo = async () => {
-    const prepared = preparePatientInfoSubmit({
-      activeReservationId,
-      submitting: submittingRef.current,
-      savedChildren,
-      selectedChildIds,
-    });
-    if (!prepared.ok) {
-      if (prepared.messageModal) {
-        setMessageModalState(prepared.messageModal);
-      }
-      return;
-    }
+    if (!activeReservationId || submittingRef.current) return;
+    const selected = savedChildren.filter((child) => selectedChildIds.includes(child.id));
+    if (selected.length === 0) return;
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
-      await updatePatientInfo(
-        activeReservationId,
-        buildPatientInfoPayload(prepared.selected, concern)
-      );
-      const next = patientInfoSubmitSuccessState();
-      setIsPatientInfoModalOpen(next.isPatientInfoModalOpen);
-      setIsSuccessModalOpen(next.isSuccessModalOpen);
+      await updatePatientInfo(activeReservationId, buildPatientInfoPayload(selected, concern));
+      setIsPatientInfoModalOpen(false);
+      setIsSuccessModalOpen(true);
     } catch (err) {
       console.error(err);
       setMessageModalState({
         isOpen: true,
-        ...PATIENT_INFO_UPDATE_FAILED_MESSAGE,
+        type: 'error',
+        title: 'Update Failed',
+        message: 'Could not save patient information. Please try again.'
       });
     } finally {
       submittingRef.current = false;
@@ -415,15 +397,15 @@ export default function ReserveQueue() {
         onAgree={handleAgreeToQueueRules}
       />
 
-      {/* Complete Patient Info Modal — portaled above parent dock (Android WebView) */}
+      {/* Complete Patient Info Modal */}
       {isPatientInfoModalOpen && selectedSchedule && (
-        <ModalScrim className="z-50">
+        <div className="pq-modal-scrim">
           <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5 shrink-0" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 className="text-lg font-bold">Select Patients</h2>
             </div>
-
-            <div className="p-6 overflow-y-auto overscroll-contain min-h-0 flex-1">
+            
+            <div className="p-6 overflow-y-auto">
               <div className="flex items-start pq-note pq-note-info mb-6">
                 <CheckCircle2 className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
                 <p className="text-sm font-medium">Your slot is reserved. Choose one or more children this visit is for, then add the reason for the visit.</p>
@@ -491,7 +473,7 @@ export default function ReserveQueue() {
 
                 <div>
                   <label className="pq-label">Concern / Reason for Visit</label>
-                  <textarea
+                  <textarea 
                     value={concern}
                     onChange={e => setConcern(e.target.value)}
                     placeholder="Optional: briefly describe the symptoms or reason for visit"
@@ -502,17 +484,15 @@ export default function ReserveQueue() {
               </div>
             </div>
 
-            <div className="p-5 flex gap-3 justify-end shrink-0" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
-              <button
-                type="button"
+            <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+              <button 
                 onClick={handleCancelReservation}
                 disabled={isSubmitting}
                 className="pq-btn-secondary w-full sm:w-auto text-sm"
               >
                 Cancel Reservation
               </button>
-              <button
-                type="button"
+              <button 
                 onClick={handleSubmitPatientInfo}
                 disabled={isSubmitting || selectedChildIds.length === 0}
                 className="pq-btn-primary w-full text-sm"
@@ -526,19 +506,19 @@ export default function ReserveQueue() {
               </button>
             </div>
           </div>
-        </ModalScrim>
+        </div>
       )}
 
       {isAddChildOpen && (
-        <ModalScrim className="z-[60]">
+        <div className="pq-modal-scrim" style={{ zIndex: 60 }}>
           <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5 shrink-0" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 className="text-lg font-bold">Add a Child</h2>
             </div>
-            <div className="p-6 overflow-y-auto overscroll-contain min-h-0 flex-1">
+            <div className="p-6 overflow-y-auto">
               <ChildProfileForm value={newChildForm} onChange={setNewChildForm} idPrefix="reserve-child" />
             </div>
-            <div className="p-5 flex gap-3 justify-end shrink-0" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button
                 type="button"
                 onClick={() => !isSavingChild && setIsAddChildOpen(false)}
@@ -557,12 +537,12 @@ export default function ReserveQueue() {
               </button>
             </div>
           </div>
-        </ModalScrim>
+        </div>
       )}
 
       {/* Success Modal */}
       {isSuccessModalOpen && selectedSchedule && (
-        <ModalScrim className="z-50">
+        <div className="pq-modal-scrim">
           <div className="pq-modal w-full max-w-sm overflow-hidden flex flex-col text-center">
             <div className="p-8">
               <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-5" style={{ background: "var(--pq-live-wash)", color: "var(--pq-live)" }}>
@@ -570,11 +550,11 @@ export default function ReserveQueue() {
               </div>
               <h2 className="text-xl font-bold mb-2">Reservation Successful</h2>
               <p className="pq-muted text-sm mb-6">You have successfully reserved a slot.</p>
-
+              
               <div className="pq-row flex-col items-stretch text-left p-5 mb-6">
                 <div className="text-sm pq-muted mb-1 text-center">Queue Position</div>
                 <div className="pq-num text-4xl text-center mb-4" style={{ color: "var(--pq-mark-blue-deep)" }}>{generatedQueuePosition}</div>
-
+                
                 <div className="flex flex-col space-y-2 text-sm text-left">
                   <div className="flex justify-between items-start pt-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
                     <span className="pq-muted shrink-0 mr-4">Branch:</span>
@@ -593,15 +573,13 @@ export default function ReserveQueue() {
               </div>
 
               <div className="space-y-3">
-                <button
-                  type="button"
+                <button 
                   onClick={() => { closeSuccessModal(); navigate('/parent/reservations'); }}
                   className="pq-btn-primary w-full"
                 >
                   View My Reservation
                 </button>
-                <button
-                  type="button"
+                <button 
                   onClick={closeSuccessModal}
                   className="pq-btn-secondary w-full"
                 >
@@ -610,7 +588,7 @@ export default function ReserveQueue() {
               </div>
             </div>
           </div>
-        </ModalScrim>
+        </div>
       )}
 
 
