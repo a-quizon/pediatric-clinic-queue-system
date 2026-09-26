@@ -276,7 +276,7 @@ export default function UserManagement() {
           </div>
         ) : filteredUsers.length > 0 ? (
           <>
-            <div className="block md:hidden overflow-y-auto">
+            <div className="block md:hidden overflow-y-auto pq-scroll-y">
               {displayedUsers.map((user) => (
                 <div
                   key={user.id}
@@ -334,7 +334,7 @@ export default function UserManagement() {
               ))}
             </div>
 
-            <div className="hidden md:block overflow-x-auto md:flex-1 md:overflow-y-auto relative">
+            <div className="hidden md:block overflow-x-auto md:flex-1 md:overflow-y-auto relative pq-scroll">
               <table className="pq-table">
                 <thead className="pq-table-head-sticky">
                   <tr>

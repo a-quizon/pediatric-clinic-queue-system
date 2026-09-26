@@ -52,7 +52,7 @@ export default function ClinicOverviewReports() {
   const { kpis, adoptionData, branchData, outcomeData, hasData } = metrics;
 
   return (
-    <div className="space-y-4 md:flex-1 md:flex md:flex-col md:min-h-0 overflow-y-auto pq-scroll-hide">
+    <div className="space-y-4 md:flex-1 md:flex md:flex-col md:min-h-0 overflow-y-auto pq-scroll-y">
       <div className="pq-filter-bar p-3 sm:p-4 flex">
         <div className="relative w-full sm:w-auto sm:min-w-[12rem]">
           <label htmlFor="clinic-overview-date-range" className="sr-only">Date range</label>

@@ -98,7 +98,7 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
           </button>
         </div>
         
-        <div className="p-6 overflow-y-auto space-y-6" style={{ borderColor: "var(--pq-glass-line)" }}>
+        <div className="p-6 overflow-y-auto pq-scroll-y space-y-6" style={{ borderColor: "var(--pq-glass-line)" }}>
           <div className="flex items-center justify-between pt-1">
             <span className="text-xs font-bold pq-muted">Status</span>
             <ReservationStatusBadge status={status} className="px-3.5 py-1" />
@@ -244,7 +244,7 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
                 <FileText className="w-3.5 h-3.5 mr-1.5" />
                 Doctor&apos;s Notes
               </div>
-              <div className="pq-note pq-note-info text-sm whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto font-medium">
+              <div className="pq-note pq-note-info text-sm whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto pq-scroll-y font-medium">
                 {reservation.doctorNotes}
               </div>
             </div>

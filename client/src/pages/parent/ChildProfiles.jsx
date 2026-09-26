@@ -201,7 +201,7 @@ export default function ChildProfiles() {
                 {editingChild ? "Edit Child" : "Add a Child"}
               </h2>
             </div>
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto pq-scroll-y">
               <ChildProfileForm value={formValue} onChange={setFormValue} idPrefix="profile-child" />
             </div>
             <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>

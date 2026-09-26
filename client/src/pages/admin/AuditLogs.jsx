@@ -158,7 +158,7 @@ function AuditLogDetailModal({
           </button>
         </div>
 
-        <div className="p-5 sm:p-6 overflow-y-auto pq-scroll-hide flex-1 space-y-4">
+        <div className="p-5 sm:p-6 overflow-y-auto pq-scroll-y flex-1 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div>
               <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Actor</p>
@@ -519,7 +519,7 @@ export default function AuditLogs() {
           <PqSpinner label="Loading audit logs" />
         ) : filteredLogs.length > 0 ? (
           <>
-            <div className="block md:hidden overflow-y-auto pq-scroll-hide">
+            <div className="block md:hidden overflow-y-auto pq-scroll-y">
               {paginatedLogs.map((log) => {
                 const suspicious = isSuspiciousLog(log);
                 return (
@@ -577,7 +577,7 @@ export default function AuditLogs() {
               })}
             </div>
 
-            <div className="hidden md:block md:flex-1 md:overflow-y-auto relative pq-scroll-hide">
+            <div className="hidden md:block md:flex-1 md:overflow-y-auto relative pq-scroll-y">
               <table className="pq-table">
                 <thead className="pq-table-head-sticky">
                   <tr>

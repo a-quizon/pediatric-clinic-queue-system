@@ -155,7 +155,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto">
+        <div className="p-6 overflow-y-auto pq-scroll-y">
           <form onSubmit={handleSubmit} id="staff-form" className="space-y-4">
             <div>
               <label htmlFor="staff-name" className="pq-label">Full Name <span style={{ color: "var(--pq-alert)" }}>*</span></label>

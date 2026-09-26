@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, useOutletContext } from "react-router-dom";
 import { Users, AlertCircle, Activity, CheckCircle, XCircle, MapPin, Inbox, ChevronLeft, ChevronRight, RefreshCcw, BarChart3, Building2 } from "lucide-react";
 import { useReportsData } from "../../hooks/useReportsData";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
@@ -54,6 +54,7 @@ function useIsDesktop() {
 function ClinicSessionsReports() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { setHeaderOverride } = useOutletContext() || {};
   const isDesktop = useIsDesktop();
   const sessionId = searchParams.get("session");
 
@@ -101,35 +102,41 @@ function ClinicSessionsReports() {
         .join(" · ")
     : null;
 
+  useEffect(() => {
+    if (typeof setHeaderOverride !== "function") return undefined;
+
+    if (!sessionId || isDesktop) {
+      setHeaderOverride(null);
+      return undefined;
+    }
+
+    setHeaderOverride({
+      title: sessionTitle,
+      subtitle: sessionSubtitle,
+      showBack: true,
+      onBack: () => goBackOr(navigate, reportsFallbackPath(searchParams)),
+    });
+
+    return undefined;
+  }, [
+    sessionId,
+    isDesktop,
+    sessionTitle,
+    sessionSubtitle,
+    setHeaderOverride,
+    navigate,
+    searchParams,
+  ]);
+
+  useEffect(() => {
+    if (typeof setHeaderOverride !== "function") return undefined;
+    return () => setHeaderOverride(null);
+  }, [setHeaderOverride]);
+
   if (sessionId && !isDesktop) {
     return (
       <div className="flex flex-col min-h-[calc(100dvh-8rem)] -mx-1">
-        <div
-          className="pq-glass flex flex-col flex-1 min-h-0 overflow-hidden"
-        >
-          <div
-            className="p-4 flex items-center gap-3 shrink-0"
-            style={{ borderBottom: "1px solid var(--pq-glass-line)" }}
-          >
-            <button
-              type="button"
-              className="pq-icon-btn shrink-0"
-              aria-label="Back to Session History"
-              onClick={closeSession}
-            >
-              <ChevronLeft className="w-5 h-5" aria-hidden="true" />
-            </button>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-extrabold tracking-tight leading-snug truncate">
-                {sessionTitle}
-              </h2>
-              {sessionSubtitle ? (
-                <p className="text-xs pq-muted font-medium mt-0.5 truncate">
-                  {sessionSubtitle}
-                </p>
-              ) : null}
-            </div>
-          </div>
+        <div className="pq-glass flex flex-col flex-1 min-h-0 overflow-hidden">
           <ReservationsByDate scheduleId={sessionId} />
         </div>
       </div>
@@ -237,7 +244,7 @@ function ClinicSessionsReports() {
                 ))}
               </select>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0" role="group" aria-label="Filter by Date Range">
+            <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0 pq-scroll-x pq-scroll-none" role="group" aria-label="Filter by Date Range">
               {DATE_RANGES.map((range) => (
                 <button
                   key={range}
@@ -387,7 +394,7 @@ function ClinicSessionsReports() {
               </div>
             ) : (
               <>
-                <div className="hidden md:block overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto pq-scroll-x">
                   <table className="pq-table">
                     <thead>
                       <tr>

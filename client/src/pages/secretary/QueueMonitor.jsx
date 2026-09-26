@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Users, AlertTriangle, Monitor, Clock, Maximize, Minimize } from "lucide-react";
 import { PqBrand, PqSpinner } from "../../components/parent/pqUi";
 import { useAuth } from "../../hooks/useAuth";
@@ -180,7 +180,7 @@ export default function QueueMonitor() {
           
           <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-8">
             {inConsultationPatients.length > 0 ? (
-              <div className="flex flex-wrap justify-center gap-8 w-full max-h-full overflow-y-auto">
+              <div className="flex flex-wrap justify-center gap-8 w-full max-h-full overflow-y-auto pq-scroll-y">
                 {inConsultationPatients.map(res => (
                   <div key={res.id} className="flex flex-col items-center">
                     <div
@@ -218,7 +218,7 @@ export default function QueueMonitor() {
             </h2>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto pq-scroll-y p-4 space-y-3">
             {waitingQueue.length > 0 ? (
               waitingQueue.slice(0, 10).map((res, index) => (
                   <div 

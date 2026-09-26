@@ -94,7 +94,7 @@ export default function ReservationHistory() {
   return (
     <div className="space-y-5 pb-8 relative" data-tour="reservation-history">
       <div className="pq-filter-bar pq-filter-stick p-4 sm:p-5">
-        <div className="flex sm:flex-wrap gap-2 sm:gap-2.5 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide w-full -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex sm:flex-wrap gap-2 sm:gap-2.5 overflow-x-auto pb-2 sm:pb-0 pq-scroll-x pq-scroll-none w-full -mx-4 px-4 sm:mx-0 sm:px-0">
           {["All", "Completed", "Cancelled", "Forfeited", "With Notes"].map(filter => (
             <button
               key={filter}

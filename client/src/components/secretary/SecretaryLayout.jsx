@@ -55,7 +55,7 @@ export default function SecretaryLayout() {
         <div className="p-6 flex items-center" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <PqBrand size={36} />
         </div>
-        <nav className="flex-1 min-h-0 py-4 px-4 space-y-1.5 overflow-y-auto" aria-label="Secretary">
+        <nav className="flex-1 min-h-0 py-4 px-4 space-y-1.5 overflow-y-auto pq-scroll-y" aria-label="Secretary">
           {navItems.map((item) => (
             <NavLink
               key={item.name}
@@ -77,7 +77,7 @@ export default function SecretaryLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-[6.5rem] h-full relative flex flex-col bg-transparent">
+      <main className="flex-1 overflow-y-auto pq-scroll-y w-full md:pb-0 pb-[6.5rem] h-full relative flex flex-col bg-transparent">
         <div className="pq-header-wrap">
           <header className="pq-header-pill">
             <div className="flex items-center gap-3 min-w-0">

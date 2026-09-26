@@ -283,7 +283,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1 space-y-8">
+        <div className="p-6 overflow-y-auto pq-scroll-y flex-1 space-y-8">
           {isParentTarget && (
             <p className="text-sm pq-muted">
               Parent accounts are view-only. You can deactivate, delete, or send a password reset email.

@@ -10,6 +10,7 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [headerOverride, setHeaderOverride] = useState(null);
 
   const getHeaderInfo = () => {
     const path = location.pathname;
@@ -42,7 +43,10 @@ export default function Layout() {
     return { title: "Dashboard", showBack: false };
   };
 
-  const headerInfo = getHeaderInfo();
+  const headerInfo = {
+    ...getHeaderInfo(),
+    ...(headerOverride || {}),
+  };
 
   const primaryNav = [
     { name: "Dashboard", mobileName: "Home", path: "/doctor", icon: Home, replace: true, tour: "doctor-nav-dashboard" },
@@ -66,6 +70,10 @@ export default function Layout() {
   };
 
   const handleBack = () => {
+    if (typeof headerInfo.onBack === "function") {
+      headerInfo.onBack();
+      return;
+    }
     goBackOr(navigate, headerInfo.backPath || "/doctor");
   };
 
@@ -91,7 +99,7 @@ export default function Layout() {
         <div className="p-6 flex items-center" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <PqBrand size={36} />
         </div>
-        <nav className="flex-1 flex flex-col min-h-0 py-4 px-4 overflow-y-auto" aria-label="Doctor">
+        <nav className="flex-1 flex flex-col min-h-0 py-4 px-4 overflow-y-auto pq-scroll-y" aria-label="Doctor">
           <div className="space-y-1.5">
             {primaryNav.map(renderSideLink)}
           </div>
@@ -110,12 +118,13 @@ export default function Layout() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto w-full md:pb-0 pb-[6.5rem] h-full relative flex flex-col bg-transparent">
+      <main className="flex-1 overflow-y-auto pq-scroll-y w-full md:pb-0 pb-[6.5rem] h-full relative flex flex-col bg-transparent">
         <div className="pq-header-wrap">
-          <header className="pq-header-pill">
+          <header className={`pq-header-pill ${headerInfo.subtitle ? "pq-header-pill-stacked" : ""}`}>
             <div className="flex items-center gap-3 min-w-0">
               {headerInfo.showBack ? (
                 <button
+                  type="button"
                   onClick={handleBack}
                   className="pq-icon-btn flex-shrink-0"
                   aria-label="Go back"
@@ -127,9 +136,16 @@ export default function Layout() {
                   <PqBrand size={32} wordmark={false} />
                 </span>
               )}
-              <h1 className="text-lg sm:text-xl font-extrabold tracking-tight truncate">
-                {headerInfo.title}
-              </h1>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-xl font-extrabold tracking-tight truncate">
+                  {headerInfo.title}
+                </h1>
+                {headerInfo.subtitle ? (
+                  <p className="text-xs pq-muted font-medium mt-0.5 truncate">
+                    {headerInfo.subtitle}
+                  </p>
+                ) : null}
+              </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {headerInfo.showAddStaff ? (
@@ -160,7 +176,7 @@ export default function Layout() {
         </div>
 
         <div className="p-4 sm:p-6 md:p-8 lg:p-10 max-w-5xl mx-auto w-full flex-1 min-w-0">
-          <Outlet />
+          <Outlet context={{ setHeaderOverride }} />
         </div>
 
         <AddStaffModal

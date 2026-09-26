@@ -311,7 +311,7 @@ export default function Home() {
 
                 {isDropdownOpen && (
                   <div
-                    className="absolute z-50 mt-2 w-full overflow-y-auto max-h-96 flex flex-col"
+                    className="absolute z-50 mt-2 w-full overflow-y-auto pq-scroll-y max-h-96 flex flex-col"
                     style={{
                       background: "color-mix(in srgb, #ffffff 92%, var(--pq-paper))",
                       border: "1px solid var(--pq-glass-line)",

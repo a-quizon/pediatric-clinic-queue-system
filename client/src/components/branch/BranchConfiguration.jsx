@@ -138,7 +138,7 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
           </button>
         </div>
 
-        <div className="p-5 overflow-y-auto flex-1">
+        <div className="p-5 overflow-y-auto pq-scroll-y flex-1">
           {errorMsg && (
             <div className="mb-5 pq-note pq-note-alert flex items-start">
               <AlertCircle className="w-5 h-5 mr-2 shrink-0" aria-hidden="true" />

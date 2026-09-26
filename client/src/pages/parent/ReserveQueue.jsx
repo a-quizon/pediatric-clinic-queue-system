@@ -405,7 +405,7 @@ export default function ReserveQueue() {
               <h2 className="text-lg font-bold">Select Patients</h2>
             </div>
             
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto pq-scroll-y">
               <div className="flex items-start pq-note pq-note-info mb-6">
                 <CheckCircle2 className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
                 <p className="text-sm font-medium">Your slot is reserved. Choose one or more children this visit is for, then add the reason for the visit.</p>
@@ -515,7 +515,7 @@ export default function ReserveQueue() {
             <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 className="text-lg font-bold">Add a Child</h2>
             </div>
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto pq-scroll-y">
               <ChildProfileForm value={newChildForm} onChange={setNewChildForm} idPrefix="reserve-child" />
             </div>
             <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>

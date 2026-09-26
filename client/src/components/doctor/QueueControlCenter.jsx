@@ -327,7 +327,7 @@ export default function QueueControlCenter() {
         </h3>
         
         {waitingQueue.length > 0 ? (
-          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-96 overflow-y-auto pq-scroll-y pr-1">
             {waitingQueue.map(res => {
               const expired = isReservationExpired(res, activeSchedule);
               return (
@@ -383,7 +383,7 @@ export default function QueueControlCenter() {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto flex-1">
+            <div className="p-6 overflow-y-auto pq-scroll-y flex-1">
               <div className="flex justify-between items-start mb-6 gap-3">
                 <div>
                   <div className="text-xs pq-faint font-extrabold uppercase tracking-wider mb-1">Patient</div>
@@ -465,7 +465,7 @@ export default function QueueControlCenter() {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto pq-scroll-y">
               <div className="pq-row mb-6">
                 <div>
                   <div className="text-xs pq-faint font-extrabold uppercase tracking-wider mb-1">Patient</div>

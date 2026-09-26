@@ -333,7 +333,7 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-            <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
+            <div className="px-6 py-5 space-y-5 overflow-y-auto pq-scroll-y flex-1">
               {schedule && (
                 <div className="pq-row min-h-0 flex-col items-stretch gap-1.5 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">

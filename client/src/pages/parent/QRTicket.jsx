@@ -503,7 +503,7 @@ export default function QRTicket() {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto pq-scroll-y">
               <div className="space-y-4 text-left">
                 <ChildProfileForm
                   value={formData}

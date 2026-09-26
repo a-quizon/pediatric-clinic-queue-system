@@ -20,7 +20,7 @@ export default function NotesDetailsModal({ isOpen, onClose, reservation, schedu
           </button>
         </div>
         
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="p-6 overflow-y-auto pq-scroll-y space-y-6">
           <div>
             <div className="text-xs pq-muted font-bold mb-1">Patient</div>
             <div className="text-xl font-bold">{getReservationChildDisplayName(reservation)}</div>

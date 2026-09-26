@@ -100,7 +100,7 @@ export default function QueueRulesAgreementModal({
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto overscroll-contain min-h-0 flex-1">
+        <div className="p-6 overflow-y-auto pq-scroll-y overscroll-contain min-h-0 flex-1">
           {(isLoading || (!queueRules && !loadError)) && (
             <div className="flex flex-col items-center justify-center py-10">
               <span className="pq-spinner mb-3" />

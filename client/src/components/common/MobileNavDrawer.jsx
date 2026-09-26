@@ -139,7 +139,7 @@ export default function MobileNavDrawer({
           </button>
         </div>
         <nav
-          className="flex-1 py-4 px-3 space-y-1.5 overflow-y-auto"
+          className="flex-1 py-4 px-3 space-y-1.5 overflow-y-auto pq-scroll-y"
           aria-label={label}
           onClick={(event) => {
             if (event.target.closest("a")) onClose();

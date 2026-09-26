@@ -148,7 +148,7 @@ export default function SmsTester() {
           </form>
 
           {lastResult && (
-            <pre className="text-xs bg-gray-900 text-green-300 rounded-xl p-4 overflow-auto max-h-48">
+            <pre className="text-xs bg-gray-900 text-green-300 rounded-xl p-4 overflow-auto pq-scroll max-h-48">
               {JSON.stringify(lastResult, null, 2)}
             </pre>
           )}

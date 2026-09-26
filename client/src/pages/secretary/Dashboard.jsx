@@ -263,7 +263,7 @@ export default function Dashboard() {
               Recent Activity
             </h2>
 
-            <div className="overflow-y-auto flex-1 pr-1 space-y-2 max-h-[400px]">
+            <div className="overflow-y-auto pq-scroll-y flex-1 pr-1 space-y-2 max-h-[400px]">
               {recentActivities.length === 0 ? (
                 <div className="text-center py-10 pq-row block min-h-0">
                   <p className="font-extrabold text-sm">No Activity Yet</p>

@@ -529,7 +529,7 @@ export function TourSampleDoctorReports() {
               <span className="font-extrabold tracking-tight">{sample.dateRange}</span>
             </div>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0" role="group" aria-label="Filter by Date Range">
+          <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0 pq-scroll-x pq-scroll-none" role="group" aria-label="Filter by Date Range">
             {DATE_RANGES.map((range) => (
               <button
                 key={range}
@@ -620,7 +620,7 @@ export function TourSampleDoctorReports() {
             </div>
           </div>
         </div>
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto pq-scroll-x">
           <table className="pq-table">
             <thead>
               <tr>
