@@ -135,7 +135,7 @@ function ClinicSessionsReports() {
 
   if (sessionId && !isDesktop) {
     return (
-      <div className="flex flex-col min-h-[calc(100dvh-8rem)] -mx-1">
+      <div className="flex flex-col h-[calc(100dvh-8rem)] max-h-[calc(100dvh-8rem)] -mx-1">
         <div className="pq-glass flex flex-col flex-1 min-h-0 overflow-hidden">
           <ReservationsByDate scheduleId={sessionId} />
         </div>
