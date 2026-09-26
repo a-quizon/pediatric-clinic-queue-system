@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Users, AlertCircle, Activity, CheckCircle, XCircle, MapPin, Inbox, ChevronLeft, ChevronRight, RefreshCcw, BarChart3, Building2 } from "lucide-react";
 import { useReportsData } from "../../hooks/useReportsData";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
@@ -8,15 +8,55 @@ import { PqSpinner } from "../../components/parent/pqUi";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleDoctorReports } from "../../components/onboarding/DoctorTourSampleViews";
 import ClinicOverviewReports from "../../components/admin/ClinicOverviewReports";
+import ReservationsByDate from "../../components/doctor/ReservationsByDate";
+import SessionReservationsDrawer from "../../components/doctor/SessionReservationsDrawer";
+import { goBackOr } from "../../utils/navigationRoots";
 
 const DATE_RANGES = ["Today", "This Week", "This Month", "This Year"];
+const MD_QUERY = "(min-width: 768px)";
 
 const CHART_INK = "#16344a";
 const CHART_MUTED = "#5a7a88";
 const CHART_LINE = "#2f6fdb";
 const CHART_GRID = "rgba(22, 52, 74, 0.1)";
 
+function formatClinicDate(dateStr) {
+  if (!dateStr) return "";
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function reportsFallbackPath(searchParams) {
+  return searchParams.get("tab") === "overview"
+    ? "/doctor/reports?tab=overview"
+    : "/doctor/reports";
+}
+
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(MD_QUERY).matches : true
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia(MD_QUERY);
+    const onChange = (event) => setIsDesktop(event.matches);
+    media.addEventListener("change", onChange);
+    setIsDesktop(media.matches);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+
+  return isDesktop;
+}
+
 function ClinicSessionsReports() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isDesktop = useIsDesktop();
+  const sessionId = searchParams.get("session");
+
   const { loading, error, dataset, unfilteredDataset, filters } = useReportsData();
   const { branch, setBranch, dateRange, setDateRange } = filters;
   const [branches, setBranches] = useState([]);
@@ -31,6 +71,70 @@ function ClinicSessionsReports() {
   useEffect(() => {
     setCurrentPage(1);
   }, [dataset]);
+
+  const selectedSession =
+    (unfilteredDataset || []).find((s) => s.id === sessionId) ||
+    (dataset || []).find((s) => s.id === sessionId) ||
+    null;
+
+  const closeSession = () => {
+    goBackOr(navigate, reportsFallbackPath(searchParams));
+  };
+
+  const openSession = (id) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("session", id);
+      return next;
+    });
+  };
+
+  const sessionTitle = selectedSession?.clinicDate
+    ? `Reservations on ${formatClinicDate(selectedSession.clinicDate)}`
+    : "Reservations";
+
+  const sessionSubtitle = selectedSession
+    ? [selectedSession.branch, selectedSession.openingTime && selectedSession.closingTime
+        ? `${selectedSession.openingTime} - ${selectedSession.closingTime}`
+        : null]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
+
+  if (sessionId && !isDesktop) {
+    return (
+      <div className="flex flex-col min-h-[calc(100dvh-8rem)] -mx-1">
+        <div
+          className="pq-glass flex flex-col flex-1 min-h-0 overflow-hidden"
+        >
+          <div
+            className="p-4 flex items-center gap-3 shrink-0"
+            style={{ borderBottom: "1px solid var(--pq-glass-line)" }}
+          >
+            <button
+              type="button"
+              className="pq-icon-btn shrink-0"
+              aria-label="Back to Session History"
+              onClick={closeSession}
+            >
+              <ChevronLeft className="w-5 h-5" aria-hidden="true" />
+            </button>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-extrabold tracking-tight leading-snug truncate">
+                {sessionTitle}
+              </h2>
+              {sessionSubtitle ? (
+                <p className="text-xs pq-muted font-medium mt-0.5 truncate">
+                  {sessionSubtitle}
+                </p>
+              ) : null}
+            </div>
+          </div>
+          <ReservationsByDate scheduleId={sessionId} />
+        </div>
+      </div>
+    );
+  }
 
   if (error) return <div className="pq-error-text text-center py-10 text-base">Failed to load reports data.</div>;
 
@@ -77,11 +181,6 @@ function ClinicSessionsReports() {
 
   const totalPages = Math.ceil(sortedDataset.length / itemsPerPage);
   const paginatedDataset = sortedDataset.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
 
   const handleResetFilters = () => {
     setBranch("All Branches");
@@ -303,9 +402,22 @@ function ClinicSessionsReports() {
                     </thead>
                     <tbody>
                       {paginatedDataset.map((session) => (
-                        <tr key={session.id}>
+                        <tr
+                          key={session.id}
+                          role="button"
+                          tabIndex={0}
+                          className="pq-table-row-action"
+                          aria-label={`View reservations on ${formatClinicDate(session.clinicDate)}`}
+                          onClick={() => openSession(session.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openSession(session.id);
+                            }
+                          }}
+                        >
                           <td className="whitespace-nowrap">
-                            {formatDate(session.clinicDate)}
+                            {formatClinicDate(session.clinicDate)}
                             <div className="text-xs pq-muted font-medium mt-0.5">
                               {session.openingTime} - {session.closingTime}
                             </div>
@@ -324,10 +436,17 @@ function ClinicSessionsReports() {
 
                 <div className="block md:hidden">
                   {paginatedDataset.map((session) => (
-                    <div key={session.id} className="p-4 space-y-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+                    <button
+                      key={session.id}
+                      type="button"
+                      className="w-full text-left p-4 space-y-3"
+                      style={{ borderTop: "1px solid var(--pq-glass-line)" }}
+                      aria-label={`View reservations on ${formatClinicDate(session.clinicDate)}`}
+                      onClick={() => openSession(session.id)}
+                    >
                       <div className="flex justify-between items-start gap-3">
                         <div>
-                          <div className="font-extrabold tracking-tight">{formatDate(session.clinicDate)}</div>
+                          <div className="font-extrabold tracking-tight">{formatClinicDate(session.clinicDate)}</div>
                           <div className="text-xs pq-muted">{session.openingTime} - {session.closingTime}</div>
                         </div>
                         <div className="pq-chip pq-chip-info">{session.branch}</div>
@@ -352,7 +471,7 @@ function ClinicSessionsReports() {
                           </span>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </>
@@ -388,6 +507,16 @@ function ClinicSessionsReports() {
           </div>
         </>
       )}
+
+      {isDesktop && (
+        <SessionReservationsDrawer
+          open={Boolean(sessionId)}
+          onClose={closeSession}
+          scheduleId={sessionId}
+          title={sessionTitle}
+          subtitle={sessionSubtitle}
+        />
+      )}
     </div>
   );
 }
@@ -395,6 +524,8 @@ function ClinicSessionsReports() {
 export default function Reports() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") === "overview" ? "overview" : "sessions";
+  const sessionId = searchParams.get("session");
+  const isDesktop = useIsDesktop();
 
   const setTab = (tab) => {
     if (tab === "overview") {
@@ -405,9 +536,14 @@ export default function Reports() {
   };
 
   const showReportsSample = useTourSample(["doctor-reports-filters", "doctor-reports-history"]);
+  const showMobileSession = Boolean(sessionId) && !isDesktop && activeTab === "sessions";
 
   if (showReportsSample) {
     return <TourSampleDoctorReports />;
+  }
+
+  if (showMobileSession) {
+    return <ClinicSessionsReports />;
   }
 
   return (

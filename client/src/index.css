@@ -189,8 +189,35 @@
   transform: translate3d(0, 0, 0);
 }
 
+/* Right-edge content slide-over (Session History reservations, etc.) */
+.pq-drawer-end {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: auto;
+  bottom: 0;
+  z-index: 41;
+  width: min(28rem, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--pq-modal, #ffffff);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-left: 1px solid var(--pq-glass-line);
+  box-shadow: var(--pq-modal-shadow);
+  transform: translate3d(100%, 0, 0);
+  transition: transform 220ms var(--pq-ease);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pq-drawer-end.pq-drawer-open {
+  transform: translate3d(0, 0, 0);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pq-drawer,
+  .pq-drawer-end,
   .pq-drawer-scrim {
     transition: none;
   }
@@ -1128,6 +1155,19 @@ svg.pq-field-icon {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--pq-ink);
+}
+
+.pq-table tbody tr.pq-table-row-action {
+  cursor: pointer;
+}
+
+.pq-table tbody tr.pq-table-row-action:hover {
+  background: color-mix(in srgb, var(--pq-mark-blue) 6%, transparent);
+}
+
+.pq-table tbody tr.pq-table-row-action:focus-visible {
+  outline: 2px solid var(--pq-mark-blue);
+  outline-offset: -2px;
 }
 
 .pq-table thead.pq-table-head-sticky th {

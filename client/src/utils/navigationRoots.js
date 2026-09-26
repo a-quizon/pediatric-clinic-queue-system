@@ -38,6 +38,10 @@ export function isTabRoot(pathname, search = "") {
     const view = new URLSearchParams(search).get("view");
     if (view && view !== "hub") return false;
   }
+  if (path === "/doctor/reports") {
+    const session = new URLSearchParams(search).get("session");
+    if (session) return false;
+  }
   return TAB_ROOTS.has(path);
 }
 
@@ -52,6 +56,11 @@ export function getNestedFallback(pathname, search = "") {
   if (/^\/parent\/reservations\/.+/.test(path)) return "/parent/reservations";
   if (path === "/secretary/settings") return "/secretary/profile";
   if (path === "/secretary/monitor") return "/secretary/queue";
+  if (path === "/doctor/reports" && params.get("session")) {
+    return params.get("tab") === "overview"
+      ? "/doctor/reports?tab=overview"
+      : "/doctor/reports";
+  }
   if (path === "/doctor/reports") return "/doctor";
   if (path === "/doctor/audit-logs") return "/doctor";
   if (path === "/doctor/users" || path === "/doctor/branches") return "/doctor";
