@@ -17,6 +17,7 @@ import {
 } from "../../services/reservationService";
 import { addChild, subscribeToChildren } from "../../services/childProfileService";
 import { buildPatientInfoPayload } from "../../utils/reservationPatients";
+import { slotsTaken } from "../../utils/scheduleCalendar";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { useAuth } from "../../hooks/useAuth";
 import MessageModal from "../../components/common/MessageModal";
@@ -164,8 +165,8 @@ export default function ReserveQueue() {
     }
 
     // Check Capacity
-    const currentCount = getReservationCount(schedule.id);
-    if (currentCount >= schedule.slotCapacity) {
+    const currentCount = slotsTaken(schedule, null, getReservationCount(schedule.id));
+    if (currentCount >= Number(schedule.slotCapacity || 0)) {
       setMessageModalState({
         isOpen: true,
         type: 'error',

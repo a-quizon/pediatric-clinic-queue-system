@@ -1,5 +1,5 @@
-import { branchesMatch } from "./stringUtils";
-import { ACTIVE_RESERVATION_STATUSES } from "../services/reservationService";
+import { branchesMatch } from "./stringUtils.js";
+import { ACTIVE_RESERVATION_STATUSES } from "./reservationStatuses.js";
 
 export const IN_CLINIC_STATUSES = ["checked_in", "with_doctor", "in_consultation"];
 export const CLINIC_CANCELLABLE_STATUSES = [
@@ -9,15 +9,31 @@ export const CLINIC_CANCELLABLE_STATUSES = [
   "waiting_for_window",
 ];
 
-export function slotsTaken(schedule, reservations = []) {
-  if (schedule?.booking && schedule.booking.activeSlotCount != null) {
-    return Number(schedule.booking.activeSlotCount) || 0;
-  }
-  return reservations.filter(
+export function countActiveReservations(scheduleId, reservations = []) {
+  return (reservations || []).filter(
     (reservation) =>
-      reservation.scheduleId === schedule?.id &&
+      reservation?.scheduleId === scheduleId &&
       ACTIVE_RESERVATION_STATUSES.includes(reservation.status)
   ).length;
+}
+
+/**
+ * Slots consumed on a schedule. The live count of active reservations wins
+ * whenever it is known (`reservations` loaded or `liveCount` given), because the
+ * server-side `booking.activeSlotCount` can lag behind a cancel/forfeit.
+ */
+export function slotsTaken(schedule, reservations = null, liveCount = null) {
+  const counter =
+    schedule?.booking && schedule.booking.activeSlotCount != null
+      ? Number(schedule.booking.activeSlotCount) || 0
+      : null;
+  let live = liveCount != null ? Number(liveCount) || 0 : null;
+  if (live == null && Array.isArray(reservations)) {
+    live = countActiveReservations(schedule?.id, reservations);
+  }
+  if (live == null) return counter ?? 0;
+  if (counter == null) return live;
+  return Math.min(counter, live);
 }
 
 export function sameBranch(record, branchId, branchName) {
@@ -41,26 +57,69 @@ export function scheduleForDate(schedules, dateStr, branchId, branchName) {
   ) || null;
 }
 
-const LIVE_QUEUE_STATUSES = ["active", "paused", "closed"];
+export const LIVE_QUEUE_STATUSES = ["active", "paused", "closed"];
 
-export function schedulesReadyToStart(schedules, today) {
-  const list = Array.isArray(schedules) ? schedules : Object.values(schedules || {});
-  const liveRunning = list.some(
+function scheduleList(schedules) {
+  return Array.isArray(schedules) ? schedules : Object.values(schedules || {});
+}
+
+export function anyQueueLive(schedules) {
+  return scheduleList(schedules).some(
     (schedule) =>
       schedule?.status === "published" &&
       !schedule.dayClosed &&
       LIVE_QUEUE_STATUSES.includes(schedule.queueStatus)
   );
-  if (liveRunning) return [];
-  return list.filter(
-    (schedule) =>
-      schedule?.status === "published" &&
-      schedule.clinicDate === today &&
+}
+
+/** A single schedule's own start preconditions; time of day is intentionally not checked. */
+export function scheduleCanStart(schedule, today) {
+  return Boolean(
+    schedule &&
+      schedule.status === "published" &&
+      schedule.clinicDate &&
+      schedule.clinicDate >= today &&
       !schedule.dayClosed &&
       !LIVE_QUEUE_STATUSES.includes(schedule.queueStatus) &&
       schedule.queueStatus !== "ended" &&
       schedule.queueStatus !== "completed"
   );
+}
+
+/**
+ * Published sessions from today onward that can be started now, nearest first.
+ * Returns nothing while any queue is live (one doctor serves every branch).
+ */
+export function schedulesStartable(schedules, today) {
+  const list = scheduleList(schedules);
+  if (anyQueueLive(list)) return [];
+  return list
+    .filter((schedule) => scheduleCanStart(schedule, today))
+    .sort((a, b) => {
+      if (a.clinicDate !== b.clinicDate) return a.clinicDate < b.clinicDate ? -1 : 1;
+      return String(a.openingTime || "").localeCompare(String(b.openingTime || ""));
+    });
+}
+
+/** Groups startable schedules by clinic date; `defaultDate` is the nearest one. */
+export function groupStartableByDate(startable) {
+  const byDate = {};
+  (startable || []).forEach((schedule) => {
+    if (!byDate[schedule.clinicDate]) byDate[schedule.clinicDate] = [];
+    byDate[schedule.clinicDate].push(schedule);
+  });
+  const dates = Object.keys(byDate).sort();
+  return { dates, byDate, defaultDate: dates[0] || null };
+}
+
+/** True when starting now is ahead of the session's scheduled date or opening time. */
+export function isStartBeforeHours(schedule, today, nowMinutes) {
+  if (!schedule?.clinicDate) return false;
+  if (schedule.clinicDate > today) return true;
+  if (schedule.clinicDate < today) return false;
+  const [hours, minutes] = String(schedule.openingTime || "").split(":").map(Number);
+  if (Number.isNaN(hours)) return false;
+  return nowMinutes < hours * 60 + (Number.isNaN(minutes) ? 0 : minutes);
 }
 
 export function queueHasEnded(schedule) {
@@ -71,7 +130,7 @@ export function queueHasEnded(schedule) {
   );
 }
 
-function formatClinicClock(time) {
+export function formatClinicClock(time) {
   if (!time) return "";
   const [hours, minutes] = String(time).split(":");
   const hour = parseInt(hours, 10);

@@ -36,12 +36,14 @@ import {
   slotsTaken,
   queueHasEnded,
   startQueueConfirmMessage,
+  scheduleCanStart,
+  anyQueueLive,
+  LIVE_QUEUE_STATUSES,
 } from "../../utils/scheduleCalendar";
 import ConfirmationModal from "../common/ConfirmationModal";
 import ModalScrim from "../common/ModalScrim";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const LIVE_QUEUE_STATUSES = ["active", "paused", "closed"];
 
 export default function StaffScheduleCalendar({
   branches,
@@ -359,10 +361,7 @@ export default function StaffScheduleCalendar({
   const taken = publishedSchedule ? slotsTaken(publishedSchedule, reservations) : 0;
   const capacity = Number(publishedSchedule?.slotCapacity || 0);
   const canStartQueue =
-    publishedSchedule &&
-    publishedModal.dateStr === today &&
-    !queueHasEnded(publishedSchedule) &&
-    !LIVE_QUEUE_STATUSES.includes(publishedSchedule.queueStatus);
+    scheduleCanStart(publishedSchedule, today) && !anyQueueLive(schedules);
   const queueLive =
     publishedSchedule && LIVE_QUEUE_STATUSES.includes(publishedSchedule.queueStatus);
   const canClose =

@@ -25,6 +25,8 @@ import {
   assertCanUpdatePatientInfo,
 } from "../utils/reservationTransitions";
 import { finalizeParentClaim } from "../utils/parentClaimFinalize";
+import { ACTIVE_RESERVATION_STATUSES } from "../utils/reservationStatuses";
+import { slotsTaken } from "../utils/scheduleCalendar";
 
 export { finalizeParentClaim } from "../utils/parentClaimFinalize";
 
@@ -106,6 +108,33 @@ const callClaimReservation = async (payload) => {
   return body;
 };
 
+/**
+ * Frees a terminal reservation's slot right away. Best-effort: the reservation
+ * write already happened, and the server trigger plus claim-time pruning are
+ * backstops, so failures are only logged.
+ */
+const requestSlotRelease = async (reservationId) => {
+  const user = auth.currentUser;
+  if (!user || !reservationId) return;
+  try {
+    const token = await user.getIdToken();
+    const response = await fetch(`${getPushApiBase()}/api/reservations/release`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ reservationId }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      console.warn("Slot release deferred to server:", body.message || response.status);
+    }
+  } catch (error) {
+    console.warn("Slot release deferred to server:", error?.message || error);
+  }
+};
+
 export const claimParentReservation = async (scheduleId) => {
   const data = await callClaimReservation({ mode: "parent", scheduleId });
   // Best-effort: parent RTDB rules block multi-ticket queue rewrite; Admin CF recalculates.
@@ -183,8 +212,7 @@ export const createWalkInReservation = async ({
   }
 
   const existing = await getReservationsBySchedule(scheduleId);
-  const activeCount = existing.filter((r) => ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
-  if (activeCount >= Number(schedule.slotCapacity || 0)) {
+  if (slotsTaken({ id: scheduleId }, existing) >= Number(schedule.slotCapacity || 0)) {
     throw new Error("This schedule is already full.");
   }
 
@@ -312,6 +340,7 @@ export const expireReservation = async (reservationId) => {
       // FUTURE-PROOFING: In Phase 2, when Validation Expired occurs, increment lateCount here:
       // lateCount: (val.lateCount || 0) + 1
     });
+    await requestSlotRelease(reservationId);
     if (val.scheduleId) {
       await recalculateRollingValidation(val.scheduleId);
       await recalculateEntireQueue(val.scheduleId);
@@ -355,7 +384,7 @@ export const checkCompletedConsultationOnDate = async (parentId, clinicDate, doc
 };
 
 // list of active reservation statuses na nag-ooccupy pa ng slot at nasa queue
-export const ACTIVE_RESERVATION_STATUSES = ["reserved", "checked_in", "waiting", "in_consultation", "with_doctor", "validation_open", "waiting_for_window"];
+export { ACTIVE_RESERVATION_STATUSES };
 
 /** Max active upcoming reservations a parent may hold across different clinic dates. */
 export const MAX_ACTIVE_UPCOMING_RESERVATIONS = 2;
@@ -503,6 +532,7 @@ export const cancelReservation = async (reservationId) => {
     status: "cancelled",
     cancelledAt: Date.now(),
   });
+  await requestSlotRelease(reservationId);
   await recalculateQueueBestEffort(reservation.scheduleId);
 };
 
@@ -625,6 +655,7 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
       penaltyCount: currentPenaltyCount,
       now,
     }));
+    await requestSlotRelease(reservationId);
 
     logAuditEvent({
       action: AUDIT_ACTIONS.PATIENT_FORFEITED,
@@ -725,6 +756,7 @@ export const forfeitReservationIfTimerExpired = async (reservationId) => {
   const after = result.snapshot.val();
   if (after.status !== "forfeited") return false;
 
+  await requestSlotRelease(reservationId);
   if (after.scheduleId) {
     await recalculateEntireQueue(after.scheduleId);
   }
@@ -765,9 +797,11 @@ export const closeActiveReservationsForParent = async (parentId, { terminalStatu
   const now = Date.now();
   const rootUpdates = {};
   const scheduleIds = new Set();
+  const closedIds = [];
 
   Object.entries(snapshot.val()).forEach(([id, val]) => {
     if (!ACTIVE_RESERVATION_STATUSES.includes(val?.status)) return;
+    closedIds.push(id);
     rootUpdates[`reservations/${id}/status`] = terminalStatus;
     if (terminalStatus === "cancelled") {
       rootUpdates[`reservations/${id}/cancelledAt`] = now;
@@ -782,6 +816,7 @@ export const closeActiveReservationsForParent = async (parentId, { terminalStatu
 
   if (Object.keys(rootUpdates).length > 0) {
     await update(ref(getDb()), rootUpdates);
+    await Promise.all(closedIds.map((id) => requestSlotRelease(id)));
   }
 
   for (const scheduleId of scheduleIds) {

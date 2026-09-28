@@ -7,6 +7,14 @@ const {
 } = require("./manilaDate");
 const { claimParentDateCap, releaseParentDateCap } = require("./parentBookingCap");
 const { databaseFor } = require("./rtdbRouter");
+const {
+  ACTIVE_STATUSES,
+  ABANDONED_HOLDER_MS,
+  classifyReservations,
+  applyClaim,
+  applyRelease,
+  claimedQueueNumber,
+} = require("./bookingHolders");
 
 const CLOSED_MESSAGE = "The clinic is closed on this date.";
 const WINDOW_MESSAGE = "This date is outside the booking window.";
@@ -14,16 +22,6 @@ const FULL_MESSAGE = "This schedule is already full.";
 const MULTI_DATE_CAP = 2;
 const MULTI_DATE_MESSAGE =
   "You already have 2 upcoming reservations. Cancel one or wait until a visit is finished before booking another.";
-
-const ACTIVE_STATUSES = new Set([
-  "reserved",
-  "checked_in",
-  "waiting",
-  "in_consultation",
-  "with_doctor",
-  "validation_open",
-  "waiting_for_window",
-]);
 
 const COMPLETED_STATUSES = new Set(["completed", "consultation_completed"]);
 
@@ -103,20 +101,33 @@ async function parentBlockedOnDate(db, parentId, clinicDate, doctorId) {
   return null;
 }
 
-async function parentOverMultiDateCap(db, parentId, clinicDate) {
+async function parentActiveDates(db, parentId) {
   const snap = await db.ref("reservations").orderByChild("parentId").equalTo(parentId).once("value");
-  if (!snap.exists()) return null;
-  const rows = Object.values(snap.val());
   const activeDates = new Set();
-  for (const reservation of rows) {
+  if (!snap.exists()) return activeDates;
+  for (const reservation of Object.values(snap.val())) {
     if (!ACTIVE_STATUSES.has(reservation.status)) continue;
     const date = await resolveReservationDate(db, reservation);
-    if (!date) continue;
-    activeDates.add(date);
+    if (date) activeDates.add(date);
   }
+  return activeDates;
+}
+
+function parentOverMultiDateCap(activeDates, clinicDate) {
   if (activeDates.has(clinicDate)) return null;
   if (activeDates.size >= MULTI_DATE_CAP) return MULTI_DATE_MESSAGE;
   return null;
+}
+
+/**
+ * Lock value is `{ scheduleId, at }`. A lock is stale when the parent has no
+ * active reservation on that date (checked by the caller) and it is either a
+ * legacy string value or old enough that no claim can still be in flight.
+ */
+function bookingLockIsStale(value, now) {
+  if (!value) return true;
+  if (typeof value !== "object") return true;
+  return now - Number(value.at || 0) > ABANDONED_HOLDER_MS;
 }
 
 function normalizeChildren(children) {
@@ -140,14 +151,8 @@ function normalizeChildren(children) {
   return list;
 }
 
-async function rollbackSlot(bookingRef) {
-  await bookingRef.transaction((current) => {
-    if (!current) return { activeSlotCount: 0, nextQueueNumber: 1 };
-    return {
-      activeSlotCount: Math.max(0, Number(current.activeSlotCount || 0) - 1),
-      nextQueueNumber: current.nextQueueNumber || 1,
-    };
-  });
+async function rollbackSlot(bookingRef, reservationId) {
+  await bookingRef.transaction((current) => applyRelease(current, reservationId));
 }
 
 async function claimReservationSlot({ admin, callerUid, payload }) {
@@ -213,10 +218,12 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
     const blocked = await parentBlockedOnDate(db, callerUid, schedule.clinicDate, schedule.doctorId);
     if (blocked) throw coded("failed-precondition", blocked);
     // Fast-fail advisory check (atomic guarantee is claimParentDateCap).
-    const overCap = await parentOverMultiDateCap(db, callerUid, schedule.clinicDate);
+    const activeDates = await parentActiveDates(db, callerUid);
+    const overCap = parentOverMultiDateCap(activeDates, schedule.clinicDate);
     if (overCap) throw coded("failed-precondition", overCap);
     capRef = await claimParentDateCap(db, callerUid, schedule.clinicDate, scheduleId, {
       cap: MULTI_DATE_CAP,
+      activeDates,
       onOverCap: () => {
         throw coded("failed-precondition", MULTI_DATE_MESSAGE);
       },
@@ -225,9 +232,12 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
       throw coded("failed-precondition", MULTI_DATE_MESSAGE);
     }
     lockRef = db.ref(`bookingLocks/${callerUid}/${schedule.clinicDate}`);
+    // parentBlockedOnDate already proved no active reservation exists on this date,
+    // so an old lock can only be left over from a cancel/forfeit whose release was missed.
     const lock = await lockRef.transaction((current) => {
-      if (current) return;
-      return scheduleId;
+      const now = Date.now();
+      if (current && !bookingLockIsStale(current, now)) return;
+      return { scheduleId, at: now };
     });
     if (!lock.committed) {
       try {
@@ -240,34 +250,33 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
   }
 
   const existingSnap = await db.ref("reservations").orderByChild("scheduleId").equalTo(scheduleId).once("value");
-  const existing = existingSnap.exists() ? Object.values(existingSnap.val()) : [];
-  const baseline = existing.filter((reservation) => ACTIVE_STATUSES.has(reservation.status)).length;
-  const maxQueue = existing.reduce(
-    (max, reservation) => Math.max(max, Number(reservation.queueNumber || reservation.originalQueueNumber || 0)),
-    0
+  const { activeIds, terminalIds, knownIds, maxQueue } = classifyReservations(
+    existingSnap.exists() ? existingSnap.val() : {}
   );
 
   const bookingRef = db.ref(`schedules/${scheduleId}/booking`);
+  const reservationRef = db.ref("reservations").push();
   let slotTaken = false;
   try {
-    const claimed = await bookingRef.transaction((current) => {
-      if (!current) {
-        if (baseline >= capacity) return;
-        const next = Math.max(maxQueue, baseline) + 1;
-        return { activeSlotCount: baseline + 1, nextQueueNumber: next + 1 };
-      }
-      const count = Number(current.activeSlotCount || 0);
-      if (count >= capacity) return;
-      const next = Number(current.nextQueueNumber || count + 1);
-      return { activeSlotCount: count + 1, nextQueueNumber: next + 1 };
-    });
+    // Holders of cancelled/forfeited reservations are pruned here too, so a slot
+    // whose release event was missed still becomes bookable on the next claim.
+    const claimed = await bookingRef.transaction((current) =>
+      applyClaim(current, {
+        reservationId: reservationRef.key,
+        capacity,
+        activeIds,
+        terminalIds,
+        knownIds,
+        maxQueue,
+        now: Date.now(),
+      })
+    );
     if (!claimed.committed) {
       throw coded("failed-precondition", FULL_MESSAGE);
     }
     slotTaken = true;
-    const queueNumber = Number(claimed.snapshot.val().nextQueueNumber) - 1;
+    const queueNumber = claimedQueueNumber(claimed.snapshot.val());
     const now = Date.now();
-    const reservationRef = db.ref("reservations").push();
 
     if (mode === "walk_in") {
       const children = walkInChildren;
@@ -323,7 +332,7 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
   } catch (error) {
     if (slotTaken) {
       try {
-        await rollbackSlot(bookingRef);
+        await rollbackSlot(bookingRef, reservationRef.key);
       } catch (rollbackError) {
         console.error("claimReservationSlot rollback failed:", rollbackError);
       }

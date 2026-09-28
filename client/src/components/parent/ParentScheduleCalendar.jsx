@@ -114,9 +114,7 @@ export default function ParentScheduleCalendar({
   const openDate = (dateStr) => {
     const schedule = scheduleForDate(branchSchedules, dateStr, branch?.id, branch?.name);
     const closure = closureForDate(closures, dateStr, branch?.id, branch?.name);
-    const taken = schedule?.booking?.activeSlotCount != null
-      ? Number(schedule.booking.activeSlotCount)
-      : (capacityMap?.[schedule?.id] ?? slotsTaken(schedule, reservations));
+    const taken = slotsTaken(schedule, null, capacityMap?.[schedule?.id]);
     const owned = ownedDates.has(dateStr);
     const kind = parentCellKind({
       dateStr,
@@ -226,9 +224,7 @@ export default function ParentScheduleCalendar({
             if (!dateStr) return <div key={`blank-${index}`} />;
             const schedule = scheduleForDate(branchSchedules, dateStr, branch?.id, branch?.name);
             const closure = closureForDate(closures, dateStr, branch?.id, branch?.name);
-            const taken = schedule?.booking?.activeSlotCount != null
-              ? Number(schedule.booking.activeSlotCount)
-              : (capacityMap?.[schedule?.id] ?? 0);
+            const taken = slotsTaken(schedule, null, capacityMap?.[schedule?.id]);
             const kind = parentCellKind({
               dateStr,
               today,

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Users, UserCheck, UserPlus, Clock, CheckCircle, Activity, PlayCircle, AlertTriangle, Monitor } from "lucide-react";
-import { subscribeToScheduleReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder, cancelReservation, forfeitReservationIfTimerExpired, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
+import { subscribeToScheduleReservations, startConsultation, sendToDoctor, penalizeReservation, requestCheckInReminder, cancelReservation, forfeitReservationIfTimerExpired } from "../../services/reservationService";
+import { slotsTaken } from "../../utils/scheduleCalendar";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { subscribeToQueueConfiguration } from "../../services/systemConfigurationService";
 import { computeReservationState, QUEUE_STATES, sortActiveQueue, recalculateEntireQueue } from "../../services/queueEngine";
@@ -256,7 +257,7 @@ export default function ManageQueue({ hideHeader = false }) {
           <Clock className="w-12 h-12 pq-faint mx-auto mb-4" aria-hidden="true" />
           <h2 className="text-xl font-extrabold tracking-tight mb-2">No Active Queue For {user.assignedBranch}</h2>
           <p className="pq-muted text-sm leading-relaxed max-w-md mx-auto mb-6">
-            No queue is running for {user.assignedBranch}. Start today's published schedule here, or open the calendar to publish or close a day.
+            No queue is running for {user.assignedBranch}. Start the next published session here (you can start early), or open the calendar to publish or close a day.
           </p>
           <StartTodayQueue schedules={schedules} user={user} limitToAssignedBranch />
           <Link to="/secretary/schedules" className="pq-btn-secondary">Open schedule calendar</Link>
@@ -377,9 +378,7 @@ export default function ManageQueue({ hideHeader = false }) {
       ? Math.ceil((30000 - nextEligibleElapsed) / 1000)
       : 0;
 
-  const activeSlotCount = activeReservations.filter((r) =>
-    ACTIVE_RESERVATION_STATUSES.includes(r.status)
-  ).length;
+  const activeSlotCount = slotsTaken(activeStartedSchedule, activeReservations);
   const slotCapacity = Number(activeStartedSchedule.slotCapacity || 0);
   const walkInQueueOpen = ["active", "paused"].includes(activeStartedSchedule.queueStatus);
   const walkInDayClosed = Boolean(activeStartedSchedule.dayClosed);

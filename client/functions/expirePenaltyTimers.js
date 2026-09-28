@@ -4,6 +4,7 @@ const PENALTY_TIMER_FORFEIT_REASON =
   "Did not check in before the late penalty timer expired.";
 
 const { getRtdb } = require("./rtdbRouter");
+const { releaseReservationSlot } = require("./slotRelease");
 
 function db() {
   return getRtdb();
@@ -57,6 +58,11 @@ async function expirePenaltyTimers() {
     if (after.status !== "forfeited") continue;
     forfeited += 1;
     if (after.scheduleId) scheduleIds.add(after.scheduleId);
+    try {
+      await releaseReservationSlot(db(), id, after);
+    } catch (err) {
+      console.error(`expirePenaltyTimers: slot release failed for ${id}`, err.message);
+    }
   }
 
   for (const scheduleId of scheduleIds) {

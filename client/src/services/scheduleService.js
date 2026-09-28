@@ -8,6 +8,8 @@ import { validateScheduleClosingTime } from "./branchConfigurationService";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { branchesMatch } from "../utils/stringUtils";
 import { isLiveQueueStatus } from "../utils/penaltyTimer";
+import { anyQueueLive, isStartBeforeHours, scheduleCanStart } from "../utils/scheduleCalendar";
+import { manilaDateString, manilaNowMinutes } from "../utils/manilaDate";
 
 export { validateScheduleClosingTime };
 
@@ -134,6 +136,37 @@ export const moveToReady = async ( scheduleId ) => {
   });
 };
 
+/**
+ * First-start preconditions. Time of day is deliberately not checked so staff can
+ * start before clinic hours or start an upcoming date's session early.
+ */
+const assertScheduleCanStart = async (scheduleId, scheduleData) => {
+  const today = manilaDateString();
+  if (scheduleData.status !== "published") {
+    throw new Error("Only a published schedule can be started.");
+  }
+  if (["ended", "completed"].includes(scheduleData.queueStatus) || scheduleData.status === "completed") {
+    throw new Error("This clinic queue has already ended.");
+  }
+  if (!scheduleData.clinicDate || scheduleData.clinicDate < today) {
+    throw new Error("This clinic date has already passed.");
+  }
+  if (!scheduleCanStart(scheduleData, today)) {
+    throw new Error("This queue has already been started.");
+  }
+  const publishedSnap = await get(
+    query(ref(getDb(), "schedules"), orderByChild("status"), equalTo("published"))
+  );
+  const others = publishedSnap.exists()
+    ? Object.entries(publishedSnap.val())
+      .filter(([id]) => id !== scheduleId)
+      .map(([id, value]) => ({ id, ...value }))
+    : [];
+  if (anyQueueLive(others)) {
+    throw new Error("Another clinic queue is still running. Complete it before starting this one.");
+  }
+};
+
 export const updateQueueStatus = async (scheduleId, queueStatus) => {
   const updates = {
     queueStatus,
@@ -150,7 +183,13 @@ export const updateQueueStatus = async (scheduleId, queueStatus) => {
       throw new Error("Cannot change queue status on a closed clinic day.");
     }
     if (queueStatus === "active" && !scheduleData.queueStartedAt) {
+      await assertScheduleCanStart(scheduleId, scheduleData);
       updates.queueStartedAt = serverTimestamp();
+      updates.queueStartedBeforeHours = isStartBeforeHours(
+        scheduleData,
+        manilaDateString(),
+        manilaNowMinutes()
+      );
       isFirstStart = true;
     }
   } else {
@@ -176,7 +215,9 @@ export const updateQueueStatus = async (scheduleId, queueStatus) => {
 
     if (queueStatus === "active") {
       action = isFirstStart ? AUDIT_ACTIONS.QUEUE_STARTED : AUDIT_ACTIONS.QUEUE_RESUMED;
-      description = isFirstStart ? "Started the clinic queue" : "Resumed the clinic queue";
+      description = isFirstStart
+        ? `Started the clinic queue for ${scheduleData.clinicDate || "an unknown date"} (scheduled ${scheduleData.openingTime || "?"}–${scheduleData.closingTime || "?"})${updates.queueStartedBeforeHours ? " before scheduled hours" : ""}`
+        : "Resumed the clinic queue";
     } else if (queueStatus === "paused") {
       action = AUDIT_ACTIONS.QUEUE_PAUSED;
       description = "Paused the clinic queue";

@@ -62,12 +62,20 @@ Default branches: **Angeles**, **Magalang**.
 
   status: "draft" | "published" | "completed",
   dayClosed, closureId, closureReason, closureNote,
-  booking: { activeSlotCount, nextQueueNumber },
+  booking: {                       // server-only (Admin SDK transaction)
+    activeSlotCount,               // == number of holders
+    nextQueueNumber,
+    holdersTracked: true,          // absent on legacy counters; migrated on next claim
+    holders: { [reservationId]: claimedAtMs }
+  },
   queueStatus: "not_started" | "active" | "paused" | "closed" | "completed",
-  queueStartedAt, publishedAt, completedAt,
+  queueStartedAt,                  // actual first start (serverTimestamp), separate from openingTime
+  queueStartedBeforeHours,         // true when started before the scheduled date/openingTime
+  publishedAt, completedAt,
   isReady, doctorId
 }
 ```
+Start Queue has no time-of-day gate: any published, not-closed, not-ended session dated today or later can be started, as long as no other queue is live (`schedulesStartable` in `utils/scheduleCalendar.js`, enforced again in `updateQueueStatus`).
 
 ### `clinicClosures/{closureId}`
 ```js
@@ -80,7 +88,10 @@ Default branches: **Angeles**, **Magalang**.
 ```
 
 ### `bookingLocks/{parentId}/{clinicDate}`
-Server-only lock so one parent cannot hold two active reservations on the same clinic date. Client writes are denied.
+Server-only lock `{ scheduleId, at }` (legacy: bare scheduleId string) so one parent cannot hold two active reservations on the same clinic date. Client writes are denied. A lock older than 2 minutes with no active reservation behind it is treated as stale and replaced by the next claim.
+
+### Slot release
+`POST /api/reservations/release { reservationId }` (owner or staff; reservation must be terminal) removes the reservation's holder. Client cancel/forfeit/expire paths call it after their status write; the `onReservationWrite` trigger, the Express listener, and claim-time pruning of terminal holders are backstops. Release is idempotent.
 
 ### `reservations/{reservationId}`
 ```js

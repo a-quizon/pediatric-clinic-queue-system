@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { subscribeToPublishedSchedules } from "../../services/scheduleService";
-import { subscribeToScheduleReservations, startConsultation, completeConsultation, expireReservation, ACTIVE_RESERVATION_STATUSES } from "../../services/reservationService";
+import { subscribeToScheduleReservations, startConsultation, completeConsultation, expireReservation } from "../../services/reservationService";
+import { slotsTaken } from "../../utils/scheduleCalendar";
 import { getNextEligiblePatient } from "../../services/queueEligibilityService";
 import { isReservationExpired } from "../../services/timeService";
 import { sortActiveQueue } from "../../services/queueEngine";
@@ -103,9 +104,7 @@ export default function QueueControlCenter() {
   }, [scheduleReservations]);
 
   const canEndSession = waitingQueue.length === 0 && !inConsultation;
-  const activeSlotCount = scheduleReservations.filter((r) =>
-    ACTIVE_RESERVATION_STATUSES.includes(r.status)
-  ).length;
+  const activeSlotCount = activeSchedule ? slotsTaken(activeSchedule, scheduleReservations) : 0;
   const slotCapacity = Number(activeSchedule?.slotCapacity || 0);
   const walkInQueueOpen = ["active", "paused"].includes(activeSchedule?.queueStatus);
   const walkInDayClosed = Boolean(activeSchedule?.dayClosed);
@@ -184,7 +183,7 @@ export default function QueueControlCenter() {
       <div className="space-y-6 pb-6 text-center py-20 pq-glass mt-6">
         <Activity className="w-12 h-12 pq-faint mx-auto mb-4" aria-hidden="true" />
         <h2 className="text-xl font-extrabold tracking-tight mb-2">No Clinic Queue is Currently Active</h2>
-        <p className="pq-muted max-w-md mx-auto mb-6">No queue is running. Start today's published schedule here, or open the calendar to publish or close a day.</p>
+        <p className="pq-muted max-w-md mx-auto mb-6">No queue is running. Start the next published session here (you can start early), or open the calendar to publish or close a day.</p>
         <StartTodayQueue schedules={schedules} />
         <button type="button" className="pq-btn-secondary" onClick={() => navigate("/doctor/schedules")}>Open schedule calendar</button>
       </div>

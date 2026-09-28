@@ -1,4 +1,5 @@
 const { databaseFor } = require("./rtdbRouter");
+const { releaseReservationSlot } = require("./slotRelease");
 
 const ACTIVE_RESERVATION_STATUSES = [
   "reserved",
@@ -65,10 +66,12 @@ async function forfeitActiveReservations(db, parentId) {
   const now = Date.now();
   const updates = {};
   const scheduleIds = new Set();
+  const forfeitedRows = [];
 
   snap.forEach((child) => {
     const val = child.val() || {};
     if (!ACTIVE_RESERVATION_STATUSES.includes(val.status)) return;
+    forfeitedRows.push({ id: child.key, ...val, status: "forfeited" });
     updates[`reservations/${child.key}/status`] = "forfeited";
     updates[`reservations/${child.key}/forfeitureReason`] = "Parent account was deleted.";
     updates[`reservations/${child.key}/forfeitedAt`] = now;
@@ -78,6 +81,14 @@ async function forfeitActiveReservations(db, parentId) {
 
   if (Object.keys(updates).length > 0) {
     await db.ref().update(updates);
+  }
+
+  for (const row of forfeitedRows) {
+    try {
+      await releaseReservationSlot(db, row.id, row);
+    } catch (error) {
+      console.error(`forfeitActiveReservations: slot release failed for ${row.id}`, error.message);
+    }
   }
 
   for (const scheduleId of scheduleIds) {

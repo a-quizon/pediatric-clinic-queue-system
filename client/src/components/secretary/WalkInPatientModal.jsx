@@ -4,8 +4,8 @@ import { useAuth } from "../../hooks/useAuth";
 import {
   subscribeToScheduleReservations,
   createWalkInReservation,
-  ACTIVE_RESERVATION_STATUSES,
 } from "../../services/reservationService";
+import { slotsTaken } from "../../utils/scheduleCalendar";
 import { getChildAgeError } from "../parent/ChildProfileForm";
 import { formatBranchLabel } from "../../utils/stringUtils";
 import { formatToE164 } from "../../utils/phoneUtils";
@@ -110,8 +110,7 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
     if (!isOpen || !schedule?.id) return undefined;
 
     const unsub = subscribeToScheduleReservations(schedule.id, (data) => {
-      const count = data.filter((r) => ACTIVE_RESERVATION_STATUSES.includes(r.status)).length;
-      setActiveCount(count);
+      setActiveCount(slotsTaken({ id: schedule.id }, data));
     });
 
     return () => unsub();
