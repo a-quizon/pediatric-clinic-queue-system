@@ -33,6 +33,9 @@
         },
         "mustChangePassword": {
           ".validate": "auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor'"
+        },
+        "nearTurnSms": {
+          ".validate": false
         }
       }
     },

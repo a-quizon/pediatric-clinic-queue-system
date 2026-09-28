@@ -30,7 +30,7 @@ The system uses strict `NOTIFICATION_EVENTS` as the single source of truth for t
 | **QUEUE_RESUMED** | Clinic floor resumes operations. | Doctor or secretary resumes queue. | Parents |
 | **QUEUE_CLOSED** | End of daily reservations. | Doctor or secretary closes queue. | Parents |
 | **CLINIC_SESSION_ENDED**| Clinic day has completely finished. | Doctor or secretary ends clinic session. | Parents |
-| **NEARING_TURN** | At **queue start only**, parents who are approaching (not already first) with `0 < aheadOfYou <= N` get SMS once (`nearTurnSmsSent`; N from that branch’s `systemConfiguration/{branchId}/sms/nearingTurnAheadCount`, default 3). | Secretary/doctor starts the queue | Specific Parent |
+| **NEARING_TURN** | At **queue start only**, parents who are approaching (not already first) with `0 < aheadOfYou <= N` get the push/in-app alert once per reservation (`nearTurnSmsSent`) and the SMS **once per parent account, ever** (`users/{parentId}/nearTurnSms/sentAt`; never reset by cancel, forfeit, penalty, or new reservations; N from that branch’s `systemConfiguration/{branchId}/sms/nearingTurnAheadCount`, default 3). | Secretary/doctor starts the queue | Specific Parent |
 | **ALMOST_NEXT** | Queue index reaches #2. | Queue Engine Recalculation | Specific Parent |
 | **YOU_ARE_NEXT** | Queue index reaches #1. | Queue Engine Recalculation | Specific Parent |
 | **CHECK_IN_REQUESTED**| Manual prompt to approach the desk. | Secretary clicks "Request Check-In" | Specific Parent |
@@ -165,7 +165,7 @@ When modifying the Notification System, developers must verify the following con
 - [ ] ✓ Closed-browser push still delivers via `/sw.js` + `web-push`.
 - [ ] ✓ Role filtering correctly blocks Doctors and Secretaries from receiving persistent notifications.
 - [ ] ✓ `NEARING_TURN` threshold and SMS templates come from `systemConfiguration/{branchId}/sms` (defaults when missing); push/toast near-turn text stays count-synced only.
-- [ ] ✓ `NEARING_TURN` SMS sends once per reservation (`reservations/{id}/nearTurnSmsSent`) **only when the queue starts**, for tickets with `0 < aheadOfYou <=` that branch’s count (not when already first; not on later position changes).
+- [ ] ✓ `NEARING_TURN` SMS sends once per parent account, ever (`users/{parentId}/nearTurnSms`, claimed by transaction, set only after the provider accepts; failed sends release the claim). A later reservation, another child, another branch, or a post-penalty re-queue does not get a second SMS. The push/in-app alert still fires once per reservation (`reservations/{id}/nearTurnSmsSent`) **only when the queue starts**, for tickets with `0 < aheadOfYou <=` that branch’s count (not when already first; not on later position changes).
 - [ ] ✓ `SLOT_RESERVED` SMS sends once per reservation (`reservations/{id}/slotReservedSmsSent`).
 - [ ] ✓ `PENALIZED` SMS sends once per penalty increment (`reservations/{id}/penaltySmsSent/{count}`).
 - [ ] ✓ `PENALIZED` and `FORFEITED` send SMS in addition to Notification Center / push.

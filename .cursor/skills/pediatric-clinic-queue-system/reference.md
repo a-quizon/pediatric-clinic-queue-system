@@ -21,6 +21,7 @@ Read when modifying Firebase data, server routes, or environment setup.
     childName, age, sex, createdAt
   },
   pushSubscriptions/{hash}: { endpoint, keys: { p256dh, auth } },
+  nearTurnSms: { sentAt, reservationId, backfilled? },  // parents; server-only; Near Turn SMS once per account, never reset
   notificationPermission: "default" | "granted" | "denied",
   inAppNotificationsEnabled: true,  // parents; toasts while app is open (default true)
   devicePushEnabled: true,          // parents; OS/web push; set after OS grant
@@ -100,7 +101,7 @@ Server-only lock `{ scheduleId, at }` (legacy: bare scheduleId string) so one pa
   reservationCode,                 // 6-char alphanumeric
   queueNumber, originalQueueNumber, queuePosition,
   queueOrder, aheadOfYou, queueState, sortTimestamp,
-  nearTurnSmsSent,                 // true after Near Turn SMS claimed for this ticket; unset on new reservations
+  nearTurnSmsSent,                 // true after Near Turn push/in-app claimed for this ticket; SMS is gated per account (users/{uid}/nearTurnSms)
   slotReservedSmsSent,             // true after Confirmed Reservation SMS claimed
   penaltySmsSent: { [count]: true }, // late/moved SMS claimed per penaltyCount
   status: "reserved" | "waiting" | "checked_in" | "with_doctor" |
@@ -203,7 +204,7 @@ Listeners: `server/services/pushListeners.js` watches `reservations` and `schedu
 
 ### SMS (textbee.dev)
 - Utility: `server/services/smsService.js` (mirrored in `client/functions/smsService.js`)
-- Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`; once via `slotReservedSmsSent`), `QUEUE_STARTED`, `NEARING_TURN` (at **queue start only**; patients-ahead from `systemConfiguration/{branchId}/sms`, default 3; fires when `0 < aheadOfYou <=` count; SMS once per reservation via `reservations/{id}/nearTurnSmsSent` transaction + `dedupeKey` / `smsDispatchedAt`; Secretary-editable per branch), `PENALIZED` (once per increment via `penaltySmsSent/{count}`), `FORFEITED`. TextBee credentials remain env-global.
+- Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`; once via `slotReservedSmsSent`), `QUEUE_STARTED`, `NEARING_TURN` (at **queue start only**; patients-ahead from `systemConfiguration/{branchId}/sms`, default 3; fires when `0 < aheadOfYou <=` count; SMS once per parent account, ever, via `users/{uid}/nearTurnSms` transaction in `nearTurnSmsGuard.js` (push/in-app still once per reservation via `reservations/{id}/nearTurnSmsSent`); Secretary-editable per branch), `PENALIZED` (once per increment via `penaltySmsSent/{count}`), `FORFEITED`. TextBee credentials remain env-global.
 - OTP store: `smsOtps/{phoneKey}` — bcrypt-hashed code, 5-minute `expiresAt`; client R/W denied in rules
 - Password reset cap: `passwordResetLimits/{emailKey}` — 5 claims per email per Asia/Manila day; client R/W denied; Forgot Password and Admin Reset share the same counter
 

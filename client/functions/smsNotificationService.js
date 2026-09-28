@@ -4,6 +4,11 @@
 
 const { sendSms, normalizePhoneE164 } = require("./smsService");
 const { getRtdb, isSmsSuppressed } = require("./rtdbRouter");
+const {
+  hasNearTurnSmsBeenSent,
+  readNearTurnSmsState,
+  sendNearTurnSmsOnce,
+} = require("./nearTurnSmsGuard");
 
 const SMS_NOTIFICATION_EVENTS = new Set([
   "SLOT_RESERVED",
@@ -341,8 +346,9 @@ async function claimSmsDispatch(parentId, notificationId) {
 }
 
 /**
- * Claim Near Turn SMS once per reservation ticket. Aborts if already set.
- * Returns true only when this caller won the write.
+ * Claim the Near Turn notification (push + in-app) once per reservation ticket.
+ * Returns true only when this caller won the write. The SMS itself is further
+ * limited to once per parent account inside deliverSmsForNotification.
  */
 async function claimNearTurnSms(reservationId) {
   if (!reservationId) return false;
@@ -362,6 +368,41 @@ async function claimPenalizedSms(reservationId, penaltyCount) {
   return claimTransactionValue(db().ref(`reservations/${reservationId}/penaltySmsSent/${count}`), true);
 }
 
+/** Near Turn SMS: once per parent account, claimed atomically on users/{parentId}/nearTurnSms. */
+async function deliverNearTurnSms(context, phone, message, notificationId) {
+  const sendResult = await sendNearTurnSmsOnce({
+    db: db(),
+    parentId: context.parentId,
+    reservationId: context.reservationId || null,
+    phone,
+    message,
+    send: sendSms,
+    logPrefix: "[functions/sms]",
+  });
+  if (sendResult?.skipped) return sendResult;
+
+  if (!sendResult?.success) {
+    console.error(
+      "[functions/sms] NEARING_TURN send failed:",
+      sendResult?.reason || "unknown",
+      sendResult?.status || "",
+      sendResult?.data?.error || sendResult?.data?.code || ""
+    );
+    return sendResult;
+  }
+
+  console.log("[functions/sms] NEARING_TURN accepted by textbee");
+  const safeId = notificationId ? sanitizeKey(notificationId) : null;
+  if (safeId) {
+    try {
+      await db().ref(`notifications/${context.parentId}/${safeId}/smsDispatchedAt`).set(Date.now());
+    } catch (err) {
+      console.error("[functions/sms] failed to record NEARING_TURN smsDispatchedAt:", err.message);
+    }
+  }
+  return sendResult;
+}
+
 async function deliverSmsForNotification(eventId, context = {}, notificationId) {
   if (isSmsSuppressed()) {
     return { success: true, skipped: true, reason: "demo_database" };
@@ -370,11 +411,23 @@ async function deliverSmsForNotification(eventId, context = {}, notificationId) 
     return { success: false, skipped: true, reason: "not_sms_event" };
   }
 
+  if (eventId === "NEARING_TURN") {
+    if (!context.parentId) return { success: false, skipped: true, reason: "no_parent" };
+    if (hasNearTurnSmsBeenSent(await readNearTurnSmsState(db(), context.parentId))) {
+      console.log(`[functions/sms] Near Turn SMS skipped: already sent to account #${context.parentId}`);
+      return { success: true, skipped: true, reason: "already_sent_to_account" };
+    }
+  }
+
   const phone = context.phone || (await getParentPhone(context.parentId));
   if (!phone) return { success: false, skipped: true, reason: "no_phone" };
 
   const message = await buildSmsMessage(eventId, context);
   if (!message) return { success: false, skipped: true, reason: "no_message" };
+
+  if (eventId === "NEARING_TURN") {
+    return deliverNearTurnSms(context, phone, message, notificationId);
+  }
 
   if (eventId === "SLOT_RESERVED") {
     const claimed = await claimSlotReservedSms(context.reservationId);
