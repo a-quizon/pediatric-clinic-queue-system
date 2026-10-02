@@ -26,9 +26,8 @@ import {
   formatManilaLong,
   weekStartSunday,
   eachDateInclusive,
-  WEEKDAY_KEYS,
-  manilaWeekdayIndex,
 } from "../../utils/manilaDate";
+import { checkScheduleOpening, clinicHoursEnded } from "../../utils/scheduleOpeningRules";
 import { CLOSURE_REASONS, closureAnnouncement } from "../../utils/closureReasons";
 import {
   closureForDate,
@@ -163,8 +162,12 @@ export default function StaffScheduleCalendar({
       return;
     }
 
-    const weekday = branch?.schedule?.[WEEKDAY_KEYS[manilaWeekdayIndex(dateStr)]];
-    if (!weekday?.isOpen || dateStr > horizon) return;
+    const check = checkScheduleOpening({ dateStr, branch, schedules, closures, today });
+    if (check.code === "after_hours") {
+      toast.error(check.message);
+      return;
+    }
+    if (!check.ok) return;
     setDayModal({ mode: "post", dateStr, capacity: String(defaultCapacity) });
   };
 
@@ -237,13 +240,13 @@ export default function StaffScheduleCalendar({
       }
       setPreviewText(
         `${posted.length} day(s) will be posted with ${rangeForm.capacity} slots.${
-          skipped.length ? ` ${skipped.length} skipped (weekend, already posted, closed, or past).` : ""
+          skipped.length ? ` ${skipped.length} skipped (weekend, already posted, closed, past, or after today's clinic hours).` : ""
         }`
       );
       setConfirm({
         title: "Publish these days?",
         message: `${posted.length} day(s) will be posted with ${rangeForm.capacity} slots.${
-          skipped.length ? `\n${skipped.length} skipped (weekend, already posted, closed, or past).` : ""
+          skipped.length ? `\n${skipped.length} skipped (weekend, already posted, closed, past, or after today's clinic hours).` : ""
         }`,
         confirmText: "Publish",
         action: async () => {
@@ -421,6 +424,7 @@ export default function StaffScheduleCalendar({
           let color = "var(--pq-ink-faint)";
           let label = "Not posted";
           if (dateStr < today) label = "Past";
+          else if (!schedule && !closed && clinicHoursEnded(branch, dateStr, today)) label = "Hours ended";
           else if (closed) {
             background = "var(--pq-wait-wash)";
             color = "var(--pq-wait)";

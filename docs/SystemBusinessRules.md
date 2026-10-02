@@ -49,7 +49,7 @@ Reservations act as the gateway into the Queue Engine.
   1. The target schedule must be `published` and accepting bookings.
   2. The schedule must have active slot capacity available.
   3. The parent must not already have an active, non-terminal reservation for that specific clinic date.
-*(Note: Branch clinic operating hours are enforced when the Secretary creates or edits the Schedule. The Reservation System simply trusts the already-validated Published Schedule.)*
+*(Note: Branch clinic operating hours are enforced when the Secretary or Doctor posts a day. Posting goes through the server (`POST /api/schedules/publish`), which rejects past dates and, for today, any time at or after that branch's closing time for the weekday (Asia/Manila). See `docs/ReservationRules.md` → Publish time rules. The Reservation System simply trusts the already-validated Published Schedule.)*
 * **Queue**: Once created, a reservation is instantly injected into the Queue Engine pipeline where it receives a permanent `queueNumber` and a dynamic `queueOrder`.
 * **Consultation**: A reservation must traverse from `reserved` -> `checked_in` -> `with_doctor` -> `consultation_completed`.
 * **History**: Upon reaching a terminal state (completed, cancelled, or forfeited), it drops out of the active queue and moves to the historical ledger.

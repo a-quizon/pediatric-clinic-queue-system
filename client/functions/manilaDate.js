@@ -39,6 +39,14 @@ function minutesFromTime(value) {
   return hour * 60 + minute;
 }
 
+function formatTime12h(value) {
+  const minutes = minutesFromTime(value);
+  if (minutes == null) return String(value || "");
+  const hour = Math.floor(minutes / 60);
+  const minute = String(minutes % 60).padStart(2, "0");
+  return `${hour % 12 || 12}:${minute} ${hour >= 12 ? "PM" : "AM"}`;
+}
+
 const WEEKDAY_KEYS = [
   "sunday",
   "monday",
@@ -62,4 +70,5 @@ module.exports = {
   addManilaDays,
   manilaWeekdayIndex,
   minutesFromTime,
+  formatTime12h,
 };

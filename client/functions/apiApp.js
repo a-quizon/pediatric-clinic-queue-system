@@ -19,6 +19,7 @@ const { resolveAccountByIdentifier } = require("./phoneLookup");
 const { claimPasswordResetSlot } = require("./passwordResetLimitService");
 const { claimReservationSlot } = require("./claimReservationRuntime");
 const { releaseReservationForCaller } = require("./slotRelease");
+const { publishClinicDays } = require("./schedulePublishRuntime");
 const { notifyParentsScheduleAvailable } = require("./pushRuntime");
 const { defaultDatabase, getRtdb, runForToken } = require("./rtdbRouter");
 
@@ -272,6 +273,36 @@ function createApiApp() {
         success: false,
         error: code,
         message: err.message || "Could not release the slot.",
+      });
+    }
+  });
+
+  app.post("/api/schedules/publish", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await runForToken(decoded, () =>
+        publishClinicDays({
+          admin,
+          callerUid: decoded.uid,
+          payload: req.body,
+        })
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] schedules/publish:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not post this day.",
       });
     }
   });

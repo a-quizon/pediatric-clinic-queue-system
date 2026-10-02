@@ -2,6 +2,7 @@ const express = require("express");
 const { admin, initFirebaseAdmin, verifyIdToken } = require("../services/firebaseAdmin");
 const { claimReservationSlot } = require("../../client/functions/claimReservationRuntime");
 const { releaseReservationForCaller } = require("../../client/functions/slotRelease");
+const { publishClinicDays } = require("../../client/functions/schedulePublishRuntime");
 const { notifyParentsScheduleAvailable } = require("../services/notificationEngine");
 
 const router = express.Router();
@@ -70,6 +71,35 @@ router.post("/reservations/release", async (req, res) => {
       success: false,
       error: code,
       message: err.message || "Could not release the slot.",
+    });
+  }
+});
+
+router.post("/schedules/publish", async (req, res) => {
+  try {
+    initFirebaseAdmin();
+    const decoded = await verifyIdToken(req.headers.authorization);
+    if (!decoded?.uid) {
+      return res.status(401).json({
+        success: false,
+        error: "unauthenticated",
+        message: "You must be signed in.",
+      });
+    }
+
+    const result = await publishClinicDays({
+      admin,
+      callerUid: decoded.uid,
+      payload: req.body,
+    });
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    const code = STATUS_BY_CODE[err.code] ? err.code : "internal";
+    console.error("[schedules/publish]", err.message);
+    return res.status(STATUS_BY_CODE[code] || 500).json({
+      success: false,
+      error: code,
+      message: err.message || "Could not post this day.",
     });
   }
 });

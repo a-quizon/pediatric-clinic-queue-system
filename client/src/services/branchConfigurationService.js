@@ -4,7 +4,8 @@ import { subscribeOnValue } from "../firebase/rtdbSubscribe";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { getReservationsBySchedule } from "./reservationService";
 import { branchesMatch, normalizeBranchName } from "../utils/stringUtils";
-import { manilaDateString, manilaNowMinutes, manilaWeekdayIndex, WEEKDAY_KEYS } from "../utils/manilaDate";
+import { manilaDateString, manilaWeekdayIndex, WEEKDAY_KEYS } from "../utils/manilaDate";
+import { checkScheduleOpening } from "../utils/scheduleOpeningRules";
 
 const defaultSchedule = () => ({
   monday: { isOpen: false, openingTime: "", closingTime: "" },
@@ -249,39 +250,24 @@ export const getClinicHours = async (branchName, clinicDate) => {
   return null;
 };
 
-// check kung tapos na yung closing time ng branch for today's schedule
+// check kung past date or tapos na yung closing time ng branch for today's schedule
 export const validateScheduleClosingTime = async (branchName, clinicDate) => {
   if (!branchName || !clinicDate) {
     return { valid: true };
   }
 
-  const todayStr = manilaDateString();
-
-  if (clinicDate !== todayStr) {
+  const today = manilaDateString();
+  if (clinicDate > today) {
     return { valid: true };
   }
 
-  // retrieve closing time from the currently selected branch configuration
-  const hours = await getClinicHours(branchName, clinicDate);
-  if (!hours || !hours.closingTime) {
-    return {
-      valid: false,
-      message: "This branch is closed on the selected date."
-    };
+  const branches = clinicDate === today ? await getBranchConfigurations() : [];
+  const branch = branches.find((b) => branchesMatch(b.name, branchName) || b.id === branchName);
+  const check = checkScheduleOpening({ dateStr: clinicDate, branch, branchName, today });
+  if (check.ok || !["past_date", "after_hours", "weekday_closed"].includes(check.code)) {
+    return { valid: true };
   }
-
-  const currentMinutes = manilaNowMinutes();
-  const [closeH, closeM] = hours.closingTime.split(":").map(Number);
-  const closingMinutes = closeH * 60 + closeM;
-
-  if (currentMinutes >= closingMinutes) {
-    return {
-      valid: false,
-      message: "You can no longer create or update today's schedule because the selected branch has already reached its closing time. Please choose another date."
-    };
-  }
-
-  return { valid: true };
+  return { valid: false, message: check.message };
 };
 
 export const checkBranchInUse = async (branchName) => {

@@ -1,29 +1,24 @@
 import { getDb } from "../firebase/database";
+import { auth } from "../firebase/auth";
 import { ref, push, set, get, update, remove } from "firebase/database";
 import { subscribeOnValue } from "../firebase/rtdbSubscribe";
+import { getPushApiBase } from "./pushService";
 import { getBranchConfigurations } from "./branchConfigurationService";
 import { getReservationsBySchedule, ACTIVE_RESERVATION_STATUSES } from "./reservationService";
-import { createSchedule, publishSchedule, deleteSchedule } from "./scheduleService";
+import { deleteSchedule } from "./scheduleService";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { recalculateEntireQueue } from "./queueEngine";
 import { recalculateRollingValidation } from "./rollingValidationService";
 import { branchesMatch } from "../utils/stringUtils";
 import { closureReasonLabel } from "../utils/closureReasons";
-import {
-  manilaDateString,
-  manilaNowMinutes,
-  manilaWeekdayIndex,
-  WEEKDAY_KEYS,
-  eachDateInclusive,
-  addManilaDays,
-  bookingHorizonEnd,
-} from "../utils/manilaDate";
+import { manilaDateString, eachDateInclusive, addManilaDays } from "../utils/manilaDate";
 import {
   IN_CLINIC_STATUSES,
   CLINIC_CANCELLABLE_STATUSES,
   closureForDate,
   sameBranch,
 } from "../utils/scheduleCalendar";
+import { checkScheduleOpening } from "../utils/scheduleOpeningRules";
 
 const closuresRef = () => ref(getDb(), "clinicClosures");
 
@@ -50,18 +45,7 @@ const loadSchedules = async () => {
 const branchRecord = (branches, branchId, branchName) =>
   branches.find((branch) => branch.id === branchId || branchesMatch(branch.name, branchName));
 
-const hoursForDate = (branch, dateStr) => {
-  const day = branch?.schedule?.[WEEKDAY_KEYS[manilaWeekdayIndex(dateStr)]];
-  if (!day?.isOpen || !day.openingTime || !day.closingTime) return null;
-  return { openingTime: day.openingTime, closingTime: day.closingTime };
-};
-
-const minutesFromTime = (value) => {
-  const [hour, minute] = String(value || "").split(":").map(Number);
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
-  return hour * 60 + minute;
-};
-
+/** User-facing reason a date cannot be posted, or null when it can. */
 export function explainDateSkip({
   dateStr,
   branch,
@@ -71,22 +55,37 @@ export function explainDateSkip({
   closures,
   today = manilaDateString(),
 }) {
-  const horizon = bookingHorizonEnd(today);
-  if (dateStr < today) return "past";
-  if (dateStr > horizon) return "beyond the 60-day booking window";
-  if (closureForDate(closures, dateStr, branchId, branchName)) return "clinic closed";
-  const existing = schedules.find(
-    (schedule) => schedule.clinicDate === dateStr && sameBranch(schedule, branchId, branchName)
-  );
-    if (existing) return "a schedule already exists";
-  const hours = hoursForDate(branch, dateStr);
-  if (!hours) return "branch closed that weekday";
-  if (dateStr === today) {
-    const closing = minutesFromTime(hours.closingTime);
-    if (closing != null && manilaNowMinutes() >= closing) return "past closing time";
-  }
-  return null;
+  const check = checkScheduleOpening({ dateStr, branch, branchId, branchName, schedules, closures, today });
+  return check.ok ? null : check.message;
 }
+
+const callPublishClinicDays = async (payload) => {
+  const current = auth.currentUser;
+  if (!current) throw new Error("You must be signed in.");
+  const token = await current.getIdToken();
+  let response;
+  try {
+    response = await fetch(`${getPushApiBase()}/api/schedules/publish`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    const wrapped = new Error("Unable to reach the clinic server. Please try again.");
+    wrapped.cause = error;
+    throw wrapped;
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const wrapped = new Error(body.message || "Could not post this day.");
+    wrapped.cause = body;
+    throw wrapped;
+  }
+  return body;
+};
 
 async function contextForBranch(branchId, branchName) {
   const branches = await getBranchConfigurations();
@@ -114,94 +113,55 @@ export async function previewPublishDates({ branchId, branchName, dates }) {
   }));
 }
 
-async function resolveDoctor(user) {
-  if (user?.role === "doctor") {
-    return { doctorId: user.uid, doctorEmail: user.email || "" };
-  }
-  try {
-    const { getActiveDoctor } = await import("./adminService");
-    const activeDoctor = await getActiveDoctor();
-    if (activeDoctor) {
-      return {
-        doctorId: activeDoctor.id || activeDoctor.uid,
-        doctorEmail: activeDoctor.email || user?.email || "",
-      };
-    }
-  } catch (error) {
-    console.warn("Could not resolve active doctor for schedule.", error);
-  }
-  return { doctorId: user?.uid || null, doctorEmail: user?.email || "" };
-}
-
-async function createPublishedDay({ branch, branchId, branchName, dateStr, slotCapacity, user, audit = true }) {
-  const hours = hoursForDate(branch, dateStr);
-  if (!hours) throw new Error("This branch is closed on that weekday.");
-  const doctor = await resolveDoctor(user);
-  const scheduleId = await createSchedule({
-    ...doctor,
-    createdBy: user.uid,
-    createdByRole: user.role || "secretary",
-    branch: branch?.name || branchName,
-    branchId: branch?.id || branchId || null,
-    clinicDate: dateStr,
-    openingTime: hours.openingTime,
-    closingTime: hours.closingTime,
-    slotCapacity: Number(slotCapacity),
-    status: "draft",
-  });
-  await publishSchedule(scheduleId, { audit });
-  return scheduleId;
-}
-
-export async function publishSingleDay({ branchId, branchName, dateStr, slotCapacity, user }) {
-  const preview = await previewPublishDates({ branchId, branchName, dates: [dateStr] });
-  if (preview[0]?.skip) {
-    throw new Error(`Cannot post ${dateStr}: ${preview[0].skip}.`);
-  }
-  const { branch } = await contextForBranch(branchId, branchName);
-  const scheduleId = await createPublishedDay({
-    branch,
+export async function publishSingleDay({ branchId, branchName, dateStr, slotCapacity }) {
+  const result = await callPublishClinicDays({
+    mode: "single",
     branchId,
     branchName,
-    dateStr,
-    slotCapacity,
-    user,
-    audit: true,
+    days: [{ dateStr, slotCapacity: Number(slotCapacity) }],
+  });
+  const scheduleId = result.posted?.[0]?.scheduleId || null;
+  logAuditEvent({
+    action: AUDIT_ACTIONS.SCHEDULE_PUBLISHED,
+    category: AUDIT_CATEGORIES.SCHEDULE_MANAGEMENT,
+    description: `Published schedule for ${result.branchName || branchName} on ${dateStr}`,
+    targetType: "schedule",
+    targetId: scheduleId,
+    branchId: result.branchName || branchName,
   });
   return scheduleId;
 }
 
-export async function publishDateRange({ branchId, branchName, startDate, endDate, slotCapacity, user }) {
+export async function publishDateRange({ branchId, branchName, startDate, endDate, slotCapacity }) {
   const dates = eachDateInclusive(startDate, endDate);
-  const preview = await previewPublishDates({ branchId, branchName, dates });
-  const posting = preview.filter((item) => !item.skip);
-  if (posting.length === 0) {
+  if (dates.length === 0) {
     throw new Error("No days in that range can be posted.");
   }
-  const { branch } = await contextForBranch(branchId, branchName);
-  for (const item of posting) {
-    await createPublishedDay({
-      branch,
+  let result;
+  try {
+    result = await callPublishClinicDays({
+      mode: "bulk",
       branchId,
       branchName,
-      dateStr: item.dateStr,
-      slotCapacity,
-      user,
-      audit: false,
+      days: dates.map((dateStr) => ({ dateStr, slotCapacity: Number(slotCapacity) })),
     });
+  } catch (error) {
+    if (error.cause?.error === "failed-precondition") {
+      throw new Error("No days in that range can be posted.", { cause: error });
+    }
+    throw error;
   }
   logAuditEvent({
     action: AUDIT_ACTIONS.SCHEDULE_RANGE_PUBLISHED,
     category: AUDIT_CATEGORIES.SCHEDULE_MANAGEMENT,
-    description: `Published ${posting.length} day(s) for ${branch?.name || branchName} from ${startDate} to ${endDate}`,
+    description: `Published ${result.posted.length} day(s) for ${result.branchName || branchName} from ${startDate} to ${endDate}`,
     targetType: "schedule",
-    branchId: branch?.id || branchId,
+    branchId: result.branchId || branchId,
   });
-  const posted = posting.map((item) => item.dateStr);
-  return { posted, skipped: preview.filter((item) => item.skip) };
+  return { posted: result.posted.map((item) => item.dateStr), skipped: result.skipped || [] };
 }
 
-export async function copyPreviousWeek({ branchId, branchName, weekStart, user }) {
+export async function copyPreviousWeek({ branchId, branchName, weekStart }) {
   const sourceStart = addManilaDays(weekStart, -7);
   const { branch, schedules, closures } = await contextForBranch(branchId, branchName);
   const name = branch?.name || branchName;
@@ -234,26 +194,23 @@ export async function copyPreviousWeek({ branchId, branchName, weekStart, user }
   if (copies.length === 0) {
     throw new Error("Nothing from the previous week can be copied onto this week.");
   }
-  for (const copy of copies) {
-    await createPublishedDay({
-      branch,
-      branchId,
-      branchName: name,
-      dateStr: copy.dateStr,
-      slotCapacity: copy.slotCapacity,
-      user,
-      audit: false,
-    });
-    schedules.push({ clinicDate: copy.dateStr, branchId, branch: name, status: "published" });
+  let result;
+  try {
+    result = await callPublishClinicDays({ mode: "bulk", branchId, branchName: name, days: copies });
+  } catch (error) {
+    if (error.cause?.error === "failed-precondition") {
+      throw new Error("Nothing from the previous week can be copied onto this week.", { cause: error });
+    }
+    throw error;
   }
   logAuditEvent({
     action: AUDIT_ACTIONS.SCHEDULE_RANGE_PUBLISHED,
     category: AUDIT_CATEGORIES.SCHEDULE_MANAGEMENT,
-    description: `Copied ${copies.length} posted day(s) into the week of ${weekStart} for ${name}`,
+    description: `Copied ${result.posted.length} posted day(s) into the week of ${weekStart} for ${name}`,
     targetType: "schedule",
     branchId: branch?.id || branchId,
   });
-  return { posted: copies, skipped };
+  return { posted: result.posted, skipped: [...skipped, ...(result.skipped || [])] };
 }
 
 const reservationsForSchedule = async (scheduleId) => {
