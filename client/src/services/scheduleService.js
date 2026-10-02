@@ -1,5 +1,5 @@
 import { getDb } from "../firebase/database";
-import { ref, push, set, get, update, remove, serverTimestamp, query, orderByChild, equalTo } from "firebase/database";
+import { ref, push, set, get, update, remove, serverTimestamp, query, orderByChild, equalTo, startAt } from "firebase/database";
 import { subscribeOnValue } from "../firebase/rtdbSubscribe";
 import { getReservationsBySchedule } from "./reservationService";
 import { recalculateRollingValidation } from "./rollingValidationService";
@@ -295,6 +295,26 @@ export const subscribeToPublishedSchedules = ( callback ) => {
       callback(schedules);
     }
   );
+};
+
+/** Published schedules dated today (Asia/Manila) or later; past dates are filtered server-side. */
+export const subscribeToUpcomingPublishedSchedules = (today, callback) => {
+  if (typeof callback !== "function") return () => {};
+  const q = query(
+    ref(getDb(), "schedules"),
+    orderByChild("clinicDate"),
+    startAt(today || manilaDateString())
+  );
+  return subscribeOnValue(q, (snapshot) => {
+    if (!snapshot.exists()) {
+      callback([]);
+      return;
+    }
+    const schedules = Object.entries(snapshot.val())
+      .map(([id, value]) => ({ id, ...value }))
+      .filter((schedule) => schedule.status === "published");
+    callback(schedules);
+  });
 };
 
 export const subscribeToAllSchedules = (callback) => {

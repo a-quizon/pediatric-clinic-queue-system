@@ -64,7 +64,8 @@
     "schedules": {
       ".read": "auth.token.isDemo == true && (auth != null)",
       ".indexOn": [
-        "status"
+        "status",
+        "clinicDate"
       ],
       "$scheduleId": {
         ".write": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('status').val() === 'active' && (root.child('users').child(auth.uid).child('role').val() === 'doctor' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && ((newData.exists() && (newData.child('branchId').val() === root.child('users').child(auth.uid).child('assignedBranchId').val() || newData.child('branch').val() === root.child('users').child(auth.uid).child('assignedBranch').val())) || (!newData.exists() && (data.child('branchId').val() === root.child('users').child(auth.uid).child('assignedBranchId').val() || data.child('branch').val() === root.child('users').child(auth.uid).child('assignedBranch').val()))))) && (!newData.exists() || (newData.child('booking').child('activeSlotCount').val() == data.child('booking').child('activeSlotCount').val() && newData.child('booking').child('nextQueueNumber').val() == data.child('booking').child('nextQueueNumber').val())) && (data.exists() || !newData.exists()) && (!newData.exists() || newData.child('status').val() !== 'published' || data.child('status').val() === 'published'))"

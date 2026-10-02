@@ -3,66 +3,79 @@ import { Calendar, Clock, Stethoscope, AlertCircle } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { subscribeToScheduleReservations } from "../../services/reservationService";
-import { subscribeToPublishedSchedules } from "../../services/scheduleService";
+import { subscribeToUpcomingPublishedSchedules } from "../../services/scheduleService";
 import { getReservationChildDisplayName } from "../../utils/reservationPatients";
 import ManageQueue from "./ManageQueue";
-import { branchesMatch, scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
-import { manilaDateString } from "../../utils/manilaDate";
+import { branchesMatch } from "../../utils/stringUtils";
+import { formatManilaLong, manilaDateString, manilaNowMinutes } from "../../utils/manilaDate";
+import { pickUpcomingPublishedSchedule } from "../../utils/upcomingSchedule";
 import { PqSpinner } from "../../components/parent/pqUi";
+
+const CLOCK_TICK_MS = 60 * 1000;
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [clinicAddress, setClinicAddress] = useState("");
-  const [schedules, setSchedules] = useState({});
+  const [branchConfig, setBranchConfig] = useState(null);
+  const [schedules, setSchedules] = useState([]);
   const [schedulesLoaded, setSchedulesLoaded] = useState(false);
   const [reservations, setReservations] = useState([]);
   const [reservationsLoaded, setReservationsLoaded] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+
+  const clinicAddress = branchConfig?.clinicAddress || "";
+  const today = manilaDateString(now);
+  const nowMinutes = manilaNowMinutes(now);
 
   useEffect(() => {
-    const fetchAddress = async () => {
+    const fetchBranch = async () => {
       if (user?.assignedBranch || user?.assignedBranchId) {
         const branches = await getBranchConfigurations();
         const branch = branches.find(b =>
           (user.assignedBranchId && b.id === user.assignedBranchId) ||
           branchesMatch(b.name, user.assignedBranch)
         );
-        if (branch && branch.clinicAddress) {
-          setClinicAddress(branch.clinicAddress);
-        }
+        setBranchConfig(branch || null);
       }
     };
-    fetchAddress();
+    fetchBranch();
   }, [user?.assignedBranch, user?.assignedBranchId]);
 
+  // Re-evaluate "session ended" while the dashboard stays open or returns to focus.
   useEffect(() => {
-    const unsubSchedules = subscribeToPublishedSchedules((data) => {
-      const schedulesMap = {};
-      data.forEach(s => schedulesMap[s.id] = s);
-      setSchedules(schedulesMap);
+    const tick = () => setNow(new Date());
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    const interval = setInterval(tick, CLOCK_TICK_MS);
+    window.addEventListener("focus", tick);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", tick);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
+  useEffect(() => {
+    const unsubSchedules = subscribeToUpcomingPublishedSchedules(today, (data) => {
+      setSchedules(data);
       setSchedulesLoaded(true);
     });
 
     return () => {
       unsubSchedules();
     };
-  }, []);
+  }, [today]);
 
-  // Identify the most relevant active or published schedule for this branch
-  const branchSchedules = Object.values(schedules).filter(s => scheduleMatchesAssignedBranch(s, user));
-  
-  // Priority 1: Currently active or paused
-  let publishedSchedule = branchSchedules.find(s => s.queueStatus === 'active' || s.queueStatus === 'paused');
-  
-  if (!publishedSchedule) {
-    // Priority 2: Published for today
-    const todayStr = manilaDateString();
-    publishedSchedule = branchSchedules.find(s => s.status === 'published' && s.clinicDate === todayStr && s.queueStatus !== 'completed' && s.queueStatus !== 'ended' && s.queueStatus !== 'closed');
-  }
-
-  if (!publishedSchedule) {
-    // Priority 3: Any published schedule
-    publishedSchedule = branchSchedules.find(s => s.status === 'published' && s.queueStatus !== 'completed' && s.queueStatus !== 'ended' && s.queueStatus !== 'closed');
-  }
+  const upcoming = pickUpcomingPublishedSchedule({
+    schedules,
+    user,
+    branch: branchConfig,
+    today,
+    nowMinutes,
+  });
+  const publishedSchedule = upcoming?.schedule || null;
+  const sessionBlock = upcoming?.block || null;
 
   useEffect(() => {
     if (!publishedSchedule) {
@@ -142,7 +155,7 @@ export default function Dashboard() {
 
   const formatDate = (dateString) => {
     if (!dateString) return "";
-    return new Date(dateString).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    return formatManilaLong(dateString);
   };
 
   if (loading) {
@@ -190,7 +203,7 @@ export default function Dashboard() {
               <div>
                 <p className="pq-stat-label mb-1">Clinic Hours</p>
                 <p className="text-sm font-extrabold">
-                  {formatTime12h(publishedSchedule.openingTime)} - {formatTime12h(publishedSchedule.closingTime)}
+                  {formatTime12h(sessionBlock?.openingTime || publishedSchedule.openingTime)} - {formatTime12h(sessionBlock?.closingTime || publishedSchedule.closingTime)}
                 </p>
               </div>
               <div className="sm:col-span-2">
@@ -201,8 +214,8 @@ export default function Dashboard() {
           ) : (
             <div className="flex flex-col items-center justify-center py-6 text-center">
               <AlertCircle className="w-10 h-10 pq-faint mb-3" aria-hidden="true" />
-              <p className="font-extrabold tracking-tight">No Published Schedule</p>
-              <p className="text-sm pq-muted mt-1 max-w-[250px]">No reservation schedule is published for your assigned branch yet. Open the calendar to publish days.</p>
+              <p className="font-extrabold tracking-tight">No upcoming published schedule</p>
+              <p className="text-sm pq-muted mt-1 max-w-[250px]">Your assigned branch has no published session that has not ended yet. Open the calendar to publish days.</p>
             </div>
           )}
         </section>

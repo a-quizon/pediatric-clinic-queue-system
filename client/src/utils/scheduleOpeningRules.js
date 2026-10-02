@@ -10,7 +10,7 @@ import { closureForDate, scheduleForDate, formatClinicClock } from "./scheduleCa
 
 // UX mirror of client/functions/scheduleOpeningRules.js (the server is authoritative).
 
-function minutesFromTime(value) {
+export function minutesFromTime(value) {
   const [hour, minute] = String(value || "").split(":").map(Number);
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
   return hour * 60 + minute;
