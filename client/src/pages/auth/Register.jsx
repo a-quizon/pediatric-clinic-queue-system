@@ -31,6 +31,14 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const [showConsentModal, setShowConsentModal] = useState(true);
+  const [consentCheckbox, setConsentCheckbox] = useState(false);
+  const [consentCancelled, setConsentCancelled] = useState(false);
+  const [showConsentValidation, setShowConsentValidation] = useState(false);
+  const [consentTimestamp, setConsentTimestamp] = useState(null);
+  const modalRef = useRef(null);
+
+
   const [otpSent, setOtpSent] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [verificationId, setVerificationId] = useState("");
@@ -57,6 +65,37 @@ export default function Register() {
     }, 1000);
     return () => clearInterval(id);
   }, [cooldownLeft]);
+
+  useEffect(() => {
+    if (!showConsentModal || !modalRef.current) return;
+    const focusableElements = modalRef.current.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            lastElement.focus();
+            e.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            firstElement.focus();
+            e.preventDefault();
+          }
+        }
+      }
+    };
+
+    firstElement?.focus();
+    modalRef.current.addEventListener('keydown', handleKeyDown);
+    return () => {
+      modalRef.current?.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showConsentModal]);
 
   useEffect(() => {
     if (!otpSent || phoneVerified) return undefined;
@@ -184,6 +223,9 @@ export default function Register() {
         {
           isPhoneVerified: true,
           phoneVerificationId: verificationId,
+          dataPrivacyConsent: true,
+          dataPrivacyConsentVersion: "v1.0",
+          dataPrivacyConsentTimestamp: consentTimestamp,
         }
       );
       navigate('/verify-email', { replace: true });
@@ -232,7 +274,12 @@ export default function Register() {
         </div>
 
         <div className="p-8">
-          <form onSubmit={handleSubmit} className="space-y-4" id="register-form">
+          {consentCancelled ? (
+            <div className="text-center">
+              <p className="pq-error-text mt-4">Registration cancelled. We did not save your information.</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4" id="register-form">
             {!phoneVerified && (
             <>
             <div>
@@ -468,6 +515,7 @@ export default function Register() {
             </>
             )}
           </form>
+          )}
 
           <div className="mt-8 text-center">
             <p className="pq-muted text-sm">
@@ -479,6 +527,113 @@ export default function Register() {
           </div>
         </div>
       </div>
+
+      {showConsentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 pq-backdrop-blur">
+          <div
+            ref={modalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="consent-modal-title"
+            className="pq-glass-window max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl"
+          >
+            <div className="p-6 overflow-y-auto">
+              <h2 id="consent-modal-title" className="text-xl font-bold mb-4">
+                Plus Queue Data Privacy Consent
+              </h2>
+              <div className="space-y-4 text-sm text-[var(--pq-text-color)]">
+                <p>
+                  Welcome to Plus Queue! We value your privacy and want to be clear about how we handle your information under the Data Privacy Act of 2012.
+                </p>
+
+                <div>
+                  <h3 className="font-semibold mb-1">What we collect</h3>
+                  <p>We only collect the following information:</p>
+                  <ul className="list-disc pl-5 mt-1 space-y-1">
+                    <li>From you (Parent/Guardian): Full name, phone number, and email address.</li>
+                    <li>From your child/children: Name, sex, and age.</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-1">Why we collect it</h3>
+                  <p>
+                    We use this information to create and manage your account, register your child's profile for the queuing service, and contact you about your appointments. Because your child's age is considered sensitive personal information under the law, we ask for your explicit consent to process it. By agreeing to this notice, you confirm that you are the parent or legal guardian giving consent on their behalf.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-1">Who we share it with</h3>
+                  <p>
+                    We will never sell your personal data. We only share it with our trusted service providers (such as our hosting and SMS/email platforms) who help us run the app, or with authorities if strictly required by law.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-1">Your rights</h3>
+                  <p>
+                    You have the right to access, correct, or ask us to delete your data. You can also withdraw your consent at any time.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-[var(--pq-glass-line)]">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={consentCheckbox}
+                    onChange={(e) => {
+                      setConsentCheckbox(e.target.checked);
+                      if (e.target.checked) setShowConsentValidation(false);
+                    }}
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-[var(--pq-primary)] focus:ring-[var(--pq-primary)]"
+                  />
+                  <span className="text-sm font-medium">
+                    I confirm that I am the parent or legal guardian, and I have read and agree to the Data Privacy Consent.
+                  </span>
+                </label>
+                {showConsentValidation && (
+                  <p className="pq-error-text text-sm mt-2 font-medium" role="alert">
+                    You must confirm you are the legal guardian and agree to the Data Privacy Consent to create an account.
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            <div className="p-4 bg-[var(--pq-glass-bg-darker)] border-t border-[var(--pq-glass-line)] flex flex-col sm:flex-row gap-3 sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConsentModal(false);
+                  setConsentCancelled(true);
+                }}
+                className="px-4 py-2 font-semibold text-sm rounded-[0.95rem] bg-gray-200 text-gray-800 hover:bg-gray-300 transition-colors order-2 sm:order-1"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (consentCheckbox) {
+                    setConsentTimestamp(Date.now());
+                    setShowConsentModal(false);
+                  } else {
+                    setShowConsentValidation(true);
+                  }
+                }}
+                aria-disabled={!consentCheckbox}
+                className={`px-4 py-2 font-bold text-sm rounded-[0.95rem] order-1 sm:order-2 ${
+                  consentCheckbox
+                    ? "pq-btn-primary"
+                    : "bg-[var(--pq-glass-line)] text-[var(--pq-faint)] cursor-not-allowed"
+                }`}
+              >
+                Agree & Create Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PqAuthShell>
   );
 }

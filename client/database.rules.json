@@ -10,6 +10,7 @@
       "$uid": {
         ".read": "auth.token.isDemo != true && (auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'secretary'))",
         ".write": "auth.token.isDemo != true && (auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor') && (root.child('users').child(auth.uid).child('status').val() === 'active' || (!root.child('users').child(auth.uid).child('status').exists() && newData.child('status').val() === 'active') || (auth.uid === $uid && root.child('users').child($uid).child('role').val() === 'parent' && root.child('users').child($uid).child('status').val() === 'inactive' && root.child('users').child($uid).child('isDeleted').val() !== true && newData.child('status').val() === 'active' && newData.child('isDeleted').val() !== true)))",
+        ".validate": "(newData.child('role').val() !== 'parent' && (data.child('role').val() !== 'parent' || !data.exists())) || (newData.child('dataPrivacyConsent').val() === true && newData.child('dataPrivacyConsentVersion').isString() && newData.child('dataPrivacyConsentTimestamp').isNumber())",
         "role": {
           ".validate": "newData.isString() && ((data.exists() && newData.val() === data.val()) || (!data.exists() && auth.uid === $uid && newData.val() === 'parent') || ((root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor') && newData.val() === 'secretary'))"
         },
@@ -36,6 +37,15 @@
         },
         "nearTurnSms": {
           ".validate": false
+        },
+        "dataPrivacyConsent": {
+          ".validate": "newData.isBoolean() && newData.val() === true"
+        },
+        "dataPrivacyConsentTimestamp": {
+          ".validate": "newData.isNumber()"
+        },
+        "dataPrivacyConsentVersion": {
+          ".validate": "newData.isString()"
         }
       }
     },

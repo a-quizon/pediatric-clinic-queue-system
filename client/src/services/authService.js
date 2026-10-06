@@ -38,7 +38,7 @@ export const registerUser = async (
   email,
   phone,
   password,
-  { phoneVerificationId, isPhoneVerified = false } = {}
+  { phoneVerificationId, isPhoneVerified = false, dataPrivacyConsent, dataPrivacyConsentVersion, dataPrivacyConsentTimestamp } = {}
 ) => {
   if (!isPhoneVerified || !phoneVerificationId) {
     throw { code: "auth/phone-not-verified" };
@@ -70,6 +70,9 @@ export const registerUser = async (
           phone,
           isPhoneVerified: true,
           phoneVerificationId,
+          dataPrivacyConsent,
+          dataPrivacyConsentVersion,
+          dataPrivacyConsentTimestamp,
         })
       );
     }
@@ -100,6 +103,9 @@ export const completeParentRegistration = async (user) => {
     email: user.email,
     phone: pendingData.phone || "",
     isPhoneVerified: pendingData.isPhoneVerified === true,
+    dataPrivacyConsent: pendingData.dataPrivacyConsent === true,
+    dataPrivacyConsentVersion: pendingData.dataPrivacyConsentVersion || null,
+    dataPrivacyConsentTimestamp: pendingData.dataPrivacyConsentTimestamp || null,
     role: "parent",
     status: "active",
     onboardingComplete: false,
