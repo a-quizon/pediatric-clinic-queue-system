@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
 import { getDefaultSlotCapacity } from "../../services/systemConfigurationService";
-import { updateQueueStatus } from "../../services/scheduleService";
+import { updateQueueStatus, updateSchedule } from "../../services/scheduleService";
 import {
   subscribeToClinicClosures,
   previewPublishDates,
@@ -158,7 +158,7 @@ export default function StaffScheduleCalendar({
         endDate: dateStr,
         allBranches: false,
       });
-      setDayModal({ mode: "published", dateStr, schedule });
+      setDayModal({ mode: "published", dateStr, schedule, editCapacity: schedule.slotCapacity });
       return;
     }
 
@@ -359,6 +359,35 @@ export default function StaffScheduleCalendar({
     }
   };
 
+  const saveCapacity = async () => {
+    const publishedSchedule = dayModal?.schedule;
+    if (!publishedSchedule) return;
+    const newCap = Number(dayModal.editCapacity);
+    if (!Number.isInteger(newCap) || newCap < 0) {
+      toast.error("Capacity must be a valid whole number.");
+      return;
+    }
+    const takenCount = slotsTaken(publishedSchedule, reservations);
+    if (newCap < takenCount) {
+      toast.error(`Cannot reduce capacity below the ${takenCount} already reserved.`);
+      return;
+    }
+    setBusy(true);
+    try {
+      await updateSchedule(publishedSchedule.id, { slotCapacity: newCap });
+      toast.success("Capacity updated.");
+      setDayModal((prev) => ({
+        ...prev,
+        schedule: { ...prev.schedule, slotCapacity: newCap },
+      }));
+      await refresh();
+    } catch (error) {
+      toast.error(error.message || "Could not update capacity.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const publishedModal = dayModal?.mode === "published" ? dayModal : null;
   const publishedSchedule = publishedModal?.schedule;
   const taken = publishedSchedule ? slotsTaken(publishedSchedule, reservations) : 0;
@@ -487,9 +516,34 @@ export default function StaffScheduleCalendar({
         <ModalScrim>
           <div className="pq-modal w-full max-w-sm p-5">
             <h3 className="text-lg font-extrabold mb-1">{formatManilaLong(publishedModal.dateStr)}</h3>
-            <p className="pq-muted text-sm mb-1">
-              {formatBranchLabel(branch?.name)} · {taken}/{capacity || "—"} reserved
-            </p>
+            
+            {(user?.role === "doctor" || user?.role === "secretary") && !closingMode ? (
+              <div className="mb-4">
+                <p className="pq-muted text-sm mb-2">
+                  {formatBranchLabel(branch?.name)} · {taken} reserved
+                </p>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="editCapacity" className="text-sm font-semibold pq-ink">Slots:</label>
+                  <input
+                    id="editCapacity"
+                    type="number"
+                    min={taken}
+                    className="pq-input w-24"
+                    value={dayModal.editCapacity !== undefined ? dayModal.editCapacity : capacity}
+                    onChange={(event) => setDayModal({ ...dayModal, editCapacity: event.target.value })}
+                  />
+                  {dayModal.editCapacity !== undefined && Number(dayModal.editCapacity) !== capacity && (
+                    <button type="button" className="pq-btn-primary px-3 py-1 text-sm" onClick={saveCapacity} disabled={busy}>
+                      Save
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="pq-muted text-sm mb-1">
+                {formatBranchLabel(branch?.name)} · {taken}/{capacity || "—"} reserved
+              </p>
+            )}
             <p className="text-sm font-semibold mb-4" style={{ color: queueLive ? "var(--pq-live)" : "var(--pq-ink)" }}>
               {queueHasEnded(publishedSchedule)
                 ? "Queue ended"
