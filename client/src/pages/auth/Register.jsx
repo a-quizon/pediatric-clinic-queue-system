@@ -529,19 +529,19 @@ export default function Register() {
       </div>
 
       {showConsentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 pq-backdrop-blur">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
           <div
             ref={modalRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="consent-modal-title"
-            className="pq-glass-window max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl"
+            className="pq-modal max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
           >
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto flex-1">
               <h2 id="consent-modal-title" className="text-xl font-bold mb-4">
                 Plus Queue Data Privacy Consent
               </h2>
-              <div className="space-y-4 text-sm text-[var(--pq-text-color)]">
+              <div className="space-y-4 text-sm" style={{ color: "var(--pq-ink)" }}>
                 <p>
                   Welcome to Plus Queue! We value your privacy and want to be clear about how we handle your information under the Data Privacy Act of 2012.
                 </p>
@@ -577,7 +577,7 @@ export default function Register() {
                 </div>
               </div>
 
-              <div className="mt-6 pt-6 border-t border-[var(--pq-glass-line)]">
+              <div className="mt-6 pt-6" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"
@@ -588,7 +588,7 @@ export default function Register() {
                     }}
                     className="mt-1 h-4 w-4 rounded border-gray-300 text-[var(--pq-primary)] focus:ring-[var(--pq-primary)]"
                   />
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-medium" style={{ color: "var(--pq-ink)" }}>
                     I confirm that I am the parent or legal guardian, and I have read and agree to the Data Privacy Consent.
                   </span>
                 </label>
@@ -599,8 +599,8 @@ export default function Register() {
                 )}
               </div>
             </div>
-            
-            <div className="p-4 bg-[var(--pq-glass-bg-darker)] border-t border-[var(--pq-glass-line)] flex flex-col sm:flex-row gap-3 sm:justify-end">
+
+            <div className="p-4 flex flex-col sm:flex-row gap-3 sm:justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)", background: "rgba(22,52,74,0.04)" }}>
               <button
                 type="button"
                 onClick={() => {
@@ -634,6 +634,7 @@ export default function Register() {
           </div>
         </div>
       )}
+
     </PqAuthShell>
   );
 }
