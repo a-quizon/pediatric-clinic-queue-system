@@ -127,6 +127,11 @@ export default function StaffScheduleCalendar({
   const openDay = (dateStr) => {
     if (dateStr < today) return;
     const schedule = scheduleForDate(schedules, dateStr, branch?.id, branch?.name);
+    
+    if (queueHasEnded(schedule)) {
+      return;
+    }
+    
     const closure = closureForDate(closures, dateStr, branch?.id, branch?.name) || (schedule?.dayClosed ? {
       reason: schedule.closureReason,
       note: schedule.closureNote,
@@ -159,7 +164,7 @@ export default function StaffScheduleCalendar({
       return;
     }
 
-    if (schedule?.status === "published" || schedule?.status === "completed") {
+    if (schedule?.status === "published") {
       setClosingMode(false);
       setCloseForm({
         reason: "emergency",
@@ -458,10 +463,16 @@ export default function StaffScheduleCalendar({
           const draft = schedule?.status === "draft";
           const posted = schedule?.status === "published" && !closed;
           const full = posted && dayTaken >= Number(schedule.slotCapacity || 0);
+          const ended = queueHasEnded(schedule);
+          
           let background = "transparent";
           let color = "var(--pq-ink-faint)";
           let label = "Not posted";
-          if (dateStr < today) label = "Past";
+          if (ended) {
+            background = "var(--pq-glass-fill)";
+            color = "var(--pq-ink-faint)";
+            label = "Ended";
+          } else if (dateStr < today) label = "Past";
           else if (!schedule && !closed && clinicHoursEnded(branch, dateStr, today)) label = "Hours ended";
           else if (closed) {
             background = "var(--pq-wait-wash)";
@@ -483,14 +494,15 @@ export default function StaffScheduleCalendar({
               key={dateStr}
               type="button"
               onClick={() => openDay(dateStr)}
-              disabled={isLoading}
-              className={`min-h-14 rounded-xl text-left p-1.5 ${isLoading ? 'animate-pulse opacity-60' : 'hover:brightness-95'}`}
+              disabled={isLoading || ended}
+              title={ended ? "Queue has ended" : undefined}
+              className={`min-h-14 rounded-xl text-left p-1.5 ${isLoading ? 'animate-pulse opacity-60' : ended ? 'cursor-default' : 'hover:brightness-95'}`}
               style={{
                 background,
                 color,
                 border: draft ? "1px dashed var(--pq-mark-blue)" : "1px solid var(--pq-glass-line)",
               }}
-              aria-label={`${formatManilaLong(dateStr)}, ${label}`}
+              aria-label={ended ? "Queue has ended" : `${formatManilaLong(dateStr)}, ${label}`}
             >
               <div className="text-sm font-extrabold">{Number(dateStr.slice(-2))}</div>
               <div className="text-[10px] leading-tight font-semibold">{label}</div>
