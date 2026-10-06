@@ -51,6 +51,8 @@ export default function StaffScheduleCalendar({
   lockBranch,
   onChanged,
   queuePath,
+  isLoading,
+  onMonthChange,
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -60,6 +62,13 @@ export default function StaffScheduleCalendar({
     const [year, month] = today.split("-").map(Number);
     return { year, monthIndex: month - 1 };
   });
+
+  useEffect(() => {
+    if (onMonthChange) {
+      onMonthChange(cursor);
+    }
+  }, [cursor, onMonthChange]);
+
   const [chosenBranchId, setChosenBranchId] = useState("");
   const [closures, setClosures] = useState([]);
   const [defaultCapacity, setDefaultCapacity] = useState(30);
@@ -150,7 +159,7 @@ export default function StaffScheduleCalendar({
       return;
     }
 
-    if (schedule?.status === "published") {
+    if (schedule?.status === "published" || schedule?.status === "completed") {
       setClosingMode(false);
       setCloseForm({
         reason: "emergency",
@@ -474,7 +483,8 @@ export default function StaffScheduleCalendar({
               key={dateStr}
               type="button"
               onClick={() => openDay(dateStr)}
-              className="min-h-14 rounded-xl text-left p-1.5"
+              disabled={isLoading}
+              className={`min-h-14 rounded-xl text-left p-1.5 ${isLoading ? 'animate-pulse opacity-60' : 'hover:brightness-95'}`}
               style={{
                 background,
                 color,
