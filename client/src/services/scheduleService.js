@@ -317,7 +317,7 @@ export const subscribeToUpcomingPublishedSchedules = (today, callback) => {
   });
 };
 
-export const subscribeToAllSchedules = (callback) => {
+export const subscribeToAllSchedules = (callback, onError) => {
   if (typeof callback !== "function") return () => {};
   const schedulesRef = ref(getDb(), "schedules");
   return subscribeOnValue(schedulesRef, (snapshot) => {
@@ -326,5 +326,5 @@ export const subscribeToAllSchedules = (callback) => {
       return;
     }
     callback(snapshot.val());
-  });
+  }, onError);
 };

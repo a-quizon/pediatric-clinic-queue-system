@@ -94,9 +94,6 @@ const callClaimReservation = async (payload) => {
     throw wrapped;
   }
   const body = await response.json().catch(() => ({}));
-  // #region agent log
-  fetch('http://127.0.0.1:7708/ingest/a0da62a0-b5bc-4cd3-91aa-e6028c550e99',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'98046d'},body:JSON.stringify({sessionId:'98046d',runId:'post-fix',hypothesisId:'A',location:'reservationService.js:callClaimReservation',message:'claim response',data:{ok:response.ok,status:response.status,host:(()=>{try{return new URL(response.url).host}catch{return 'bad-url'}})(),hasReservationId:Boolean(body&&body.reservationId),bodyKeys:body&&typeof body==='object'?Object.keys(body):[]},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   if (!response.ok) {
     const wrapped = new Error(body.message || "Could not reserve a slot.");
     wrapped.cause = body;
@@ -461,7 +458,7 @@ export const calculateDynamicQueuePositions = (reservations) => {
   return enrichReservationsWithState(processedReservations);
 };
 
-export const subscribeToParentReservations = (parentId, callback) => {
+export const subscribeToParentReservations = (parentId, callback, onError) => {
   if (typeof callback !== "function") return () => {};
   if (!parentId) {
     callback([]);
@@ -481,10 +478,10 @@ export const subscribeToParentReservations = (parentId, callback) => {
     const data = snapshot.val();
     const reservations = Object.entries(data).map(([id, value]) => ({ id, ...value }));
     callback(calculateDynamicQueuePositions(reservations));
-  });
+  }, onError);
 };
 
-export const subscribeToScheduleReservations = (scheduleId, callback) => {
+export const subscribeToScheduleReservations = (scheduleId, callback, onError) => {
   if (typeof callback !== "function") return () => {};
   if (!scheduleId) {
     callback([]);
@@ -504,7 +501,7 @@ export const subscribeToScheduleReservations = (scheduleId, callback) => {
     const data = snapshot.val();
     const reservations = Object.entries(data).map(([id, value]) => ({ id, ...value }));
     callback(calculateDynamicQueuePositions(reservations));
-  });
+  }, onError);
 };
 
 export const subscribeToAllReservations = (callback) => {

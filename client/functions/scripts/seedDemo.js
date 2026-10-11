@@ -109,6 +109,9 @@ function profileFor(account, uid, now) {
     profile.onboardingComplete = true;
     profile.inAppNotificationsEnabled = true;
     profile.devicePushEnabled = false;
+    profile.dataPrivacyConsent = true;
+    profile.dataPrivacyConsentVersion = "v1.0";
+    profile.dataPrivacyConsentTimestamp = now;
   }
   return profile;
 }

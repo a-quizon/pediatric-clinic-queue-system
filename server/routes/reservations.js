@@ -1,11 +1,24 @@
 const express = require("express");
-const { admin, initFirebaseAdmin, verifyIdToken } = require("../services/firebaseAdmin");
+const {
+  admin,
+  initFirebaseAdmin,
+  verifyIdToken,
+  getDemoDb,
+  isDemoToken,
+} = require("../services/firebaseAdmin");
 const { claimReservationSlot } = require("../../client/functions/claimReservationRuntime");
 const { releaseReservationForCaller } = require("../../client/functions/slotRelease");
 const { publishClinicDays } = require("../../client/functions/schedulePublishRuntime");
+const { runWithDatabase } = require("../../client/functions/rtdbRouter");
 const { notifyParentsScheduleAvailable } = require("../services/notificationEngine");
 
 const router = express.Router();
+
+/** Demo accounts must read and write the demo RTDB instance, never the live one. */
+function runForCaller(decoded, fn) {
+  if (!isDemoToken(decoded)) return fn();
+  return runWithDatabase(getDemoDb(), fn, { suppressSms: true });
+}
 
 const STATUS_BY_CODE = {
   unauthenticated: 401,
@@ -29,11 +42,13 @@ router.post("/reservations/claim", async (req, res) => {
       });
     }
 
-    const result = await claimReservationSlot({
-      admin,
-      callerUid: decoded.uid,
-      payload: req.body,
-    });
+    const result = await runForCaller(decoded, () =>
+      claimReservationSlot({
+        admin,
+        callerUid: decoded.uid,
+        payload: req.body,
+      })
+    );
     return res.json({ success: true, ...result });
   } catch (err) {
     const code = STATUS_BY_CODE[err.code] ? err.code : "internal";
@@ -58,11 +73,13 @@ router.post("/reservations/release", async (req, res) => {
       });
     }
 
-    const result = await releaseReservationForCaller({
-      admin,
-      callerUid: decoded.uid,
-      reservationId: req.body?.reservationId,
-    });
+    const result = await runForCaller(decoded, () =>
+      releaseReservationForCaller({
+        admin,
+        callerUid: decoded.uid,
+        reservationId: req.body?.reservationId,
+      })
+    );
     return res.json({ success: true, ...result });
   } catch (err) {
     const code = STATUS_BY_CODE[err.code] ? err.code : "internal";
@@ -87,11 +104,13 @@ router.post("/schedules/publish", async (req, res) => {
       });
     }
 
-    const result = await publishClinicDays({
-      admin,
-      callerUid: decoded.uid,
-      payload: req.body,
-    });
+    const result = await runForCaller(decoded, () =>
+      publishClinicDays({
+        admin,
+        callerUid: decoded.uid,
+        payload: req.body,
+      })
+    );
     return res.json({ success: true, ...result });
   } catch (err) {
     const code = STATUS_BY_CODE[err.code] ? err.code : "internal";
@@ -115,7 +134,9 @@ router.post("/schedules/notify-available", async (req, res) => {
         message: "You must be signed in.",
       });
     }
-    const roleSnap = await admin.database().ref(`users/${decoded.uid}/role`).once("value");
+    const isDemo = isDemoToken(decoded);
+    const db = isDemo ? getDemoDb() : admin.database();
+    const roleSnap = await db.ref(`users/${decoded.uid}/role`).once("value");
     const role = roleSnap.exists() ? roleSnap.val() : null;
     if (!STAFF_ROLES.has(role)) {
       return res.status(403).json({
@@ -132,6 +153,11 @@ router.post("/schedules/notify-available", async (req, res) => {
         error: "invalid-argument",
         message: "batchId is required.",
       });
+    }
+
+    // The local notification engine only reads the live database, so it would push to real parents.
+    if (isDemo) {
+      return res.json({ success: true, skipped: true, reason: "demo_database" });
     }
 
     const result = await notifyParentsScheduleAvailable({

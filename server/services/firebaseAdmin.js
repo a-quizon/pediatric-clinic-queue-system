@@ -70,6 +70,38 @@ function getDb() {
   return admin.database();
 }
 
+const DEMO_APP_NAME = "demo";
+
+function demoDatabaseUrl() {
+  if (process.env.DEMO_RTDB_URL) return process.env.DEMO_RTDB_URL;
+  const projectId =
+    process.env.FIREBASE_PROJECT_ID ||
+    process.env.GCLOUD_PROJECT ||
+    "pediatric-clinic-queue-testing";
+  return `https://${projectId}-demo.asia-southeast1.firebasedatabase.app`;
+}
+
+/** Demo RTDB instance, opened with the same service account as the default app. */
+function getDemoDb() {
+  const defaultApp = initFirebaseAdmin();
+  const existing = admin.apps.find((app) => app && app.name === DEMO_APP_NAME);
+  const demoApp =
+    existing ||
+    admin.initializeApp(
+      {
+        credential: defaultApp.options.credential,
+        projectId: defaultApp.options.projectId,
+        databaseURL: demoDatabaseUrl(),
+      },
+      DEMO_APP_NAME
+    );
+  return demoApp.database();
+}
+
+function isDemoToken(decoded) {
+  return decoded?.isDemo === true;
+}
+
 async function verifyIdToken(authHeader) {
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return null;
@@ -89,6 +121,8 @@ module.exports = {
   admin,
   initFirebaseAdmin,
   getDb,
+  getDemoDb,
+  isDemoToken,
   verifyIdToken,
   hasServiceAccount,
 };
