@@ -13,6 +13,7 @@ import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
 import { canDoctorEditUserProfile } from "../../utils/doctorUserManagementPolicy";
 import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
+import { mapPasswordResetError } from "../../utils/authErrors";
 import ConfirmationModal from "../common/ConfirmationModal";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
@@ -212,13 +213,11 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
           toast.success(`Password reset email sent to ${user.email}`);
           closeConfirm();
         } catch (error) {
-          console.error(error);
-          if (error.code === "rate_limited") {
-            toast.error(error.message || "You've reached today's password reset limit. Please try again tomorrow.");
-          } else if (error.code === "missing_email") {
+          console.error("Password reset failed:", error?.code, error);
+          if (error.code === "missing_email") {
             toast.error(error.message);
           } else {
-            toast.error("Unable to send the password reset email. Please try again.");
+            toast.error(mapPasswordResetError(error));
           }
         } finally {
           setIsResettingPassword(false);

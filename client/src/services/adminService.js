@@ -7,6 +7,7 @@ import { getDb } from "../firebase/database";
 import { auth } from "../firebase/auth";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { sendPasswordResetLink } from "./passwordResetService";
+import { getPasswordResetActionSettings } from "../utils/appUrl";
 import {
   assertDoctorCanUpdateUserProfile,
   buildSecretaryPasswordResetAuditDescription,
@@ -269,11 +270,7 @@ export const sendAdminPasswordResetEmail = async (email) => {
     throw err;
   }
 
-  const actionCodeSettings = {
-    url: `${window.location.origin}/reset-password`,
-    handleCodeInApp: false
-  };
-  return sendPasswordResetLink(email, actionCodeSettings);
+  return sendPasswordResetLink(email, getPasswordResetActionSettings({ handleCodeInApp: false }));
 };
 
 /**

@@ -4,6 +4,8 @@ import { Mail, ArrowRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { PqAuthShell, PqBrand } from "../../components/parent/pqUi";
 import { sendPasswordResetLink } from "../../services/passwordResetService";
+import { getPasswordResetActionSettings } from "../../utils/appUrl";
+import { mapPasswordResetError } from "../../utils/authErrors";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -15,26 +17,12 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      const actionCodeSettings = {
-        url: `${window.location.origin}/reset-password`,
-        handleCodeInApp: true
-      };
-      await sendPasswordResetLink(email, actionCodeSettings);
+      await sendPasswordResetLink(email, getPasswordResetActionSettings({ handleCodeInApp: true }));
       setIsSuccess(true);
       toast.success("Password reset email sent.");
     } catch (err) {
-      console.error('Password reset failed:', err);
-      if (err.code === 'rate_limited') {
-        toast.error(err.message || "You've reached today's password reset limit. Please try again tomorrow.");
-      } else if (err.code === 'auth/too-many-requests') {
-        toast.error("Too many requests. Please wait a moment before trying again.");
-      } else if (err.code === 'auth/user-not-found') {
-        toast.error("No user found with this email address.");
-      } else if (err.code === 'auth/invalid-email' || err.code === 'invalid_email') {
-        toast.error("Please enter a valid email address.");
-      } else {
-        toast.error(err.message || "Unable to send reset email. Please try again.");
-      }
+      console.error('Password reset failed:', err?.code, err);
+      toast.error(mapPasswordResetError(err));
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,12 @@
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "../firebase/auth";
 import { getPushApiBase } from "./pushService";
+import { getPasswordResetActionSettings } from "../utils/appUrl";
+
+const CONTINUE_URI_ERROR_CODES = new Set([
+  "auth/unauthorized-continue-uri",
+  "auth/invalid-continue-uri",
+]);
 
 export const PASSWORD_RESET_DAILY_LIMIT_MESSAGE =
   "You've reached today's password reset limit. Please try again tomorrow.";
@@ -66,7 +72,22 @@ async function claimPasswordResetSlot(email) {
  * Claim one daily reset slot, then send Firebase's built-in reset email.
  * Used by Forgot Password (all roles) and Admin Reset Password.
  */
-export async function sendPasswordResetLink(email, actionCodeSettings) {
-  await claimPasswordResetSlot(email);
-  return sendPasswordResetEmail(auth, String(email || "").trim(), actionCodeSettings);
+export async function sendPasswordResetLink(
+  email,
+  actionCodeSettings = getPasswordResetActionSettings()
+) {
+  const trimmed = String(email || "").trim();
+  await claimPasswordResetSlot(trimmed);
+  try {
+    return await sendPasswordResetEmail(auth, trimmed, actionCodeSettings);
+  } catch (err) {
+    if (!CONTINUE_URI_ERROR_CODES.has(err?.code)) throw err;
+    // Domain is missing from Firebase Auth > Authorized domains; fall back to Firebase's hosted reset page.
+    console.error(
+      `[PasswordReset] Continue URL rejected (${err.code}): ${actionCodeSettings?.url}. ` +
+        "Add its domain under Firebase Console > Authentication > Settings > Authorized domains.",
+      err
+    );
+    return sendPasswordResetEmail(auth, trimmed);
+  }
 }
