@@ -2,7 +2,10 @@ const DAILY_LIMIT = 5;
 const TIME_ZONE = "Asia/Manila";
 const LIMIT_MESSAGE =
   "You've reached today's password reset limit. Please try again tomorrow.";
+const ADMIN_RESET_BLOCKED_MESSAGE =
+  "Password reset is not available for this account. Contact the system owner.";
 
+const admin = require("firebase-admin");
 const { getRtdb } = require("./rtdbRouter");
 
 function getDb() {
@@ -38,11 +41,28 @@ function limitError() {
   return err;
 }
 
+/** System Admin credentials are managed via the Admin SDK only (docs/AdminBreakGlass.md). */
+async function assertResetAllowed(email, { auth, db }) {
+  let record;
+  try {
+    record = await auth.getUserByEmail(email);
+  } catch (err) {
+    if (err?.code === "auth/user-not-found") return;
+    throw err;
+  }
+  const roleSnap = await db.ref(`users/${record.uid}/role`).once("value");
+  if (roleSnap.val() === "admin") {
+    const err = new Error(ADMIN_RESET_BLOCKED_MESSAGE);
+    err.code = "auth_denied";
+    throw err;
+  }
+}
+
 /**
  * Atomically consume one password-reset slot for today (Asia/Manila).
- * Shared by Forgot Password and Admin Reset Password.
+ * Shared by Forgot Password and Admin Reset Password. Admin accounts are refused.
  */
-async function claimPasswordResetSlot(rawEmail) {
+async function claimPasswordResetSlot(rawEmail, deps = {}) {
   const email = normalizeEmail(rawEmail);
   if (!email || !isValidEmail(email)) {
     const err = new Error("Please enter a valid email address.");
@@ -50,8 +70,11 @@ async function claimPasswordResetSlot(rawEmail) {
     throw err;
   }
 
+  const db = deps.db || getDb();
+  await assertResetAllowed(email, { auth: deps.auth || admin.auth(), db });
+
   const key = emailToKey(email);
-  const limitRef = getDb().ref(`passwordResetLimits/${key}`);
+  const limitRef = db.ref(`passwordResetLimits/${key}`);
   const today = manilaDateYYYYMMDD();
 
   const result = await limitRef.transaction((current) => {
@@ -83,6 +106,7 @@ async function claimPasswordResetSlot(rawEmail) {
 
 module.exports = {
   claimPasswordResetSlot,
+  ADMIN_RESET_BLOCKED_MESSAGE,
   DAILY_LIMIT,
   TIME_ZONE,
   LIMIT_MESSAGE,

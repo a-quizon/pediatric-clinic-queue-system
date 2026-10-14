@@ -26,6 +26,7 @@ function mapAuthHelperError(err) {
     invalid_input: 400,
     invalid_email: 400,
     user_not_found: 404,
+    auth_denied: 403,
     rate_limited: 429,
   };
   return {
@@ -72,7 +73,7 @@ router.post("/auth/password-reset/claim", passwordResetClaimLimiter, async (req,
     const result = await claimPasswordResetSlot(req.body?.email);
     return res.json(result);
   } catch (err) {
-    if (err.code !== "rate_limited" && err.code !== "invalid_email") {
+    if (err.code !== "rate_limited" && err.code !== "invalid_email" && err.code !== "auth_denied") {
       console.error("[auth] password-reset/claim:", err.message);
     }
     const mapped = mapAuthHelperError(err);

@@ -27,7 +27,6 @@ const TAB_ROOTS = new Set([
   "/admin/branches",
   "/admin/audit-logs",
   "/admin/reports",
-  "/admin/profile",
 ]);
 
 export function normalizePathname(pathname) {

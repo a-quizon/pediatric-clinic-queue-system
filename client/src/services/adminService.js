@@ -12,6 +12,7 @@ import {
   assertDoctorCanUpdateUserProfile,
   buildSecretaryPasswordResetAuditDescription,
 } from "../utils/doctorUserManagementPolicy";
+import { findActiveDoctor } from "../utils/doctorAccountPolicy";
 
 const PROFILE_UPDATE_ALLOWLIST = ["name", "phone", "assignedBranch", "assignedBranchId"];
 
@@ -24,16 +25,62 @@ async function getCallerRole() {
 export const getActiveDoctor = async () => {
   const snapshot = await get(ref(getDb(), "users"));
   if (!snapshot.exists()) return null;
-  const users = Object.values(snapshot.val());
-  return users.find(u => u.role === "doctor" && u.status === "active");
+  return findActiveDoctor(snapshot.val());
+};
+
+const DOCTOR_CREATE_CLIENT_ERRORS = new Set([400, 401, 403, 409]);
+
+/**
+ * Admin-only: creates the single active Doctor through the Admin SDK (Express mirror in dev,
+ * `createDoctorAccount` callable in hosted builds). The server enforces the one-doctor rule
+ * and writes the audit entry; client rules reject role "doctor" writes.
+ */
+export const createDoctorAccount = async ({ name, email, phone, password }) => {
+  if (!auth.currentUser) throw new Error("Authentication required.");
+  const payload = { name, email, phone, password };
+  const token = await auth.currentUser.getIdToken();
+  const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+
+  try {
+    const res = await fetch(`${apiBase}/api/admin/create-doctor`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const isJson = (res.headers.get("content-type") || "").includes("application/json");
+    if (res.ok && isJson) {
+      return await res.json();
+    }
+    if (isJson && DOCTOR_CREATE_CLIENT_ERRORS.has(res.status)) {
+      const body = await res.json().catch(() => ({}));
+      const err = new Error(body.error || "Failed to create doctor account.");
+      err.status = res.status;
+      throw err;
+    }
+  } catch (err) {
+    if (!(err instanceof TypeError)) throw err;
+  }
+
+  const functions = getFunctions(app, "asia-southeast1");
+  const callCreate = httpsCallable(functions, "createDoctorAccount");
+  try {
+    const response = await callCreate(payload);
+    return response?.data || response;
+  } catch (err) {
+    throw new Error(err?.message || "Failed to create doctor account.", { cause: err });
+  }
 };
 
 export const createStaffAccount = async (staffData) => {
-  // In-app staff creation is Secretary-only. Doctor accounts are created via Admin SDK / break-glass.
+  if (staffData?.role === "doctor") {
+    return createDoctorAccount(staffData);
+  }
+  // Admin accounts are Admin SDK only (docs/AdminBreakGlass.md).
   if (staffData?.role !== "secretary") {
-    throw new Error(
-      "Only Secretary accounts can be created in the app. Doctor accounts require break-glass recovery."
-    );
+    throw new Error("Only Secretary or Doctor accounts can be created in the app.");
   }
 
   if (!staffData.assignedBranch) {

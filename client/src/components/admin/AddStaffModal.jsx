@@ -1,14 +1,21 @@
 import { useState, useEffect } from "react";
-import { X, UserPlus, UserCog, Mail, Phone, Lock, MapPin, Eye, EyeOff } from "lucide-react";
+import { X, UserPlus, UserCog, Mail, Phone, Lock, MapPin, Eye, EyeOff, Stethoscope, Info } from "lucide-react";
 import toast from "react-hot-toast";
-import { createStaffAccount } from "../../services/adminService";
+import { createStaffAccount, getActiveDoctor } from "../../services/adminService";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { formatName } from "../../utils/stringUtils";
 import { usePasswordValidation } from "../../utils/passwordUtils";
 import { formatToE164 } from "../../utils/phoneUtils";
+import { ACTIVE_DOCTOR_EXISTS_MESSAGE } from "../../utils/doctorAccountPolicy";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
+const ROLE_OPTIONS = [
+  { value: "secretary", label: "Secretary", icon: UserCog },
+  { value: "doctor", label: "Doctor", icon: Stethoscope },
+];
+
 export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
+  const [role, setRole] = useState("secretary");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -22,6 +29,9 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [branches, setBranches] = useState([]);
+  const [doctorCheck, setDoctorCheck] = useState({ loading: true, hasActiveDoctor: true });
+  const isDoctor = role === "doctor";
+  const doctorBlocked = doctorCheck.loading || doctorCheck.hasActiveDoctor;
 
   const { isValid: isPasswordValid, errors: passwordErrors, isChecking } = usePasswordValidation(formData.password);
 
@@ -32,9 +42,20 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   useHistoryOverlay(isOpen, onClose);
 
   useEffect(() => {
-    if (isOpen) {
-      getBranchConfigurations().then(setBranches).catch(console.error);
-    }
+    if (!isOpen) return undefined;
+    let cancelled = false;
+    getBranchConfigurations().then(setBranches).catch(console.error);
+    getActiveDoctor()
+      .then((doctor) => {
+        if (!cancelled) setDoctorCheck({ loading: false, hasActiveDoctor: Boolean(doctor) });
+      })
+      .catch((err) => {
+        console.error(err);
+        if (!cancelled) setDoctorCheck({ loading: false, hasActiveDoctor: true });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -48,6 +69,8 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
       confirmPassword: "",
       assignedBranch: ""
     });
+    setRole("secretary");
+    setDoctorCheck({ loading: true, hasActiveDoctor: true });
     setShowPassword(false);
     setShowConfirmPassword(false);
   };
@@ -79,7 +102,9 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
     if (!isPasswordValid) return "Password does not meet requirements.";
     if (password !== confirmPassword) return "Passwords do not match.";
 
-    if (!assignedBranch) {
+    if (isDoctor) {
+      if (doctorBlocked) return ACTIVE_DOCTOR_EXISTS_MESSAGE;
+    } else if (!assignedBranch) {
       return "Assigned Branch is required for Secretary.";
     }
 
@@ -98,18 +123,25 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
 
     setLoading(true);
     try {
-      const selectedBranch = branches.find((b) => b.name === formData.assignedBranch);
-      await createStaffAccount({
-        role: "secretary",
+      const base = {
+        role,
         name: formatName(formData.name),
         email: formData.email.trim(),
         phone: formatToE164(formData.phone),
         password: formData.password,
-        assignedBranch: selectedBranch?.name || formData.assignedBranch,
-        assignedBranchId: selectedBranch?.id || null
-      });
+      };
+      if (isDoctor) {
+        await createStaffAccount(base);
+      } else {
+        const selectedBranch = branches.find((b) => b.name === formData.assignedBranch);
+        await createStaffAccount({
+          ...base,
+          assignedBranch: selectedBranch?.name || formData.assignedBranch,
+          assignedBranchId: selectedBranch?.id || null
+        });
+      }
 
-      toast.success("Secretary account created successfully!");
+      toast.success(isDoctor ? "Doctor account created successfully!" : "Secretary account created successfully!");
       resetState();
       onSuccess();
     } catch (error) {
@@ -140,7 +172,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                 Add Staff
               </h2>
               <p className="text-xs font-semibold pq-muted uppercase tracking-wider mt-1">
-                Create Secretary
+                {isDoctor ? "Create Doctor" : "Create Secretary"}
               </p>
             </div>
           </div>
@@ -157,6 +189,35 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
 
         <div className="p-6 overflow-y-auto pq-scroll-y">
           <form onSubmit={handleSubmit} id="staff-form" className="space-y-4">
+            <fieldset>
+              <legend className="pq-label">Role <span style={{ color: "var(--pq-alert)" }}>*</span></legend>
+              <div className="pq-tablist w-full" role="radiogroup" aria-label="Staff role">
+                {ROLE_OPTIONS.map((option) => {
+                  const disabled = loading || (option.value === "doctor" && doctorBlocked);
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={role === option.value}
+                      disabled={disabled}
+                      onClick={() => setRole(option.value)}
+                      className="pq-tab flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option.icon className="w-4 h-4" aria-hidden="true" />
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {!doctorCheck.loading && doctorCheck.hasActiveDoctor ? (
+                <p className="text-xs pq-muted mt-2 flex items-start gap-1.5">
+                  <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" />
+                  {ACTIVE_DOCTOR_EXISTS_MESSAGE}
+                </p>
+              ) : null}
+            </fieldset>
+
             <div>
               <label htmlFor="staff-name" className="pq-label">Full Name <span style={{ color: "var(--pq-alert)" }}>*</span></label>
               <div className="relative">
@@ -219,6 +280,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
               </div>
             </div>
 
+            {!isDoctor && (
             <div>
               <label htmlFor="staff-branch" className="pq-label">Assigned Branch <span style={{ color: "var(--pq-alert)" }}>*</span></label>
               <div className="relative">
@@ -241,6 +303,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
                 </select>
               </div>
             </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -320,7 +383,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
           <button
             type="submit"
             form="staff-form"
-            disabled={loading || !isPasswordFormValid || isChecking}
+            disabled={loading || !isPasswordFormValid || isChecking || (isDoctor && doctorBlocked)}
             className="pq-btn-primary"
           >
             {loading ? "Creating..." : "Create Account"}

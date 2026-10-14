@@ -29,6 +29,8 @@ import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import toast from "react-hot-toast";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleDoctorAudit } from "../../components/onboarding/DoctorTourSampleViews";
+import { AUDIT_ROLE_FILTER_OPTIONS, matchesAuditRoleFilter } from "../../utils/auditLogFilters";
+import Pagination from "../../components/common/Pagination";
 
 const roleChip = (role) => {
   if (role === "doctor") return "pq-chip pq-chip-info";
@@ -348,7 +350,7 @@ export default function AuditLogs() {
   }, [logs, detailLog]);
 
   if (redirectToOverview) {
-    return <Navigate to="/doctor/reports?tab=overview" replace />;
+    return <Navigate to="/admin/reports" replace />;
   }
 
   const filteredLogs = logs.filter((log) => {
@@ -357,7 +359,7 @@ export default function AuditLogs() {
                           (log.description && log.description.toLowerCase().includes(term)) ||
                           (log.metadata?.parentName && String(log.metadata.parentName).toLowerCase().includes(term));
     const matchesCategory = categoryFilter === "all" || log.category === categoryFilter;
-    const matchesRole = roleFilter === "all" || log.actorRole === roleFilter;
+    const matchesRole = matchesAuditRoleFilter(log, roleFilter);
 
     return matchesSearch && matchesCategory && matchesRole;
   });
@@ -499,10 +501,9 @@ export default function AuditLogs() {
               onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
               className="pq-input pr-10 appearance-none cursor-pointer min-w-[9rem]"
             >
-              <option value="all">All Roles</option>
-              <option value="doctor">Doctor</option>
-              <option value="secretary">Secretary</option>
-              <option value="system">System</option>
+              {AUDIT_ROLE_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
             <SelectChevron />
           </div>
@@ -639,54 +640,30 @@ export default function AuditLogs() {
               </table>
             </div>
 
-            <div
-              className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-4 gap-4 md:flex-none z-10"
-              style={{ borderTop: "1px solid var(--pq-glass-line)" }}
+            <Pagination
+              page={safePage}
+              totalPages={totalPages}
+              totalItems={filteredLogs.length}
+              pageSize={ITEMS_PER_PAGE}
+              onPageChange={setCurrentPage}
+              itemLabel={filteredLogs.length === 1 ? "record" : "records"}
             >
-              <div className="text-sm pq-muted font-medium text-center sm:text-left">
-                Showing {(safePage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(safePage * ITEMS_PER_PAGE, filteredLogs.length)} of {filteredLogs.length} matching {filteredLogs.length === 1 ? "record" : "records"}
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={safePage === 1}
-                    className="pq-btn-secondary"
-                  >
-                    Previous
-                  </button>
-                  <span className="text-sm font-medium pq-muted px-2">
-                    Page {safePage} of {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={safePage === totalPages}
-                    className="pq-btn-secondary"
-                  >
-                    Next
-                  </button>
-                </div>
-
-                {hasMoreLogs && (
-                  <button
-                    type="button"
-                    onClick={() => setLogLimit((l) => l + 100)}
-                    disabled={loading}
-                    className="pq-btn-secondary"
-                  >
-                    {loading ? (
-                      <span className="pq-spinner w-4 h-4 border-2" aria-hidden="true" />
-                    ) : (
-                      <ArrowDownToLine className="w-4 h-4" aria-hidden="true" />
-                    )}
-                    Load Older Logs
-                  </button>
-                )}
-              </div>
-            </div>
+              {hasMoreLogs && (
+                <button
+                  type="button"
+                  onClick={() => setLogLimit((l) => l + 100)}
+                  disabled={loading}
+                  className="pq-btn-secondary"
+                >
+                  {loading ? (
+                    <span className="pq-spinner w-4 h-4 border-2" aria-hidden="true" />
+                  ) : (
+                    <ArrowDownToLine className="w-4 h-4" aria-hidden="true" />
+                  )}
+                  Load Older Logs
+                </button>
+              )}
+            </Pagination>
           </>
         ) : (
           <div className="flex flex-col items-center justify-center p-12 text-center md:flex-1">

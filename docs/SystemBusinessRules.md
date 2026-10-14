@@ -14,7 +14,8 @@ The Pediatric Clinic Queue Management System is designed to digitize and orchest
 * **Parent / Guardian**: The end-user who consumes clinic services. They browse available schedules, reserve slots, monitor their dynamic queue position remotely, and bring the patient to the clinic for QR validation.
 * **Secretary**: The frontline branch manager. They manage open clinic days for their assigned branch (hold/close/resume, capacity overrides), start the clinic queue, physically verify patient arrivals (Check In), enforce attendance policies (Penalize, including walk-ins already marked checked-in), control the flow of patients into the doctor's room (Send to Doctor), and can pause/resume/close/end the live session from Manage Queue.
 * **Doctor**: The primary medical provider. They can manage open clinic days for any branch (hold/close/resume, capacity overrides), start the clinic queue, control the live consultation room (pause/resume/close queue via Queue Control — Secretary can trigger the same four session actions), add optional consultation notes, and finalize medical visits (Complete Consultation).
-* **Doctor (clinic admin)**: The practicing doctor is also the clinic administrator. There is one active doctor system-wide. They manage Secretary accounts, define Branches, and may view audit logs and clinic-wide reports. They also run the queue and schedules. Doctor accounts are not created in the app (see break-glass recovery). 
+* **System Admin**: A separate, non-clinical role (`role: "admin"`, no `assignedBranch`) with its own `/admin` module: Dashboard, Users, Branches, Audit Logs, and Reports. One or two admins may exist. Admin accounts are created only with the Admin SDK (`docs/AdminBreakGlass.md`); the admin cannot change their own profile or password in the app (no admin Profile page, and Forgot Password is refused for admin emails).
+* **Doctor**: There is exactly one active doctor system-wide. The doctor runs schedules, the queue, consultations, and Reports (`/doctor/*`) and no longer has staff, branch, or audit-log management pages.
 
 ---
 
@@ -84,7 +85,7 @@ Slot availability strictly dictates clinic capacity.
 
 ## 9. Branch Management
 Branches represent the physical infrastructure of the business.
-* **Configuration**: The Doctor (clinic admin) defines Branch Names, Clinic Addresses, and operational metadata.
+* **Configuration**: The System Admin defines Branch Names, Clinic Addresses, and operational metadata.
 * **Secretary Assignment**: Secretaries are strictly bound to a single Branch Configuration, ensuring they only see data relevant to their physical location.
 * **Schedule Creation**: Secretaries publish clinic days for their assigned branch (publish range, copy previous week, or post a day). Doctors may publish or close days for any branch.
 
@@ -92,11 +93,12 @@ Branches represent the physical infrastructure of the business.
 
 ## 10. User Management
 User Management ensures role-based access control.
-* **Doctor (clinic admin)**: Creates Secretary accounts only (role is fixed server-side / in service; client-supplied `doctor` or `admin` is rejected), assigns secretaries to Branches, deactivates Secretary and Parent accounts (`deactivationSource: admin` meaning administrative deactivation), and may permanently delete Secretary and Parent accounts. Doctor accounts cannot be created, deactivated, or deleted in the app; use Admin SDK break-glass for initial setup or replacement. Historical reservations and audit records are never physically deleted. The Doctor also runs clinical operations (schedules, queue, consultations).
-* **Secretary**: Staff accounts created by the Doctor.
+* **System Admin**: Manages users from `/admin/users`. Creates Secretary accounts (assigned to a Branch) and the **Doctor** account. Client-supplied `admin` is always rejected, so there is no Admin option in Add Staff. Deactivates Secretary and Parent accounts (`deactivationSource: admin` meaning administrative deactivation) and may permanently delete Secretary and Parent accounts. Historical reservations and audit records are never physically deleted.
+* **One active doctor**: The admin may create a Doctor only when no active doctor exists (`role: "doctor"`, `status: "active"`, not `isDeleted`); deactivated or archived doctors do not count. The UI disables the Doctor option with an explanation, and the server enforces it again: `createDoctorAccount` (Cloud Function callable) and `POST /api/admin/create-doctor` (Express mirror) check, take a short-lived lock at `systemLocks/doctorProvisioning`, re-check, then create the Auth user and profile. Concurrent requests get a 409. The doctor profile has no `assignedBranch`. Each creation writes a `USER_CREATED` audit entry with `actorRole: "admin"`. Doctor deactivation/replacement is still break-glass only (`docs/AdminBreakGlass.md`).
+* **Secretary**: Staff accounts created by the System Admin.
 * **Parent**: Self-registering consumer accounts that authenticate via the public-facing app. New parents must verify their **phone number via SMS OTP** before account creation, then verify their email and create at least one child profile before entering the parent portal. Login uses a single **Email or Phone Number** field plus **Password** (phone is resolved to the account email server-side). Existing parents without that onboarding flag are grandfathered. Parents may self-deactivate (`status: inactive`, `deactivationSource: self`); logging in reactivates the account. Parents may soft-delete their account: Firebase Auth is revoked, the profile is marked `isDeleted`, and historical queue/appointment records are retained for analytics. Active reservations are cancelled on deactivate and forfeited on delete so they do not hold clinic slots.
-* **Password reset**: Forgot Password (all roles) and Doctor “Reset Password” (user management) share a **5-request daily cap per email**, using server time in **Asia/Manila**. The 6th request that day is blocked with a “try again tomorrow” message. Completing a reset from the email link does not count. This is separate from the SMS OTP resend cooldown.
-* **Legacy Admin role**: No longer assigned in the app. During a transition release the system may still accept an existing `role: "admin"` account for clinic-admin powers; deactivate that login after the Doctor is verified. 
+* **Password reset**: Forgot Password and Admin “Reset Password” (user management) share a **5-request daily cap per email**, using server time in **Asia/Manila**. The 6th request that day is blocked with a “try again tomorrow” message. Completing a reset from the email link does not count. This is separate from the SMS OTP resend cooldown. The reset claim endpoint refuses emails that belong to a `role: "admin"` account (403); admin credentials are reset with the Admin SDK only.
+* **Dashboard “Active Staff”**: Counts only active `doctor` and `secretary` accounts (excludes admins, parents, inactive, and deleted accounts).
 
 ---
 
@@ -141,7 +143,8 @@ When conflicting business operations arise, the system obeys this hierarchy:
 * **One Active Consultation**: Only one patient may be `with_doctor` at a time.
 * **Secretary Branch Isolation**: A Secretary can only view and manage the queue for their assigned branch.
 * **Schedule Ownership**: Secretary and Doctor may hold, close, resume, adjust capacity, and start clinic schedules. Secretaries are locked to their assigned branch; Doctors may operate on any branch. The Doctor also retains live Queue Control (pause/resume/close) and Complete Consultation.
-* **Doctor Exclusivity**: Only the Doctor (clinic admin) can create or modify staff accounts and branches, and read the full audit log.
+* **Admin Exclusivity**: Only the System Admin can create or modify staff accounts and branches, and read the full audit log (filterable by actor role, including Admin).
+* **Reports**: Doctor and Admin Reports share one filter bar: branch chips (default **All**) and an inclusive From/To date range with presets (Today, Last 7 days, Last 30 days, This month, All time), Clear, and From ≤ To validation. Days use **Asia/Manila** boundaries, and charts, totals, and tables all follow the range. **Session History** (completed sessions, newest first, paginated) is shown to the Doctor (rows open the session's reservations) and to the Admin as **read-only** (no drill-down). *Deviation:* the original role split kept session history Doctor-only; admin read-only access was added in the Phase 1 follow-up.
 * **Parent Immutability**: Parents cannot modify or cancel reservations once they are physically `checked_in`.
 
 ---

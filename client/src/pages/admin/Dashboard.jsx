@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { CalendarDays, MapPin, Users, User, Activity, Clock } from "lucide-react";
-import { ref, query, limitToLast } from "firebase/database";
+import { ref, query, orderByChild, limitToLast } from "firebase/database";
 import { getDb } from "../../firebase/database";
 import { subscribeOnValue } from "../../firebase/rtdbSubscribe";
 import { PqSpinner } from "../../components/parent/pqUi";
 import { manilaDateString } from "../../utils/manilaDate";
+import { countActiveClinicStaff } from "../../utils/staffCounts";
 
-const PREVIEW_LOG_COUNT = 8;
+const PREVIEW_LOG_COUNT = 10;
 const PREVIEW_BRANCH_COUNT = 4;
 
 const formatTime = (timeStr) => {
@@ -146,9 +147,7 @@ export default function Dashboard() {
 
       const registeredParents = usersList.filter((u) => u.role === "parent").length;
 
-      const activeStaff = usersList.filter((u) =>
-        (u.role === "admin" || u.role === "doctor" || u.role === "secretary") && u.status === "active"
-      ).length;
+      const activeStaff = countActiveClinicStaff(usersList);
 
       const mappedBranches = Object.entries(branchesData || {}).map(([id, value]) => ({
         id,
@@ -209,7 +208,11 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const auditRef = query(ref(getDb(), "auditLogs"), limitToLast(PREVIEW_LOG_COUNT));
+    const auditRef = query(
+      ref(getDb(), "auditLogs"),
+      orderByChild("timestamp"),
+      limitToLast(PREVIEW_LOG_COUNT)
+    );
     const unsubscribe = subscribeOnValue(auditRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
@@ -217,8 +220,8 @@ export default function Dashboard() {
           id: key,
           ...data[key]
         }));
-        logsList.sort((a, b) => b.timestamp - a.timestamp);
-        setRecentLogs(logsList.slice(0, PREVIEW_LOG_COUNT));
+        logsList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        setRecentLogs(logsList);
       } else {
         setRecentLogs([]);
       }

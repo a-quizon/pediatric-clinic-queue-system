@@ -1,8 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getDb } from '../firebase/database';
 import { ref, get } from 'firebase/database';
+import {
+  isDateInRange,
+  isTimestampInRange,
+  rangeSpanDays,
+  timestampToManilaDate,
+} from '../utils/reportDateRange';
+import { isCompletedSchedule } from '../utils/reportSessions';
 
-export const useAdminReportsData = () => {
+/** System-wide KPIs/charts for an inclusive Manila date range (`range: null` → no data while invalid). */
+export const useAdminReportsData = ({ range = {} } = {}) => {
   const [data, setData] = useState({
     users: [],
     schedules: [],
@@ -10,8 +18,6 @@ export const useAdminReportsData = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const [dateRange, setDateRange] = useState("This Month"); // "This Month", "Last 3 Months", "This Year", "All Time"
 
   // Fetch only once on mount
   useEffect(() => {
@@ -58,37 +64,20 @@ export const useAdminReportsData = () => {
     fetchData();
   }, []);
 
-  // Compute metrics based on dateRange
   const metrics = useMemo(() => {
-    if (!data.users.length && !data.schedules.length && !data.reservations.length) {
+    if (!range || (!data.users.length && !data.schedules.length && !data.reservations.length)) {
       return { kpis: null, adoptionData: [], branchData: [], outcomeData: [], hasData: false };
     }
 
-    const now = new Date();
-    let startDate = new Date(0); // All time
+    // 1. Filter by inclusive Manila date range
+    const parents = data.users.filter(
+      (u) => u.role === "parent" && isTimestampInRange(u.createdAt, range)
+    );
 
-    if (dateRange === "This Month") {
-      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-    } else if (dateRange === "Last 3 Months") {
-      startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-    } else if (dateRange === "This Year") {
-      startDate = new Date(now.getFullYear(), 0, 1);
-    }
-
-    // 1. Filter Data by Date
-    // Users
-    const filteredUsers = data.users.filter(u => {
-      const createdAt = u.createdAt ? new Date(u.createdAt) : new Date(0);
-      return createdAt >= startDate;
-    });
-
-    // Schedules
-    const filteredSchedules = data.schedules.filter(s => {
-      const clinicDate = s.clinicDate ? new Date(s.clinicDate) : new Date(0);
-      // We only want completed sessions for utilization/outcomes
-      const isCompleted = s.status === 'completed' || s.queueStatus === 'completed' || s.queueStatus === 'ended';
-      return clinicDate >= startDate && isCompleted;
-    });
+    // Only completed sessions count for utilization/outcomes
+    const filteredSchedules = data.schedules.filter(
+      (s) => isCompletedSchedule(s) && isDateInRange(s.clinicDate, range)
+    );
 
     const validScheduleIds = new Set(filteredSchedules.map(s => s.id));
 
@@ -96,31 +85,25 @@ export const useAdminReportsData = () => {
     const filteredReservations = data.reservations.filter(r => validScheduleIds.has(r.scheduleId));
 
     // 2. Compute KPIs
-    const totalParents = data.users.filter(u => u.role === "parent").length;
+    const totalParents = parents.length;
     const totalSessions = filteredSchedules.length;
     const totalReservations = filteredReservations.length;
 
-    // 3. Parent Adoption Trend
+    // 3. Parent Adoption Trend — daily buckets for short ranges, monthly otherwise
+    const byDay = rangeSpanDays(range) <= 92;
     const adoptionMap = {};
-    const parents = filteredUsers.filter(u => u.role === "parent");
-    
     parents.forEach(p => {
-      const d = p.createdAt ? new Date(p.createdAt) : new Date(0);
-      // Format by month/year for macro view (e.g., "Aug 2026")
-      // If date range is "This Month" or "Last 3 Months", we format by day (e.g., "Aug 1")
-      let key = "";
-      if (dateRange === "This Month" || dateRange === "Last 3 Months") {
-        key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      } else {
-        key = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      }
-      
-      if (!adoptionMap[key]) adoptionMap[key] = { dateKey: d.getTime(), label: key, users: 0 };
-      adoptionMap[key].users += 1;
+      const day = timestampToManilaDate(p.createdAt);
+      const sortKey = byDay ? day : day.slice(0, 7);
+      const label = byDay
+        ? new Date(`${day}T04:00:00Z`).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric' })
+        : new Date(`${sortKey}-01T04:00:00Z`).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', year: 'numeric' });
+      if (!adoptionMap[sortKey]) adoptionMap[sortKey] = { sortKey, label, users: 0 };
+      adoptionMap[sortKey].users += 1;
     });
 
     const adoptionData = Object.values(adoptionMap)
-      .sort((a, b) => a.dateKey - b.dateKey)
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
       .map(item => ({ date: item.label, users: item.users }));
 
     // 4. Branch Utilization
@@ -183,15 +166,11 @@ export const useAdminReportsData = () => {
       outcomeData,
       hasData
     };
-  }, [data, dateRange]);
+  }, [data, range]);
 
   return {
     loading,
     error,
     metrics,
-    filters: {
-      dateRange,
-      setDateRange
-    }
   };
 };

@@ -1,6 +1,9 @@
 # Clinic Admin Break-Glass Recovery
 
-Use when the **Doctor** cannot sign in (forgotten password and Forgot Password failed, Auth disabled) or when a **Doctor account must be created or replaced**. In-app User Management cannot create, deactivate, or delete Doctor accounts.
+Use when the **Doctor** cannot sign in (forgotten password and Forgot Password failed, Auth disabled), when the **Doctor must be deactivated or replaced**, or for any **System Admin** credential change.
+
+- **Doctor creation**: the System Admin can create the Doctor in the app (**Admin → Users → Add Staff → Doctor**) only while **no active doctor** exists. The server enforces this too (callable `createDoctorAccount` and `POST /api/admin/create-doctor`, with a lock at `systemLocks/doctorProvisioning`). Deactivating or replacing a doctor is still break-glass only.
+- **Admin credentials**: admins have no in-app Profile page and cannot change their own name, phone, email, or password in the app. Forgot Password is refused for admin emails. Use the Admin SDK steps below (create script, **Reset password (Auth)**).
 
 **Never run against production until the project owner explicitly approves the target Firebase project.**
 
@@ -15,8 +18,8 @@ Confirm with `firebase use` / Console before any Admin SDK write.
 
 ## Preferred recovery (no script)
 
-1. Doctor uses **Forgot Password** on the login screen (same 5/day Asia/Manila cap).
-2. If a second machine still has a doctor session, use **Users → Reset Password** for that email.
+1. Doctor uses **Forgot Password** on the login screen (same 5/day Asia/Manila cap). Not available for admin accounts.
+2. A System Admin can use **Admin → Users → Reset Password** for the doctor's email.
 
 ## Break-glass (Firebase Admin SDK)
 
@@ -24,7 +27,7 @@ Prerequisites: service account for the **correct** project; Node with `firebase-
 
 ### Create or replace a Doctor account
 
-The app never mints Doctor roles. Use Admin SDK (or Firebase Console Auth + RTDB) for the **first** doctor and for **replacement**. Keep **one active doctor** system-wide.
+Prefer the in-app Admin flow when no active doctor exists. Use the Admin SDK (or Firebase Console Auth + RTDB) when no admin can sign in, or to **replace** a doctor (deactivate the outgoing one first). Keep **one active doctor** system-wide.
 
 ```js
 // staging first — set PROJECT explicitly; never invent a second active doctor
@@ -99,9 +102,11 @@ await admin.database().ref(`users/${uid}`).update({
 
 ### Reset password (Auth)
 
+This is the **only** way to reset a System Admin password.
+
 ```js
-const link = await admin.auth().generatePasswordResetLink("<doctor@email>");
-console.log(link); // send out-of-band to the doctor
+const link = await admin.auth().generatePasswordResetLink("<doctor-or-admin@email>");
+console.log(link); // send out-of-band to the account owner
 // or:
 await admin.auth().updateUser(uid, { password: "<temporary-strong-password>" });
 ```

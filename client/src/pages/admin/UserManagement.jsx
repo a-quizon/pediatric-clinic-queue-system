@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, Filter, Shield, Stethoscope, UserCog, User, MapPin, Mail, Phone, Trash2, AlertCircle } from "lucide-react";
 import { ref } from "firebase/database";
@@ -12,6 +12,7 @@ import { PqSpinner } from "../../components/parent/pqUi";
 import toast from "react-hot-toast";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleDoctorUsers } from "../../components/onboarding/DoctorTourSampleViews";
+import Pagination from "../../components/common/Pagination";
 
 const roleChip = (role) => {
   if (role === "doctor") return "pq-chip pq-chip-info";
@@ -127,15 +128,9 @@ export default function UserManagement() {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    const maxPage = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
-    if (currentPage > maxPage) {
-      setCurrentPage(maxPage);
-    }
-  }, [filteredUsers.length, currentPage, USERS_PER_PAGE]);
-
-  const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
-  const displayedUsers = filteredUsers.slice((currentPage - 1) * USERS_PER_PAGE, currentPage * USERS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const displayedUsers = filteredUsers.slice((safePage - 1) * USERS_PER_PAGE, safePage * USERS_PER_PAGE);
 
   const openUserDetails = (user) => {
     if (!isInitialLoadComplete) return;
@@ -406,50 +401,14 @@ export default function UserManagement() {
               </table>
             </div>
 
-            {filteredUsers.length > USERS_PER_PAGE && (
-              <div
-                className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-3 sm:py-4 gap-3 sm:gap-4 md:flex-none z-10"
-                style={{ borderTop: "1px solid var(--pq-glass-line)" }}
-              >
-                <div className="text-sm pq-muted font-medium text-center sm:text-left">
-                  Showing {(currentPage - 1) * USERS_PER_PAGE + 1}–{Math.min(currentPage * USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length} users
-                </div>
-                <div className="flex items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="pq-btn-secondary"
-                  >
-                    Previous
-                  </button>
-
-                  <div className="hidden sm:flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                      <button
-                        key={page}
-                        type="button"
-                        onClick={() => setCurrentPage(page)}
-                        className={currentPage === page ? "pq-btn-primary min-w-11 px-0" : "pq-btn-secondary min-w-11 px-0"}
-                        aria-label={`Page ${page}`}
-                        aria-current={currentPage === page ? "page" : undefined}
-                      >
-                        {page}
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="pq-btn-secondary"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              page={safePage}
+              totalPages={totalPages}
+              totalItems={filteredUsers.length}
+              pageSize={USERS_PER_PAGE}
+              onPageChange={setCurrentPage}
+              itemLabel={filteredUsers.length === 1 ? "user" : "users"}
+            />
           </>
         ) : (
           <div className="flex flex-col items-center justify-center p-12 text-center md:flex-1">

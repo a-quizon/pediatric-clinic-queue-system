@@ -10,7 +10,7 @@ description: >-
 
 # Pediatric Clinic Queue System
 
-Capstone app that digitizes pediatric clinic patient flow across branches. Parents reserve slots and monitor queue position; secretaries and doctors publish clinic days, start the floor (check-in, penalties, send-to-doctor), and configure per-branch queue/SMS rules; doctors also start queues, control the live session, complete consultations, and manage staff, branches, and audit logs (clinic admin). There is no separate Admin role.
+Capstone app that digitizes pediatric clinic patient flow across branches. Parents reserve slots and monitor queue position; secretaries and doctors publish clinic days, start the floor (check-in, penalties, send-to-doctor), and configure per-branch queue/SMS rules; doctors also start queues, control the live session, and complete consultations. A separate System Admin role (`/admin`) manages staff, branches, audit logs, and clinic-wide reports.
 
 ## Before You Code
 
@@ -85,10 +85,11 @@ UI (pages/components)
 |------|------|-----------------|
 | parent | `/parent/*` | Required (`VerifiedRoute`) plus `OnboardingRoute` (`onboardingComplete`) |
 | secretary | `/secretary/*` | No |
-| doctor | `/doctor/*` (includes Users, Branches, Audit Logs) | No |
+| doctor | `/doctor/*` (Dashboard, Queue, Schedules, Reports, Profile) | No |
+| admin | `/admin/*` (Dashboard, Users, Branches, Audit Logs, Reports — no Profile; `/admin/profile` → `/admin`) | No |
 
 Guard chain: `ProtectedRoute` → `VerifiedRoute` (parents) → `OnboardingRoute` (parents) → `RoleRoute`.
-Leftover `admin` role (transition only) is dual-allowed into `/doctor/*`; deactivate after verification.
+Admin accounts are Admin SDK only (`server/scripts/create-admin.js`, staging-guarded). Admins cannot edit their own profile or password in-app; the password-reset claim endpoint refuses admin emails.
 
 Entry points: `client/src/routes/AppRoutes.jsx`, `client/src/context/AuthContext.jsx`.
 
@@ -98,7 +99,7 @@ Entry points: `client/src/routes/AppRoutes.jsx`, `client/src/context/AuthContext
 2. **Permanent vs dynamic queue numbers** — `queueNumber` never changes; `queueOrder`/`sortTimestamp` change with penalties.
 3. **One active reservation per parent per clinic date.**
 4. **Secretary branch isolation** — secretaries only see `assignedBranch` (default fallback: `"Angeles"`).
-5. **One active doctor** — in-app staff creation is Secretary-only; Doctor accounts are provisioned via Admin SDK / break-glass only.
+5. **One active doctor** — the Admin may create a Doctor only when none is active (UI disables the option; server re-checks under a `systemLocks/doctorProvisioning` lock). Doctor deactivation/replacement stays break-glass only.
 6. **Parents only get persistent Notification Center records** — staff get local toasts; doctors additionally get a narrow `SUSPICIOUS_ACCOUNT` Web Push / `doctorAlerts` exception for abuse flags.
 7. **No physical deletes** — reservations and audit records are permanent.
 8. **Parent cannot cancel after check-in.**
@@ -148,7 +149,10 @@ Server push listeners require `serviceAccountKey.json` or `FIREBASE_SERVICE_ACCO
 4. Update `docs/NotificationRules.md`
 
 ### Admin staff creation
-`adminService.createStaffAccount()` (Doctor Users → Add Staff) creates **Secretary** accounts only via a secondary Firebase app so the doctor stays logged in. Doctor create/deactivate/delete is blocked in-app; use `docs/AdminBreakGlass.md`.
+`adminService.createStaffAccount()` (Admin Users → Add Staff) creates **Secretary** accounts via a secondary Firebase app so the admin stays logged in. `role: "doctor"` delegates to `createDoctorAccount()`, which uses `POST /api/admin/create-doctor` (Express) with fallback to the `createDoctorAccount` callable. Both share `client/functions/createDoctorAccountRuntime.js` (one-active-doctor check, lock, re-check, audit with `actorRole: "admin"`). There is never an Admin option. Doctor deactivate/delete is blocked in-app; use `docs/AdminBreakGlass.md`.
+
+### Reports
+Doctor and Admin Reports share `useReportFilters` plus `components/reports/*`: branch chips default to **All**, the date range is inclusive From/To with presets, and validation uses `utils/reportDateRange.js` (Asia/Manila days). Session rows come from `utils/reportSessions.js`. Admin Session History is read-only (no drill-down).
 
 ### Android (Capacitor)
 ```bash
