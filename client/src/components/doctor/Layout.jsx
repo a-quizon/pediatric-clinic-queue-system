@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, Users, User, BarChart3, ArrowLeft, CalendarDays, MapPin, ScrollText, Plus, UserCog } from "lucide-react";
+import { Home, Users, User, BarChart3, ArrowLeft, CalendarDays } from "lucide-react";
 import { PqBrand } from "../parent/pqUi";
 import { goBackOr } from "../../utils/navigationRoots";
-import AddStaffModal from "../admin/AddStaffModal";
 import LogoutButton from "../common/LogoutButton";
 import DemoResetBar from "./DemoResetBar";
 
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [headerOverride, setHeaderOverride] = useState(null);
 
   const getHeaderInfo = () => {
@@ -26,15 +24,6 @@ export default function Layout() {
     }
     if (path.startsWith("/doctor/reports")) {
       return { title: "Reports & Analytics", showBack: true, backPath: "/doctor" };
-    }
-    if (path.startsWith("/doctor/users")) {
-      return { title: "Users", showBack: true, backPath: "/doctor/profile", showAddStaff: true };
-    }
-    if (path.startsWith("/doctor/branches")) {
-      return { title: "Branches", showBack: true, backPath: "/doctor/profile", showAddBranch: true };
-    }
-    if (path.startsWith("/doctor/audit-logs")) {
-      return { title: "Audit Logs", showBack: true, backPath: "/doctor/profile" };
     }
     if (path.startsWith("/doctor/profile")) {
       const view = new URLSearchParams(location.search).get("view");
@@ -55,12 +44,6 @@ export default function Layout() {
     { name: "Schedules", path: "/doctor/schedules", icon: CalendarDays, replace: true, tour: "doctor-nav-schedules" },
     { name: "Reports", path: "/doctor/reports", icon: BarChart3, desktopOnly: true, tour: "doctor-nav-reports" },
     { name: "Profile", path: "/doctor/profile", icon: User, replace: true, tour: "doctor-nav-profile" },
-  ];
-
-  const clinicAdminNav = [
-    { name: "Users", path: "/doctor/users", icon: UserCog, tour: "doctor-nav-users" },
-    { name: "Branches", path: "/doctor/branches", icon: MapPin, tour: "doctor-nav-branches" },
-    { name: "Audit Logs", path: "/doctor/audit-logs", icon: ScrollText, tour: "doctor-nav-audit" },
   ];
 
   const isActive = (path) => {
@@ -104,15 +87,6 @@ export default function Layout() {
           <div className="space-y-1.5">
             {primaryNav.map(renderSideLink)}
           </div>
-          <div
-            className="mt-4 pt-4 space-y-1.5"
-            style={{ borderTop: "1px solid var(--pq-glass-line)" }}
-          >
-            <p className="px-3 mb-2 text-xs font-bold uppercase tracking-wide pq-faint">
-              Clinic admin
-            </p>
-            {clinicAdminNav.map(renderSideLink)}
-          </div>
         </nav>
         <div className="p-4 mt-auto" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
           <LogoutButton className="pq-btn-danger w-full" />
@@ -148,31 +122,6 @@ export default function Layout() {
                 ) : null}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {headerInfo.showAddStaff ? (
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(true)}
-                  className="pq-btn-primary"
-                  data-tour="doctor-users-add-staff"
-                >
-                  <Plus className="w-5 h-5" aria-hidden="true" />
-                  <span className="hidden sm:inline">Add Staff</span>
-                  <span className="sm:hidden">Add</span>
-                </button>
-              ) : null}
-              {headerInfo.showAddBranch ? (
-                <button
-                  type="button"
-                  onClick={() => window.dispatchEvent(new CustomEvent("openAddBranchModal"))}
-                  className="pq-btn-primary"
-                >
-                  <Plus className="w-5 h-5" aria-hidden="true" />
-                  <span className="hidden sm:inline">Add Branch</span>
-                  <span className="sm:hidden">Add</span>
-                </button>
-              ) : null}
-            </div>
           </header>
         </div>
 
@@ -180,12 +129,6 @@ export default function Layout() {
           <DemoResetBar />
           <Outlet context={{ setHeaderOverride }} />
         </div>
-
-        <AddStaffModal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onSuccess={() => setIsAddModalOpen(false)}
-        />
       </main>
 
       <nav className="md:hidden pq-dock-wrap" aria-label="Main">

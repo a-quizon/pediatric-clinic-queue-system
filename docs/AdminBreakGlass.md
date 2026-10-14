@@ -64,6 +64,21 @@ await admin.database().ref(`users/${userRecord.uid}`).set({
 
 After login, the doctor should change the temporary password.
 
+### Create a System Admin account (staging script)
+
+Admin accounts (Users, Branches, Audit Logs) are never created in the app. Keep 1–2 active admins. The script refuses to run unless the service account belongs to `pediatric-clinic-queue-testing`, refuses a third active admin, and never changes an existing non-admin account's role. It writes `role: "admin"` with no `assignedBranch`.
+
+Never put the password in source, docs, or tests. Pass it through `ADMIN_PASSWORD`:
+
+```powershell
+# from the repo root, with server/serviceAccountKey.json for staging
+$env:ADMIN_PASSWORD = Read-Host "Admin password"
+npm --prefix server run create-admin -- --email <admin@email> --name "System Admin"
+Remove-Item Env:ADMIN_PASSWORD
+```
+
+The script prints the uid, the active admin count, and the active doctor count (expected: exactly 1). Record the uid in your deployment notes.
+
 ### Reactivate an inactive doctor profile (RTDB)
 
 ```js

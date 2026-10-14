@@ -147,7 +147,7 @@ export default function Dashboard() {
       const registeredParents = usersList.filter((u) => u.role === "parent").length;
 
       const activeStaff = usersList.filter((u) =>
-        (u.role === "doctor" || u.role === "secretary") && u.status === "active"
+        (u.role === "admin" || u.role === "doctor" || u.role === "secretary") && u.status === "active"
       ).length;
 
       const mappedBranches = Object.entries(branchesData || {}).map(([id, value]) => ({

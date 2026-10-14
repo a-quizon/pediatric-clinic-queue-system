@@ -29,7 +29,8 @@ export default function Login() {
   useEffect(() => {
     if (!authLoading && user) {
       if (role) {
-        if (role === 'doctor' || role === 'admin') navigate('/doctor', { replace: true });
+        if (role === 'admin') navigate('/admin', { replace: true });
+        else if (role === 'doctor') navigate('/doctor', { replace: true });
         else if (role === 'secretary') {
           if (user?.mustChangePassword) navigate('/secretary/change-password', { replace: true });
           else navigate('/secretary', { replace: true });
