@@ -26,23 +26,23 @@ export default function NotificationObserver() {
     }
   }, [role]);
 
-  // In-app fallback for doctor suspicious-account alerts (when push is denied / offline).
+  // In-app fallback for admin suspicious-account alerts (when push is denied / offline).
   useEffect(() => {
-    if (!user?.uid || (role !== 'doctor' && role !== 'admin')) return undefined;
+    if (!user?.uid || role !== 'admin') return undefined;
 
     let unsub = () => {};
     let cancelled = false;
     const seen = new Set();
 
-    import('../../services/suspiciousAccountService').then(({ subscribeDoctorAlerts, markDoctorAlertRead }) => {
+    import('../../services/suspiciousAccountService').then(({ subscribeAdminAlerts, markAdminAlertRead }) => {
       if (cancelled) return;
-      subscribeDoctorAlerts(user.uid, (alerts) => {
+      subscribeAdminAlerts(user.uid, (alerts) => {
         alerts.forEach((alert) => {
           if (alert.read || seen.has(alert.id)) return;
           if (alert.type !== 'SUSPICIOUS_ACCOUNT') return;
           seen.add(alert.id);
           notificationService.notify(NOTIFICATION_EVENTS.SUSPICIOUS_ACCOUNT, {
-            dedupeKey: `doctor_alert_${alert.id}`,
+            dedupeKey: `admin_alert_${alert.id}`,
             customMessage: alert.body || alert.message,
             showToast: true,
             metadata: {
@@ -51,7 +51,7 @@ export default function NotificationObserver() {
               url: alert.url,
             },
           });
-          markDoctorAlertRead(user.uid, alert.id).catch(() => {});
+          markAdminAlertRead(user.uid, alert.id).catch(() => {});
         });
       }).then((unsubscribeFn) => {
         if (cancelled) {

@@ -1,5 +1,6 @@
+const path = require("path");
 const { getDb } = require("./firebaseAdmin");
-const { sendPushToParent, sanitizeKey } = require("./webPushService");
+const { sendPushToParent, sendPushToAdmin, sanitizeKey } = require("./webPushService");
 const {
   deliverSmsForNotification,
   deliverWalkInReservationSms,
@@ -503,6 +504,18 @@ async function evaluatePositionEvents(schedule, reservations, options = {}) {
   }
 }
 
+/** Same runtime as Cloud Functions `onReservationWrite`; alerts go to active admins only. */
+async function evaluateSuspiciousAfterReservationChange(before, after) {
+  const { maybeEvaluateAfterReservationChange } = require(
+    path.join(__dirname, "../../client/functions/suspiciousAccountRuntime")
+  );
+  return maybeEvaluateAfterReservationChange(before, after, {
+    db: getDb(),
+    sendPush: (adminId, notification, notificationId) =>
+      sendPushToAdmin(adminId, notification, { notificationId }),
+  });
+}
+
 async function handleReservationChange(before, after) {
   if (!after) return;
 
@@ -519,6 +532,12 @@ async function handleReservationChange(before, after) {
   const events = eventsFromReservationChange(before, after);
   for (const event of events) {
     await deliverNotification(event.eventId, event);
+  }
+
+  try {
+    await evaluateSuspiciousAfterReservationChange(before, after);
+  } catch (err) {
+    console.error("[notificationEngine] Suspicious-account evaluation failed:", err.message);
   }
 
   if (!after.scheduleId) return;

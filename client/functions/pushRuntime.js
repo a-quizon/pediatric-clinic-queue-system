@@ -246,10 +246,10 @@ async function sendPushToParent(parentId, notification, notificationId) {
 }
 
 /**
- * Narrow doctor exception for abuse alerts (e.g. SUSPICIOUS_ACCOUNT).
+ * Admin-only abuse alerts (SUSPICIOUS_ACCOUNT). Admins get no clinical pushes.
  * Reuses the same VAPID + pushSubscriptions storage as parents.
  */
-async function sendPushToDoctor(doctorId, notification, notificationId) {
+async function sendPushToAdmin(adminId, notification, notificationId) {
   if (!configureVapid()) {
     console.warn("[functions/push] VAPID not configured");
     return { sent: 0, failed: 0, reason: "vapid_not_configured" };
@@ -258,17 +258,17 @@ async function sendPushToDoctor(doctorId, notification, notificationId) {
   const safeNotificationId = notificationId ? sanitizeKey(notificationId) : null;
   if (safeNotificationId) {
     const flagSnap = await db()
-      .ref(`users/${doctorId}/pushDispatchClaims/${safeNotificationId}`)
+      .ref(`users/${adminId}/pushDispatchClaims/${safeNotificationId}`)
       .once("value");
     if (flagSnap.exists()) {
       return { sent: 0, failed: 0, reason: "already_dispatched" };
     }
   }
 
-  const userSnap = await db().ref(`users/${doctorId}`).once("value");
+  const userSnap = await db().ref(`users/${adminId}`).once("value");
   const user = userSnap.val();
-  if (!user || user.role !== "doctor") {
-    return { sent: 0, failed: 0, reason: "not_doctor" };
+  if (!user || user.role !== "admin") {
+    return { sent: 0, failed: 0, reason: "not_admin" };
   }
   if (user.status === "inactive" || user.isDeleted === true) {
     return { sent: 0, failed: 0, reason: "inactive_or_deleted" };
@@ -276,7 +276,7 @@ async function sendPushToDoctor(doctorId, notification, notificationId) {
 
   const entries = collectSubscriptions(user.pushSubscriptions);
   if (!entries.length) {
-    console.warn(`[functions/push] no_subscriptions doctorId=${doctorId}`);
+    console.warn(`[functions/push] no_subscriptions adminId=${adminId}`);
     return { sent: 0, failed: 0, reason: "no_subscriptions" };
   }
 
@@ -285,7 +285,7 @@ async function sendPushToDoctor(doctorId, notification, notificationId) {
     body: notification.body || notification.message,
     type: notification.type || "SUSPICIOUS_ACCOUNT",
     tag: notification.dedupeKey || notification.id || notification.type || "SUSPICIOUS_ACCOUNT",
-    url: notification.url || "/doctor/audit-logs",
+    url: notification.url || "/admin/audit-logs",
     icon: "/brand/plusqueue-logo.png",
     reservationId: notification.reservationId || null,
   };
@@ -304,21 +304,21 @@ async function sendPushToDoctor(doctorId, notification, notificationId) {
         if (err.statusCode === 404 || err.statusCode === 410) {
           gone[key] = null;
         } else {
-          console.error(`[functions/push] send failed doctorId=${doctorId}:`, err.message);
+          console.error(`[functions/push] send failed adminId=${adminId}:`, err.message);
         }
       }
     })
   );
 
   if (Object.keys(gone).length) {
-    await db().ref(`users/${doctorId}/pushSubscriptions`).update(gone);
+    await db().ref(`users/${adminId}/pushSubscriptions`).update(gone);
   }
 
   if (sent > 0 && safeNotificationId) {
-    await db().ref(`users/${doctorId}/pushDispatchClaims/${safeNotificationId}`).set(Date.now());
-    console.log(`[functions/push] sent=${sent} doctorId=${doctorId} type=${payload.type}`);
+    await db().ref(`users/${adminId}/pushDispatchClaims/${safeNotificationId}`).set(Date.now());
+    console.log(`[functions/push] sent=${sent} adminId=${adminId} type=${payload.type}`);
   } else if (sent === 0) {
-    console.warn(`[functions/push] zero sends doctorId=${doctorId} type=${payload.type}`);
+    console.warn(`[functions/push] zero sends adminId=${adminId} type=${payload.type}`);
   }
 
   return { sent, pruned: Object.keys(gone).length };
@@ -746,7 +746,7 @@ module.exports = {
   handleReservationChange,
   handleScheduleChange,
   sendPushToParent,
-  sendPushToDoctor,
+  sendPushToAdmin,
   configureVapid,
   notifyParentsScheduleAvailable,
 };

@@ -94,7 +94,7 @@ export default function Login() {
           role: "parent",
           devicePushEnabled: userData.devicePushEnabled,
         });
-      } else if (userData.role === "doctor" || userData.role === "admin") {
+      } else if (userData.role === "admin") {
         const { requestPushPermissionAfterLogin } = await import("../../services/pushService");
         await requestPushPermissionAfterLogin({
           uid: authUser.uid,

@@ -1,4 +1,4 @@
-import { ref, get, update, query, orderByChild, equalTo, push, set } from "firebase/database";
+import { ref, get, update, query, orderByChild, equalTo } from "firebase/database";
 import { getDb } from "../firebase/database";
 import { auth } from "../firebase/auth";
 import { manilaDateString } from "../utils/manilaDate";
@@ -48,7 +48,7 @@ export async function evaluateParentSuspicion(parentId, options = {}) {
 }
 
 /**
- * Doctor dismisses a false-positive suspicious flag.
+ * Admin dismisses a false-positive suspicious flag.
  */
 export async function dismissSuspiciousAccount(parentId, { auditLogId = null } = {}) {
   if (!auth.currentUser) throw new Error("Authentication required.");
@@ -97,7 +97,7 @@ export async function dismissSuspiciousAccount(parentId, { auditLogId = null } =
 }
 
 /**
- * Doctor deactivates a flagged parent from the audit entry (with confirmation in UI).
+ * Admin deactivates a flagged parent from the audit entry (with confirmation in UI).
  */
 export async function deactivateSuspiciousAccount(parentId, { auditLogId = null } = {}) {
   if (!auth.currentUser) throw new Error("Authentication required.");
@@ -200,7 +200,7 @@ export async function flagSuspiciousAccountIfNeeded(parentId, options = {}) {
     },
   });
 
-  // In-app toast for the signed-in doctor (fallback when push is denied).
+  // In-app toast for the signed-in admin (fallback when push is denied).
   try {
     notificationService.notify(NOTIFICATION_EVENTS.SUSPICIOUS_ACCOUNT, {
       dedupeKey: `suspicious_${parentId}_${now}`,
@@ -216,19 +216,19 @@ export async function flagSuspiciousAccountIfNeeded(parentId, options = {}) {
 }
 
 /**
- * Mark a doctor in-app alert as read.
+ * Mark an admin in-app alert as read.
  */
-export async function markDoctorAlertRead(doctorId, alertId) {
-  if (!doctorId || !alertId) return;
-  await update(ref(getDb(), `doctorAlerts/${doctorId}/${alertId}`), {
+export async function markAdminAlertRead(adminId, alertId) {
+  if (!adminId || !alertId) return;
+  await update(ref(getDb(), `adminAlerts/${adminId}/${alertId}`), {
     read: true,
     readAt: Date.now(),
   });
 }
 
-export async function subscribeDoctorAlerts(doctorId, callback) {
+export async function subscribeAdminAlerts(adminId, callback) {
   const { subscribeOnValue } = await import("../firebase/rtdbSubscribe");
-  const alertsRef = ref(getDb(), `doctorAlerts/${doctorId}`);
+  const alertsRef = ref(getDb(), `adminAlerts/${adminId}`);
   return subscribeOnValue(alertsRef, (snap) => {
     if (!snap.exists()) {
       callback([]);
@@ -238,17 +238,4 @@ export async function subscribeDoctorAlerts(doctorId, callback) {
     list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     callback(list);
   });
-}
-
-/** @deprecated Prefer Cloud Function; kept for local scripts. */
-export async function writeDoctorAlert(doctorId, alert) {
-  if (!doctorId) return null;
-  const alertsRef = ref(getDb(), `doctorAlerts/${doctorId}`);
-  const newRef = push(alertsRef);
-  await set(newRef, {
-    ...alert,
-    createdAt: alert.createdAt || Date.now(),
-    read: false,
-  });
-  return newRef.key;
 }
