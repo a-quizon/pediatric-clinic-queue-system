@@ -1,8 +1,11 @@
 /** Accessible single-select chip row (radiogroup); scrolls horizontally on narrow screens. */
-export default function ChipGroup({ label, options, value, onChange }) {
+export default function ChipGroup({ label, icon: Icon, options, value, onChange }) {
   return (
     <div>
-      <span className="pq-label mb-1 block" aria-hidden="true">{label}</span>
+      <span className="pq-label mb-1 flex items-center gap-1.5" aria-hidden="true">
+        {Icon ? <Icon className="w-3.5 h-3.5" aria-hidden="true" /> : null}
+        {label}
+      </span>
       <div
         role="radiogroup"
         aria-label={label}

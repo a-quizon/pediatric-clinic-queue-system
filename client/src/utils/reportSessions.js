@@ -1,5 +1,6 @@
 import { isDateInRange } from "./reportDateRange.js";
 import { branchesMatch } from "./stringUtils.js";
+import { formatManilaLong } from "./manilaDate.js";
 
 export const ALL_BRANCHES = "All";
 
@@ -62,6 +63,18 @@ export function sortSessionsNewestFirst(rows) {
     if (byDate !== 0) return byDate;
     return String(a.openingTime || "").localeCompare(String(b.openingTime || ""));
   });
+}
+
+/** Title/subtitle for the read-only session reservations panel. */
+export function sessionPanelLabels(session) {
+  if (!session) return { title: "Reservations", subtitle: null };
+  const title = session.clinicDate
+    ? `Reservations on ${formatManilaLong(session.clinicDate)}`
+    : "Reservations";
+  const hours =
+    session.openingTime && session.closingTime ? `${session.openingTime} - ${session.closingTime}` : null;
+  const subtitle = [session.branch, hours].filter(Boolean).join(" · ") || null;
+  return { title, subtitle };
 }
 
 export function aggregateSessionMetrics(rows) {

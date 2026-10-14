@@ -28,7 +28,8 @@ export const getActiveDoctor = async () => {
   return findActiveDoctor(snapshot.val());
 };
 
-const DOCTOR_CREATE_CLIENT_ERRORS = new Set([400, 401, 403, 409]);
+const SERVER_CLIENT_ERRORS = new Set([400, 401, 403, 404, 409]);
+const DOCTOR_CREATE_CLIENT_ERRORS = SERVER_CLIENT_ERRORS;
 
 /**
  * Admin-only: creates the single active Doctor through the Admin SDK (Express mirror in dev,
@@ -271,6 +272,42 @@ export const updateUser = async (uid, updates) => {
   });
 };
 
+/**
+ * Doctor deactivate/reactivate always goes through the server (one-active-doctor rule, audit, token revoke).
+ * There is no client-side fallback write.
+ */
+export const setDoctorAccountStatus = async (uid, status) => {
+  if (!auth.currentUser) throw new Error("Authentication required.");
+  const token = await auth.currentUser.getIdToken();
+  const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+  try {
+    const res = await fetch(`${apiBase}/api/admin/doctor-status`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ uid, status }),
+    });
+    const isJson = (res.headers.get("content-type") || "").includes("application/json");
+    if (res.ok && isJson) return await res.json();
+    if (isJson && SERVER_CLIENT_ERRORS.has(res.status)) {
+      const body = await res.json().catch(() => ({}));
+      const err = new Error(body.error || "Failed to change doctor status.");
+      err.status = res.status;
+      throw err;
+    }
+  } catch (err) {
+    if (!(err instanceof TypeError)) throw err;
+  }
+
+  const functions = getFunctions(app, "asia-southeast1");
+  const callSetStatus = httpsCallable(functions, "setDoctorAccountStatus");
+  try {
+    const response = await callSetStatus({ uid, status });
+    return response?.data || response;
+  } catch (err) {
+    throw new Error(err?.message || "Failed to change doctor status.", { cause: err });
+  }
+};
+
 export const toggleUserStatus = async (uid, currentStatus) => {
   if (!auth.currentUser) throw new Error("Authentication required.");
   if (auth.currentUser.uid === uid) {
@@ -279,13 +316,16 @@ export const toggleUserStatus = async (uid, currentStatus) => {
 
   const targetSnap = await get(ref(getDb(), `users/${uid}`));
   const target = targetSnap.exists() ? targetSnap.val() : null;
-  if (target?.role === "doctor") {
-    throw new Error(
-      "Doctor accounts cannot be deactivated or reactivated in the app. Use break-glass recovery if needed."
-    );
+  if (target?.role === "admin") {
+    throw new Error("Admin accounts cannot be deactivated in the app.");
   }
 
   const newStatus = currentStatus === "active" ? "inactive" : "active";
+
+  if (target?.role === "doctor") {
+    await setDoctorAccountStatus(uid, newStatus);
+    return newStatus;
+  }
   const targetLabel = target?.name ? ` for ${target.name}` : "";
 
   const userRef = ref(getDb(), `users/${uid}`);
@@ -424,11 +464,7 @@ export const deleteUserAccount = async (uid) => {
   if (target?.role === "admin") {
     throw new Error("Admin accounts cannot be deleted.");
   }
-  if (target?.role === "doctor") {
-    throw new Error(
-      "Doctor accounts cannot be deleted in the app. Use break-glass recovery if a doctor must be replaced."
-    );
-  }
+  const isDoctorTarget = target?.role === "doctor";
 
   let completed = false;
   const token = await auth.currentUser.getIdToken();
@@ -444,13 +480,12 @@ export const deleteUserAccount = async (uid) => {
       body: JSON.stringify({ uid }),
     });
 
-    if (res.ok) {
+    const isJson = (res.headers.get("content-type") || "").includes("application/json");
+    if (res.ok && isJson) {
       completed = true;
-    } else {
+    } else if (isJson && SERVER_CLIENT_ERRORS.has(res.status)) {
       const body = await res.json().catch(() => ({}));
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(body.error || "Failed to delete user.");
-      }
+      throw new Error(body.error || "Failed to delete user.");
     }
   } catch (err) {
     if (err instanceof TypeError) {
@@ -463,8 +498,15 @@ export const deleteUserAccount = async (uid) => {
   if (!completed) {
     const functions = getFunctions(app, "asia-southeast1");
     const callDelete = httpsCallable(functions, "deleteUserAccount");
-    await callDelete({ uid });
+    try {
+      await callDelete({ uid });
+    } catch (err) {
+      throw new Error(err?.message || "Failed to delete user.", { cause: err });
+    }
   }
+
+  // Doctor deletes are audited server-side (actorRole "admin", name/email snapshot).
+  if (isDoctorTarget) return;
 
   logAuditEvent({
     action: AUDIT_ACTIONS.USER_DELETED,

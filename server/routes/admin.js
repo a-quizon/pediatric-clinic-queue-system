@@ -5,6 +5,7 @@ const { deleteUserAccount } = require(path.join(__dirname, "../../client/functio
 const { resetSecretaryPassword } = require(path.join(__dirname, "../../client/functions/resetSecretaryPasswordRuntime"));
 const { updateUserAccount } = require(path.join(__dirname, "../../client/functions/updateUserAccountRuntime"));
 const { createDoctorAccount } = require(path.join(__dirname, "../../client/functions/createDoctorAccountRuntime"));
+const { setDoctorAccountStatus } = require(path.join(__dirname, "../../client/functions/doctorStatusRuntime"));
 
 const router = express.Router();
 
@@ -93,6 +94,32 @@ router.post("/admin/create-doctor", async (req, res) => {
     return res.status(status).json({
       success: false,
       error: err.message || "Failed to create doctor account.",
+    });
+  }
+});
+
+router.post("/admin/doctor-status", async (req, res) => {
+  if (!requireAdminSdk(res)) return;
+
+  const decoded = await verifyIdToken(req.headers.authorization);
+  if (!decoded?.uid) {
+    return res.status(401).json({ success: false, error: "Authentication required." });
+  }
+
+  try {
+    const result = await setDoctorAccountStatus({
+      admin,
+      callerUid: decoded.uid,
+      targetUid: req.body?.uid,
+      status: req.body?.status,
+    });
+    return res.json(result);
+  } catch (err) {
+    console.error("[admin] doctor-status failed:", err.message);
+    const status = err.status || 500;
+    return res.status(status).json({
+      success: false,
+      error: err.message || "Failed to change doctor status.",
     });
   }
 });

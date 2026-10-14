@@ -2,6 +2,7 @@ import { useState } from "react";
 import Pagination from "../common/Pagination";
 import { sortSessionsNewestFirst } from "../../utils/reportSessions";
 import { formatManilaLong } from "../../utils/manilaDate";
+import { sessionRowProps } from "../../utils/sessionRowInteraction";
 
 const PAGE_SIZE = 10;
 
@@ -11,7 +12,7 @@ function formatClinicDate(dateStr) {
 
 /**
  * Past completed sessions, newest first, paginated.
- * Rows are clickable only when `onOpenSession` is provided (read-only otherwise).
+ * Rows open the session's reservations when `onOpenSession` is provided.
  */
 export default function SessionHistoryTable({ sessions, onOpenSession, emptyMessage, dataTour }) {
   const [page, setPage] = useState(1);
@@ -22,21 +23,11 @@ export default function SessionHistoryTable({ sessions, onOpenSession, emptyMess
   const interactive = typeof onOpenSession === "function";
 
   const rowProps = (session) =>
-    interactive
-      ? {
-          role: "button",
-          tabIndex: 0,
-          className: "pq-table-row-action",
-          "aria-label": `View reservations on ${formatClinicDate(session.clinicDate)}`,
-          onClick: () => onOpenSession(session.id),
-          onKeyDown: (event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onOpenSession(session.id);
-            }
-          },
-        }
-      : {};
+    sessionRowProps(
+      session.id,
+      onOpenSession,
+      `View reservations on ${formatClinicDate(session.clinicDate)}`
+    );
 
   const CardTag = interactive ? "button" : "div";
 

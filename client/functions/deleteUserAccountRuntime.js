@@ -1,5 +1,7 @@
 const { databaseFor } = require("./rtdbRouter");
 const { releaseReservationSlot } = require("./slotRelease");
+const { assertActiveAdmin, findLiveConsultation, writeAdminAudit } = require("./doctorAccountShared");
+const { LIVE_CONSULTATION_MESSAGE } = require("./doctorStatusRuntime");
 
 const ACTIVE_RESERVATION_STATUSES = [
   "reserved",
@@ -97,6 +99,38 @@ async function forfeitActiveReservations(db, parentId) {
 }
 
 /**
+ * Admin-only. Removes the doctor's Auth user and profile. Schedules keep their `doctorId` string,
+ * audit logs keep `actorName` snapshots, and `doctorAlerts/{uid}` is left in place as history.
+ */
+async function deleteDoctorAccount({ admin, db, callerUid, targetUid, target }) {
+  const caller = await assertActiveAdmin(db, callerUid, "delete a doctor account");
+  if (await findLiveConsultation(db)) {
+    throw makeError(LIVE_CONSULTATION_MESSAGE, 409, "failed-precondition");
+  }
+
+  try {
+    await admin.auth().deleteUser(targetUid);
+  } catch (err) {
+    if (err?.code !== "auth/user-not-found") throw err;
+  }
+
+  await db.ref().update({
+    [`users/${targetUid}`]: null,
+    [`notifications/${targetUid}`]: null,
+  });
+
+  const label = target.name || target.email || "doctor";
+  await writeAdminAudit(db, caller, callerUid, {
+    action: "USER_DELETED",
+    description: `Deleted doctor account for ${label}`,
+    targetId: targetUid,
+    metadata: { targetName: target.name || null, targetEmail: target.email || null, targetRole: "doctor" },
+  });
+
+  return { success: true, uid: targetUid, auditLogged: true };
+}
+
+/**
  * Permanently deletes a user: Firebase Auth record, RTDB profile, and notifications.
  * Reservations and audit logs are never deleted.
  */
@@ -129,13 +163,8 @@ async function deleteUserAccount({ admin, callerUid, targetUid }) {
     throw makeError("Admin accounts cannot be deleted.", 400, "failed-precondition");
   }
 
-  // Doctor accounts are never deleted in-app; replacement uses Admin SDK / break-glass.
   if (target?.role === "doctor") {
-    throw makeError(
-      "Doctor accounts cannot be deleted in the app. Use break-glass recovery if a doctor must be replaced.",
-      400,
-      "failed-precondition"
-    );
+    return deleteDoctorAccount({ admin, db, callerUid, targetUid, target });
   }
 
   await forfeitActiveReservations(db, targetUid);

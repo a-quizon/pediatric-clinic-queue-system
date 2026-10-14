@@ -1,18 +1,30 @@
 export const ACTIVE_DOCTOR_EXISTS_MESSAGE =
-  "An active doctor already exists. Only one active doctor is allowed. Deactivate the current doctor through break-glass recovery before adding a new one.";
+  "An active doctor already exists. Deactivate the current doctor first.";
 
-/** Mirrors client/functions/createDoctorAccountRuntime.js#isActiveDoctor. */
+/** Mirrors client/functions/doctorAccountShared.js#isActiveDoctor. */
 export function isActiveDoctor(user) {
   return Boolean(
     user && user.role === "doctor" && user.status === "active" && user.isDeleted !== true
   );
 }
 
-export function findActiveDoctor(users) {
-  const list = Array.isArray(users) ? users : Object.values(users || {});
-  return list.find(isActiveDoctor) || null;
+function toList(users) {
+  if (Array.isArray(users)) return users;
+  return Object.entries(users || {}).map(([id, user]) => ({ id, ...user }));
+}
+
+export function findActiveDoctor(users, { excludeId = null } = {}) {
+  return (
+    toList(users).find((user) => isActiveDoctor(user) && (excludeId == null || (user.id ?? user.uid) !== excludeId)) ||
+    null
+  );
 }
 
 export function canCreateDoctor(users) {
   return !findActiveDoctor(users);
+}
+
+/** A deactivated doctor can be reactivated only when no other doctor is active. */
+export function canReactivateDoctor(users, doctorId) {
+  return !findActiveDoctor(users, { excludeId: doctorId });
 }

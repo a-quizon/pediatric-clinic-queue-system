@@ -503,7 +503,7 @@ export function TourSampleDoctorQueue() {
 
 export function TourSampleDoctorReports() {
   const sample = getDoctorTourSampleReports();
-  const DATE_RANGES = ["Today", "This Week", "This Month", "This Year"];
+  const DATE_RANGES = ["All Time", "Today", "This Week", "This Month", "This Year"];
   const tooltipStyle = {
     borderRadius: "0.95rem",
     border: "1px solid rgba(22, 52, 74, 0.1)",

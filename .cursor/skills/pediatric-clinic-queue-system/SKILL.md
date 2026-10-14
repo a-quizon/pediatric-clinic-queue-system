@@ -99,7 +99,7 @@ Entry points: `client/src/routes/AppRoutes.jsx`, `client/src/context/AuthContext
 2. **Permanent vs dynamic queue numbers** — `queueNumber` never changes; `queueOrder`/`sortTimestamp` change with penalties.
 3. **One active reservation per parent per clinic date.**
 4. **Secretary branch isolation** — secretaries only see `assignedBranch` (default fallback: `"Angeles"`).
-5. **One active doctor** — the Admin may create a Doctor only when none is active (UI disables the option; server re-checks under a `systemLocks/doctorProvisioning` lock). Doctor deactivation/replacement stays break-glass only.
+5. **One active doctor** — the Admin may create or reactivate a Doctor only when no other doctor is active (UI disables the option; server re-checks under a `systemLocks/doctorProvisioning` lock). Doctor status changes and deletes are server-only and admin-only, and are refused while a consultation is live.
 6. **Parents only get persistent Notification Center records** — staff get local toasts; doctors additionally get a narrow `SUSPICIOUS_ACCOUNT` Web Push / `doctorAlerts` exception for abuse flags.
 7. **No physical deletes** — reservations and audit records are permanent.
 8. **Parent cannot cancel after check-in.**
@@ -149,10 +149,15 @@ Server push listeners require `serviceAccountKey.json` or `FIREBASE_SERVICE_ACCO
 4. Update `docs/NotificationRules.md`
 
 ### Admin staff creation
-`adminService.createStaffAccount()` (Admin Users → Add Staff) creates **Secretary** accounts via a secondary Firebase app so the admin stays logged in. `role: "doctor"` delegates to `createDoctorAccount()`, which uses `POST /api/admin/create-doctor` (Express) with fallback to the `createDoctorAccount` callable. Both share `client/functions/createDoctorAccountRuntime.js` (one-active-doctor check, lock, re-check, audit with `actorRole: "admin"`). There is never an Admin option. Doctor deactivate/delete is blocked in-app; use `docs/AdminBreakGlass.md`.
+`adminService.createStaffAccount()` (Admin Users → Add Staff) creates **Secretary** accounts via a secondary Firebase app so the admin stays logged in. `role: "doctor"` delegates to `createDoctorAccount()`, which uses `POST /api/admin/create-doctor` (Express) with fallback to the `createDoctorAccount` callable. Both share `client/functions/createDoctorAccountRuntime.js` (one-active-doctor check, lock, re-check, audit with `actorRole: "admin"`). There is never an Admin option.
+
+### Admin doctor lifecycle
+- **Deactivate / reactivate**: `adminService.toggleUserStatus()` routes doctor targets to `setDoctorAccountStatus()` → `POST /api/admin/doctor-status` (Express) with fallback to the `setDoctorAccountStatus` callable; shared runtime `client/functions/doctorStatusRuntime.js`. Reactivation uses the same lock and 409 as creation. Deactivation revokes refresh tokens. RTDB rules block client writes to a doctor's `status`.
+- **Delete**: `deleteUserAccount()` → `deleteUserAccountRuntime.js` (`deleteDoctorAccount`): active admin only, removes Auth user + `users/{uid}` + `notifications/{uid}`, keeps schedules' `doctorId`, audit snapshots, and `doctorAlerts/{uid}`.
+- Shared helpers live in `client/functions/doctorAccountShared.js` (active-admin check, lock, live-consultation check, admin audit writer). Admin targets are never deactivated or deleted in-app.
 
 ### Reports
-Doctor and Admin Reports share `useReportFilters` plus `components/reports/*`: branch chips default to **All**, the date range is inclusive From/To with presets, and validation uses `utils/reportDateRange.js` (Asia/Manila days). Session rows come from `utils/reportSessions.js`. Admin Session History is read-only (no drill-down).
+Doctor and Admin Reports share `useReportFilters` plus `components/reports/*`: branch chips default to **All**, the date range is inclusive From/To with presets **All Time** (default), Today, This Week (Sunday–Saturday), This Month, This Year, built in `utils/reportDateRange.js` (Asia/Manila days). Editing a date clears the preset. Only the Date range filter has an icon. Session rows come from `utils/reportSessions.js`. On both Doctor and Admin, Session History rows open the shared read-only `components/reports/SessionReservationsDrawer.jsx` (row keyboard handling in `utils/sessionRowInteraction.js`).
 
 ### Android (Capacitor)
 ```bash

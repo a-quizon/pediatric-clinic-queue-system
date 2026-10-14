@@ -1,8 +1,11 @@
-import { RefreshCcw } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { REPORT_PRESETS } from "../../utils/reportDateRange";
 import ChipGroup from "./ChipGroup";
 
-/** Preset chips + inclusive From/To (Asia/Manila calendar days) + Reset. */
+/**
+ * Preset chips + inclusive From/To (Asia/Manila calendar days) + Clear.
+ * Only the date range keeps an icon; other filter controls are text-only.
+ */
 export default function ReportDateRangeFilter({ filters, idPrefix = "report", children }) {
   const { preset, range, rangeError, setPreset, setRange, reset, isFiltered } = filters;
   const fromId = `${idPrefix}-from`;
@@ -13,6 +16,7 @@ export default function ReportDateRangeFilter({ filters, idPrefix = "report", ch
     <div className="pq-filter-bar p-4 sm:p-5 space-y-4">
       <ChipGroup
         label="Date range"
+        icon={CalendarDays}
         options={REPORT_PRESETS.map((p) => ({ value: p.id, label: p.label }))}
         value={preset}
         onChange={setPreset}
@@ -53,7 +57,7 @@ export default function ReportDateRangeFilter({ filters, idPrefix = "report", ch
           disabled={!isFiltered}
           className="pq-btn-ghost min-h-[44px] text-sm self-start sm:self-auto"
         >
-          <RefreshCcw className="w-4 h-4" aria-hidden="true" /> Clear filters
+          Clear filters
         </button>
       </div>
 

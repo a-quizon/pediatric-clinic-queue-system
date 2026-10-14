@@ -1,24 +1,17 @@
 import { useMemo, useState } from "react";
-import { DEFAULT_REPORT_PRESET, presetRange, validateRange } from "../utils/reportDateRange";
+import { DEFAULT_REPORT_PRESET, editRange, selectPreset, validateRange } from "../utils/reportDateRange";
 import { ALL_BRANCHES } from "../utils/reportSessions";
 
 /** Shared report filter state: Manila date range (preset or custom From/To) + branch ("All" default). */
 export function useReportFilters() {
-  const [preset, setPresetState] = useState(DEFAULT_REPORT_PRESET);
-  const [range, setRangeState] = useState(() => presetRange(DEFAULT_REPORT_PRESET));
+  const [state, setState] = useState(() => selectPreset(DEFAULT_REPORT_PRESET));
   const [branch, setBranch] = useState(ALL_BRANCHES);
+  const { preset, range } = state;
 
   const rangeError = useMemo(() => validateRange(range), [range]);
 
-  const setPreset = (id) => {
-    setPresetState(id);
-    setRangeState(presetRange(id));
-  };
-
-  const setRange = (next) => {
-    setPresetState("custom");
-    setRangeState((prev) => ({ ...prev, ...next }));
-  };
+  const setPreset = (id) => setState(selectPreset(id));
+  const setRange = (patch) => setState((prev) => editRange(prev.range, patch));
 
   const reset = () => {
     setPreset(DEFAULT_REPORT_PRESET);

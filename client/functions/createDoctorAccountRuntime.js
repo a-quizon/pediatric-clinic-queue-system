@@ -1,29 +1,18 @@
 const { databaseFor } = require("./rtdbRouter");
+const {
+  LOCK_PATH,
+  makeError,
+  isActiveDoctor,
+  findActiveDoctor,
+  activeDoctorError,
+  assertActiveAdmin,
+  readUsers,
+  acquireDoctorLock,
+  releaseDoctorLock,
+  writeAdminAudit,
+} = require("./doctorAccountShared");
 
-const LOCK_PATH = "systemLocks/doctorProvisioning";
-const LOCK_TTL_MS = 60 * 1000;
 const MIN_PASSWORD_LENGTH = 12;
-
-function makeError(message, status, code) {
-  const err = new Error(message);
-  err.status = status;
-  err.code = code;
-  return err;
-}
-
-/** Active doctor = role doctor, status active, not soft-deleted. Deactivated/archived doctors do not count. */
-function isActiveDoctor(user) {
-  return Boolean(
-    user && user.role === "doctor" && user.status === "active" && user.isDeleted !== true
-  );
-}
-
-function findActiveDoctor(usersById) {
-  for (const [uid, user] of Object.entries(usersById || {})) {
-    if (isActiveDoctor(user)) return { uid, ...user };
-  }
-  return null;
-}
 
 function normalizePayload(payload) {
   const name = String(payload?.name || "").trim();
@@ -48,56 +37,20 @@ function normalizePayload(payload) {
   return { name, email, phone, password };
 }
 
-function activeDoctorError() {
-  return makeError(
-    "An active doctor already exists. Only one active doctor is allowed.",
-    409,
-    "failed-precondition"
-  );
-}
-
 /**
  * Admin creates the clinic Doctor account (Auth + RTDB profile) and writes the audit entry.
  * Enforces one active doctor: pre-check, a short-lived provisioning lock, then a re-check.
  */
 async function createDoctorAccount({ admin, callerUid, payload, now = Date.now }) {
-  if (!callerUid) {
-    throw makeError("Authentication required.", 401, "unauthenticated");
-  }
-
   const db = databaseFor(admin);
-  const callerSnap = await db.ref(`users/${callerUid}`).once("value");
-  const caller = callerSnap.exists() ? callerSnap.val() : null;
-  if (!caller || caller.role !== "admin" || caller.status !== "active") {
-    throw makeError("Only an active admin can create a doctor account.", 403, "permission-denied");
-  }
-
+  const caller = await assertActiveAdmin(db, callerUid, "create a doctor account");
   const input = normalizePayload(payload);
 
-  const readUsers = async () => {
-    const snap = await db.ref("users").once("value");
-    return snap.exists() ? snap.val() : {};
-  };
+  if (findActiveDoctor(await readUsers(db))) throw activeDoctorError();
 
-  if (findActiveDoctor(await readUsers())) throw activeDoctorError();
-
-  const lockRef = db.ref(LOCK_PATH);
-  const lockToken = `${callerUid}:${now()}`;
-  const lockResult = await lockRef.transaction((current) => {
-    if (current && Number(current.expiresAt) > now()) return undefined;
-    return { token: lockToken, by: callerUid, expiresAt: now() + LOCK_TTL_MS };
-  });
-  if (!lockResult.committed) {
-    throw makeError(
-      "Another doctor account is being created. Please try again in a moment.",
-      409,
-      "failed-precondition"
-    );
-  }
-
-  let createdUid = null;
+  const lockToken = await acquireDoctorLock(db, callerUid, now);
   try {
-    if (findActiveDoctor(await readUsers())) throw activeDoctorError();
+    if (findActiveDoctor(await readUsers(db))) throw activeDoctorError();
 
     const userRecord = await admin.auth().createUser({
       email: input.email,
@@ -105,7 +58,7 @@ async function createDoctorAccount({ admin, callerUid, payload, now = Date.now }
       displayName: input.name,
       emailVerified: true,
     });
-    createdUid = userRecord.uid;
+    const createdUid = userRecord.uid;
 
     const timestamp = now();
     const profile = {
@@ -128,29 +81,27 @@ async function createDoctorAccount({ admin, callerUid, payload, now = Date.now }
       throw err;
     }
 
-    const auditRef = db.ref("auditLogs").push();
-    await auditRef.set({
-      action: "USER_CREATED",
-      category: "user_management",
-      actorUid: callerUid,
-      actorName: caller.name || "Admin",
-      actorRole: "admin",
-      description: `Created a new doctor account for ${input.name}`,
-      targetType: "user",
-      targetId: createdUid,
-      timestamp,
-    });
+    const auditLogId = await writeAdminAudit(
+      db,
+      caller,
+      callerUid,
+      {
+        action: "USER_CREATED",
+        description: `Created a new doctor account for ${input.name}`,
+        targetId: createdUid,
+        metadata: { targetName: input.name, targetEmail: input.email, targetRole: "doctor" },
+      },
+      timestamp
+    );
 
-    return { success: true, uid: createdUid, auditLogId: auditRef.key };
+    return { success: true, uid: createdUid, auditLogId };
   } catch (err) {
     if (err?.code === "auth/email-already-exists") {
       throw makeError("The email address is already in use by another account.", 409, "failed-precondition");
     }
     throw err;
   } finally {
-    await lockRef
-      .transaction((current) => (current && current.token === lockToken ? null : current))
-      .catch(() => {});
+    await releaseDoctorLock(db, lockToken);
   }
 }
 

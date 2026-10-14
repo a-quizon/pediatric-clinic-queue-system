@@ -14,7 +14,7 @@ Code now dual-allows Doctor + leftover Admin for clinic-admin powers. Complete t
 - [ ] Clinic admin nav: Users, Branches, Audit Logs
 - [ ] Create secretary; edit user; send password reset
 - [ ] Deactivate / reactivate a test parent or secretary
-- [ ] Last active doctor cannot be deactivated or deleted (expect error toast / API 400)
+- [ ] ~~Last active doctor cannot be deactivated or deleted~~ — superseded: the System Admin now deactivates, reactivates, and deletes the Doctor (see `SystemBusinessRules.md` → Doctor lifecycle)
 - [ ] Branch create/edit works
 - [ ] Audit logs load and filter (including historical `actorRole: admin`)
 - [ ] Reports → Clinic Overview tab loads

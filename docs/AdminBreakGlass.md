@@ -1,8 +1,9 @@
 # Clinic Admin Break-Glass Recovery
 
-Use when the **Doctor** cannot sign in (forgotten password and Forgot Password failed, Auth disabled), when the **Doctor must be deactivated or replaced**, or for any **System Admin** credential change.
+Use when the **Doctor** cannot sign in (forgotten password and Forgot Password failed, Auth disabled) and no admin can fix it in the app, when **no System Admin can sign in**, or for any **System Admin** credential change.
 
-- **Doctor creation**: the System Admin can create the Doctor in the app (**Admin → Users → Add Staff → Doctor**) only while **no active doctor** exists. The server enforces this too (callable `createDoctorAccount` and `POST /api/admin/create-doctor`, with a lock at `systemLocks/doctorProvisioning`). Deactivating or replacing a doctor is still break-glass only.
+- **Doctor lifecycle is in-app**: the System Admin creates, deactivates, reactivates, and permanently deletes the Doctor from **Admin → Users**. Create and reactivate are allowed only while **no other active doctor** exists (server-enforced with a lock at `systemLocks/doctorProvisioning`). Deactivate and delete are refused while a patient is in consultation on a running session. To replace a doctor: deactivate (or delete) the current one, then add or reactivate the new one. The Admin SDK steps below are only for when no admin can sign in.
+- **Doctor status is server-only**: RTDB rules refuse client writes to a doctor's `status`. The Admin SDK bypasses rules, so the snippets below still work.
 - **Admin credentials**: admins have no in-app Profile page and cannot change their own name, phone, email, or password in the app. Forgot Password is refused for admin emails. Use the Admin SDK steps below (create script, **Reset password (Auth)**).
 
 **Never run against production until the project owner explicitly approves the target Firebase project.**
@@ -27,7 +28,7 @@ Prerequisites: service account for the **correct** project; Node with `firebase-
 
 ### Create or replace a Doctor account
 
-Prefer the in-app Admin flow when no active doctor exists. Use the Admin SDK (or Firebase Console Auth + RTDB) when no admin can sign in, or to **replace** a doctor (deactivate the outgoing one first). Keep **one active doctor** system-wide.
+Prefer the in-app Admin flow. Use the Admin SDK (or Firebase Console Auth + RTDB) only when no admin can sign in. Deactivate the outgoing doctor first and keep **one active doctor** system-wide.
 
 ```js
 // staging first — set PROJECT explicitly; never invent a second active doctor
@@ -84,6 +85,8 @@ The script prints the uid, the active admin count, and the active doctor count (
 
 ### Reactivate an inactive doctor profile (RTDB)
 
+Prefer **Admin → Users → (doctor) → Activate Account**. Use this only when no admin can sign in, and only if no other doctor is active.
+
 ```js
 // staging first — set PROJECT and DOCTOR_UID explicitly
 const admin = require("firebase-admin");
@@ -128,5 +131,5 @@ Then sign in and restore doctor access. Do **not** leave two active doctor accou
 ## Rules
 
 - Always try **staging** first and verify login.
-- Do not delete Auth users as part of routine recovery (prefer deactivate + create replacement only when necessary).
+- Do not delete Auth users as part of routine recovery (prefer deactivate + create replacement only when necessary). Permanent doctor deletion belongs in the app (Admin → Users), which also writes the audit entry.
 - Record uid/email and timestamp in your deployment notes.

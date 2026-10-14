@@ -2,13 +2,22 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { countActiveClinicStaff, isActiveClinicStaff } from "../src/utils/staffCounts.js";
-import { canCreateDoctor, findActiveDoctor as findActiveDoctorClient } from "../src/utils/doctorAccountPolicy.js";
+import {
+  canCreateDoctor,
+  canReactivateDoctor,
+  findActiveDoctor as findActiveDoctorClient,
+} from "../src/utils/doctorAccountPolicy.js";
 import { AUDIT_ROLE_FILTER_OPTIONS, matchesAuditRoleFilter } from "../src/utils/auditLogFilters.js";
 import {
+  CUSTOM_PRESET,
+  DEFAULT_REPORT_PRESET,
+  REPORT_PRESETS,
+  editRange,
   isDateInRange,
   isTimestampInRange,
   presetRange,
   rangeSpanDays,
+  selectPreset,
   timestampToManilaDate,
   validateRange,
 } from "../src/utils/reportDateRange.js";
@@ -17,11 +26,15 @@ import {
   aggregateSessionMetrics,
   buildSessionRows,
   filterSessions,
+  sessionPanelLabels,
   sortSessionsNewestFirst,
 } from "../src/utils/reportSessions.js";
+import { isRowActivationKey, sessionRowProps } from "../src/utils/sessionRowInteraction.js";
 
 const require = createRequire(import.meta.url);
 const { createDoctorAccount, LOCK_PATH } = require("../functions/createDoctorAccountRuntime.js");
+const { setDoctorAccountStatus } = require("../functions/doctorStatusRuntime.js");
+const { deleteUserAccount } = require("../functions/deleteUserAccountRuntime.js");
 const { claimPasswordResetSlot } = require("../functions/passwordResetLimitService.js");
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
@@ -48,7 +61,7 @@ function createTreeDb(initial = {}) {
   });
   let pushSeq = 0;
 
-  const ref = (path) => ({
+  const ref = (path = "") => ({
     key: segs(path).pop(),
     async once() {
       await tick();
@@ -57,6 +70,10 @@ function createTreeDb(initial = {}) {
     async set(value) {
       await tick();
       write(path, value);
+    },
+    async update(values) {
+      await tick();
+      for (const [key, value] of Object.entries(values)) write(`${path}/${key}`, value);
     },
     async transaction(update) {
       await tick();
@@ -77,6 +94,8 @@ function createTreeDb(initial = {}) {
 function createFakeAdmin(initialDb, { existingEmails = [] } = {}) {
   const db = createTreeDb(initialDb);
   const authUsers = new Map(existingEmails.map((email, i) => [email, { uid: `existing${i}`, email }]));
+  const revoked = [];
+  const deletedAuthUids = [];
   let seq = 0;
   const admin = {
     database: () => ({ ref: db.ref }),
@@ -94,11 +113,15 @@ function createFakeAdmin(initialDb, { existingEmails = [] } = {}) {
         return record;
       },
       async deleteUser(uid) {
+        deletedAuthUids.push(uid);
         for (const [email, rec] of authUsers) if (rec.uid === uid) authUsers.delete(email);
+      },
+      async revokeRefreshTokens(uid) {
+        revoked.push(uid);
       },
     }),
   };
-  return { admin, db, authUsers };
+  return { admin, db, authUsers, revoked, deletedAuthUids };
 }
 
 const ADMIN = { uid: "admin1", name: "System Admin", role: "admin", status: "active" };
@@ -197,7 +220,7 @@ describe("one-active-doctor rule", () => {
     });
     await assert.rejects(
       createDoctorAccount({ admin, callerUid: "admin1", payload: validPayload }),
-      (err) => err.status === 409 && /being created/.test(err.message)
+      (err) => err.status === 409 && /in progress/.test(err.message)
     );
     assert.ok(LOCK_PATH);
   });
@@ -234,6 +257,265 @@ describe("one-active-doctor rule", () => {
   });
 });
 
+describe("doctor deactivate / reactivate (admin only)", () => {
+  const liveConsultation = {
+    schedules: { s1: { queueStatus: "active", status: "open" } },
+    reservations: { r1: { scheduleId: "s1", status: "with_doctor" } },
+  };
+
+  it("client policy blocks reactivation while another doctor is active", () => {
+    const users = [
+      { id: "d1", role: "doctor", status: "active" },
+      { id: "d2", role: "doctor", status: "inactive" },
+    ];
+    assert.equal(canReactivateDoctor(users, "d2"), false);
+    assert.equal(canReactivateDoctor(users, "d1"), true);
+    assert.equal(canReactivateDoctor([{ id: "d2", role: "doctor", status: "inactive" }], "d2"), true);
+  });
+
+  it("deactivates, revokes sessions, and audits as admin", async () => {
+    const { admin, db, revoked } = createFakeAdmin({
+      users: { admin1: ADMIN, doc1: { role: "doctor", status: "active", name: "Dr. A", email: "a@x" } },
+    });
+    await setDoctorAccountStatus({ admin, callerUid: "admin1", targetUid: "doc1", status: "inactive", now: () => 5 });
+    assert.equal(db.root.users.doc1.status, "inactive");
+    assert.equal(db.root.users.doc1.deactivationSource, "admin");
+    assert.deepEqual(revoked, ["doc1"]);
+    const [audit] = Object.values(db.root.auditLogs);
+    assert.equal(audit.action, "USER_DEACTIVATED");
+    assert.equal(audit.actorRole, "admin");
+    assert.equal(audit.metadata.targetName, "Dr. A");
+  });
+
+  it("refuses to deactivate during a live consultation", async () => {
+    const { admin, db } = createFakeAdmin({
+      users: { admin1: ADMIN, doc1: { role: "doctor", status: "active" } },
+      ...liveConsultation,
+    });
+    await assert.rejects(
+      setDoctorAccountStatus({ admin, callerUid: "admin1", targetUid: "doc1", status: "inactive" }),
+      (err) => err.status === 409
+    );
+    assert.equal(db.root.users.doc1.status, "active");
+  });
+
+  it("ignores consultations on sessions that already ended", async () => {
+    const { admin } = createFakeAdmin({
+      users: { admin1: ADMIN, doc1: { role: "doctor", status: "active" } },
+      schedules: { s1: { queueStatus: "ended" } },
+      reservations: { r1: { scheduleId: "s1", status: "with_doctor" } },
+    });
+    const res = await setDoctorAccountStatus({ admin, callerUid: "admin1", targetUid: "doc1", status: "inactive" });
+    assert.equal(res.success, true);
+  });
+
+  it("rejects non-admin callers (including the doctor and inactive admins)", async () => {
+    const { admin } = createFakeAdmin({
+      users: {
+        doc1: { role: "doctor", status: "active" },
+        sec1: { role: "secretary", status: "active" },
+        admin2: { ...ADMIN, status: "inactive" },
+      },
+    });
+    for (const callerUid of ["doc1", "sec1", "admin2", null]) {
+      await assert.rejects(
+        setDoctorAccountStatus({ admin, callerUid, targetUid: "doc1", status: "inactive" }),
+        (err) => err.status === 403 || err.status === 401
+      );
+    }
+  });
+
+  it("rejects non-doctor targets and self-changes", async () => {
+    const { admin } = createFakeAdmin({
+      users: { admin1: ADMIN, sec1: { role: "secretary", status: "active" } },
+    });
+    await assert.rejects(
+      setDoctorAccountStatus({ admin, callerUid: "admin1", targetUid: "sec1", status: "inactive" }),
+      (err) => err.status === 400
+    );
+    await assert.rejects(
+      setDoctorAccountStatus({ admin, callerUid: "admin1", targetUid: "admin1", status: "inactive" }),
+      (err) => err.status === 400
+    );
+  });
+
+  it("reactivates when no other doctor is active and audits it", async () => {
+    const { admin, db } = createFakeAdmin({
+      users: { admin1: ADMIN, doc1: { role: "doctor", status: "inactive", deactivationSource: "admin" } },
+    });
+    await setDoctorAccountStatus({ admin, callerUid: "admin1", targetUid: "doc1", status: "active" });
+    assert.equal(db.root.users.doc1.status, "active");
+    assert.equal("deactivationSource" in db.root.users.doc1, false);
+    assert.equal(Object.values(db.root.auditLogs)[0].action, "USER_ACTIVATED");
+    assert.equal(db.root.systemLocks?.doctorProvisioning, undefined, "lock released");
+  });
+
+  it("rejects reactivation with 409 while another doctor is active", async () => {
+    const { admin, db } = createFakeAdmin({
+      users: {
+        admin1: ADMIN,
+        doc1: { role: "doctor", status: "active" },
+        doc2: { role: "doctor", status: "inactive" },
+      },
+    });
+    await assert.rejects(
+      setDoctorAccountStatus({ admin, callerUid: "admin1", targetUid: "doc2", status: "active" }),
+      (err) => err.status === 409 && /Deactivate the current doctor first/.test(err.message)
+    );
+    assert.equal(db.root.users.doc2.status, "inactive");
+  });
+
+  it("allows only one of two concurrent reactivations", async () => {
+    const { admin, db } = createFakeAdmin({
+      users: {
+        admin1: ADMIN,
+        doc1: { role: "doctor", status: "inactive" },
+        doc2: { role: "doctor", status: "inactive" },
+      },
+    });
+    const results = await Promise.allSettled([
+      setDoctorAccountStatus({ admin, callerUid: "admin1", targetUid: "doc1", status: "active" }),
+      setDoctorAccountStatus({ admin, callerUid: "admin1", targetUid: "doc2", status: "active" }),
+    ]);
+    assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+    const active = Object.values(db.root.users).filter((u) => u.role === "doctor" && u.status === "active");
+    assert.equal(active.length, 1);
+  });
+
+  it("blocks creation while a reactivated doctor is active", async () => {
+    const { admin } = createFakeAdmin({
+      users: { admin1: ADMIN, doc1: { role: "doctor", status: "inactive" } },
+    });
+    await setDoctorAccountStatus({ admin, callerUid: "admin1", targetUid: "doc1", status: "active" });
+    await assert.rejects(
+      createDoctorAccount({ admin, callerUid: "admin1", payload: validPayload }),
+      (err) => err.status === 409
+    );
+  });
+});
+
+describe("doctor delete (admin only)", () => {
+  const seed = (extra = {}) => ({
+    users: {
+      admin1: ADMIN,
+      doc1: { role: "doctor", status: "inactive", name: "Dr. Gone", email: "gone@x" },
+    },
+    notifications: { doc1: { n1: { title: "x" } } },
+    doctorAlerts: { doc1: { a1: { type: "suspicious" } } },
+    schedules: { old: { doctorId: "doc1", queueStatus: "ended" } },
+    auditLogs: { old: { actorUid: "doc1", actorName: "Dr. Gone", actorRole: "doctor" } },
+    ...extra,
+  });
+
+  it("removes Auth user and profile, keeps history, audits with a snapshot", async () => {
+    const { admin, db, deletedAuthUids } = createFakeAdmin(seed());
+    const res = await deleteUserAccount({ admin, callerUid: "admin1", targetUid: "doc1" });
+    assert.equal(res.success, true);
+    assert.deepEqual(deletedAuthUids, ["doc1"]);
+    assert.equal(db.root.users.doc1, undefined);
+    assert.equal(db.root.notifications?.doc1, undefined);
+    assert.ok(db.root.doctorAlerts.doc1, "doctor alerts kept as history");
+    assert.equal(db.root.schedules.old.doctorId, "doc1", "past sessions untouched");
+    assert.equal(db.root.auditLogs.old.actorName, "Dr. Gone", "old audit snapshot untouched");
+    const entry = Object.values(db.root.auditLogs).find((l) => l.action === "USER_DELETED");
+    assert.equal(entry.actorRole, "admin");
+    assert.equal(entry.metadata.targetName, "Dr. Gone");
+    assert.equal(entry.metadata.targetEmail, "gone@x");
+  });
+
+  it("can delete an active doctor when nobody is in consultation", async () => {
+    const data = seed();
+    data.users.doc1.status = "active";
+    const { admin, db } = createFakeAdmin(data);
+    await deleteUserAccount({ admin, callerUid: "admin1", targetUid: "doc1" });
+    assert.equal(db.root.users.doc1, undefined);
+    assert.equal(canCreateDoctor(db.root.users), true, "a new doctor can now be created");
+  });
+
+  it("refuses during a live consultation", async () => {
+    const { admin, db, deletedAuthUids } = createFakeAdmin(
+      seed({
+        schedules: { s1: { queueStatus: "active" } },
+        reservations: { r1: { scheduleId: "s1", status: "in_consultation" } },
+      })
+    );
+    await assert.rejects(
+      deleteUserAccount({ admin, callerUid: "admin1", targetUid: "doc1" }),
+      (err) => err.status === 409
+    );
+    assert.ok(db.root.users.doc1);
+    assert.deepEqual(deletedAuthUids, []);
+  });
+
+  it("only an active admin can delete a doctor", async () => {
+    const data = seed();
+    data.users.doc2 = { role: "doctor", status: "active" };
+    data.users.admin2 = { ...ADMIN, status: "inactive" };
+    const { admin, db } = createFakeAdmin(data);
+    for (const callerUid of ["doc2", "admin2"]) {
+      await assert.rejects(
+        deleteUserAccount({ admin, callerUid, targetUid: "doc1" }),
+        (err) => err.status === 403
+      );
+    }
+    assert.ok(db.root.users.doc1);
+  });
+
+  it("never deletes admins or the caller", async () => {
+    const { admin } = createFakeAdmin({ users: { admin1: ADMIN, admin2: { ...ADMIN } } });
+    await assert.rejects(deleteUserAccount({ admin, callerUid: "admin1", targetUid: "admin1" }), (e) => e.status === 400);
+    await assert.rejects(deleteUserAccount({ admin, callerUid: "admin1", targetUid: "admin2" }), (e) => e.status === 400);
+  });
+
+  it("succeeds when the Auth user is already gone", async () => {
+    const { admin, db } = createFakeAdmin(seed());
+    const auth = admin.auth;
+    admin.auth = () => ({
+      ...auth(),
+      async deleteUser() {
+        const err = new Error("nf");
+        err.code = "auth/user-not-found";
+        throw err;
+      },
+    });
+    await deleteUserAccount({ admin, callerUid: "admin1", targetUid: "doc1" });
+    assert.equal(db.root.users.doc1, undefined);
+  });
+});
+
+describe("session history row click", () => {
+  it("opens the session on click, Enter, and Space", () => {
+    const opened = [];
+    const props = sessionRowProps("s1", (id) => opened.push(id), "View reservations");
+    assert.equal(props.role, "button");
+    assert.equal(props.tabIndex, 0);
+    props.onClick();
+    let prevented = 0;
+    props.onKeyDown({ key: "Enter", preventDefault: () => (prevented += 1) });
+    props.onKeyDown({ key: " ", preventDefault: () => (prevented += 1) });
+    props.onKeyDown({ key: "Tab", preventDefault: () => (prevented += 1) });
+    assert.deepEqual(opened, ["s1", "s1", "s1"]);
+    assert.equal(prevented, 2, "Tab still moves focus");
+  });
+
+  it("is plain text when no handler is given", () => {
+    assert.deepEqual(sessionRowProps("s1", undefined, "x"), {});
+    assert.equal(isRowActivationKey({ key: "Escape" }), false);
+  });
+
+  it("labels the panel with the Manila date, branch, and hours", () => {
+    const { title, subtitle } = sessionPanelLabels({
+      clinicDate: "2026-10-14",
+      branch: "Angeles",
+      openingTime: "08:00",
+      closingTime: "12:00",
+    });
+    assert.match(title, /^Reservations on .*October 14, 2026/);
+    assert.equal(subtitle, "Angeles · 08:00 - 12:00");
+    assert.deepEqual(sessionPanelLabels(null), { title: "Reservations", subtitle: null });
+  });
+});
+
 describe("audit log role filter", () => {
   const logs = [
     { id: 1, actorRole: "admin" },
@@ -257,13 +539,51 @@ describe("audit log role filter", () => {
 describe("report date range (Asia/Manila)", () => {
   const today = "2026-10-14";
 
-  it("builds inclusive presets", () => {
-    assert.deepEqual(presetRange("today", today), { from: today, to: today });
-    assert.deepEqual(presetRange("last7", today), { from: "2026-10-08", to: today });
-    assert.deepEqual(presetRange("last30", today), { from: "2026-09-15", to: today });
-    assert.deepEqual(presetRange("thisMonth", today), { from: "2026-10-01", to: today });
+  it("offers exactly All Time, Today, This Week, This Month, This Year (All Time default)", () => {
+    assert.deepEqual(
+      REPORT_PRESETS.map((p) => p.label),
+      ["All Time", "Today", "This Week", "This Month", "This Year"]
+    );
+    assert.equal(DEFAULT_REPORT_PRESET, "all");
+  });
+
+  it("builds inclusive calendar presets (weeks run Sunday to Saturday)", () => {
+    // 2026-10-14 is a Wednesday.
     assert.deepEqual(presetRange("all", today), { from: "", to: "" });
-    assert.equal(rangeSpanDays(presetRange("last7", today)), 7);
+    assert.deepEqual(presetRange("today", today), { from: today, to: today });
+    assert.deepEqual(presetRange("week", today), { from: "2026-10-11", to: "2026-10-17" });
+    assert.deepEqual(presetRange("month", today), { from: "2026-10-01", to: "2026-10-31" });
+    assert.deepEqual(presetRange("year", today), { from: "2026-01-01", to: "2026-12-31" });
+    assert.equal(rangeSpanDays(presetRange("week", today)), 7);
+  });
+
+  it("handles week, month, and year edges", () => {
+    assert.deepEqual(presetRange("week", "2026-10-11"), { from: "2026-10-11", to: "2026-10-17" });
+    assert.deepEqual(presetRange("week", "2026-10-17"), { from: "2026-10-11", to: "2026-10-17" });
+    assert.deepEqual(presetRange("week", "2027-01-01"), { from: "2026-12-27", to: "2027-01-02" });
+    assert.deepEqual(presetRange("month", "2028-02-10"), { from: "2028-02-01", to: "2028-02-29" });
+    assert.deepEqual(presetRange("month", "2026-02-10"), { from: "2026-02-01", to: "2026-02-28" });
+    assert.deepEqual(presetRange("year", "2026-12-31"), { from: "2026-01-01", to: "2026-12-31" });
+  });
+
+  it("selecting a preset fills From/To; editing a date clears the preset", () => {
+    const picked = selectPreset("month", today);
+    assert.equal(picked.preset, "month");
+    assert.deepEqual(picked.range, { from: "2026-10-01", to: "2026-10-31" });
+    const edited = editRange(picked.range, { to: "2026-10-20" });
+    assert.equal(edited.preset, CUSTOM_PRESET);
+    assert.deepEqual(edited.range, { from: "2026-10-01", to: "2026-10-20" });
+    assert.deepEqual(selectPreset("all", today), { preset: "all", range: { from: "", to: "" } });
+  });
+
+  it("This Week includes a timestamp just after Sunday midnight Manila, not just before", () => {
+    const range = presetRange("week", today);
+    // Sunday 2026-10-11 00:00 Manila = 2026-10-10T16:00Z
+    assert.equal(isTimestampInRange(Date.parse("2026-10-10T16:00:00Z"), range), true);
+    assert.equal(isTimestampInRange(Date.parse("2026-10-10T15:59:59Z"), range), false);
+    // Saturday 2026-10-17 23:59 Manila = 2026-10-17T15:59Z
+    assert.equal(isTimestampInRange(Date.parse("2026-10-17T15:59:59Z"), range), true);
+    assert.equal(isTimestampInRange(Date.parse("2026-10-17T16:00:00Z"), range), false);
   });
 
   it("rejects From after To", () => {

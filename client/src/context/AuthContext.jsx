@@ -185,6 +185,17 @@ export function AuthProvider({ children }) {
                             cacheNotificationPreferences(enrichedUser);
 
                             console.log("Role:", userData.role);
+                        } else if (
+                            profileRef.current?.uid === currentUser.uid &&
+                            profileRef.current?.role &&
+                            profileRef.current.role !== "parent" &&
+                            !isAccountLifecycleInProgress()
+                        ) {
+                            // Staff profile removed by an admin while signed in (e.g. doctor deleted).
+                            signOut(auth);
+                            import("react-hot-toast").then(({ toast }) => {
+                                toast.error("This account has been deleted.");
+                            });
                         }
                         setLoading(false);
                     }, (error) => {

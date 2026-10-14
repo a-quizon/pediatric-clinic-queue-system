@@ -1,31 +1,53 @@
-import { addManilaDays, manilaDateString } from "./manilaDate.js";
+import { addManilaDays, manilaDateString, manilaMonthMeta, weekStartSunday } from "./manilaDate.js";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export const REPORT_PRESETS = [
+  { id: "all", label: "All Time" },
   { id: "today", label: "Today" },
-  { id: "last7", label: "Last 7 days" },
-  { id: "last30", label: "Last 30 days" },
-  { id: "thisMonth", label: "This month" },
-  { id: "all", label: "All time" },
+  { id: "week", label: "This Week" },
+  { id: "month", label: "This Month" },
+  { id: "year", label: "This Year" },
 ];
 
 export const DEFAULT_REPORT_PRESET = "all";
 
-/** Inclusive Manila-calendar range for a preset. "all" → { from: "", to: "" } (unbounded). */
+/**
+ * Inclusive Manila-calendar range for a preset. "all" → { from: "", to: "" } (unbounded).
+ * Weeks run Sunday–Saturday, matching the app's schedule calendar (`weekStartSunday`).
+ */
 export function presetRange(presetId, today = manilaDateString()) {
   switch (presetId) {
     case "today":
       return { from: today, to: today };
-    case "last7":
-      return { from: addManilaDays(today, -6), to: today };
-    case "last30":
-      return { from: addManilaDays(today, -29), to: today };
-    case "thisMonth":
-      return { from: `${today.slice(0, 7)}-01`, to: today };
+    case "week": {
+      const from = weekStartSunday(today);
+      return { from, to: addManilaDays(from, 6) };
+    }
+    case "month": {
+      const [year, month] = today.split("-").map(Number);
+      const { first, last } = manilaMonthMeta(year, month - 1);
+      return { from: first, to: last };
+    }
+    case "year": {
+      const year = today.slice(0, 4);
+      return { from: `${year}-01-01`, to: `${year}-12-31` };
+    }
     default:
       return { from: "", to: "" };
   }
+}
+
+export const CUSTOM_PRESET = "custom";
+
+/** Selecting a preset fills From/To with that preset's range. */
+export function selectPreset(presetId, today = manilaDateString()) {
+  return { preset: presetId, range: presetRange(presetId, today) };
+}
+
+/** Editing From/To by hand clears the preset highlight. */
+export function editRange(previousRange, patch) {
+  return { preset: CUSTOM_PRESET, range: { ...previousRange, ...patch } };
 }
 
 export function isValidDateString(value) {

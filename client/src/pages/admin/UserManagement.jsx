@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, Filter, Shield, Stethoscope, UserCog, User, MapPin, Mail, Phone, Trash2, AlertCircle } from "lucide-react";
+import { Search, Shield, Stethoscope, UserCog, User, MapPin, Mail, Phone, Trash2, AlertCircle } from "lucide-react";
 import { ref } from "firebase/database";
 import { getDb } from "../../firebase/database";
 import { subscribeOnValue } from "../../firebase/rtdbSubscribe";
@@ -146,10 +146,6 @@ export default function UserManagement() {
       toast.error("Admin accounts cannot be deleted.");
       return;
     }
-    if (user.role === "doctor") {
-      toast.error("Doctor accounts cannot be deleted in the app.");
-      return;
-    }
     if (currentUser?.uid && user.id === currentUser.uid) {
       toast.error("You cannot delete your own account.");
       return;
@@ -160,8 +156,11 @@ export default function UserManagement() {
   const canDeleteUser = (user) =>
     user?.id &&
     user.role !== "admin" &&
-    user.role !== "doctor" &&
     !(currentUser?.uid && user.id === currentUser.uid);
+
+  const deleteMessage = userToDelete?.role === "doctor"
+    ? `This will permanently delete the doctor account for ${userToDelete?.name || "this doctor"} (${userToDelete?.email || "no email"}) and revoke their login. This action is permanent and cannot be undone. Past sessions, reservations, and audit logs are kept. Until a doctor is added or reactivated, no one can complete consultations.`
+    : `This will permanently remove ${userToDelete?.name || "this user"} (${userToDelete?.email || "no email"}) and revoke their login. Historical reservations will be kept. This cannot be undone.`;
 
   const confirmDeleteUser = async () => {
     if (!userToDelete?.id) return;
@@ -210,15 +209,12 @@ export default function UserManagement() {
 
         <div className="flex gap-3">
           <div className="relative flex-1 md:flex-none">
-            <div className="pq-field-icon">
-              <Filter className="w-5 h-5" aria-hidden="true" />
-            </div>
             <label htmlFor="user-role-filter" className="sr-only">Filter by role</label>
             <select
               id="user-role-filter"
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="pq-input pl-10 appearance-none cursor-pointer min-w-[10rem]"
+              className="pq-input appearance-none cursor-pointer min-w-[10rem]"
             >
               <option value="all">All Roles</option>
               <option value="staff">Staff</option>
@@ -429,6 +425,7 @@ export default function UserManagement() {
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
         user={selectedUser}
+        allUsers={users}
         onUpdate={() => {}}
       />
 
@@ -438,9 +435,9 @@ export default function UserManagement() {
           if (!isDeleting) setUserToDelete(null);
         }}
         onConfirm={confirmDeleteUser}
-        title="Delete user account"
-        message={`This will permanently remove ${userToDelete?.name || "this user"} (${userToDelete?.email || "no email"}) and revoke their login. Historical reservations will be kept. This cannot be undone.`}
-        confirmText="Delete"
+        title={userToDelete?.role === "doctor" ? "Permanently delete doctor account" : "Delete user account"}
+        message={deleteMessage}
+        confirmText={userToDelete?.role === "doctor" ? "Delete permanently" : "Delete"}
         isDestructive
         isLoading={isDeleting}
       />
