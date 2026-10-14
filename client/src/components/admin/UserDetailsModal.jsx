@@ -53,10 +53,15 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
         assignedBranch: user.assignedBranch || "Angeles"
       });
       setIsEditing(false);
-      setTempPasswordReveal(null);
-      setCopied(false);
     }
   }, [user, isOpen]);
+
+  // The reset itself updates the user record (live list refresh), so key on the id, not the object.
+  const userId = user?.id;
+  useEffect(() => {
+    setTempPasswordReveal(null);
+    setCopied(false);
+  }, [userId, isOpen]);
 
   useEffect(() => {
     if (!user || !isOpen || user.role !== "secretary" || branches.length === 0) return;
