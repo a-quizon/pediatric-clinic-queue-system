@@ -2,12 +2,12 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import {
-  assertDoctorCanDirectResetSecretaryPassword,
-  assertDoctorCanUpdateUserProfile,
+  assertAdminCanDirectResetSecretaryPassword,
+  assertAdminCanUpdateUserProfile,
   auditDescriptionContainsSecret,
   buildSecretaryPasswordResetAuditDescription,
-  canDoctorEditUserProfile,
-} from "../src/utils/doctorUserManagementPolicy.js";
+  canAdminEditUserProfile,
+} from "../src/utils/adminUserManagementPolicy.js";
 
 const require = createRequire(import.meta.url);
 const {
@@ -67,19 +67,19 @@ const ADMIN = { role: "admin", status: "active", name: "System Admin" };
 
 describe("admin user management policy", () => {
   it("marks parent and admin profiles as not editable in Admin → Users", () => {
-    assert.equal(canDoctorEditUserProfile("parent"), false);
-    assert.equal(canDoctorEditUserProfile("admin"), false);
-    assert.equal(canDoctorEditUserProfile("secretary"), true);
-    assert.equal(canDoctorEditUserProfile("doctor"), true);
+    assert.equal(canAdminEditUserProfile("parent"), false);
+    assert.equal(canAdminEditUserProfile("admin"), false);
+    assert.equal(canAdminEditUserProfile("secretary"), true);
+    assert.equal(canAdminEditUserProfile("doctor"), true);
   });
 
   it("allows only admin callers to edit staff profiles", () => {
     assert.equal(
-      assertDoctorCanUpdateUserProfile({ callerRole: "admin", targetRole: "secretary", updates: { name: "Sec" } }).ok,
+      assertAdminCanUpdateUserProfile({ callerRole: "admin", targetRole: "secretary", updates: { name: "Sec" } }).ok,
       true
     );
     for (const callerRole of ["doctor", "secretary", "parent", undefined]) {
-      const result = assertDoctorCanUpdateUserProfile({
+      const result = assertAdminCanUpdateUserProfile({
         callerRole,
         targetRole: "secretary",
         updates: { name: "X" },
@@ -91,7 +91,7 @@ describe("admin user management policy", () => {
 
   it("rejects parent and admin targets even for admin callers", () => {
     for (const targetRole of ["parent", "admin"]) {
-      const result = assertDoctorCanUpdateUserProfile({
+      const result = assertAdminCanUpdateUserProfile({
         callerRole: "admin",
         targetRole,
         updates: { name: "New Name" },
@@ -103,7 +103,7 @@ describe("admin user management policy", () => {
 
   it("allows direct reset only for admin→secretary", () => {
     const check = (callerRole, targetRole) =>
-      assertDoctorCanDirectResetSecretaryPassword({ callerRole, targetRole });
+      assertAdminCanDirectResetSecretaryPassword({ callerRole, targetRole });
     assert.equal(check("admin", "secretary").ok, true);
     assert.equal(check("admin", "parent").status, 403);
     assert.equal(check("doctor", "secretary").status, 403);

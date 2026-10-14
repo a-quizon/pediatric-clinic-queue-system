@@ -10,7 +10,7 @@ import {
 import { formatName, branchesMatch } from "../../utils/stringUtils";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
-import { canDoctorEditUserProfile } from "../../utils/doctorUserManagementPolicy";
+import { canAdminEditUserProfile } from "../../utils/adminUserManagementPolicy";
 import { ACTIVE_DOCTOR_EXISTS_MESSAGE, canReactivateDoctor } from "../../utils/doctorAccountPolicy";
 import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
@@ -82,7 +82,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
   const canToggleStatus = !isSelf && user.id !== "admin" && user.role !== "admin";
   const reactivateBlocked =
     isDoctorTarget && user.status !== "active" && !canReactivateDoctor(allUsers || [], user.id);
-  const canEditProfile = canDoctorEditUserProfile(user.role) && !isParentTarget;
+  const canEditProfile = canAdminEditUserProfile(user.role) && !isParentTarget;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

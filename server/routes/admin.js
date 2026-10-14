@@ -138,7 +138,7 @@ router.post("/admin/reset-secretary-password", async (req, res) => {
       callerUid: decoded.uid,
       targetUid: req.body?.uid,
     });
-    // temporaryPassword is returned once to the authenticated doctor; never logged.
+    // temporaryPassword is returned once to the authenticated admin; never logged.
     return res.json({
       success: true,
       uid: result.uid,

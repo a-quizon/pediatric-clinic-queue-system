@@ -4,7 +4,7 @@
  * and RTDB rules remain the authoritative gates.
  */
 
-export function canDoctorEditUserProfile(targetRole) {
+export function canAdminEditUserProfile(targetRole) {
   // Admin accounts are Admin SDK only; parents edit their own profile.
   return targetRole === "secretary" || targetRole === "doctor";
 }
@@ -12,7 +12,7 @@ export function canDoctorEditUserProfile(targetRole) {
 /**
  * @returns {{ ok: true } | { ok: false, status: number, message: string }}
  */
-export function assertDoctorCanUpdateUserProfile({ callerRole, targetRole, updates = {} }) {
+export function assertAdminCanUpdateUserProfile({ callerRole, targetRole, updates = {} }) {
   if (callerRole !== "admin") {
     return {
       ok: false,
@@ -49,7 +49,7 @@ export function assertDoctorCanUpdateUserProfile({ callerRole, targetRole, updat
 /**
  * @returns {{ ok: true } | { ok: false, status: number, message: string }}
  */
-export function assertDoctorCanDirectResetSecretaryPassword({ callerRole, targetRole }) {
+export function assertAdminCanDirectResetSecretaryPassword({ callerRole, targetRole }) {
   if (callerRole !== "admin") {
     return {
       ok: false,

@@ -9,9 +9,9 @@ import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { sendPasswordResetLink } from "./passwordResetService";
 import { getPasswordResetActionSettings } from "../utils/appUrl";
 import {
-  assertDoctorCanUpdateUserProfile,
+  assertAdminCanUpdateUserProfile,
   buildSecretaryPasswordResetAuditDescription,
-} from "../utils/doctorUserManagementPolicy";
+} from "../utils/adminUserManagementPolicy";
 import { findActiveDoctor } from "../utils/doctorAccountPolicy";
 
 const PROFILE_UPDATE_ALLOWLIST = ["name", "phone", "assignedBranch", "assignedBranchId"];
@@ -88,7 +88,7 @@ export const createStaffAccount = async (staffData) => {
     throw new Error("Assigned Branch is required for Secretary.");
   }
 
-  // Secondary app so the current doctor (clinic admin) stays logged in
+  // Secondary app so the signed-in admin stays logged in
   const secondaryAppName = "SecondaryAppInstance";
   let secondaryApp;
   
@@ -190,7 +190,7 @@ export const updateUser = async (uid, updates) => {
   const target = targetSnap.exists() ? targetSnap.val() : null;
   const callerRole = await getCallerRole();
 
-  const gate = assertDoctorCanUpdateUserProfile({
+  const gate = assertAdminCanUpdateUserProfile({
     callerRole,
     targetRole: target?.role,
     updates: sanitized,
@@ -237,7 +237,7 @@ export const updateUser = async (uid, updates) => {
 
   if (!completed) {
     if (target?.role === "parent") {
-      const err = new Error("Doctors cannot edit parent profile information.");
+      const err = new Error("Parent profile information cannot be edited by staff.");
       err.status = 403;
       err.code = "permission-denied";
       throw err;
