@@ -51,7 +51,8 @@ client/src/
 server/         # Express push server (port 5000)
 client/functions/ # RTDB onWrite triggers for push
 docs/           # Authoritative business rules
-database.rules.json  # RTDB security rules (repo root)
+client/database.rules.json       # RTDB security rules (single source; deployed by client/firebase.json)
+client/database.demo.rules.json  # Demo database rules (mirror of the main rules)
 ```
 
 ## Architecture
@@ -173,7 +174,7 @@ cd client && npm run build
 firebase use staging          # or default for production
 firebase deploy --only hosting
 firebase deploy --only functions
-firebase deploy --only database   # rules from repo-root database.rules.json
+firebase deploy --only database   # rules from client/database.rules.json (+ demo target)
 ```
 
 No CI/CD in repo. No automated tests — use manual regression checklists in `docs/`.
@@ -185,7 +186,7 @@ No CI/CD in repo. No automated tests — use manual regression checklists in `do
 | Dual push paths | Express listeners (dev) + Cloud Functions (prod) — keep engines in sync |
 | `rollingValidationService.js` | Deprecated no-op — rolling windows removed |
 | Legacy FCM | `messaging.js` returns null; Web Push via `/sw.js` |
-| Firebase rules location | `database.rules.json` at repo root, not in `client/` |
+| Firebase rules location | `client/database.rules.json` and `client/database.demo.rules.json` only (no repo-root copy) |
 | AuthContext migration | Auto-adds missing `status`, `createdAt`, `assignedBranch`, parent `onboardingComplete` (legacy = true) on login |
 | Capacitor config | Client config (`dist`) is correct; root config (`www`) is stale |
 
@@ -195,7 +196,7 @@ No CI/CD in repo. No automated tests — use manual regression checklists in `do
 - [ ] `server/services/notificationEngine.js` (if notification-related)
 - [ ] `client/functions/pushRuntime.js` (if notification-related)
 - [ ] `docs/*.md` (if business rules changed)
-- [ ] `database.rules.json` (if schema or access changed)
+- [ ] `client/database.rules.json` + `client/database.demo.rules.json` (if schema or access changed)
 
 ## Additional Reference
 

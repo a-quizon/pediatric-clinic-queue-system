@@ -5,7 +5,7 @@ Code now dual-allows Doctor + leftover Admin for clinic-admin powers. Complete t
 ## Pre-deploy
 
 - [ ] Confirm git branch to deploy and which Firebase project is staging vs production
-- [ ] Deploy hosting + functions + `database.rules.json` to **staging** first
+- [ ] Deploy hosting + functions + `client/database.rules.json` (+ `client/database.demo.rules.json`) to **staging** first
 - [ ] Record staging admin uid/email and active doctor uid/email (read-only Console)
 
 ## Staging verification (Doctor)

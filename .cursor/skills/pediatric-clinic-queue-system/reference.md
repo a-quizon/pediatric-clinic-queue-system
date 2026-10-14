@@ -168,11 +168,11 @@ Each branch (Angeles, Magalang, …) has an independent node keyed by `branchCon
 | `systemConfiguration/{branchId}/sms` | + parents | (same write as parent node) |
 | `smsOtps`, `phoneVerifications`, `passwordResetLimits` | denied | denied (Admin SDK only) |
 
-Rules file: `database.rules.json` (repo root). The same file is copied to `client/database.rules.json` because `client/firebase.json` deploys that copy.
+Rules file: `client/database.rules.json` is the single source of truth (`client/firebase.json` deploys it to the `main` database target). There is no repo-root copy.
 
 ## Demo database
 
-Demo accounts carry the Auth custom claim `isDemo: true`. The client (`getDb()` in `client/src/firebase/database.js`) and Cloud Functions (`client/functions/rtdbRouter.js`) send those accounts to a second Realtime Database, `{projectId}-demo`, with the same node names. Production rules reject `auth.token.isDemo == true`. Demo rules (`database.demo.rules.json`) reject everyone else. The demo doctor also has `demoOperator: true` and can call `resetDemoClinicDay` to clear one clinic date inside the demo database only.
+Demo accounts carry the Auth custom claim `isDemo: true`. The client (`getDb()` in `client/src/firebase/database.js`) and Cloud Functions (`client/functions/rtdbRouter.js`) send those accounts to a second Realtime Database, `{projectId}-demo`, with the same node names. Production rules reject `auth.token.isDemo == true`. Demo rules (`client/database.demo.rules.json`) reject everyone else. The demo doctor also has `demoOperator: true` and can call `resetDemoClinicDay` to clear one clinic date inside the demo database only.
 
 Seed (does not write the default database):
 
