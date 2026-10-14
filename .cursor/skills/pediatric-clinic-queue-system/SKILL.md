@@ -90,7 +90,7 @@ UI (pages/components)
 | admin | `/admin/*` (Dashboard, Users, Branches, Audit Logs, Reports — no Profile; `/admin/profile` → `/admin`) | No |
 
 Guard chain: `ProtectedRoute` → `VerifiedRoute` (parents) → `OnboardingRoute` (parents) → `RoleRoute`.
-Admin accounts are Admin SDK only (`server/scripts/create-admin.js`, staging-guarded). Admins cannot edit their own profile or password in-app; the password-reset claim endpoint refuses admin emails.
+Admin accounts are Admin SDK only (`server/scripts/create-admin.js`, staging-guarded). Admins cannot edit their own profile or password in-app; the password-reset claim endpoint refuses admin emails. Reset emails are parents-only: the claim also refuses doctor and secretary emails, and the admin resets those with a temporary password (`resetSecretaryPassword` accepts secretary and doctor targets, sets `mustChangePassword`; forced change at `/{role}/change-password` via `MustChangePasswordRoute`).
 
 Entry points: `client/src/routes/AppRoutes.jsx`, `client/src/context/AuthContext.jsx`.
 

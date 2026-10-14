@@ -32,11 +32,13 @@ export function mapAuthError(errorCode) {
 const PASSWORD_RESET_LIMIT_MESSAGE =
   "You've reached today's password reset limit. Please try again tomorrow.";
 
-/** User-facing message for Forgot Password / Admin reset failures (never the raw Firebase text). */
+/** User-facing message for Forgot Password / parent reset email failures (never the raw Firebase text). */
 export function mapPasswordResetError(err) {
   switch (err?.code) {
     case 'rate_limited':
       return err.message || PASSWORD_RESET_LIMIT_MESSAGE;
+    case 'auth_denied':
+      return err.message || 'Password reset emails are for parent accounts only.';
     case 'auth/user-not-found':
     case 'user_not_found':
       return 'No account was found with this email address.';

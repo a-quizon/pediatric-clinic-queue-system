@@ -4,13 +4,12 @@ import {
   updateUser,
   toggleUserStatus,
   sendParentPasswordResetEmail,
-  sendAdminPasswordResetEmail,
-  resetSecretaryPasswordDirect,
+  resetStaffPasswordDirect,
 } from "../../services/adminService";
 import { formatName, branchesMatch } from "../../utils/stringUtils";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
-import { canAdminEditUserProfile } from "../../utils/adminUserManagementPolicy";
+import { canAdminEditUserProfile, isDirectPasswordResetRole } from "../../utils/adminUserManagementPolicy";
 import { ACTIVE_DOCTOR_EXISTS_MESSAGE, canReactivateDoctor } from "../../utils/doctorAccountPolicy";
 import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
@@ -77,7 +76,9 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
 
   const isDoctorTarget = user.role === "doctor";
   const isParentTarget = user.role === "parent";
-  const isSecretaryTarget = user.role === "secretary";
+  const isDirectResetTarget = isDirectPasswordResetRole(user.role);
+  const canResetPassword = isDirectResetTarget || isParentTarget;
+  const staffRoleLabel = isDoctorTarget ? "doctor" : "secretary";
   const isSelf = Boolean(currentUser?.uid && user.id === currentUser.uid);
   const canToggleStatus = !isSelf && user.id !== "admin" && user.role !== "admin";
   const reactivateBlocked =
@@ -171,24 +172,24 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
   };
 
   const handlePasswordReset = () => {
-    if (isSecretaryTarget) {
+    if (isDirectResetTarget) {
       setConfirmConfig({
         isOpen: true,
         title: "Reset Password",
-        message: `Reset password for ${user.name || "this secretary"}? A temporary password will be generated. No email will be sent.`,
+        message: `Reset password for ${user.name || `this ${staffRoleLabel}`}? A temporary password will be generated. No email will be sent.`,
         confirmText: "Reset Password",
         isDestructive: false,
         action: async () => {
           setIsResettingPassword(true);
           try {
-            const result = await resetSecretaryPasswordDirect(user.id);
+            const result = await resetStaffPasswordDirect(user.id);
             closeConfirm();
             setTempPasswordReveal(result.temporaryPassword);
-            toast.success("Password reset. Share the temporary password with the secretary.");
+            toast.success(`Password reset. Share the temporary password with the ${staffRoleLabel}.`);
             onUpdate();
           } catch (error) {
             console.error(error);
-            toast.error(error.message || "Failed to reset secretary password.");
+            toast.error(error.message || "Failed to reset password.");
           } finally {
             setIsResettingPassword(false);
           }
@@ -196,6 +197,8 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
       });
       return;
     }
+
+    if (!isParentTarget) return;
 
     if (!user.email) {
       toast.error("This account has no email on file. A password reset email cannot be sent.");
@@ -211,15 +214,11 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
       action: async () => {
         setIsResettingPassword(true);
         try {
-          if (isParentTarget) {
-            await sendParentPasswordResetEmail({
-              email: user.email,
-              uid: user.id,
-              name: user.name,
-            });
-          } else {
-            await sendAdminPasswordResetEmail(user.email);
-          }
+          await sendParentPasswordResetEmail({
+            email: user.email,
+            uid: user.id,
+            name: user.name,
+          });
           toast.success(`Password reset email sent to ${user.email}`);
           closeConfirm();
         } catch (error) {
@@ -423,15 +422,17 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={handlePasswordReset}
-                className="order-2 sm:order-1 pq-btn-secondary w-full sm:w-auto text-sm"
-              >
-                <Key className="w-4 h-4" aria-hidden="true" />
-                <span className="sm:hidden lg:inline">Reset Password</span>
-                <span className="hidden sm:inline lg:hidden">Reset</span>
-              </button>
+              {canResetPassword && (
+                <button
+                  type="button"
+                  onClick={handlePasswordReset}
+                  className="order-2 sm:order-1 pq-btn-secondary w-full sm:w-auto text-sm"
+                >
+                  <Key className="w-4 h-4" aria-hidden="true" />
+                  <span className="sm:hidden lg:inline">Reset Password</span>
+                  <span className="hidden sm:inline lg:hidden">Reset</span>
+                </button>
+              )}
 
               {reactivateBlocked && (
                 <p className="order-4 text-xs pq-muted sm:mr-auto" id="doctor-reactivate-blocked">
@@ -474,7 +475,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
             <div className="p-6 space-y-4">
               <h3 id="temp-password-title" className="text-lg font-extrabold tracking-tight">Temporary Password</h3>
               <p className="text-sm pq-muted">
-                Share this password with the secretary once. They must change it on next login. It will not be shown again.
+                Share this password with the {staffRoleLabel} once. They must change it on next login. It will not be shown again.
               </p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 pq-input font-mono text-sm break-all select-all">{tempPasswordReveal}</code>

@@ -111,7 +111,8 @@ export default function AppRoutes() {
         </Route>
         
         {/* Doctor Routes */}
-        <Route path="/doctor" element={<ProtectedRoute> <RoleRoute allowedRole="doctor"><DoctorLayout /></RoleRoute> </ProtectedRoute>}>
+        <Route path="/doctor/change-password" element={<ProtectedRoute> <RoleRoute allowedRole="doctor"><MustChangePasswordRoute><ForcedPasswordChange /></MustChangePasswordRoute></RoleRoute> </ProtectedRoute>} />
+        <Route path="/doctor" element={<ProtectedRoute> <RoleRoute allowedRole="doctor"><MustChangePasswordRoute><DoctorLayout /></MustChangePasswordRoute></RoleRoute> </ProtectedRoute>}>
           <Route index element={<DoctorHome />} />
           <Route path="queue" element={<DoctorQueue />} />
           <Route path="schedules" element={<DoctorSchedules />} />

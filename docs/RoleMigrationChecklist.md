@@ -20,7 +20,7 @@ Rules live only in `client/database.rules.json` (mirrored in `client/database.de
 ## Staging verification: Admin
 
 - [ ] Login lands on `/admin`; Dashboard, Users, Branches, Audit Logs, Reports (Clinic Overview + Session History) load.
-- [ ] Create a secretary; edit a secretary; reset a secretary password; deactivate/reactivate a parent or secretary.
+- [ ] Create a secretary; edit a secretary; reset a secretary and a doctor password (temporary password, forced change on next login); Forgot Password refuses doctor/secretary emails; deactivate/reactivate a parent or secretary.
 - [ ] Create a doctor only when none is active; deactivate, reactivate, delete the doctor.
 - [ ] Create, rename, and delete a branch. Renaming a branch with schedules succeeds and updates the schedules' `branch`/`branchId` and secretaries' `assignedBranch`.
 - [ ] No reservation actions are offered anywhere in the admin UI (Session History drawer is read-only).

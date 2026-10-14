@@ -2,11 +2,12 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import {
-  assertAdminCanDirectResetSecretaryPassword,
+  assertAdminCanDirectResetStaffPassword,
   assertAdminCanUpdateUserProfile,
   auditDescriptionContainsSecret,
-  buildSecretaryPasswordResetAuditDescription,
+  buildStaffPasswordResetAuditDescription,
   canAdminEditUserProfile,
+  isDirectPasswordResetRole,
 } from "../src/utils/adminUserManagementPolicy.js";
 
 const require = createRequire(import.meta.url);
@@ -101,25 +102,38 @@ describe("admin user management policy", () => {
     }
   });
 
-  it("allows direct reset only for admin→secretary", () => {
+  it("allows direct reset only for admin→secretary and admin→doctor", () => {
     const check = (callerRole, targetRole) =>
-      assertAdminCanDirectResetSecretaryPassword({ callerRole, targetRole });
+      assertAdminCanDirectResetStaffPassword({ callerRole, targetRole });
     assert.equal(check("admin", "secretary").ok, true);
+    assert.equal(check("admin", "doctor").ok, true);
     assert.equal(check("admin", "parent").status, 403);
+    assert.equal(check("admin", "admin").status, 403);
     assert.equal(check("doctor", "secretary").status, 403);
     assert.equal(check("secretary", "secretary").status, 403);
     assert.equal(check("parent", "secretary").status, 403);
   });
 
+  it("sends reset emails only to parents", () => {
+    assert.equal(isDirectPasswordResetRole("secretary"), true);
+    assert.equal(isDirectPasswordResetRole("doctor"), true);
+    assert.equal(isDirectPasswordResetRole("parent"), false);
+    assert.equal(isDirectPasswordResetRole("admin"), false);
+  });
+
   it("builds audit text without embedding a password", () => {
     const secret = "Tmp!Passw0rdABCD";
-    const description = buildSecretaryPasswordResetAuditDescription("Ana Cruz");
+    const description = buildStaffPasswordResetAuditDescription("Ana Cruz", "secretary");
     assert.equal(description, "Admin reset password for secretary Ana Cruz");
+    assert.equal(
+      buildStaffPasswordResetAuditDescription("Dr. Reyes", "doctor"),
+      "Admin reset password for doctor Dr. Reyes"
+    );
     assert.equal(auditDescriptionContainsSecret(description, secret), false);
   });
 });
 
-describe("resetSecretaryPasswordRuntime", () => {
+describe("resetSecretaryPasswordRuntime (secretary and doctor targets)", () => {
   it("generates a strong temporary password without logging secrets in the return contract", () => {
     const password = generateTemporaryPassword(16);
     assert.equal(password.length, 16);
@@ -148,21 +162,46 @@ describe("resetSecretaryPasswordRuntime", () => {
     assert.deepEqual(revoked, ["sec1"]);
     assert.equal(store["users/sec1"].mustChangePassword, true);
 
-    const auditLine = buildSecretaryPasswordResetAuditDescription(result.secretaryName);
+    assert.equal(result.role, "secretary");
+    const auditLine = buildStaffPasswordResetAuditDescription(result.staffName, result.role);
     assert.equal(auditDescriptionContainsSecret(auditLine, result.temporaryPassword), false);
   });
 
-  it("rejects parent targets", async () => {
-    const { admin } = createFakeAdmin({
+  it("admin resets doctor password the same way (temporary password, forced change)", async () => {
+    const { admin, store, revoked, passwordUpdates } = createFakeAdmin({
       users: {
         "users/admin1": ADMIN,
+        "users/doc1": { role: "doctor", status: "active", name: "Dr. Reyes" },
+      },
+      authUsers: { doc1: { email: "doc@clinic.test" } },
+    });
+
+    const result = await resetSecretaryPassword({ admin, callerUid: "admin1", targetUid: "doc1" });
+
+    assert.equal(result.role, "doctor");
+    assert.equal(result.staffName, "Dr. Reyes");
+    assert.equal(passwordUpdates[0].uid, "doc1");
+    assert.equal(passwordUpdates[0].password, result.temporaryPassword);
+    assert.deepEqual(revoked, ["doc1"]);
+    assert.equal(store["users/doc1"].mustChangePassword, true);
+  });
+
+  it("rejects parent and admin targets", async () => {
+    const { admin, passwordUpdates } = createFakeAdmin({
+      users: {
+        "users/admin1": ADMIN,
+        "users/admin2": ADMIN,
         "users/parent1": { role: "parent", status: "active", email: "p@test.com" },
       },
     });
-    await assert.rejects(
-      () => resetSecretaryPassword({ admin, callerUid: "admin1", targetUid: "parent1" }),
-      (err) => err.status === 403
-    );
+    for (const targetUid of ["parent1", "admin2"]) {
+      await assert.rejects(
+        () => resetSecretaryPassword({ admin, callerUid: "admin1", targetUid }),
+        (err) => err.status === 403,
+        targetUid
+      );
+    }
+    assert.equal(passwordUpdates.length, 0);
   });
 
   it("rejects doctor, secretary, inactive and deleted admin callers", async () => {

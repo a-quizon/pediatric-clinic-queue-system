@@ -30,10 +30,8 @@ export default function Login() {
     if (!authLoading && user) {
       if (role) {
         if (role === 'admin') navigate('/admin', { replace: true });
-        else if (role === 'doctor') navigate('/doctor', { replace: true });
-        else if (role === 'secretary') {
-          if (user?.mustChangePassword) navigate('/secretary/change-password', { replace: true });
-          else navigate('/secretary', { replace: true });
+        else if (role === 'doctor' || role === 'secretary') {
+          navigate(user?.mustChangePassword ? `/${role}/change-password` : `/${role}`, { replace: true });
         } else {
           navigate(getParentPostAuthPath(user, auth.currentUser), { replace: true });
         }
@@ -101,8 +99,8 @@ export default function Login() {
           role: userData.role,
           devicePushEnabled: userData.devicePushEnabled,
         });
-      } else if (userData.role === "secretary" && userData.mustChangePassword) {
-        navigate("/secretary/change-password", { replace: true });
+      } else if ((userData.role === "secretary" || userData.role === "doctor") && userData.mustChangePassword) {
+        navigate(`/${userData.role}/change-password`, { replace: true });
         return;
       }
     } else {

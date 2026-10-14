@@ -709,7 +709,7 @@ describe("report sessions", () => {
   });
 });
 
-describe("password reset claim blocks admin accounts", () => {
+describe("password reset emails are for parents only", () => {
   const deps = (role) => {
     const db = createTreeDb({ users: { u1: { role } } });
     return {
@@ -729,11 +729,30 @@ describe("password reset claim blocks admin accounts", () => {
     await assert.rejects(claimPasswordResetSlot("known@plus.queue", deps("admin")), (err) => err.code === "auth_denied");
   });
 
-  it("still allows other roles and unknown emails", async () => {
-    const ok = await claimPasswordResetSlot("known@plus.queue", deps("secretary"));
+  it("refuses doctor and secretary emails and points them to the System Admin", async () => {
+    for (const role of ["doctor", "secretary"]) {
+      await assert.rejects(
+        claimPasswordResetSlot("known@plus.queue", deps(role)),
+        (err) => err.code === "auth_denied" && /System Admin/.test(err.message),
+        role
+      );
+    }
+  });
+
+  it("allows parent and unknown emails", async () => {
+    const ok = await claimPasswordResetSlot("known@plus.queue", deps("parent"));
     assert.equal(ok.success, true);
     const unknown = await claimPasswordResetSlot("nobody@plus.queue", deps("parent"));
     assert.equal(unknown.success, true);
+  });
+
+  it("Express and Cloud Functions refuse the same roles", () => {
+    const serverSrc = fs.readFileSync(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../server/services/passwordResetLimitService.js"),
+      "utf8"
+    );
+    assert.match(serverSrc, /role && role !== "parent"/);
+    assert.match(serverSrc, /STAFF_RESET_BLOCKED_MESSAGE/);
   });
 });
 

@@ -1,6 +1,6 @@
 # Clinic Admin Break-Glass Recovery
 
-Use when the **Doctor** cannot sign in (forgotten password and Forgot Password failed, Auth disabled) and no admin can fix it in the app, when **no System Admin can sign in**, or for any **System Admin** credential change.
+Use when the **Doctor** cannot sign in (forgotten password, Auth disabled) and no admin can fix it in the app, when **no System Admin can sign in**, or for any **System Admin** credential change.
 
 - **Doctor lifecycle is in-app**: the System Admin creates, deactivates, reactivates, and permanently deletes the Doctor from **Admin → Users**. Create and reactivate are allowed only while **no other active doctor** exists (server-enforced with a lock at `systemLocks/doctorProvisioning`). Deactivate and delete are refused while a patient is in consultation on a running session. To replace a doctor: deactivate (or delete) the current one, then add or reactivate the new one. The Admin SDK steps below are only for when no admin can sign in.
 - **Doctor status is server-only**: RTDB rules refuse client writes to a doctor's `status`. The Admin SDK bypasses rules, so the snippets below still work.
@@ -20,8 +20,8 @@ Confirm with `firebase use` / Console before any Admin SDK write.
 
 ## Preferred recovery (no script)
 
-1. Doctor uses **Forgot Password** on the login screen (same 5/day Asia/Manila cap). Not available for admin accounts.
-2. A System Admin can use **Admin → Users → Reset Password** for the doctor's email.
+1. A System Admin opens **Admin → Users → (doctor) → Reset Password**. This issues a one-time temporary password (no email), revokes the doctor's sessions, and sets `mustChangePassword`, so the doctor must pick a new password at `/doctor/change-password` on next login. Secretaries are reset the same way.
+2. **Forgot Password** (reset email) is for parents only; the claim endpoint refuses doctor, secretary, and admin emails.
 
 ## Break-glass (Firebase Admin SDK)
 
@@ -117,7 +117,7 @@ await admin.auth().updateUser(uid, { password: "<temporary-strong-password>" });
 
 ### Reactivate an inactive System Admin
 
-Admins are never deactivated in the app, but a profile can end up `inactive` (manual Console edit, old migration). An inactive admin is refused by every admin-only server action (user delete/update, secretary password reset, doctor create/status) and by the admin-only RTDB writes, so it cannot recover itself. Keep 1–2 active admins; the create script refuses a third.
+Admins are never deactivated in the app, but a profile can end up `inactive` (manual Console edit, old migration). An inactive admin is refused by every admin-only server action (user delete/update, staff password reset, doctor create/status) and by the admin-only RTDB writes, so it cannot recover itself. Keep 1–2 active admins; the create script refuses a third.
 
 ```js
 await admin.database().ref(`users/<ADMIN_UID>`).update({

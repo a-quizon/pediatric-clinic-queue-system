@@ -46,32 +46,36 @@ export function assertAdminCanUpdateUserProfile({ callerRole, targetRole, update
   return { ok: true };
 }
 
+/** Staff get a temporary password from the admin; reset emails are for parents only. */
+export function isDirectPasswordResetRole(targetRole) {
+  return targetRole === "secretary" || targetRole === "doctor";
+}
+
 /**
  * @returns {{ ok: true } | { ok: false, status: number, message: string }}
  */
-export function assertAdminCanDirectResetSecretaryPassword({ callerRole, targetRole }) {
+export function assertAdminCanDirectResetStaffPassword({ callerRole, targetRole }) {
   if (callerRole !== "admin") {
     return {
       ok: false,
       status: 403,
-      message: "Only an admin can reset a secretary password directly.",
+      message: "Only an admin can reset a staff password directly.",
     };
   }
-  if (targetRole !== "secretary") {
+  if (!isDirectPasswordResetRole(targetRole)) {
     return {
       ok: false,
       status: 403,
-      message: "Direct password reset is only allowed for secretary accounts.",
+      message: "Direct password reset is only allowed for secretary and doctor accounts.",
     };
   }
   return { ok: true };
 }
 
-export function buildSecretaryPasswordResetAuditDescription(secretaryName) {
-  const label = secretaryName && String(secretaryName).trim()
-    ? String(secretaryName).trim()
-    : "secretary";
-  return `Admin reset password for secretary ${label}`;
+export function buildStaffPasswordResetAuditDescription(staffName, role = "secretary") {
+  const roleLabel = role === "doctor" ? "doctor" : "secretary";
+  const name = staffName && String(staffName).trim() ? ` ${String(staffName).trim()}` : "";
+  return `Admin reset password for ${roleLabel}${name}`;
 }
 
 export function auditDescriptionContainsSecret(description, secret) {

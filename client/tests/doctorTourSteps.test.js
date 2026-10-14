@@ -141,6 +141,7 @@ describe("doctor tour steps", () => {
     );
     assert.equal(shouldRunDoctorTour(firstTime, "secretary", "/doctor"), false);
     assert.equal(shouldRunDoctorTour(firstTime, "doctor", "/parent"), false);
+    assert.equal(shouldRunDoctorTour(firstTime, "doctor", "/doctor/change-password"), false);
   });
 
   it("tracks completion and skip progress without restarting after clear", () => {
