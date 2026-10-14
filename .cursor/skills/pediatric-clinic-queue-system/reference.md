@@ -158,7 +158,7 @@ Each branch (Angeles, Magalang, …) has an independent node keyed by `branchCon
 
 | Node | Read | Write |
 |------|------|-------|
-| `users` | Admin all; user own | Own profile (active status) |
+| `users` | Admin all; user own | Own profile (active status); a doctor's `status` is server-only |
 | `notifications` | Parent own | Parent own |
 | `branchConfigurations` | All auth | Admin |
 | `schedules` | All auth | Secretary or doctor (create/publish/start and queue control; active) |
@@ -194,7 +194,9 @@ Create the `{projectId}-demo` database in the Firebase console before deploying 
 | POST | `/api/save-subscription` | Bearer Firebase ID token | Save Web Push subscription |
 | POST | `/api/delete-subscription` | Bearer token | Remove subscription |
 | POST | `/api/send-notification` | Bearer token or `x-push-secret` | Dispatch notification + push |
-| POST | `/api/admin/delete-user` | Bearer admin ID token | Delete Auth user + RTDB profile |
+| POST | `/api/admin/delete-user` | Bearer admin ID token | Delete Auth user + RTDB profile (doctor targets: active admin only) |
+| POST | `/api/admin/create-doctor` | Bearer admin ID token | Create the Doctor (one-active-doctor rule) |
+| POST | `/api/admin/doctor-status` | Bearer admin ID token | Deactivate / reactivate the Doctor (`{ uid, status }`) |
 | POST | `/api/auth/resolve-identifier` | None | Resolve email or phone → account email for password login |
 | POST | `/api/auth/password-reset/claim` | None | Consume 1 of 5 daily reset slots per email (Asia/Manila) before `sendPasswordResetEmail` |
 | POST | `/api/auth/sms/send-otp` | None | Generate + SMS-deliver 6-digit OTP (textbee) |
@@ -214,7 +216,9 @@ Listeners: `server/services/pushListeners.js` watches `reservations` and `schedu
 |----------|---------|---------|
 | `onReservationWrite` | RTDB `/reservations/{id}` onWrite | Push on reservation changes |
 | `onScheduleWrite` | RTDB `/schedules/{id}` onWrite | Push on schedule/queue changes |
-| `deleteUserAccount` | HTTPS callable | Admin deletes Auth user + profile |
+| `deleteUserAccount` | HTTPS callable | Admin deletes Auth user + profile (incl. Doctor) |
+| `createDoctorAccount` | HTTPS callable | Admin creates the Doctor (one active doctor) |
+| `setDoctorAccountStatus` | HTTPS callable | Admin deactivates / reactivates the Doctor |
 | `testRTDBAccess` | HTTPS callable | Infrastructure test |
 | `testFCMDelivery` | HTTPS callable | Push infrastructure test |
 

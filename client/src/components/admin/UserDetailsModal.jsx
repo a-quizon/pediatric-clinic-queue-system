@@ -11,13 +11,14 @@ import { formatName, branchesMatch } from "../../utils/stringUtils";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
 import { canDoctorEditUserProfile } from "../../utils/doctorUserManagementPolicy";
+import { ACTIVE_DOCTOR_EXISTS_MESSAGE, canReactivateDoctor } from "../../utils/doctorAccountPolicy";
 import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 import { mapPasswordResetError } from "../../utils/authErrors";
 import ConfirmationModal from "../common/ConfirmationModal";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
-export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
+export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allUsers }) {
   const { user: currentUser } = useAuth();
   useHistoryOverlay(Boolean(isOpen && user?.id), onClose);
   const [isEditing, setIsEditing] = useState(false);
@@ -78,7 +79,9 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
   const isParentTarget = user.role === "parent";
   const isSecretaryTarget = user.role === "secretary";
   const isSelf = Boolean(currentUser?.uid && user.id === currentUser.uid);
-  const canToggleStatus = !isDoctorTarget && !isSelf && user.id !== "admin";
+  const canToggleStatus = !isSelf && user.id !== "admin" && user.role !== "admin";
+  const reactivateBlocked =
+    isDoctorTarget && user.status !== "active" && !canReactivateDoctor(allUsers || [], user.id);
   const canEditProfile = canDoctorEditUserProfile(user.role) && !isParentTarget;
 
   const handleInputChange = (e) => {
@@ -137,10 +140,17 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
 
   const handleToggleStatus = () => {
     const isDeactivating = user.status === "active";
+    if (!isDeactivating && reactivateBlocked) {
+      toast.error(ACTIVE_DOCTOR_EXISTS_MESSAGE);
+      return;
+    }
+    const doctorNote = isDoctorTarget && isDeactivating
+      ? " They will be signed out. You can then add or reactivate a doctor."
+      : "";
     setConfirmConfig({
       isOpen: true,
       title: isDeactivating ? "Deactivate User" : "Activate User",
-      message: `Are you sure you want to ${isDeactivating ? "deactivate" : "activate"} this user's account? ${isDeactivating ? "They will no longer be able to access the system." : "They will regain access to the system."}`,
+      message: `Are you sure you want to ${isDeactivating ? "deactivate" : "activate"} this user's account? ${isDeactivating ? "They will no longer be able to access the system." : "They will regain access to the system."}${doctorNote}`,
       confirmText: isDeactivating ? "Deactivate" : "Activate",
       isDestructive: isDeactivating,
       action: async () => {
@@ -423,11 +433,18 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate }) {
                 <span className="hidden sm:inline lg:hidden">Reset</span>
               </button>
 
+              {reactivateBlocked && (
+                <p className="order-4 text-xs pq-muted sm:mr-auto" id="doctor-reactivate-blocked">
+                  {ACTIVE_DOCTOR_EXISTS_MESSAGE}
+                </p>
+              )}
+
               {canToggleStatus && (
                 <button
                   type="button"
                   onClick={handleToggleStatus}
-                  disabled={isTogglingStatus}
+                  disabled={isTogglingStatus || reactivateBlocked}
+                  aria-describedby={reactivateBlocked ? "doctor-reactivate-blocked" : undefined}
                   className={`order-3 sm:order-2 w-full sm:w-auto text-sm ${user.status === "active" ? "pq-btn-danger" : "pq-btn-live"}`}
                 >
                   {user.status === "active" ? <AlertTriangle className="w-4 h-4" aria-hidden="true" /> : <CheckCircle className="w-4 h-4" aria-hidden="true" />}

@@ -15,7 +15,7 @@
           ".validate": "newData.isString() && ((data.exists() && newData.val() === data.val()) || (!data.exists() && auth.uid === $uid && newData.val() === 'parent') || ((root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor') && newData.val() === 'secretary'))"
         },
         "status": {
-          ".validate": "!data.exists() || newData.val() === data.val() || auth.uid !== $uid || root.child('users').child($uid).child('role').val() !== 'doctor' || newData.val() === 'active'"
+          ".validate": "!data.exists() || newData.val() === data.val() || root.child('users').child($uid).child('role').val() !== 'doctor'"
         },
         "assignedBranchId": {
           ".validate": "!data.exists() || newData.val() === data.val() || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor'"

@@ -238,6 +238,40 @@ exports.deleteUserAccount = functions.region("asia-southeast1").https.onCall(asy
 });
 
 /**
+ * Admin creates the single active Doctor account. Never logs the password.
+ */
+exports.createDoctorAccount = functions.region("asia-southeast1").https.onCall(async (data, context) => {
+  const { createDoctorAccount } = require("./createDoctorAccountRuntime");
+  try {
+    const payload = data && typeof data === "object" && data.data && !data.email ? data.data : data;
+    const callerUid = context?.auth?.uid || data?.auth?.uid;
+    return await runForToken(context?.auth?.token, () =>
+      createDoctorAccount({ admin, callerUid, payload })
+    );
+  } catch (err) {
+    console.error("[createDoctorAccount]", err.message);
+    mapAdminCallableError(err, "Failed to create doctor account.");
+  }
+});
+
+/**
+ * Admin deactivates or reactivates the Doctor (reactivation keeps the one-active-doctor rule).
+ */
+exports.setDoctorAccountStatus = functions.region("asia-southeast1").https.onCall(async (data, context) => {
+  const { setDoctorAccountStatus } = require("./doctorStatusRuntime");
+  try {
+    const payload = data && typeof data === "object" && data.data && !data.uid ? data.data : data;
+    const callerUid = context?.auth?.uid || data?.auth?.uid;
+    return await runForToken(context?.auth?.token, () =>
+      setDoctorAccountStatus({ admin, callerUid, targetUid: payload?.uid, status: payload?.status })
+    );
+  } catch (err) {
+    console.error("[setDoctorAccountStatus]", err.message);
+    mapAdminCallableError(err, "Failed to change doctor status.");
+  }
+});
+
+/**
  * Doctor resets a secretary password directly (no email). Returns one-time temp password.
  */
 exports.resetSecretaryPassword = functions.region("asia-southeast1").https.onCall(async (data, context) => {

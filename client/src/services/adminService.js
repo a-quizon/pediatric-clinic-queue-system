@@ -12,6 +12,7 @@ import {
   assertDoctorCanUpdateUserProfile,
   buildSecretaryPasswordResetAuditDescription,
 } from "../utils/doctorUserManagementPolicy";
+import { findActiveDoctor } from "../utils/doctorAccountPolicy";
 
 const PROFILE_UPDATE_ALLOWLIST = ["name", "phone", "assignedBranch", "assignedBranchId"];
 
@@ -24,16 +25,63 @@ async function getCallerRole() {
 export const getActiveDoctor = async () => {
   const snapshot = await get(ref(getDb(), "users"));
   if (!snapshot.exists()) return null;
-  const users = Object.values(snapshot.val());
-  return users.find(u => u.role === "doctor" && u.status === "active");
+  return findActiveDoctor(snapshot.val());
+};
+
+const SERVER_CLIENT_ERRORS = new Set([400, 401, 403, 404, 409]);
+const DOCTOR_CREATE_CLIENT_ERRORS = SERVER_CLIENT_ERRORS;
+
+/**
+ * Admin-only: creates the single active Doctor through the Admin SDK (Express mirror in dev,
+ * `createDoctorAccount` callable in hosted builds). The server enforces the one-doctor rule
+ * and writes the audit entry; client rules reject role "doctor" writes.
+ */
+export const createDoctorAccount = async ({ name, email, phone, password }) => {
+  if (!auth.currentUser) throw new Error("Authentication required.");
+  const payload = { name, email, phone, password };
+  const token = await auth.currentUser.getIdToken();
+  const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+
+  try {
+    const res = await fetch(`${apiBase}/api/admin/create-doctor`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const isJson = (res.headers.get("content-type") || "").includes("application/json");
+    if (res.ok && isJson) {
+      return await res.json();
+    }
+    if (isJson && DOCTOR_CREATE_CLIENT_ERRORS.has(res.status)) {
+      const body = await res.json().catch(() => ({}));
+      const err = new Error(body.error || "Failed to create doctor account.");
+      err.status = res.status;
+      throw err;
+    }
+  } catch (err) {
+    if (!(err instanceof TypeError)) throw err;
+  }
+
+  const functions = getFunctions(app, "asia-southeast1");
+  const callCreate = httpsCallable(functions, "createDoctorAccount");
+  try {
+    const response = await callCreate(payload);
+    return response?.data || response;
+  } catch (err) {
+    throw new Error(err?.message || "Failed to create doctor account.", { cause: err });
+  }
 };
 
 export const createStaffAccount = async (staffData) => {
-  // In-app staff creation is Secretary-only. Doctor accounts are created via Admin SDK / break-glass.
+  if (staffData?.role === "doctor") {
+    return createDoctorAccount(staffData);
+  }
+  // Admin accounts are Admin SDK only (docs/AdminBreakGlass.md).
   if (staffData?.role !== "secretary") {
-    throw new Error(
-      "Only Secretary accounts can be created in the app. Doctor accounts require break-glass recovery."
-    );
+    throw new Error("Only Secretary or Doctor accounts can be created in the app.");
   }
 
   if (!staffData.assignedBranch) {
@@ -224,6 +272,42 @@ export const updateUser = async (uid, updates) => {
   });
 };
 
+/**
+ * Doctor deactivate/reactivate always goes through the server (one-active-doctor rule, audit, token revoke).
+ * There is no client-side fallback write.
+ */
+export const setDoctorAccountStatus = async (uid, status) => {
+  if (!auth.currentUser) throw new Error("Authentication required.");
+  const token = await auth.currentUser.getIdToken();
+  const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+  try {
+    const res = await fetch(`${apiBase}/api/admin/doctor-status`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ uid, status }),
+    });
+    const isJson = (res.headers.get("content-type") || "").includes("application/json");
+    if (res.ok && isJson) return await res.json();
+    if (isJson && SERVER_CLIENT_ERRORS.has(res.status)) {
+      const body = await res.json().catch(() => ({}));
+      const err = new Error(body.error || "Failed to change doctor status.");
+      err.status = res.status;
+      throw err;
+    }
+  } catch (err) {
+    if (!(err instanceof TypeError)) throw err;
+  }
+
+  const functions = getFunctions(app, "asia-southeast1");
+  const callSetStatus = httpsCallable(functions, "setDoctorAccountStatus");
+  try {
+    const response = await callSetStatus({ uid, status });
+    return response?.data || response;
+  } catch (err) {
+    throw new Error(err?.message || "Failed to change doctor status.", { cause: err });
+  }
+};
+
 export const toggleUserStatus = async (uid, currentStatus) => {
   if (!auth.currentUser) throw new Error("Authentication required.");
   if (auth.currentUser.uid === uid) {
@@ -232,13 +316,16 @@ export const toggleUserStatus = async (uid, currentStatus) => {
 
   const targetSnap = await get(ref(getDb(), `users/${uid}`));
   const target = targetSnap.exists() ? targetSnap.val() : null;
-  if (target?.role === "doctor") {
-    throw new Error(
-      "Doctor accounts cannot be deactivated or reactivated in the app. Use break-glass recovery if needed."
-    );
+  if (target?.role === "admin") {
+    throw new Error("Admin accounts cannot be deactivated in the app.");
   }
 
   const newStatus = currentStatus === "active" ? "inactive" : "active";
+
+  if (target?.role === "doctor") {
+    await setDoctorAccountStatus(uid, newStatus);
+    return newStatus;
+  }
   const targetLabel = target?.name ? ` for ${target.name}` : "";
 
   const userRef = ref(getDb(), `users/${uid}`);
@@ -377,11 +464,7 @@ export const deleteUserAccount = async (uid) => {
   if (target?.role === "admin") {
     throw new Error("Admin accounts cannot be deleted.");
   }
-  if (target?.role === "doctor") {
-    throw new Error(
-      "Doctor accounts cannot be deleted in the app. Use break-glass recovery if a doctor must be replaced."
-    );
-  }
+  const isDoctorTarget = target?.role === "doctor";
 
   let completed = false;
   const token = await auth.currentUser.getIdToken();
@@ -397,13 +480,12 @@ export const deleteUserAccount = async (uid) => {
       body: JSON.stringify({ uid }),
     });
 
-    if (res.ok) {
+    const isJson = (res.headers.get("content-type") || "").includes("application/json");
+    if (res.ok && isJson) {
       completed = true;
-    } else {
+    } else if (isJson && SERVER_CLIENT_ERRORS.has(res.status)) {
       const body = await res.json().catch(() => ({}));
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error(body.error || "Failed to delete user.");
-      }
+      throw new Error(body.error || "Failed to delete user.");
     }
   } catch (err) {
     if (err instanceof TypeError) {
@@ -416,8 +498,15 @@ export const deleteUserAccount = async (uid) => {
   if (!completed) {
     const functions = getFunctions(app, "asia-southeast1");
     const callDelete = httpsCallable(functions, "deleteUserAccount");
-    await callDelete({ uid });
+    try {
+      await callDelete({ uid });
+    } catch (err) {
+      throw new Error(err?.message || "Failed to delete user.", { cause: err });
+    }
   }
+
+  // Doctor deletes are audited server-side (actorRole "admin", name/email snapshot).
+  if (isDoctorTarget) return;
 
   logAuditEvent({
     action: AUDIT_ACTIONS.USER_DELETED,

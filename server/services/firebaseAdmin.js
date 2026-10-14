@@ -125,4 +125,5 @@ module.exports = {
   isDemoToken,
   verifyIdToken,
   hasServiceAccount,
+  loadServiceAccount,
 };

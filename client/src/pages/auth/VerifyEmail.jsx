@@ -28,7 +28,9 @@ export default function VerifyEmail() {
 
   useEffect(() => {
     if (!loading && user) {
-      if (role === 'doctor' || role === 'admin') {
+      if (role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else if (role === 'doctor') {
         navigate('/doctor', { replace: true });
       } else if (role === 'secretary') {
         navigate('/secretary', { replace: true });

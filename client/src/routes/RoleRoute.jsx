@@ -18,9 +18,10 @@ export default function RoleRoute({ children, allowedRole, allowedRoles }) {
         return <Navigate to="/secretary" replace />;
 
       case "doctor":
-      case "admin":
-        // Transition: leftover admin accounts use doctor clinic-admin surfaces
         return <Navigate to="/doctor" replace />;
+
+      case "admin":
+        return <Navigate to="/admin" replace />;
 
       default:
         return <Navigate to="/" replace />;

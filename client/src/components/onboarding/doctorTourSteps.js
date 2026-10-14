@@ -7,7 +7,7 @@ import { findVisibleTourTarget } from "./parentTourSteps.js";
 export { findVisibleTourTarget };
 
 /**
- * Doctor clinic-admin walkthrough (driver.js).
+ * Doctor clinic walkthrough (driver.js).
  * Step ids are stable; bump DOCTOR_TOUR_STEPS_KEY in firstVisitService when
  * the set of ids changes in a breaking way.
  */
@@ -103,68 +103,6 @@ export const DOCTOR_TOUR_STEPS = [
     description:
       "Choose how many slots. Clinic hours come from that branch’s weekday hours — you do not set opening or closing time here. Post day stays off during the tour.",
     disableActiveInteraction: true,
-    onNextNavigate: "/doctor/users",
-  },
-  {
-    id: "doctor-users-list",
-    route: "/doctor/users",
-    exact: true,
-    targets: ["doctor-users-list"],
-    title: "User management",
-    description:
-      "Search and filter staff and parent accounts. Use Add Staff to create a secretary. This list is a tour preview when real data is empty.",
-    disableActiveInteraction: true,
-  },
-  {
-    id: "doctor-users-secretary",
-    route: "/doctor/users",
-    exact: true,
-    targets: ["doctor-users-secretary"],
-    title: "Secretary accounts",
-    description:
-      "You can create, edit, deactivate, or delete a secretary. Resetting their password is immediate — a temporary password is shown here, and no email is sent.",
-    disableActiveInteraction: true,
-  },
-  {
-    id: "doctor-users-parent",
-    route: "/doctor/users",
-    exact: true,
-    targets: ["doctor-users-parent"],
-    title: "Parent accounts are view-only",
-    description:
-      "You cannot edit a parent's profile. You can only deactivate, reactivate, delete, or send a password reset email. Resetting a parent password always sends email — it is never a temporary password on screen.",
-    disableActiveInteraction: true,
-    onNextNavigate: "/doctor/audit-logs",
-  },
-  {
-    id: "doctor-audit-filters",
-    route: "/doctor/audit-logs",
-    exact: true,
-    targets: ["doctor-audit-filters"],
-    title: "Audit Logs",
-    description:
-      "Filter clinic activity by search, category, and role (Doctor, Secretary, or System). There is no Admin filter — clinic admin actions appear under Doctor.",
-    disableActiveInteraction: true,
-  },
-  {
-    id: "doctor-audit-suspicious",
-    route: "/doctor/audit-logs",
-    exact: true,
-    targets: ["doctor-audit-suspicious"],
-    title: "Suspicious account flags",
-    description:
-      "The system only flags and recommends. It never deactivates anyone automatically. Review the Evidence and Recommendation, then choose Deactivate Account or Dismiss / Mark as Reviewed. Those buttons stay off during the tour.",
-    disableActiveInteraction: true,
-  },
-  {
-    id: "doctor-notifications",
-    route: "/doctor/audit-logs",
-    exact: true,
-    targets: ["doctor-notifications"],
-    title: "Suspicious account alerts",
-    description:
-      "When an account is flagged, you get a web push notification (after you allow them) and an in-app toast. Tapping the push opens this Audit Logs entry. The tour will not ask for notification permission.",
-    disableActiveInteraction: true,
     onNextNavigate: "/doctor/reports",
   },
   {
@@ -195,7 +133,7 @@ export const DOCTOR_TOUR_STEPS = [
     targets: ["doctor-profile-account", "profile-replay"],
     title: "Account settings and help",
     description:
-      "Update your name, contact, clinic details, and password here. Replay Tutorial starts this walkthrough again anytime. On a phone, Users, Branches, Audit Logs, and Reports are also linked from this Profile hub.",
+      "Update your name, contact, clinic details, and password here. Replay Tutorial starts this walkthrough again anytime. On a phone, Reports is also linked from this Profile hub.",
     disableActiveInteraction: true,
   },
 ];

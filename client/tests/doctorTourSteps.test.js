@@ -56,8 +56,8 @@ describe("doctor tour steps", () => {
     memory.clear();
   });
 
-  it("defines a complete clinic-admin journey with stable data-tour targets", () => {
-    assert.ok(DOCTOR_TOUR_STEPS.length >= 14);
+  it("defines a complete clinic journey with stable data-tour targets", () => {
+    assert.ok(DOCTOR_TOUR_STEPS.length >= 10);
     for (const step of DOCTOR_TOUR_STEPS) {
       assert.ok(step.id, "step needs id");
       assert.ok(step.route?.startsWith("/doctor"), `${step.id} route`);
@@ -71,43 +71,29 @@ describe("doctor tour steps", () => {
     for (const required of [
       "doctor-dashboard",
       "doctor-queue-list",
-      "doctor-users-list",
-      "doctor-users-secretary",
-      "doctor-users-parent",
-      "doctor-audit-filters",
-      "doctor-audit-suspicious",
-      "doctor-notifications",
+      "doctor-schedule-publish",
+      "doctor-reports-filters",
       "doctor-profile",
     ]) {
       assert.ok(ids.includes(required), `missing ${required}`);
     }
   });
 
-  it("does not reference Admin audit filter or parent edit features", () => {
+  it("does not walk the doctor through admin-only pages", () => {
+    const routes = DOCTOR_TOUR_STEPS.flatMap((s) => [s.route, s.onNextNavigate].filter(Boolean));
+    for (const route of routes) {
+      assert.doesNotMatch(route, /\/(users|branches|audit-logs)\b/, `${route} is admin-only`);
+    }
     const blob = DOCTOR_TOUR_STEPS.map((s) => `${s.title} ${s.description}`).join("\n");
-    assert.match(blob, /There is no Admin filter/i);
-    assert.equal(
-      DOCTOR_TOUR_STEPS.some((s) =>
-        /All Roles \| Admin|option.*Admin|Role:.*Admin/i.test(`${s.title} ${s.description}`)
-      ),
-      false,
-      "must not present Admin as an available filter option"
-    );
-    assert.match(blob, /view-only/i);
-    assert.match(blob, /cannot edit a parent's profile/i);
-    assert.match(blob, /no email is sent/i);
-    assert.match(blob, /password reset email/i);
-    assert.match(blob, /never deactivates/i);
+    assert.doesNotMatch(blob, /Users, Branches, Audit Logs/i);
     assert.doesNotMatch(blob, /threshold|Rule [ABC]|days without/i);
   });
 
-  it("covers cross-page navigation for queue, schedules, users, audit, reports, and profile", () => {
+  it("covers cross-page navigation for queue, schedules, reports, and profile", () => {
     const navigators = DOCTOR_TOUR_STEPS.filter((s) => s.onNextNavigate);
     const destinations = navigators.map((s) => s.onNextNavigate);
     assert.ok(destinations.includes("/doctor/queue"));
     assert.ok(destinations.includes("/doctor/schedules"));
-    assert.ok(destinations.includes("/doctor/users"));
-    assert.ok(destinations.includes("/doctor/audit-logs"));
     assert.ok(destinations.includes("/doctor/reports"));
     assert.ok(destinations.includes("/doctor/profile"));
     for (const step of DOCTOR_TOUR_STEPS) {
@@ -137,7 +123,7 @@ describe("doctor tour steps", () => {
     assert.equal(pathMatchesDoctorStep("/doctor/", home), true);
     assert.equal(pathMatchesDoctorStep("/doctor/queue", home), false);
     assert.equal(
-      pathMatchesDoctorStep("/doctor/users", DOCTOR_TOUR_STEPS.find((s) => s.id === "doctor-users-list")),
+      pathMatchesDoctorStep("/doctor/reports", DOCTOR_TOUR_STEPS.find((s) => s.id === "doctor-reports-filters")),
       true
     );
   });
@@ -178,7 +164,7 @@ describe("doctor tour steps", () => {
       body: { id: "body-fallback" },
     };
     try {
-      const step = DOCTOR_TOUR_STEPS.find((s) => s.id === "doctor-audit-suspicious");
+      const step = DOCTOR_TOUR_STEPS.find((s) => s.id === "doctor-reports-history");
       const el = resolveDoctorTourElement(step);
       assert.equal(el?.id, "main-fallback");
     } finally {

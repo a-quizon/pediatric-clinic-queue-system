@@ -1,4 +1,4 @@
-import { Activity as ActivityIcon, MapPin, AlertCircle, Users, Inbox, ChevronDown } from "lucide-react";
+import { Activity as ActivityIcon, MapPin, AlertCircle, Users, Inbox } from "lucide-react";
 import { useAdminReportsData } from "../../hooks/useAdminReportsData";
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { PqSpinner } from "../parent/pqUi";
@@ -21,16 +21,9 @@ const tooltipStyle = {
   boxShadow: "0 12px 28px -14px rgba(22, 52, 74, 0.28)",
 };
 
-const SelectChevron = () => (
-  <div className="pq-field-icon" style={{ left: "auto", right: "0.85rem" }} aria-hidden="true">
-    <ChevronDown className="w-4 h-4" />
-  </div>
-);
-
-/** System-wide adoption / utilization reports (formerly admin Reports tab). */
-export default function ClinicOverviewReports() {
-  const { loading, error, metrics, filters } = useAdminReportsData();
-  const { dateRange, setDateRange } = filters;
+/** System-wide adoption / utilization reports; the date range comes from the page-level report filter. */
+export default function ClinicOverviewReports({ range }) {
+  const { loading, error, metrics } = useAdminReportsData({ range });
 
   if (error) {
     return (
@@ -52,25 +45,7 @@ export default function ClinicOverviewReports() {
   const { kpis, adoptionData, branchData, outcomeData, hasData } = metrics;
 
   return (
-    <div className="space-y-4 md:flex-1 md:flex md:flex-col md:min-h-0 overflow-y-auto pq-scroll-y">
-      <div className="pq-filter-bar p-3 sm:p-4 flex">
-        <div className="relative w-full sm:w-auto sm:min-w-[12rem]">
-          <label htmlFor="clinic-overview-date-range" className="sr-only">Date range</label>
-          <select
-            id="clinic-overview-date-range"
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="pq-input pr-10 appearance-none cursor-pointer"
-          >
-            <option value="This Month">This Month</option>
-            <option value="Last 3 Months">Last 3 Months</option>
-            <option value="This Year">This Year</option>
-            <option value="All Time">All Time</option>
-          </select>
-          <SelectChevron />
-        </div>
-      </div>
-
+    <div className="space-y-4 md:flex-1 md:flex md:flex-col md:min-h-0">
       {!hasData ? (
         <div className="pq-glass p-12 text-center md:flex-1 flex flex-col items-center justify-center min-h-[300px]">
           <div
@@ -89,7 +64,7 @@ export default function ClinicOverviewReports() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="pq-stat pq-stat-info">
               <span className="pq-stat-label flex items-center gap-1">
-                <Users className="w-3.5 h-3.5" aria-hidden="true" /> Registered Parents
+                <Users className="w-3.5 h-3.5" aria-hidden="true" /> New Parents
               </span>
               <span className="pq-stat-value">{kpis.totalParents}</span>
             </div>

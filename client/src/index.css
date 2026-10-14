@@ -525,7 +525,9 @@
   background: color-mix(in srgb, #ffffff 70%, transparent);
 }
 
-.pq-tab[aria-selected="true"] {
+.pq-tab[aria-selected="true"],
+.pq-tab[aria-pressed="true"],
+.pq-tab[aria-checked="true"] {
   background: color-mix(in srgb, var(--pq-mark-blue) 12%, white);
   color: var(--pq-mark-blue-deep);
   font-weight: 800;

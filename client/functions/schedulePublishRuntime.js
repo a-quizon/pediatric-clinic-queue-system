@@ -25,7 +25,8 @@ function resolveDoctor(user, callerUid, users) {
   if (user.role === "doctor") return { doctorId: callerUid, doctorEmail: user.email || "" };
   const doctor = users.find((item) => item.role === "doctor" && item.status === "active");
   if (doctor) return { doctorId: doctor.id, doctorEmail: doctor.email || user.email || "" };
-  return { doctorId: callerUid, doctorEmail: user.email || "" };
+  // No active doctor (deactivated/deleted): never attribute the session to the publishing secretary.
+  return { doctorId: null, doctorEmail: "" };
 }
 
 function normalizeDays(days) {

@@ -22,9 +22,11 @@ const TAB_ROOTS = new Set([
   "/doctor/queue",
   "/doctor/schedules",
   "/doctor/profile",
-  "/doctor/users",
-  "/doctor/branches",
-  "/doctor/audit-logs",
+  "/admin",
+  "/admin/users",
+  "/admin/branches",
+  "/admin/audit-logs",
+  "/admin/reports",
 ]);
 
 export function normalizePathname(pathname) {
@@ -62,8 +64,6 @@ export function getNestedFallback(pathname, search = "") {
       : "/doctor/reports";
   }
   if (path === "/doctor/reports") return "/doctor";
-  if (path === "/doctor/audit-logs") return "/doctor";
-  if (path === "/doctor/users" || path === "/doctor/branches") return "/doctor";
   if (path === "/onboarding/child") return "/parent";
   return null;
 }
