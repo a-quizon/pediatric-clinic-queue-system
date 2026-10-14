@@ -101,10 +101,11 @@ Entry points: `client/src/routes/AppRoutes.jsx`, `client/src/context/AuthContext
 3. **One active reservation per parent per clinic date.**
 4. **Secretary branch isolation** — secretaries only see `assignedBranch` (default fallback: `"Angeles"`).
 5. **One active doctor** — the Admin may create or reactivate a Doctor only when no other doctor is active (UI disables the option; server re-checks under a `systemLocks/doctorProvisioning` lock). Doctor status changes and deletes are server-only and admin-only, and are refused while a consultation is live.
-6. **Parents only get persistent Notification Center records** — staff get local toasts; doctors additionally get a narrow `SUSPICIOUS_ACCOUNT` Web Push / `doctorAlerts` exception for abuse flags.
+6. **Parents only get persistent Notification Center records** — staff get local toasts; active System Admins additionally get a narrow `SUSPICIOUS_ACCOUNT` Web Push / `adminAlerts` exception for abuse flags (link `/admin/audit-logs`). Doctors get no push.
 7. **No physical deletes** — reservations and audit records are permanent.
 8. **Parent cannot cancel after check-in.**
 9. **Slot counting** — only active statuses consume slots; terminal states release them.
+10. **Admin / Doctor role split** — enforced at UI, server, and rules. Admin-only: user management runtimes (active admin = `role: "admin"`, `status: "active"`, not `isDeleted`), `users` list read, other-user profile writes, `branchConfigurations` write, `auditLogs` read. Admin is never clinical staff: no reservation claim/release/cancel/write, no `systemConfiguration` writes, no clinical push. Documented deviations: admin reads reservations/locks/caps (reports), client-side audit writes, admin may write only `schedules/{id}/branch|branchId` (branch rename). Never reintroduce an `admin || doctor` check.
 
 ## Reservation Lifecycle
 
@@ -156,6 +157,10 @@ Server push listeners require `serviceAccountKey.json` or `FIREBASE_SERVICE_ACCO
 - **Deactivate / reactivate**: `adminService.toggleUserStatus()` routes doctor targets to `setDoctorAccountStatus()` → `POST /api/admin/doctor-status` (Express) with fallback to the `setDoctorAccountStatus` callable; shared runtime `client/functions/doctorStatusRuntime.js`. Reactivation uses the same lock and 409 as creation. Deactivation revokes refresh tokens. RTDB rules block client writes to a doctor's `status`.
 - **Delete**: `deleteUserAccount()` → `deleteUserAccountRuntime.js` (`deleteDoctorAccount`): active admin only, removes Auth user + `users/{uid}` + `notifications/{uid}`, keeps schedules' `doctorId`, audit snapshots, and `doctorAlerts/{uid}`.
 - Shared helpers live in `client/functions/doctorAccountShared.js` (active-admin check, lock, live-consultation check, admin audit writer). Admin targets are never deactivated or deleted in-app.
+- `deleteUserAccount` (all targets), `updateUserAccount`, and `resetSecretaryPassword` also call `assertActiveAdmin`. `server/routes/admin.js` only wraps these shared runtimes, so Express and Functions stay identical. Client gate: `utils/adminUserManagementPolicy.js`.
+
+### Suspicious-account alerts
+`client/functions/suspiciousAccountRuntime.js` flags the parent (transaction on `users/{id}/suspiciousFlag`), writes the audit entry, then `notifyAdmins` writes `adminAlerts/{adminUid}` and calls `sendPushToAdmin` for every active admin. Cloud Functions use the defaults; the Express engine (`server/services/notificationEngine.js`) reuses the same runtime with `{ db, sendPush }` injected. The client toast fallback lives in `NotificationObserver.jsx` (admins only).
 
 ### Reports
 Doctor and Admin Reports share `useReportFilters` plus `components/reports/*`: branch chips default to **All**, the date range is inclusive From/To with presets **All Time** (default), Today, This Week (Sunday–Saturday), This Month, This Year, built in `utils/reportDateRange.js` (Asia/Manila days). Editing a date clears the preset. Only the Date range filter has an icon. Session rows come from `utils/reportSessions.js`. On both Doctor and Admin, Session History rows open the shared read-only `components/reports/SessionReservationsDrawer.jsx` (row keyboard handling in `utils/sessionRowInteraction.js`).
@@ -177,7 +182,7 @@ firebase deploy --only functions
 firebase deploy --only database   # rules from client/database.rules.json (+ demo target)
 ```
 
-No CI/CD in repo. No automated tests — use manual regression checklists in `docs/`.
+No CI/CD in repo. Unit tests: `cd client && npm test` (node:test, includes static rules tests). Role/rules deploys follow `docs/RoleMigrationChecklist.md` (Admin separation checklist).
 
 ## Gotchas
 
