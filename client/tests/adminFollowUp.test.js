@@ -1,6 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { countActiveClinicStaff, isActiveClinicStaff } from "../src/utils/staffCounts.js";
 import {
   canCreateDoctor,
@@ -36,6 +39,10 @@ const { createDoctorAccount, LOCK_PATH } = require("../functions/createDoctorAcc
 const { setDoctorAccountStatus } = require("../functions/doctorStatusRuntime.js");
 const { deleteUserAccount } = require("../functions/deleteUserAccountRuntime.js");
 const { claimPasswordResetSlot } = require("../functions/passwordResetLimitService.js");
+const {
+  evaluateAndFlagParent,
+  listActiveAdminIds,
+} = require("../functions/suspiciousAccountRuntime.js");
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -58,6 +65,10 @@ function createTreeDb(initial = {}) {
     key,
     exists: () => val !== undefined && val !== null,
     val: () => (val === undefined ? null : structuredClone(val)),
+    forEach: (fn) => {
+      if (!val || typeof val !== "object") return;
+      Object.entries(val).forEach(([childKey, child]) => fn(snap(child, childKey)));
+    },
   });
   let pushSeq = 0;
 
@@ -723,5 +734,105 @@ describe("password reset claim blocks admin accounts", () => {
     assert.equal(ok.success, true);
     const unknown = await claimPasswordResetSlot("nobody@plus.queue", deps("parent"));
     assert.equal(unknown.success, true);
+  });
+});
+
+describe("Express admin routes mirror the Cloud Functions runtimes", () => {
+  const serverDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../server");
+  const adminRoute = fs.readFileSync(path.join(serverDir, "routes/admin.js"), "utf8");
+
+  it("delegates every user-management route to the shared runtime", () => {
+    for (const runtime of [
+      "deleteUserAccountRuntime",
+      "updateUserAccountRuntime",
+      "resetSecretaryPasswordRuntime",
+      "createDoctorAccountRuntime",
+      "doctorStatusRuntime",
+    ]) {
+      assert.match(adminRoute, new RegExp(`client/functions/${runtime}`), runtime);
+    }
+  });
+
+  it("has no role logic of its own that could drift from the runtimes", () => {
+    assert.doesNotMatch(adminRoute, /role\s*[!=]==/);
+  });
+
+  it("clinical Express routes do not treat admin as staff", () => {
+    for (const file of ["routes/push.js", "routes/reservations.js"]) {
+      const source = fs.readFileSync(path.join(serverDir, file), "utf8");
+      const staff = source.match(/STAFF_ROLES = new Set\(\[([^\]]*)\]\)/);
+      assert.ok(staff, file);
+      assert.doesNotMatch(staff[1], /admin/, file);
+    }
+  });
+});
+
+describe("suspicious-account alerts go to active admins only", () => {
+  const today = "2026-10-15";
+  const noShows = {
+    r1: { parentId: "p1", status: "forfeited", clinicDate: "2026-10-01", createdAt: 1 },
+    r2: { parentId: "p1", status: "forfeited", clinicDate: "2026-10-05", createdAt: 2 },
+    r3: { parentId: "p1", status: "expired", clinicDate: "2026-10-09", createdAt: 3 },
+  };
+  const seed = () => ({
+    users: {
+      p1: { role: "parent", status: "active", name: "Pat Parent" },
+      admin1: { role: "admin", status: "active" },
+      admin2: { role: "admin", status: "inactive" },
+      admin3: { role: "admin", status: "active", isDeleted: true },
+      doctor1: { role: "doctor", status: "active" },
+    },
+    reservations: noShows,
+  });
+
+  it("lists only active, non-deleted admins", async () => {
+    const db = createTreeDb(seed());
+    assert.deepEqual(await listActiveAdminIds({ ref: db.ref }), ["admin1"]);
+  });
+
+  it("writes adminAlerts and pushes with an /admin/audit-logs link; doctors get nothing", async () => {
+    const db = createTreeDb(seed());
+    const pushes = [];
+    const result = await evaluateAndFlagParent("p1", {
+      db: { ref: db.ref },
+      todayManila: today,
+      sendPush: async (uid, notification) => {
+        pushes.push({ uid, notification });
+        return { sent: 1 };
+      },
+    });
+
+    assert.equal(result.flagged, true);
+    assert.deepEqual(pushes.map((p) => p.uid), ["admin1"]);
+    assert.equal(pushes[0].notification.url, `/admin/audit-logs?highlight=${result.auditLogId}`);
+    const alerts = Object.values(db.root.adminAlerts.admin1);
+    assert.equal(alerts.length, 1);
+    assert.equal(alerts[0].type, "SUSPICIOUS_ACCOUNT");
+    assert.equal(alerts[0].url, `/admin/audit-logs?highlight=${result.auditLogId}`);
+    assert.equal(db.root.adminAlerts.admin2, undefined);
+    assert.equal(db.root.doctorAlerts, undefined);
+    assert.equal(db.root.users.p1.suspiciousFlag.status, "open");
+  });
+
+  it("flags and alerts once when two evaluators race", async () => {
+    const db = createTreeDb(seed());
+    const pushes = [];
+    const options = {
+      db: { ref: db.ref },
+      todayManila: today,
+      sendPush: async (uid) => {
+        pushes.push(uid);
+        return { sent: 1 };
+      },
+    };
+    const results = await Promise.all([
+      evaluateAndFlagParent("p1", options),
+      evaluateAndFlagParent("p1", options),
+    ]);
+
+    assert.equal(results.filter((r) => r.flagged).length, 1);
+    assert.equal(pushes.length, 1);
+    assert.equal(Object.keys(db.root.auditLogs).length, 1);
+    assert.equal(Object.keys(db.root.adminAlerts.admin1).length, 1);
   });
 });
