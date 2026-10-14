@@ -208,7 +208,7 @@ async function sendPushToDoctor(doctorId, notification, options = {}) {
   }
 
   const user = snap.val() || {};
-  if (user.role !== "doctor" && user.role !== "admin") {
+  if (user.role !== "doctor") {
     return { success: false, sent: 0, failed: 0, reason: "not_doctor" };
   }
   if (user.status === "inactive" || user.isDeleted === true) {

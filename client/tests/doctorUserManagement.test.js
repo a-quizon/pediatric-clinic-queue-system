@@ -63,78 +63,58 @@ function createFakeAdmin({ users = {}, authUsers = {} } = {}) {
   return { admin, store, revoked, passwordUpdates };
 }
 
-describe("doctor user management policy", () => {
-  it("marks parent profiles as not editable by doctor UI", () => {
+const ADMIN = { role: "admin", status: "active", name: "System Admin" };
+
+describe("admin user management policy", () => {
+  it("marks parent and admin profiles as not editable in Admin → Users", () => {
     assert.equal(canDoctorEditUserProfile("parent"), false);
+    assert.equal(canDoctorEditUserProfile("admin"), false);
     assert.equal(canDoctorEditUserProfile("secretary"), true);
+    assert.equal(canDoctorEditUserProfile("doctor"), true);
   });
 
-  it("rejects doctor parent profile edits with 403", () => {
-    const result = assertDoctorCanUpdateUserProfile({
-      callerRole: "doctor",
-      targetRole: "parent",
-      updates: { name: "New Name" },
-    });
-    assert.equal(result.ok, false);
-    assert.equal(result.status, 403);
-  });
-
-  it("allows doctor secretary profile edits", () => {
-    const result = assertDoctorCanUpdateUserProfile({
-      callerRole: "doctor",
-      targetRole: "secretary",
-      updates: { name: "Sec", phone: "+639171234567" },
-    });
-    assert.equal(result.ok, true);
-  });
-
-  it("blocks secretary and parent from doctor update actions", () => {
-    for (const callerRole of ["secretary", "parent"]) {
+  it("allows only admin callers to edit staff profiles", () => {
+    assert.equal(
+      assertDoctorCanUpdateUserProfile({ callerRole: "admin", targetRole: "secretary", updates: { name: "Sec" } }).ok,
+      true
+    );
+    for (const callerRole of ["doctor", "secretary", "parent", undefined]) {
       const result = assertDoctorCanUpdateUserProfile({
         callerRole,
         targetRole: "secretary",
         updates: { name: "X" },
+      });
+      assert.equal(result.ok, false, String(callerRole));
+      assert.equal(result.status, 403);
+    }
+  });
+
+  it("rejects parent and admin targets even for admin callers", () => {
+    for (const targetRole of ["parent", "admin"]) {
+      const result = assertDoctorCanUpdateUserProfile({
+        callerRole: "admin",
+        targetRole,
+        updates: { name: "New Name" },
       });
       assert.equal(result.ok, false);
       assert.equal(result.status, 403);
     }
   });
 
-  it("allows direct reset only for doctor→secretary", () => {
-    assert.equal(
-      assertDoctorCanDirectResetSecretaryPassword({
-        callerRole: "doctor",
-        targetRole: "secretary",
-      }).ok,
-      true
-    );
-    assert.equal(
-      assertDoctorCanDirectResetSecretaryPassword({
-        callerRole: "doctor",
-        targetRole: "parent",
-      }).status,
-      403
-    );
-    assert.equal(
-      assertDoctorCanDirectResetSecretaryPassword({
-        callerRole: "secretary",
-        targetRole: "secretary",
-      }).status,
-      403
-    );
-    assert.equal(
-      assertDoctorCanDirectResetSecretaryPassword({
-        callerRole: "parent",
-        targetRole: "secretary",
-      }).status,
-      403
-    );
+  it("allows direct reset only for admin→secretary", () => {
+    const check = (callerRole, targetRole) =>
+      assertDoctorCanDirectResetSecretaryPassword({ callerRole, targetRole });
+    assert.equal(check("admin", "secretary").ok, true);
+    assert.equal(check("admin", "parent").status, 403);
+    assert.equal(check("doctor", "secretary").status, 403);
+    assert.equal(check("secretary", "secretary").status, 403);
+    assert.equal(check("parent", "secretary").status, 403);
   });
 
   it("builds audit text without embedding a password", () => {
     const secret = "Tmp!Passw0rdABCD";
     const description = buildSecretaryPasswordResetAuditDescription("Ana Cruz");
-    assert.equal(description, "Doctor reset password for secretary Ana Cruz");
+    assert.equal(description, "Admin reset password for secretary Ana Cruz");
     assert.equal(auditDescriptionContainsSecret(description, secret), false);
   });
 });
@@ -149,20 +129,16 @@ describe("resetSecretaryPasswordRuntime", () => {
     assert.match(password, /[!@#$%&*?]/);
   });
 
-  it("resets secretary password, forces change, and revokes sessions", async () => {
+  it("admin resets secretary password, forces change, and revokes sessions", async () => {
     const { admin, store, revoked, passwordUpdates } = createFakeAdmin({
       users: {
-        "users/doctor1": { role: "doctor", status: "active", name: "Dr Lee" },
+        "users/admin1": ADMIN,
         "users/sec1": { role: "secretary", status: "active", name: "Ana Cruz" },
       },
       authUsers: { sec1: { email: "ana@clinic.test" } },
     });
 
-    const result = await resetSecretaryPassword({
-      admin,
-      callerUid: "doctor1",
-      targetUid: "sec1",
-    });
+    const result = await resetSecretaryPassword({ admin, callerUid: "admin1", targetUid: "sec1" });
 
     assert.equal(result.success, true);
     assert.ok(result.temporaryPassword);
@@ -176,112 +152,94 @@ describe("resetSecretaryPasswordRuntime", () => {
     assert.equal(auditDescriptionContainsSecret(auditLine, result.temporaryPassword), false);
   });
 
-  it("does not send email and rejects parent/doctor targets", async () => {
+  it("rejects parent targets", async () => {
     const { admin } = createFakeAdmin({
       users: {
-        "users/doctor1": { role: "doctor", status: "active" },
+        "users/admin1": ADMIN,
         "users/parent1": { role: "parent", status: "active", email: "p@test.com" },
       },
     });
-
     await assert.rejects(
-      () => resetSecretaryPassword({ admin, callerUid: "doctor1", targetUid: "parent1" }),
+      () => resetSecretaryPassword({ admin, callerUid: "admin1", targetUid: "parent1" }),
       (err) => err.status === 403
     );
   });
 
-  it("rejects non-doctor callers", async () => {
-    const { admin } = createFakeAdmin({
+  it("rejects doctor, secretary, inactive and deleted admin callers", async () => {
+    const { admin, store, passwordUpdates } = createFakeAdmin({
       users: {
+        "users/doctor1": { role: "doctor", status: "active" },
         "users/sec1": { role: "secretary", status: "active" },
         "users/sec2": { role: "secretary", status: "active" },
+        "users/admin2": { ...ADMIN, status: "inactive" },
+        "users/admin3": { ...ADMIN, isDeleted: true },
       },
     });
-
-    await assert.rejects(
-      () => resetSecretaryPassword({ admin, callerUid: "sec1", targetUid: "sec2" }),
-      (err) => err.status === 403
-    );
+    for (const callerUid of ["doctor1", "sec1", "admin2", "admin3", "ghost"]) {
+      await assert.rejects(
+        () => resetSecretaryPassword({ admin, callerUid, targetUid: "sec2" }),
+        (err) => err.status === 403,
+        callerUid
+      );
+    }
+    assert.equal(passwordUpdates.length, 0);
+    assert.equal(store["users/sec2"].mustChangePassword, undefined);
   });
 });
 
 describe("updateUserAccountRuntime", () => {
-  it("returns 403 when a doctor edits parent profile fields", async () => {
-    const { admin } = createFakeAdmin({
-      users: {
-        "users/doctor1": { role: "doctor", status: "active" },
-        "users/parent1": { role: "parent", status: "active", name: "Parent" },
-      },
-    });
-
-    await assert.rejects(
-      () =>
-        updateUserAccount({
-          admin,
-          callerUid: "doctor1",
-          targetUid: "parent1",
-          updates: { name: "Hacked" },
-        }),
-      (err) => err.status === 403 && /parent/i.test(err.message)
-    );
-  });
-
-  it("allows doctor to update secretary profile fields", async () => {
+  it("allows an admin to update secretary profile fields", async () => {
     const { admin, store } = createFakeAdmin({
       users: {
-        "users/doctor1": { role: "doctor", status: "active" },
-        "users/sec1": {
-          role: "secretary",
-          status: "active",
-          name: "Ana",
-          assignedBranch: "Angeles",
-        },
+        "users/admin1": ADMIN,
+        "users/sec1": { role: "secretary", status: "active", name: "Ana", assignedBranch: "Angeles" },
       },
     });
 
     const result = await updateUserAccount({
       admin,
-      callerUid: "doctor1",
+      callerUid: "admin1",
       targetUid: "sec1",
-      updates: { name: "Ana Updated", phone: "+639171234567" },
+      updates: { name: "Ana Updated", phone: "+639171234567", role: "admin" },
     });
 
     assert.equal(result.success, true);
     assert.equal(store["users/sec1"].name, "Ana Updated");
     assert.equal(store["users/sec1"].phone, "+639171234567");
+    assert.equal(store["users/sec1"].role, "secretary", "role is never in the allowlist");
   });
 
-  it("rejects secretary callers", async () => {
+  it("returns 403 for parent and admin targets", async () => {
     const { admin } = createFakeAdmin({
       users: {
+        "users/admin1": ADMIN,
+        "users/admin2": ADMIN,
+        "users/parent1": { role: "parent", status: "active", name: "Parent" },
+      },
+    });
+    for (const targetUid of ["parent1", "admin2"]) {
+      await assert.rejects(
+        () => updateUserAccount({ admin, callerUid: "admin1", targetUid, updates: { name: "Hacked" } }),
+        (err) => err.status === 403
+      );
+    }
+  });
+
+  it("rejects doctor and secretary callers", async () => {
+    const { admin, store } = createFakeAdmin({
+      users: {
+        "users/doctor1": { role: "doctor", status: "active" },
         "users/sec1": { role: "secretary", status: "active" },
         "users/sec2": { role: "secretary", status: "active", name: "Other" },
       },
     });
-
-    await assert.rejects(
-      () =>
-        updateUserAccount({
-          admin,
-          callerUid: "sec1",
-          targetUid: "sec2",
-          updates: { name: "Nope" },
-        }),
-      (err) => err.status === 403
-    );
+    for (const callerUid of ["doctor1", "sec1"]) {
+      await assert.rejects(
+        () => updateUserAccount({ admin, callerUid, targetUid: "sec2", updates: { name: "Nope" } }),
+        (err) => err.status === 403
+      );
+    }
+    assert.equal(store["users/sec2"].name, "Other");
   });
 });
 
-describe("parent self-edit regression (policy)", () => {
-  it("does not treat parent self-updates as doctor admin updates", () => {
-    // Parent editing own profile uses authService.updateUserProfile, not doctor policy.
-    // Doctor policy only applies when callerRole is doctor/admin.
-    const doctorGate = assertDoctorCanUpdateUserProfile({
-      callerRole: "parent",
-      targetRole: "parent",
-      updates: { name: "Self" },
-    });
-    assert.equal(doctorGate.ok, false);
-    assert.equal(canDoctorEditUserProfile("parent"), false);
-  });
-});

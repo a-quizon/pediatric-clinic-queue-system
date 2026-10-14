@@ -30,13 +30,20 @@ function activeDoctorError() {
   return makeError(ACTIVE_DOCTOR_EXISTS_MESSAGE, 409, "failed-precondition");
 }
 
+/** Active admin = profile exists, role admin, status active, not soft-deleted. */
+function isActiveAdmin(user) {
+  return Boolean(
+    user && user.role === "admin" && user.status === "active" && user.isDeleted !== true
+  );
+}
+
 async function assertActiveAdmin(db, callerUid, action = "manage doctor accounts") {
   if (!callerUid) {
     throw makeError("Authentication required.", 401, "unauthenticated");
   }
   const snap = await db.ref(`users/${callerUid}`).once("value");
   const caller = snap.exists() ? snap.val() : null;
-  if (!caller || caller.role !== "admin" || caller.status !== "active") {
+  if (!isActiveAdmin(caller)) {
     throw makeError(`Only an active admin can ${action}.`, 403, "permission-denied");
   }
   return caller;
@@ -112,6 +119,7 @@ module.exports = {
   isActiveDoctor,
   findActiveDoctor,
   activeDoctorError,
+  isActiveAdmin,
   assertActiveAdmin,
   readUsers,
   acquireDoctorLock,

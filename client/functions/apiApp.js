@@ -314,7 +314,7 @@ function createApiApp() {
       return await runForToken(decoded, async () => {
       const roleSnap = await getRtdb().ref(`users/${decoded.uid}/role`).once("value");
       const role = roleSnap.exists() ? roleSnap.val() : null;
-      if (!["doctor", "secretary", "admin"].includes(role)) {
+      if (!["doctor", "secretary"].includes(role)) {
         return res.status(403).json({
           success: false,
           error: "permission-denied",

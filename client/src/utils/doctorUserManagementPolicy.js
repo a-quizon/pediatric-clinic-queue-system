@@ -1,26 +1,31 @@
 /**
- * Pure authorization helpers for doctor clinic-admin user management.
- * Used by the UI/service layer and unit tests. RTDB rules remain the
- * authoritative write gate for client profile updates.
+ * Pure authorization helpers for admin staff/user management (Admin → Users).
+ * Used by the UI/service layer and unit tests. Server runtimes (active-admin check)
+ * and RTDB rules remain the authoritative gates.
  */
 
 export function canDoctorEditUserProfile(targetRole) {
-  if (targetRole === "parent") return false;
-  if (targetRole === "secretary") return true;
-  // Doctor/admin profiles: name/phone edits remain allowed for non-self management screens,
-  // but status/delete stay blocked elsewhere.
-  return targetRole === "doctor" || targetRole === "admin";
+  // Admin accounts are Admin SDK only; parents edit their own profile.
+  return targetRole === "secretary" || targetRole === "doctor";
 }
 
 /**
  * @returns {{ ok: true } | { ok: false, status: number, message: string }}
  */
 export function assertDoctorCanUpdateUserProfile({ callerRole, targetRole, updates = {} }) {
-  if (callerRole !== "doctor" && callerRole !== "admin") {
+  if (callerRole !== "admin") {
     return {
       ok: false,
       status: 403,
-      message: "Only a doctor can manage clinic user profiles.",
+      message: "Only an admin can manage clinic user profiles.",
+    };
+  }
+
+  if (targetRole === "admin") {
+    return {
+      ok: false,
+      status: 403,
+      message: "Admin accounts cannot be edited in the app.",
     };
   }
 
@@ -33,7 +38,7 @@ export function assertDoctorCanUpdateUserProfile({ callerRole, targetRole, updat
       return {
         ok: false,
         status: 403,
-        message: "Doctors cannot edit parent profile information.",
+        message: "Parent profile information cannot be edited by staff.",
       };
     }
   }
@@ -45,11 +50,11 @@ export function assertDoctorCanUpdateUserProfile({ callerRole, targetRole, updat
  * @returns {{ ok: true } | { ok: false, status: number, message: string }}
  */
 export function assertDoctorCanDirectResetSecretaryPassword({ callerRole, targetRole }) {
-  if (callerRole !== "doctor" && callerRole !== "admin") {
+  if (callerRole !== "admin") {
     return {
       ok: false,
       status: 403,
-      message: "Only a doctor can reset a secretary password directly.",
+      message: "Only an admin can reset a secretary password directly.",
     };
   }
   if (targetRole !== "secretary") {
@@ -66,7 +71,7 @@ export function buildSecretaryPasswordResetAuditDescription(secretaryName) {
   const label = secretaryName && String(secretaryName).trim()
     ? String(secretaryName).trim()
     : "secretary";
-  return `Doctor reset password for secretary ${label}`;
+  return `Admin reset password for secretary ${label}`;
 }
 
 export function auditDescriptionContainsSecret(description, secret) {

@@ -86,6 +86,19 @@ function createTreeDb(initial = {}) {
       pushSeq += 1;
       return ref(`${path}/log${pushSeq}`);
     },
+    orderByChild: (field) => ({
+      equalTo: (value) => ({
+        async once() {
+          await tick();
+          const rows = Object.entries(read(path) || {}).filter(([, row]) => row && row[field] === value);
+          const matched = rows.length ? Object.fromEntries(rows) : null;
+          return {
+            ...snap(matched),
+            forEach: (fn) => rows.forEach(([key, row]) => fn(snap(row, key))),
+          };
+        },
+      }),
+    }),
   });
 
   return { root, ref };
@@ -465,6 +478,42 @@ describe("doctor delete (admin only)", () => {
     const { admin } = createFakeAdmin({ users: { admin1: ADMIN, admin2: { ...ADMIN } } });
     await assert.rejects(deleteUserAccount({ admin, callerUid: "admin1", targetUid: "admin1" }), (e) => e.status === 400);
     await assert.rejects(deleteUserAccount({ admin, callerUid: "admin1", targetUid: "admin2" }), (e) => e.status === 400);
+  });
+
+  it("only an active admin can delete secretary or parent accounts", async () => {
+    const data = {
+      users: {
+        admin1: ADMIN,
+        doc1: { role: "doctor", status: "active" },
+        sec1: { role: "secretary", status: "active" },
+        sec2: { role: "secretary", status: "active" },
+        par1: { role: "parent", status: "active" },
+        admin2: { ...ADMIN, status: "inactive" },
+        admin3: { ...ADMIN, isDeleted: true },
+      },
+    };
+    const { admin, db, deletedAuthUids } = createFakeAdmin(data);
+    for (const callerUid of ["doc1", "sec1", "admin2", "admin3", "ghost"]) {
+      for (const targetUid of ["sec2", "par1"]) {
+        await assert.rejects(
+          deleteUserAccount({ admin, callerUid, targetUid }),
+          (err) => err.status === 403,
+          `${callerUid} -> ${targetUid}`
+        );
+      }
+    }
+    assert.deepEqual(deletedAuthUids, []);
+    await deleteUserAccount({ admin, callerUid: "admin1", targetUid: "sec2" });
+    await deleteUserAccount({ admin, callerUid: "admin1", targetUid: "par1" });
+    assert.equal(db.root.users.sec2, undefined);
+    assert.equal(db.root.users.par1, undefined);
+  });
+
+  it("checks the caller before looking at the target", async () => {
+    const { admin } = createFakeAdmin({ users: { admin1: ADMIN, doc1: { role: "doctor", status: "active" } } });
+    await assert.rejects(deleteUserAccount({ admin, callerUid: "doc1", targetUid: "nobody" }), (e) => e.status === 403);
+    const res = await deleteUserAccount({ admin, callerUid: "admin1", targetUid: "nobody" });
+    assert.equal(res.success, true);
   });
 
   it("succeeds when the Auth user is already gone", async () => {

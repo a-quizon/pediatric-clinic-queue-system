@@ -246,7 +246,7 @@ async function sendPushToParent(parentId, notification, notificationId) {
 }
 
 /**
- * Narrow doctor/admin exception for abuse alerts (e.g. SUSPICIOUS_ACCOUNT).
+ * Narrow doctor exception for abuse alerts (e.g. SUSPICIOUS_ACCOUNT).
  * Reuses the same VAPID + pushSubscriptions storage as parents.
  */
 async function sendPushToDoctor(doctorId, notification, notificationId) {
@@ -267,7 +267,7 @@ async function sendPushToDoctor(doctorId, notification, notificationId) {
 
   const userSnap = await db().ref(`users/${doctorId}`).once("value");
   const user = userSnap.val();
-  if (!user || (user.role !== "doctor" && user.role !== "admin")) {
+  if (!user || user.role !== "doctor") {
     return { sent: 0, failed: 0, reason: "not_doctor" };
   }
   if (user.status === "inactive" || user.isDeleted === true) {

@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { databaseFor } = require("./rtdbRouter");
+const { assertActiveAdmin } = require("./doctorAccountShared");
 
 function makeError(message, status, code) {
   const err = new Error(message);
@@ -35,7 +36,7 @@ function generateTemporaryPassword(length = 16) {
 }
 
 /**
- * Doctor (or leftover admin) resets a secretary password directly.
+ * Active admin resets a secretary password directly.
  * Returns a one-time temporary password; never write it to logs or audit.
  */
 async function resetSecretaryPassword({ admin, callerUid, targetUid }) {
@@ -50,19 +51,7 @@ async function resetSecretaryPassword({ admin, callerUid, targetUid }) {
   }
 
   const db = databaseFor(admin);
-  const callerSnap = await db.ref(`users/${callerUid}`).once("value");
-  const caller = callerSnap.exists() ? callerSnap.val() : null;
-  const callerAllowed =
-    caller &&
-    caller.status === "active" &&
-    (caller.role === "doctor" || caller.role === "admin");
-  if (!callerAllowed) {
-    throw makeError(
-      "Only an active doctor can reset a secretary password directly.",
-      403,
-      "permission-denied"
-    );
-  }
+  await assertActiveAdmin(db, callerUid, "reset a secretary password");
 
   const targetSnap = await db.ref(`users/${targetUid}`).once("value");
   const target = targetSnap.exists() ? targetSnap.val() : null;
