@@ -65,7 +65,7 @@ export function assertCanCancelReservation(reservation, actor = {}) {
 
   const role = actor.actorRole || null;
   const uid = actor.actorUid || null;
-  const isStaff = role === "secretary" || role === "doctor" || role === "admin";
+  const isStaff = role === "secretary" || role === "doctor";
   const isWalkIn = reservation.source === "walk_in";
 
   if (isStaff && isWalkIn) {

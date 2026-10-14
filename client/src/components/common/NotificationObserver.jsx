@@ -4,7 +4,7 @@ import { subscribeToAllSchedules } from '../../services/scheduleService';
 import { subscribeToParentReservations, subscribeToScheduleReservations, ACTIVE_RESERVATION_STATUSES } from '../../services/reservationService';
 import notificationService, { NOTIFICATION_EVENTS } from '../../services/notificationService';
 import { evaluatePositionEvents } from '../../services/positionEventEngine';
-import { cleanupNonParentNotifications } from '../../services/notificationCenterService';
+import { cleanupOwnStaffNotifications } from '../../services/notificationCenterService';
 import {
   subscribeToSmsConfiguration,
   resolveScheduleBranchId,
@@ -21,8 +21,8 @@ export default function NotificationObserver() {
   const { user, role } = useAuth();
 
   useEffect(() => {
-    if (role === 'doctor' || role === 'admin') {
-      cleanupNonParentNotifications();
+    if (role && role !== 'parent') {
+      cleanupOwnStaffNotifications();
     }
   }, [role]);
 

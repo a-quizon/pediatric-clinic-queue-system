@@ -93,10 +93,15 @@ const migrateToV2 = async (branches) => {
         }
       }
 
-      await update(ref(getDb(), `branchConfigurations/${branch.id}`), {
-        schedule: newSchedule,
-        schedulePatterns: null
-      });
+      // Only admins can write branchConfigurations; other readers keep the in-memory result.
+      try {
+        await update(ref(getDb(), `branchConfigurations/${branch.id}`), {
+          schedule: newSchedule,
+          schedulePatterns: null
+        });
+      } catch (_err) {
+        // Non-fatal
+      }
 
       return { ...branch, schedule: newSchedule, schedulePatterns: undefined };
     }
