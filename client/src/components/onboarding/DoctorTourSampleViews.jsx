@@ -1,8 +1,6 @@
 import {
   Activity,
   AlertCircle,
-  AlertTriangle,
-  Bell,
   CheckCircle,
   Clock,
   FileText,
@@ -12,7 +10,6 @@ import {
   Play,
   Square,
   User,
-  UserCog,
   Users,
   XCircle,
 } from "lucide-react";
@@ -33,11 +30,9 @@ import {
   DOCTOR_TOUR_SAMPLE_NOTES,
   formatDoctorSampleDate,
   formatDoctorSampleTime,
-  getDoctorTourSampleAudit,
   getDoctorTourSampleDashboard,
   getDoctorTourSampleQueue,
   getDoctorTourSampleReports,
-  getDoctorTourSampleUsers,
 } from "./doctorTourSampleData";
 
 const CHART_INK = "#16344a";
@@ -182,189 +177,6 @@ export function TourSampleDoctorDashboard() {
           ))}
         </div>
       </section>
-    </div>
-  );
-}
-
-export function TourSampleDoctorUsers() {
-  const sample = getDoctorTourSampleUsers();
-
-  return (
-    <div className="pq-tour-sample space-y-4 pointer-events-none">
-      <p className="text-[11px] font-semibold pq-muted flex items-center gap-2">
-        Tour preview — sample accounts
-        <SampleFlag />
-      </p>
-
-      <div className="pq-filter-bar p-3 sm:p-4" data-tour="doctor-users-list">
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="font-extrabold tracking-tight">Users</p>
-            <p className="text-sm pq-muted">Search and filter staff or parent accounts</p>
-          </div>
-          <button type="button" tabIndex={-1} className="pq-btn-primary shrink-0">
-            Add Staff
-          </button>
-        </div>
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div
-            className="pq-row"
-            style={{ display: "block", minHeight: 0, padding: "1rem" }}
-            data-tour="doctor-users-secretary"
-          >
-            <div className="flex items-start gap-3">
-              <div
-                className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-                style={{ background: "var(--pq-wait-wash)", color: "var(--pq-wait)" }}
-              >
-                <UserCog className="w-5 h-5" aria-hidden="true" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h3 className="font-extrabold tracking-tight">{sample.secretary.name}</h3>
-                  <span className="pq-chip pq-chip-wait">Secretary</span>
-                  <span className="pq-chip pq-chip-live">Active</span>
-                </div>
-                <p className="text-sm pq-muted truncate">{sample.secretary.email}</p>
-                <p className="text-xs pq-muted mt-2">
-                  Reset Password creates a temporary password immediately — no email is sent.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" tabIndex={-1} className="pq-btn-secondary">Edit</button>
-                  <button type="button" tabIndex={-1} className="pq-btn-secondary">Reset Password</button>
-                  <button type="button" tabIndex={-1} className="pq-btn-secondary">Deactivate</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            className="pq-row"
-            style={{ display: "block", minHeight: 0, padding: "1rem" }}
-            data-tour="doctor-users-parent"
-          >
-            <div className="flex items-start gap-3">
-              <div
-                className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-                style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}
-              >
-                <User className="w-5 h-5" aria-hidden="true" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h3 className="font-extrabold tracking-tight">{sample.parent.name}</h3>
-                  <span className="pq-chip">Parent</span>
-                  <span className="pq-chip pq-chip-live">Active</span>
-                </div>
-                <p className="text-sm pq-muted truncate">{sample.parent.email}</p>
-                <p className="text-xs pq-muted mt-2">
-                  Parent accounts are view-only. You can deactivate, delete, or send a password reset email.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" tabIndex={-1} className="pq-btn-secondary">View</button>
-                  <button type="button" tabIndex={-1} className="pq-btn-secondary">Send Reset Email</button>
-                  <button type="button" tabIndex={-1} className="pq-btn-secondary">Deactivate</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function TourSampleDoctorAudit() {
-  const sample = getDoctorTourSampleAudit();
-  const log = sample.suspicious;
-
-  return (
-    <div className="pq-tour-sample space-y-4 pointer-events-none">
-      <p className="text-[11px] font-semibold pq-muted flex items-center gap-2">
-        Tour preview — sample audit entry
-        <SampleFlag />
-      </p>
-
-      <div className="pq-filter-bar p-3 sm:p-4" data-tour="doctor-audit-filters">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="pq-input opacity-80 flex-1">Search audit logs...</div>
-          <div className="pq-input opacity-80 min-w-[9rem]">{sample.filters.category}</div>
-          <div className="pq-input opacity-80 min-w-[9rem]">{sample.filters.role}</div>
-        </div>
-        <p className="text-xs pq-muted mt-3">
-          Role filter options: All Roles, Doctor, Secretary, System — no Admin filter.
-        </p>
-      </div>
-
-      <div
-        className="pq-glass overflow-hidden"
-        data-tour="doctor-audit-suspicious"
-      >
-        <div className="p-4 sm:p-5 flex flex-wrap items-start justify-between gap-3" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="pq-chip pq-chip-alert">Suspicious</span>
-              <span className="pq-chip">User</span>
-              <span className="pq-chip pq-chip-alert">System</span>
-            </div>
-            <h3 className="font-extrabold tracking-tight">{log.description}</h3>
-            <p className="text-xs pq-muted mt-1 flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" aria-hidden="true" />
-              Sample entry — tour only
-            </p>
-          </div>
-          <AlertTriangle className="w-5 h-5 shrink-0" style={{ color: "var(--pq-alert)" }} aria-hidden="true" />
-        </div>
-        <div className="p-4 sm:p-5 space-y-4">
-          <div>
-            <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1.5">Recommendation</p>
-            <p className="text-sm font-medium leading-relaxed">{log.recommendation}</p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Evidence</p>
-            <ul className="space-y-1.5 text-sm pq-muted">
-              {log.evidence.map((row) => (
-                <li key={row.reservationId}>
-                  <span className="font-semibold text-[var(--pq-ink)]">{row.clinicDate}</span>
-                  {" — No QR validation (no-show)"}
-                  {row.status ? ` · status: ${row.status}` : ""}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
-            <button type="button" tabIndex={-1} disabled className="pq-btn-secondary">
-              Dismiss / Mark as Reviewed
-            </button>
-            <button
-              type="button"
-              tabIndex={-1}
-              disabled
-              className="pq-btn-primary"
-              style={{ background: "var(--pq-alert)" }}
-            >
-              Deactivate Account
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="pq-glass p-4 sm:p-5" data-tour="doctor-notifications">
-        <div className="flex items-start gap-3">
-          <div
-            className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
-            style={{ background: "var(--pq-wait-wash)", color: "var(--pq-wait)" }}
-          >
-            <Bell className="w-5 h-5" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="font-extrabold tracking-tight">Suspicious Account Detected</h3>
-            <p className="text-sm pq-muted mt-1 leading-relaxed">
-              Sample push / in-app alert. Allow notifications when prompted after sign-in. Tapping a push opens the matching Audit Logs entry. The tour never triggers a real permission prompt.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

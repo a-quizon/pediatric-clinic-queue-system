@@ -267,7 +267,7 @@ export const updateUser = async (uid, updates) => {
   logAuditEvent({
     action: AUDIT_ACTIONS.USER_EDITED,
     category: AUDIT_CATEGORIES.USER_MANAGEMENT,
-    description: `Updated user profile details`,
+    description: `Updated user profile details${target?.name ? ` for ${target.name}` : ""}`,
     targetType: "user",
     targetId: uid
   });

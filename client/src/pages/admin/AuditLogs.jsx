@@ -27,8 +27,6 @@ import ConfirmationModal from "../../components/common/ConfirmationModal";
 import ModalScrim from "../../components/common/ModalScrim";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import toast from "react-hot-toast";
-import { useTourSample } from "../../hooks/useTourPreview";
-import { TourSampleDoctorAudit } from "../../components/onboarding/DoctorTourSampleViews";
 import { AUDIT_ROLE_FILTER_OPTIONS, matchesAuditRoleFilter } from "../../utils/auditLogFilters";
 import Pagination from "../../components/common/Pagination";
 
@@ -181,6 +179,11 @@ function AuditLogDetailModal({
                   {log.targetType || "record"}
                   {log.targetId ? ` · ${log.targetId}` : ""}
                 </p>
+                {(log.metadata?.targetName || log.metadata?.targetEmail) && (
+                  <p className="text-sm pq-muted mt-0.5">
+                    {[log.metadata.targetName, log.metadata.targetEmail].filter(Boolean).join(" · ")}
+                  </p>
+                )}
               </div>
             )}
             {log.branchId && (
@@ -257,11 +260,6 @@ export default function AuditLogs() {
   const [searchParams, setSearchParams] = useSearchParams();
   const redirectToOverview = searchParams.get("tab") === "reports";
   const highlightId = searchParams.get("highlight");
-  const showAuditSample = useTourSample([
-    "doctor-audit-filters",
-    "doctor-audit-suspicious",
-    "doctor-notifications",
-  ]);
 
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -450,17 +448,9 @@ export default function AuditLogs() {
     };
   };
 
-  if (showAuditSample) {
-    return (
-      <div className="space-y-4 pb-4 md:pb-8">
-        <TourSampleDoctorAudit />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4 pb-4 md:pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
-      <div className="pq-filter-bar p-3 sm:p-4 flex flex-col md:flex-row md:items-center gap-3" data-tour="doctor-audit-filters">
+      <div className="pq-filter-bar p-3 sm:p-4 flex flex-col md:flex-row md:items-center gap-3">
         <div className="relative flex-1">
           <div className="pq-field-icon">
             <Search className="w-5 h-5" aria-hidden="true" />
@@ -560,10 +550,10 @@ export default function AuditLogs() {
                     <div className="pq-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", minHeight: 0, alignItems: "start" }}>
                       <div className="text-sm min-w-0">
                         <span className="pq-faint text-xs block mb-1">Actor</span>
-                        <span className="font-semibold block truncate">{log.actorName}</span>
+                        <span className="font-semibold block truncate">{log.actorName || "Unknown"}</span>
                         <span className={`${roleChip(log.actorRole)} capitalize mt-1`}>
                           {getRoleIcon(log.actorRole)}
-                          {log.actorRole}
+                          {log.actorRole || "unknown"}
                         </span>
                       </div>
                       <div className="text-sm min-w-0">
@@ -612,12 +602,12 @@ export default function AuditLogs() {
                           <p className="text-xs pq-muted mt-0.5 leading-tight">{formatLogTime(log.timestamp)}</p>
                         </td>
                         <td className="w-px max-w-[9rem] align-top">
-                          <span className="font-semibold block truncate">{log.actorName}</span>
+                          <span className="font-semibold block truncate">{log.actorName || "Unknown"}</span>
                         </td>
                         <td className="align-top">
                           <span className={`${roleChip(log.actorRole)} capitalize`}>
                             {getRoleIcon(log.actorRole)}
-                            {log.actorRole}
+                            {log.actorRole || "unknown"}
                           </span>
                         </td>
                         <td className="text-sm font-semibold align-top">

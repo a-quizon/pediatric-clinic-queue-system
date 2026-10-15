@@ -72,6 +72,22 @@ export function assertAdminCanDirectResetStaffPassword({ callerRole, targetRole 
   return { ok: true };
 }
 
+/**
+ * Actions Admin → Users may offer on a row. Mirrors the server: admin accounts and the
+ * signed-in admin's own row get none (no edit, reset, deactivate, or delete).
+ */
+export function getUserRowActions({ target, currentUid }) {
+  const none = { canEdit: false, canResetPassword: false, canToggleStatus: false, canDelete: false };
+  if (!target?.id || target.id === "admin" || target.role === "admin") return none;
+  if (currentUid && target.id === currentUid) return none;
+  return {
+    canEdit: canAdminEditUserProfile(target.role),
+    canResetPassword: isDirectPasswordResetRole(target.role) || target.role === "parent",
+    canToggleStatus: true,
+    canDelete: true,
+  };
+}
+
 export function buildStaffPasswordResetAuditDescription(staffName, role = "secretary") {
   const roleLabel = role === "doctor" ? "doctor" : "secretary";
   const name = staffName && String(staffName).trim() ? ` ${String(staffName).trim()}` : "";
