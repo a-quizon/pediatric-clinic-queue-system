@@ -291,7 +291,7 @@ exports.resetSecretaryPassword = functions.region("asia-southeast1").https.onCal
 });
 
 /**
- * Doctor updates staff profile fields. Parent profile edits are rejected (403).
+ * Active admin updates staff profile fields. Parent and admin profile edits are rejected (403).
  */
 exports.updateUserAccount = functions.region("asia-southeast1").https.onCall(async (data, context) => {
   const { updateUserAccount } = require("./updateUserAccountRuntime");

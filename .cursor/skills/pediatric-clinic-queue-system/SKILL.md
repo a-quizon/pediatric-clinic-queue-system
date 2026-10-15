@@ -176,12 +176,14 @@ npx cap sync android   # uses client/capacitor.config.json (webDir: dist)
 ## Deployment
 
 ```bash
-cd client && npm run build
-firebase use staging          # or default for production
-firebase deploy --only hosting
-firebase deploy --only functions
-firebase deploy --only database   # rules from client/database.rules.json (+ demo target)
+cd client
+npx firebase use                                        # must print the intended project
+npx firebase deploy --only database --project staging   # rules from client/database.rules.json (+ demo target)
+npx firebase deploy --only functions --project staging
+npm run build && npx firebase deploy --only hosting --project staging
 ```
+
+Production (`--project default`) only with explicit owner approval; see the Production section of `docs/RoleMigrationChecklist.md`.
 
 No CI/CD in repo. Unit tests: `cd client && npm test` (node:test, includes static rules tests). Role/rules deploys follow `docs/RoleMigrationChecklist.md` (Admin separation checklist).
 
@@ -195,6 +197,7 @@ No CI/CD in repo. Unit tests: `cd client && npm test` (node:test, includes stati
 | Firebase rules location | `client/database.rules.json` and `client/database.demo.rules.json` only (no repo-root copy) |
 | AuthContext migration | Auto-adds missing `status`, `createdAt`, `assignedBranch`, parent `onboardingComplete` (legacy = true) on login |
 | Capacitor config | Client config (`dist`) is correct; root config (`www`) is stale |
+| Staging-wired env | `client/.env` and `client/functions/.env` point at staging (Firebase config, VAPID, TextBee); `.firebaserc` maps the `plusqueue` hosting target for staging only. A production deploy needs production env files and a hosting target first |
 
 ## File Sync Checklist (notifications / queue changes)
 
