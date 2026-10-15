@@ -98,55 +98,6 @@ export function getDoctorTourSampleDashboard() {
   };
 }
 
-export function getDoctorTourSampleUsers() {
-  return {
-    secretary: {
-      id: "tour-sample-secretary",
-      name: "Maria Lopez",
-      email: "sample.secretary@example.com",
-      role: "secretary",
-      status: "active",
-      assignedBranch: "Sample Branch",
-      contactNumber: "+639171234567",
-    },
-    parent: {
-      id: "tour-sample-parent",
-      name: "Jose Rivera",
-      email: "sample.parent@example.com",
-      role: "parent",
-      status: "active",
-      contactNumber: "+639189876543",
-    },
-  };
-}
-
-export function getDoctorTourSampleAudit() {
-  const saturday = upcomingWeekday(6);
-  const clinicDate = toYmd(saturday);
-  return {
-    filters: {
-      category: "All Categories",
-      role: "All Roles",
-    },
-    suspicious: {
-      id: "tour-sample-audit-suspicious",
-      action: "ACCOUNT_FLAGGED_SUSPICIOUS",
-      badge: "Suspicious",
-      category: "user",
-      actorRole: "system",
-      actorName: "System",
-      description: "Parent account flagged for review (sample)",
-      recommendation:
-        "Jose Rivera is suspicious based on reservation patterns without QR validation. Consider deactivating this account.",
-      evidence: [
-        { clinicDate, kind: "no_show", status: "forfeited", reservationId: "tour-res-1" },
-        { clinicDate, kind: "no_show", status: "expired", reservationId: "tour-res-2" },
-      ],
-      timestamp: Date.now() - 2 * 60 * 60 * 1000,
-    },
-  };
-}
-
 export function getDoctorTourSampleReports() {
   const saturday = upcomingWeekday(6);
   const clinicDate = toYmd(saturday);

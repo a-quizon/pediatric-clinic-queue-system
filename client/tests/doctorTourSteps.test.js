@@ -1,5 +1,39 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const SRC_DIR = fileURLToPath(new URL("../src", import.meta.url));
+
+function listSourceFiles(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) return listSourceFiles(full);
+    return /\.(jsx?|mjs)$/.test(entry.name) ? [full] : [];
+  });
+}
+
+function isAdminSource(file) {
+  const rel = relative(SRC_DIR, file).split(sep).join("/");
+  return rel.startsWith("pages/admin/") || rel.startsWith("components/admin/");
+}
+
+/** Every data-tour id a non-admin screen can render. */
+function collectRenderedTourIds() {
+  const ids = new Set();
+  for (const file of listSourceFiles(SRC_DIR)) {
+    if (isAdminSource(file)) continue;
+    const text = readFileSync(file, "utf8");
+    for (const re of [/data-tour="([\w-]+)"/g, /\btour: "([\w-]+)"/g, /\btourId="([\w-]+)"/g]) {
+      for (const match of text.matchAll(re)) ids.add(match[1]);
+    }
+    for (const prop of text.matchAll(/\w*TourId=\{([^}]*)\}/g)) {
+      for (const match of prop[1].matchAll(/"([\w-]+)"/g)) ids.add(match[1]);
+    }
+  }
+  return ids;
+}
 
 const memory = new Map();
 globalThis.sessionStorage = {
@@ -87,6 +121,23 @@ describe("doctor tour steps", () => {
     const blob = DOCTOR_TOUR_STEPS.map((s) => `${s.title} ${s.description}`).join("\n");
     assert.doesNotMatch(blob, /Users, Branches, Audit Logs/i);
     assert.doesNotMatch(blob, /threshold|Rule [ABC]|days without/i);
+  });
+
+  it("every step target is rendered by a doctor screen or sample view", () => {
+    const rendered = collectRenderedTourIds();
+    for (const step of DOCTOR_TOUR_STEPS) {
+      for (const target of step.targets) {
+        assert.ok(rendered.has(target), `${step.id}: no element renders data-tour="${target}"`);
+      }
+    }
+  });
+
+  it("leaves no doctor tour ids for the removed admin pages in the source", () => {
+    const stale = /doctor-(users|audit|notifications|branches)\b/;
+    for (const file of listSourceFiles(SRC_DIR)) {
+      const text = readFileSync(file, "utf8");
+      assert.doesNotMatch(text, stale, `${relative(SRC_DIR, file)} still references a removed doctor tour id`);
+    }
   });
 
   it("covers cross-page navigation for queue, schedules, reports, and profile", () => {

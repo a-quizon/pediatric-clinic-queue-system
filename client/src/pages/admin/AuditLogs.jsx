@@ -27,8 +27,6 @@ import ConfirmationModal from "../../components/common/ConfirmationModal";
 import ModalScrim from "../../components/common/ModalScrim";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import toast from "react-hot-toast";
-import { useTourSample } from "../../hooks/useTourPreview";
-import { TourSampleDoctorAudit } from "../../components/onboarding/DoctorTourSampleViews";
 import { AUDIT_ROLE_FILTER_OPTIONS, matchesAuditRoleFilter } from "../../utils/auditLogFilters";
 import Pagination from "../../components/common/Pagination";
 
@@ -262,11 +260,6 @@ export default function AuditLogs() {
   const [searchParams, setSearchParams] = useSearchParams();
   const redirectToOverview = searchParams.get("tab") === "reports";
   const highlightId = searchParams.get("highlight");
-  const showAuditSample = useTourSample([
-    "doctor-audit-filters",
-    "doctor-audit-suspicious",
-    "doctor-notifications",
-  ]);
 
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -455,17 +448,9 @@ export default function AuditLogs() {
     };
   };
 
-  if (showAuditSample) {
-    return (
-      <div className="space-y-4 pb-4 md:pb-8">
-        <TourSampleDoctorAudit />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4 pb-4 md:pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
-      <div className="pq-filter-bar p-3 sm:p-4 flex flex-col md:flex-row md:items-center gap-3" data-tour="doctor-audit-filters">
+      <div className="pq-filter-bar p-3 sm:p-4 flex flex-col md:flex-row md:items-center gap-3">
         <div className="relative flex-1">
           <div className="pq-field-icon">
             <Search className="w-5 h-5" aria-hidden="true" />
