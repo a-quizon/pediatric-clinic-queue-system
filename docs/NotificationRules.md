@@ -40,7 +40,7 @@ The system uses strict `NOTIFICATION_EVENTS` as the single source of truth for t
 | **PENALIZED** | Patient was moved backward in line; late timer started or kept. | Secretary applies penalty. | Specific Parent |
 | **FORFEITED** | Patient did not check in before the late timer expired, or Move-Back is 0. | Secretary Penalize or timer auto-expiry. | Specific Parent |
 | **RESERVATION_CANCELLED_BY_CLINIC** | The clinic closed the reserved day. The parent rebooks on another open day. | Secretary or doctor closes that date while the reservation is still `reserved` or `waiting`. | Specific Parent |
-| **SUSPICIOUS_ACCOUNT** | Parent flagged for repeated no-shows (no QR validation after past clinic dates). Deep link opens Audit Logs. | Cloud Function detector (forfeit/expiry or nightly 20:00 Manila). | Active Doctor (Web Push + `doctorAlerts` toast fallback) |
+| **SUSPICIOUS_ACCOUNT** | Parent flagged for repeated no-shows (no QR validation after past clinic dates). Deep link opens Audit Logs. | Cloud Function detector (forfeit/expiry or nightly 20:00 Manila); Express mirror on forfeit/expiry. | Active System Admins (Web Push + `adminAlerts` toast fallback) |
 
 ---
 
@@ -56,19 +56,21 @@ The Secretary does not receive any persistent database notifications or push not
 ---
 
 ## 6. Doctor Notifications
-**Exception: suspicious-account abuse alerts only.**
-Routine clinic events do not notify the doctor. When a parent is flagged as suspicious, the doctor receives:
-* Web Push (`SUSPICIOUS_ACCOUNT`) if they granted notification permission (subscription under `users/{doctorUid}/pushSubscriptions`)
-* In-app toast via `doctorAlerts/{doctorUid}` when the doctor app is open
-* Audit Logs entry with evidence and Deactivate / Dismiss actions (`/doctor/audit-logs?highlight={logId}`)
-
-The system never auto-deactivates the parent.
+**None.**
+Routine clinic events do not notify the doctor, and the doctor receives no Web Push. The doctor only sees local toasts for their own actions. Older `doctorAlerts/{doctorUid}` records stay readable by that doctor as history; nothing writes new ones.
 
 ---
 
 ## 7. Staff Notifications
 **Persistent Notification Center remains parent-only.**
-Secretaries receive local toasts only. Doctors additionally receive the narrow `SUSPICIOUS_ACCOUNT` push/toast exception above. There is no separate Admin notification channel (the former Admin role is retired; clinic-admin powers live on the Doctor).
+Secretaries and doctors receive local toasts only.
+
+**System Admin exception: suspicious-account abuse alerts only.** Admins receive no clinical notifications or pushes. When a parent is flagged as suspicious (Cloud Functions `onReservationWrite`, the nightly job, or the Express mirror in `server/services/notificationEngine.js`, all through `client/functions/suspiciousAccountRuntime.js`), every **active** admin receives:
+* Web Push (`SUSPICIOUS_ACCOUNT`) if they granted notification permission (subscription under `users/{adminUid}/pushSubscriptions`; `sendPushToAdmin` in `pushRuntime.js` / `webPushService.js`)
+* In-app toast via `adminAlerts/{adminUid}` when the admin app is open (RTDB rules: only that admin can read or mark it read)
+* Audit Logs entry with evidence and Deactivate / Dismiss actions (`/admin/audit-logs?highlight={logId}`)
+
+The flag on `users/{parentId}/suspiciousFlag` is claimed in a transaction, so Cloud Functions and the Express mirror running against the same database produce one audit entry and one round of alerts. The system never auto-deactivates the parent.
 
 ---
 
@@ -118,7 +120,7 @@ A notification transitions from `read: false` to `read: true` via a direct datab
 ---
 
 ## 12. Notification Cleanup Rules
-* **Non-Parent Cleanup**: The system actively enforces role isolation. A function `cleanupNonParentNotifications` (run by the Doctor on login) scans users; if a Doctor or Secretary somehow ends up with notification records, the function forcefully deletes them to maintain a clean database.
+* **Non-Parent Cleanup**: The system actively enforces role isolation. `cleanupOwnStaffNotifications` runs when any non-parent signs in and deletes that user's own `notifications/{uid}` and legacy `users/{uid}/notifications`. It never lists other users (the `users` list is admin-only in the rules).
 * **Logout Cleanup**: When a Parent logs out, the system triggers `cleanupPushSubscriptionOnLogout`, which removes this device's Web Push subscription so a shared/public browser stops receiving alerts.
 * **Migration**: A `migrateUserNotifications` function safely moves legacy notifications from `users/${parentId}/notifications` to the dedicated `notifications/${parentId}` node.
 * **Expired subscriptions**: HTTP 404/410 responses from the push service delete that subscription node.
@@ -136,7 +138,7 @@ A notification transitions from `read: false` to `read: true` via a direct datab
 
 ## 14. Rule Priority Order
 1. **Role Restriction Rule (Highest)**
-   * *Routine persistent notifications and clinic Web Push are parent-only. The sole staff exception is doctor `SUSPICIOUS_ACCOUNT` abuse alerts (`doctorAlerts` + optional doctor push subscription).*
+   * *Routine persistent notifications and clinic Web Push are parent-only. The sole staff exception is System Admin `SUSPICIOUS_ACCOUNT` abuse alerts (`adminAlerts` + optional admin push subscription).*
 2. **Deduplication Rule**
    * *A notification event will be entirely dropped if it matches a recently cached signature or an existing `dedupeKey` record.*
 3. **Database Storage Rule**

@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { databaseFor } = require("./rtdbRouter");
+const { assertActiveAdmin } = require("./doctorAccountShared");
 
 function makeError(message, status, code) {
   const err = new Error(message);
@@ -34,8 +35,12 @@ function generateTemporaryPassword(length = 16) {
   return chars.join("");
 }
 
+/** Staff roles whose passwords the admin resets directly; parents use the reset email. */
+const DIRECT_RESET_ROLES = ["secretary", "doctor"];
+
 /**
- * Doctor (or leftover admin) resets a secretary password directly.
+ * Active admin resets a secretary or doctor password directly. The deployed callable and
+ * Express route keep the `resetSecretaryPassword` name so existing clients keep working.
  * Returns a one-time temporary password; never write it to logs or audit.
  */
 async function resetSecretaryPassword({ admin, callerUid, targetUid }) {
@@ -50,28 +55,16 @@ async function resetSecretaryPassword({ admin, callerUid, targetUid }) {
   }
 
   const db = databaseFor(admin);
-  const callerSnap = await db.ref(`users/${callerUid}`).once("value");
-  const caller = callerSnap.exists() ? callerSnap.val() : null;
-  const callerAllowed =
-    caller &&
-    caller.status === "active" &&
-    (caller.role === "doctor" || caller.role === "admin");
-  if (!callerAllowed) {
-    throw makeError(
-      "Only an active doctor can reset a secretary password directly.",
-      403,
-      "permission-denied"
-    );
-  }
+  await assertActiveAdmin(db, callerUid, "reset a staff password");
 
   const targetSnap = await db.ref(`users/${targetUid}`).once("value");
   const target = targetSnap.exists() ? targetSnap.val() : null;
   if (!target) {
     throw makeError("User not found.", 404, "not-found");
   }
-  if (target.role !== "secretary") {
+  if (!DIRECT_RESET_ROLES.includes(target.role)) {
     throw makeError(
-      "Direct password reset is only allowed for secretary accounts.",
+      "Direct password reset is only allowed for secretary and doctor accounts.",
       403,
       "permission-denied"
     );
@@ -91,11 +84,13 @@ async function resetSecretaryPassword({ admin, callerUid, targetUid }) {
     success: true,
     uid: targetUid,
     temporaryPassword,
-    secretaryName: target.name || null,
+    staffName: target.name || null,
+    role: target.role,
   };
 }
 
 module.exports = {
+  DIRECT_RESET_ROLES,
   resetSecretaryPassword,
   generateTemporaryPassword,
 };

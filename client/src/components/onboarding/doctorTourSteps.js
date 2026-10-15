@@ -167,6 +167,8 @@ export function shouldRunDoctorTour(user, role, pathname, replayRole) {
   const path = normalizePath(pathname);
   const onDoctor = path === "/doctor" || path.startsWith("/doctor/");
   if (!onDoctor) return false;
+  // Forced password change must finish before any coach marks.
+  if (path === "/doctor/change-password") return false;
   if (replayRole === "doctor") return true;
   return user.hasCompletedTour === false;
 }

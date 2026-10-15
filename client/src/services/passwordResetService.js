@@ -70,7 +70,8 @@ async function claimPasswordResetSlot(email) {
 
 /**
  * Claim one daily reset slot, then send Firebase's built-in reset email.
- * Used by Forgot Password (all roles) and Admin Reset Password.
+ * Used by Forgot Password and the admin's parent reset email. The claim refuses non-parent
+ * accounts; doctors and secretaries get a temporary password from the System Admin instead.
  */
 export async function sendPasswordResetLink(
   email,

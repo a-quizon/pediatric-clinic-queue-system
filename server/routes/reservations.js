@@ -28,7 +28,7 @@ const STATUS_BY_CODE = {
   "not-found": 404,
 };
 
-const STAFF_ROLES = new Set(["doctor", "secretary", "admin"]);
+const STAFF_ROLES = new Set(["doctor", "secretary"]);
 
 router.post("/reservations/claim", async (req, res) => {
   try {

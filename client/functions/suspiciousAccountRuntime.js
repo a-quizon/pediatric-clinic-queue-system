@@ -8,12 +8,27 @@ const {
 
 const { getRtdb } = require("./rtdbRouter");
 
-function db() {
-  return getRtdb();
+/**
+ * `options.db` / `options.sendPush` let the Express mirror reuse this runtime with its own
+ * firebase-admin instance and push sender. Cloud Functions use the defaults.
+ */
+function resolveDb(options = {}) {
+  return options.db || getRtdb();
 }
 
-async function loadParentReservations(parentId) {
-  const snap = await db()
+function resolveSendPush(options = {}) {
+  if (typeof options.sendPush === "function") return options.sendPush;
+  return require("./pushRuntime").sendPushToAdmin;
+}
+
+function auditLogsUrl(auditLogId) {
+  return auditLogId
+    ? `/admin/audit-logs?highlight=${encodeURIComponent(auditLogId)}`
+    : "/admin/audit-logs";
+}
+
+async function loadParentReservations(database, parentId) {
+  const snap = await database
     .ref("reservations")
     .orderByChild("parentId")
     .equalTo(parentId)
@@ -26,33 +41,33 @@ async function loadParentReservations(parentId) {
   return list;
 }
 
-async function loadSchedulesById(reservations) {
+async function loadSchedulesById(database, reservations) {
   const ids = [...new Set(reservations.map((r) => r.scheduleId).filter(Boolean))];
   const schedulesById = {};
   await Promise.all(
     ids.map(async (scheduleId) => {
-      const snap = await db().ref(`schedules/${scheduleId}`).once("value");
+      const snap = await database.ref(`schedules/${scheduleId}`).once("value");
       if (snap.exists()) schedulesById[scheduleId] = snap.val();
     })
   );
   return schedulesById;
 }
 
-async function listActiveDoctorIds() {
-  const snap = await db().ref("users").once("value");
+async function listActiveAdminIds(database) {
+  const snap = await database.ref("users").once("value");
   if (!snap.exists()) return [];
   const ids = [];
   snap.forEach((child) => {
     const user = child.val() || {};
-    if ((user.role === "doctor" || user.role === "admin") && user.status !== "inactive" && user.isDeleted !== true) {
+    if (user.role === "admin" && user.status === "active" && user.isDeleted !== true) {
       ids.push(child.key);
     }
   });
   return ids;
 }
 
-async function writeSystemAuditLog(entry) {
-  const ref = db().ref("auditLogs").push();
+async function writeSystemAuditLog(database, entry) {
+  const ref = database.ref("auditLogs").push();
   await ref.set({
     ...entry,
     timestamp: entry.timestamp || Date.now(),
@@ -60,20 +75,19 @@ async function writeSystemAuditLog(entry) {
   return ref.key;
 }
 
-async function notifyDoctors({ parentName, parentId, auditLogId, recommendation }) {
-  const { sendPushToDoctor } = require("./pushRuntime");
-  const doctorIds = await listActiveDoctorIds();
+async function notifyAdmins({ parentName, parentId, auditLogId, recommendation }, options = {}) {
+  const database = resolveDb(options);
+  const sendPush = resolveSendPush(options);
+  const adminIds = await listActiveAdminIds(database);
   const title = "Suspicious account detected";
   const body = `Suspicious account detected: ${parentName}`;
-  const url = auditLogId
-    ? `/doctor/audit-logs?highlight=${encodeURIComponent(auditLogId)}`
-    : "/doctor/audit-logs";
+  const url = auditLogsUrl(auditLogId);
   const now = Date.now();
   const dedupeKey = `suspicious_${parentId}_${auditLogId || now}`;
 
   const results = [];
-  for (const doctorId of doctorIds) {
-    const alertRef = db().ref(`doctorAlerts/${doctorId}`).push();
+  for (const adminId of adminIds) {
+    const alertRef = database.ref(`adminAlerts/${adminId}`).push();
     await alertRef.set({
       type: "SUSPICIOUS_ACCOUNT",
       title,
@@ -87,35 +101,43 @@ async function notifyDoctors({ parentName, parentId, auditLogId, recommendation 
       read: false,
     });
 
-    const pushResult = await sendPushToDoctor(doctorId, {
-      title,
-      body,
-      message: body,
-      type: "SUSPICIOUS_ACCOUNT",
-      url,
-      dedupeKey,
-      id: dedupeKey,
-    }, dedupeKey);
-    results.push({ doctorId, pushResult, alertId: alertRef.key });
+    let pushResult = null;
+    try {
+      pushResult = await sendPush(adminId, {
+        title,
+        body,
+        message: body,
+        type: "SUSPICIOUS_ACCOUNT",
+        url,
+        dedupeKey,
+        id: dedupeKey,
+      }, dedupeKey);
+    } catch (err) {
+      console.error(`notifyAdmins: push failed for ${adminId}:`, err.message);
+    }
+    results.push({ adminId, pushResult, alertId: alertRef.key });
   }
   return results;
 }
 
 /**
  * Evaluate one parent and flag + notify when rules fire and flag is not already open.
+ * The flag is claimed in a transaction so concurrent evaluators (Cloud Functions and the
+ * Express mirror) produce one audit entry and one round of admin alerts.
  */
 async function evaluateAndFlagParent(parentId, options = {}) {
   if (!parentId) return { flagged: false, reason: "missing_parent" };
+  const database = resolveDb(options);
 
-  const userSnap = await db().ref(`users/${parentId}`).once("value");
+  const userSnap = await database.ref(`users/${parentId}`).once("value");
   if (!userSnap.exists()) return { flagged: false, reason: "user_not_found" };
   const parent = userSnap.val() || {};
   if (parent.role !== "parent" || parent.isDeleted === true) {
     return { flagged: false, reason: "not_parent" };
   }
 
-  const reservations = await loadParentReservations(parentId);
-  const schedulesById = await loadSchedulesById(reservations);
+  const reservations = await loadParentReservations(database, parentId);
+  const schedulesById = await loadSchedulesById(database, reservations);
   const evaluation = evaluateSuspiciousRules(reservations, {
     todayManila: options.todayManila || manilaDateString(),
     schedulesById,
@@ -145,12 +167,16 @@ async function evaluateAndFlagParent(parentId, options = {}) {
     reviewedBy: null,
   };
 
-  await db().ref(`users/${parentId}`).update({
-    suspiciousFlag: flagPayload,
-    updatedAt: now,
+  const claim = await database.ref(`users/${parentId}/suspiciousFlag`).transaction((current) => {
+    if (!canFlagAccount(evaluation, current)) return undefined;
+    return flagPayload;
   });
+  if (!claim.committed) {
+    return { flagged: false, reason: "already_open_or_no_new_evidence", evaluation };
+  }
+  await database.ref(`users/${parentId}/updatedAt`).set(now);
 
-  const auditLogId = await writeSystemAuditLog({
+  const auditLogId = await writeSystemAuditLog(database, {
     action: "ACCOUNT_FLAGGED_SUSPICIOUS",
     category: "user_management",
     actorUid: "system",
@@ -174,14 +200,14 @@ async function evaluateAndFlagParent(parentId, options = {}) {
 
   let notifyResults = [];
   try {
-    notifyResults = await notifyDoctors({
+    notifyResults = await notifyAdmins({
       parentName,
       parentId,
       auditLogId,
       recommendation,
-    });
+    }, options);
   } catch (err) {
-    console.error("evaluateAndFlagParent: notifyDoctors failed", err.message);
+    console.error("evaluateAndFlagParent: notifyAdmins failed", err.message);
   }
 
   return {
@@ -198,7 +224,8 @@ async function evaluateAndFlagParent(parentId, options = {}) {
  * Nightly / on-demand sweep: evaluate every parent who has at least one reservation.
  */
 async function evaluateAllSuspiciousParents(options = {}) {
-  const snap = await db().ref("reservations").once("value");
+  const database = resolveDb(options);
+  const snap = await database.ref("reservations").once("value");
   if (!snap.exists()) return { evaluated: 0, flagged: 0, results: [] };
 
   const parentIds = new Set();
@@ -226,7 +253,7 @@ async function evaluateAllSuspiciousParents(options = {}) {
 /**
  * Hook for reservation writes: when a reservation becomes a terminal no-show signal, re-evaluate parent.
  */
-async function maybeEvaluateAfterReservationChange(before, after) {
+async function maybeEvaluateAfterReservationChange(before, after, options = {}) {
   if (!after?.parentId || after.source === "walk_in") return null;
   const beforeStatus = before?.status;
   const afterStatus = after.status;
@@ -237,12 +264,13 @@ async function maybeEvaluateAfterReservationChange(before, after) {
       afterStatus === "validation_expired");
 
   if (!becameTerminalNoShow) return null;
-  return evaluateAndFlagParent(after.parentId);
+  return evaluateAndFlagParent(after.parentId, options);
 }
 
 module.exports = {
   evaluateAndFlagParent,
   evaluateAllSuspiciousParents,
   maybeEvaluateAfterReservationChange,
-  notifyDoctors,
+  notifyAdmins,
+  listActiveAdminIds,
 };

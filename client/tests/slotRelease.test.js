@@ -8,7 +8,11 @@ import { slotsTaken, parentCellKind } from "../src/utils/scheduleCalendar.js";
 const functionsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../functions");
 const requireFromFunctions = createRequire(path.join(functionsDir, "package.json"));
 const { claimReservationSlot } = requireFromFunctions("./claimReservationRuntime.js");
-const { releaseReservationSlot, releaseSlotIfTerminal } = requireFromFunctions("./slotRelease.js");
+const {
+  releaseReservationSlot,
+  releaseSlotIfTerminal,
+  releaseReservationForCaller,
+} = requireFromFunctions("./slotRelease.js");
 const { applyClaim, applyRelease } = requireFromFunctions("./bookingHolders.js");
 const { manilaDateString, addManilaDays } = requireFromFunctions("./manilaDate.js");
 
@@ -116,6 +120,41 @@ async function setStatus(db, reservationId, status) {
   await db.ref(`reservations/${reservationId}/status`).set(status);
   return { id: reservationId, ...db.read(`reservations/${reservationId}`) };
 }
+
+describe("admin is not clinical staff for reservations", () => {
+  const withStaff = (extra = {}) => {
+    const data = seed({ capacity: 2, ...extra });
+    data.users.admin1 = { role: "admin", status: "active" };
+    data.users.sec1 = { role: "secretary", status: "active", assignedBranchId: "angeles" };
+    data.users.doc1 = { role: "doctor", status: "active" };
+    return data;
+  };
+
+  it("admin cannot claim a parent slot or add a walk-in", async () => {
+    const db = createMemoryDb(withStaff());
+    for (const mode of ["parent", "walk_in"]) {
+      await assert.rejects(
+        () => claimReservationSlot({ admin: adminFor(db), callerUid: "admin1", payload: { scheduleId: SCHEDULE_ID, mode } }),
+        (err) => err.code === "permission-denied"
+      );
+    }
+    assert.equal(db.read(`schedules/${SCHEDULE_ID}/booking/activeSlotCount`) ?? 0, 0);
+  });
+
+  it("admin cannot release a reservation; secretary and doctor still can", async () => {
+    const db = createMemoryDb(withStaff());
+    const first = await claim(db, "p1");
+    await setStatus(db, first.reservationId, "cancelled");
+    await assert.rejects(
+      () => releaseReservationForCaller({ admin: adminFor(db), callerUid: "admin1", reservationId: first.reservationId }),
+      (err) => err.code === "permission-denied"
+    );
+    assert.equal(db.read(`schedules/${SCHEDULE_ID}/booking/activeSlotCount`), 1);
+    await releaseReservationForCaller({ admin: adminFor(db), callerUid: "sec1", reservationId: first.reservationId });
+    assert.equal(db.read(`schedules/${SCHEDULE_ID}/booking/activeSlotCount`), 0);
+    await releaseReservationForCaller({ admin: adminFor(db), callerUid: "doc1", reservationId: first.reservationId });
+  });
+});
 
 describe("slot release after cancel and forfeit", () => {
   it("cancel frees the slot and a second release is a no-op", async () => {

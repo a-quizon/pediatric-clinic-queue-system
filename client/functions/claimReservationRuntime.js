@@ -48,7 +48,7 @@ function namesMatch(left, right) {
 }
 
 function staffCanUseSchedule(user, schedule) {
-  if (user.role === "doctor" || user.role === "admin") return true;
+  if (user.role === "doctor") return true;
   if (user.role !== "secretary") return false;
   if (user.assignedBranchId && schedule.branchId) return user.assignedBranchId === schedule.branchId;
   if (user.assignedBranch && schedule.branch) return namesMatch(user.assignedBranch, schedule.branch);

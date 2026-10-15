@@ -10,7 +10,7 @@ const {
 const { deliverNotification } = require("../services/notificationEngine");
 
 const router = express.Router();
-const STAFF_ROLES = new Set(["admin", "doctor", "secretary"]);
+const STAFF_ROLES = new Set(["doctor", "secretary"]);
 
 function isValidSubscription(subscription) {
   return Boolean(

@@ -9,9 +9,10 @@ import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { sendPasswordResetLink } from "./passwordResetService";
 import { getPasswordResetActionSettings } from "../utils/appUrl";
 import {
-  assertDoctorCanUpdateUserProfile,
-  buildSecretaryPasswordResetAuditDescription,
-} from "../utils/doctorUserManagementPolicy";
+  assertAdminCanUpdateUserProfile,
+  buildStaffPasswordResetAuditDescription,
+  isDirectPasswordResetRole,
+} from "../utils/adminUserManagementPolicy";
 import { findActiveDoctor } from "../utils/doctorAccountPolicy";
 
 const PROFILE_UPDATE_ALLOWLIST = ["name", "phone", "assignedBranch", "assignedBranchId"];
@@ -88,7 +89,7 @@ export const createStaffAccount = async (staffData) => {
     throw new Error("Assigned Branch is required for Secretary.");
   }
 
-  // Secondary app so the current doctor (clinic admin) stays logged in
+  // Secondary app so the signed-in admin stays logged in
   const secondaryAppName = "SecondaryAppInstance";
   let secondaryApp;
   
@@ -190,7 +191,7 @@ export const updateUser = async (uid, updates) => {
   const target = targetSnap.exists() ? targetSnap.val() : null;
   const callerRole = await getCallerRole();
 
-  const gate = assertDoctorCanUpdateUserProfile({
+  const gate = assertAdminCanUpdateUserProfile({
     callerRole,
     targetRole: target?.role,
     updates: sanitized,
@@ -237,7 +238,7 @@ export const updateUser = async (uid, updates) => {
 
   if (!completed) {
     if (target?.role === "parent") {
-      const err = new Error("Doctors cannot edit parent profile information.");
+      const err = new Error("Parent profile information cannot be edited by staff.");
       err.status = 403;
       err.code = "permission-denied";
       throw err;
@@ -350,7 +351,7 @@ export const toggleUserStatus = async (uid, currentStatus) => {
   return newStatus;
 };
 
-export const sendAdminPasswordResetEmail = async (email) => {
+const sendResetEmail = async (email) => {
   if (!email || !String(email).trim()) {
     const err = new Error("This account has no email on file. A password reset email cannot be sent.");
     err.code = "missing_email";
@@ -361,10 +362,10 @@ export const sendAdminPasswordResetEmail = async (email) => {
 };
 
 /**
- * Direct secretary password reset (no email). Returns a one-time temporary password.
+ * Direct secretary or doctor password reset (no email). Returns a one-time temporary password.
  * Never log the returned password.
  */
-export const resetSecretaryPasswordDirect = async (uid) => {
+export const resetStaffPasswordDirect = async (uid) => {
   if (!uid) throw new Error("A user id is required.");
   if (!auth.currentUser) throw new Error("Authentication required.");
   if (auth.currentUser.uid === uid) {
@@ -373,8 +374,8 @@ export const resetSecretaryPasswordDirect = async (uid) => {
 
   const targetSnap = await get(ref(getDb(), `users/${uid}`));
   const target = targetSnap.exists() ? targetSnap.val() : null;
-  if (target?.role !== "secretary") {
-    const err = new Error("Direct password reset is only allowed for secretary accounts.");
+  if (!isDirectPasswordResetRole(target?.role)) {
+    const err = new Error("Direct password reset is only allowed for secretary and doctor accounts.");
     err.status = 403;
     err.code = "permission-denied";
     throw err;
@@ -399,7 +400,7 @@ export const resetSecretaryPasswordDirect = async (uid) => {
     } else {
       const body = await res.json().catch(() => ({}));
       if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 404) {
-        const err = new Error(body.error || "Failed to reset secretary password.");
+        const err = new Error(body.error || "Failed to reset staff password.");
         err.status = res.status;
         err.code = res.status === 403 ? "permission-denied" : "request_failed";
         throw err;
@@ -421,28 +422,30 @@ export const resetSecretaryPasswordDirect = async (uid) => {
   }
 
   if (!result?.temporaryPassword) {
-    throw new Error("Failed to reset secretary password.");
+    throw new Error("Failed to reset staff password.");
   }
 
+  const staffName = target?.name || result.staffName || null;
   logAuditEvent({
     action: AUDIT_ACTIONS.USER_PASSWORD_RESET,
     category: AUDIT_CATEGORIES.USER_MANAGEMENT,
-    description: buildSecretaryPasswordResetAuditDescription(target?.name || result.secretaryName),
+    description: buildStaffPasswordResetAuditDescription(staffName, target.role),
     targetType: "user",
     targetId: uid,
   });
 
   return {
     temporaryPassword: result.temporaryPassword,
-    secretaryName: target?.name || result.secretaryName || null,
+    staffName,
+    role: target.role,
   };
 };
 
 /**
- * Parent (and other non-secretary) password reset via email — audited.
+ * Parent password reset via email — audited. Reset emails are for parents only.
  */
 export const sendParentPasswordResetEmail = async ({ email, uid, name }) => {
-  await sendAdminPasswordResetEmail(email);
+  await sendResetEmail(email);
   logAuditEvent({
     action: AUDIT_ACTIONS.USER_PASSWORD_RESET,
     category: AUDIT_CATEGORIES.USER_MANAGEMENT,

@@ -83,7 +83,7 @@ function coded(code, message) {
   return error;
 }
 
-const STAFF_ROLES = new Set(["doctor", "secretary", "admin"]);
+const STAFF_ROLES = new Set(["doctor", "secretary"]);
 
 /** API entry: the reservation owner or clinic staff can free a terminal reservation's slot. */
 async function releaseReservationForCaller({ admin, callerUid, reservationId }) {

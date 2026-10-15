@@ -4,11 +4,10 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const production = JSON.parse(fs.readFileSync(path.join(root, "database.rules.json"), "utf8"));
-const demo = JSON.parse(fs.readFileSync(path.join(root, "database.demo.rules.json"), "utf8"));
-const clientProduction = JSON.parse(fs.readFileSync(path.join(root, "client", "database.rules.json"), "utf8"));
-const clientDemo = JSON.parse(fs.readFileSync(path.join(root, "client", "database.demo.rules.json"), "utf8"));
+const clientRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = path.resolve(clientRoot, "..");
+const production = JSON.parse(fs.readFileSync(path.join(clientRoot, "database.rules.json"), "utf8"));
+const demo = JSON.parse(fs.readFileSync(path.join(clientRoot, "database.demo.rules.json"), "utf8"));
 
 function collect(node, acc = [], prefix = "") {
   if (!node || typeof node !== "object" || Array.isArray(node)) return acc;
@@ -30,9 +29,9 @@ function unwrap(expr, guard) {
   return expr.slice(prefix.length, -1);
 }
 
-test("client and root rule files stay in sync", () => {
-  assert.deepEqual(clientProduction, production);
-  assert.deepEqual(clientDemo, demo);
+test("client/ holds the only rules files", () => {
+  assert.equal(fs.existsSync(path.join(repoRoot, "database.rules.json")), false);
+  assert.equal(fs.existsSync(path.join(repoRoot, "database.demo.rules.json")), false);
 });
 
 test("production rules deny demo tokens and demo rules deny everyone else", () => {

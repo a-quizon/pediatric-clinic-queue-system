@@ -272,7 +272,7 @@ exports.setDoctorAccountStatus = functions.region("asia-southeast1").https.onCal
 });
 
 /**
- * Doctor resets a secretary password directly (no email). Returns one-time temp password.
+ * Admin resets a secretary or doctor password directly (no email). Returns one-time temp password.
  */
 exports.resetSecretaryPassword = functions.region("asia-southeast1").https.onCall(async (data, context) => {
   const { resetSecretaryPassword } = require("./resetSecretaryPasswordRuntime");
@@ -286,7 +286,7 @@ exports.resetSecretaryPassword = functions.region("asia-southeast1").https.onCal
   } catch (err) {
     // Do not include any password material in logs.
     console.error("[resetSecretaryPassword]", err.message);
-    mapAdminCallableError(err, "Failed to reset secretary password.");
+    mapAdminCallableError(err, "Failed to reset staff password.");
   }
 });
 

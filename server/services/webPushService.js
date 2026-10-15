@@ -183,9 +183,9 @@ async function sendPushToParent(parentId, notification, options = {}) {
   return { success: sent > 0 || failed === 0, sent, failed, pruned: goneKeys.length };
 }
 
-async function sendPushToDoctor(doctorId, notification, options = {}) {
-  if (!doctorId) {
-    return { success: false, sent: 0, failed: 0, reason: "missing_doctor" };
+async function sendPushToAdmin(adminId, notification, options = {}) {
+  if (!adminId) {
+    return { success: false, sent: 0, failed: 0, reason: "missing_admin" };
   }
   if (!isVapidReady()) {
     return { success: false, sent: 0, failed: 0, reason: "vapid_not_configured" };
@@ -195,21 +195,21 @@ async function sendPushToDoctor(doctorId, notification, options = {}) {
   const safeNotificationId = notificationId ? sanitizeKey(notificationId) : null;
   if (safeNotificationId && options.claim !== false) {
     const flagSnap = await getDb()
-      .ref(`users/${doctorId}/pushDispatchClaims/${safeNotificationId}`)
+      .ref(`users/${adminId}/pushDispatchClaims/${safeNotificationId}`)
       .once("value");
     if (flagSnap.exists()) {
       return { success: true, sent: 0, failed: 0, reason: "already_dispatched" };
     }
   }
 
-  const snap = await getDb().ref(`users/${doctorId}`).once("value");
+  const snap = await getDb().ref(`users/${adminId}`).once("value");
   if (!snap.exists()) {
     return { success: false, sent: 0, failed: 0, reason: "user_not_found" };
   }
 
   const user = snap.val() || {};
-  if (user.role !== "doctor" && user.role !== "admin") {
-    return { success: false, sent: 0, failed: 0, reason: "not_doctor" };
+  if (user.role !== "admin") {
+    return { success: false, sent: 0, failed: 0, reason: "not_admin" };
   }
   if (user.status === "inactive" || user.isDeleted === true) {
     return { success: false, sent: 0, failed: 0, reason: "inactive_or_deleted" };
@@ -217,13 +217,13 @@ async function sendPushToDoctor(doctorId, notification, options = {}) {
 
   const entries = collectSubscriptions(user.pushSubscriptions);
   if (!entries.length) {
-    console.warn(`[webPush] no_subscriptions doctorId=${doctorId}`);
+    console.warn(`[webPush] no_subscriptions adminId=${adminId}`);
     return { success: true, sent: 0, failed: 0, reason: "no_subscriptions" };
   }
 
   const payload = {
     ...buildPayload(notification),
-    url: notification.url || "/doctor/audit-logs",
+    url: notification.url || "/admin/audit-logs",
     type: notification.type || notification.eventId || "SUSPICIOUS_ACCOUNT",
   };
 
@@ -245,20 +245,20 @@ async function sendPushToDoctor(doctorId, notification, options = {}) {
         if (statusCode === 404 || statusCode === 410) {
           goneKeys.push(key);
         } else {
-          console.error(`[webPush] send failed for doctor ${doctorId}:`, err.message);
+          console.error(`[webPush] send failed for admin ${adminId}:`, err.message);
         }
       }
     })
   );
 
   if (goneKeys.length) {
-    await deleteGoneSubscriptions(doctorId, goneKeys).catch((err) => {
+    await deleteGoneSubscriptions(adminId, goneKeys).catch((err) => {
       console.error("[webPush] failed to prune expired subscriptions:", err.message);
     });
   }
 
   if (sent > 0 && safeNotificationId && options.claim !== false) {
-    await getDb().ref(`users/${doctorId}/pushDispatchClaims/${safeNotificationId}`).set(Date.now());
+    await getDb().ref(`users/${adminId}/pushDispatchClaims/${safeNotificationId}`).set(Date.now());
   }
 
   return { success: sent > 0 || failed === 0, sent, failed, pruned: goneKeys.length };
@@ -297,7 +297,7 @@ module.exports = {
   isVapidReady,
   getPublicVapidKey,
   sendPushToParent,
-  sendPushToDoctor,
+  sendPushToAdmin,
   sendToSubscription,
   saveSubscription,
   deleteSubscription,

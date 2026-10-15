@@ -42,6 +42,23 @@ describe("C4 reservation transitions", () => {
     assert.equal(result.ok, true);
   });
 
+  it("does not treat admin as clinic staff when cancelling", () => {
+    assert.equal(
+      assertCanCancelReservation(
+        { status: "checked_in", source: "walk_in" },
+        { actorUid: "a1", actorRole: "admin" }
+      ).ok,
+      false
+    );
+    assert.equal(
+      assertCanCancelReservation(
+        { status: "reserved", parentId: "p1" },
+        { actorUid: "a1", actorRole: "admin" }
+      ).ok,
+      false
+    );
+  });
+
   it("blocks completing a cancelled reservation", () => {
     const result = assertCanCompleteConsultation({ status: "cancelled" });
     assert.equal(result.ok, false);

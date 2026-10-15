@@ -1,4 +1,5 @@
 const { databaseFor } = require("./rtdbRouter");
+const { assertActiveAdmin } = require("./doctorAccountShared");
 
 function makeError(message, status, code) {
   const err = new Error(message);
@@ -10,7 +11,7 @@ function makeError(message, status, code) {
 const PROFILE_ALLOWLIST = ["name", "phone", "assignedBranch", "assignedBranchId"];
 
 /**
- * Doctor/admin updates another user's profile fields.
+ * Active admin updates another staff user's profile fields.
  * Parent profile edits are rejected with 403.
  */
 async function updateUserAccount({ admin, callerUid, targetUid, updates }) {
@@ -25,15 +26,7 @@ async function updateUserAccount({ admin, callerUid, targetUid, updates }) {
   }
 
   const db = databaseFor(admin);
-  const callerSnap = await db.ref(`users/${callerUid}`).once("value");
-  const caller = callerSnap.exists() ? callerSnap.val() : null;
-  const callerAllowed =
-    caller &&
-    caller.status === "active" &&
-    (caller.role === "doctor" || caller.role === "admin");
-  if (!callerAllowed) {
-    throw makeError("Only an active doctor can update user profiles.", 403, "permission-denied");
-  }
+  await assertActiveAdmin(db, callerUid, "update user profiles");
 
   const targetSnap = await db.ref(`users/${targetUid}`).once("value");
   const target = targetSnap.exists() ? targetSnap.val() : null;
@@ -43,10 +36,13 @@ async function updateUserAccount({ admin, callerUid, targetUid, updates }) {
 
   if (target.role === "parent") {
     throw makeError(
-      "Doctors cannot edit parent profile information.",
+      "Parent profile information cannot be edited by staff.",
       403,
       "permission-denied"
     );
+  }
+  if (target.role === "admin") {
+    throw makeError("Admin accounts cannot be edited in the app.", 403, "permission-denied");
   }
 
   const sanitized = {};

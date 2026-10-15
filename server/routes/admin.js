@@ -138,19 +138,20 @@ router.post("/admin/reset-secretary-password", async (req, res) => {
       callerUid: decoded.uid,
       targetUid: req.body?.uid,
     });
-    // temporaryPassword is returned once to the authenticated doctor; never logged.
+    // temporaryPassword is returned once to the authenticated admin; never logged.
     return res.json({
       success: true,
       uid: result.uid,
       temporaryPassword: result.temporaryPassword,
-      secretaryName: result.secretaryName,
+      staffName: result.staffName,
+      role: result.role,
     });
   } catch (err) {
     console.error("[admin] reset-secretary-password failed:", err.message);
     const status = err.status || 500;
     return res.status(status).json({
       success: false,
-      error: err.message || "Failed to reset secretary password.",
+      error: err.message || "Failed to reset staff password.",
     });
   }
 });

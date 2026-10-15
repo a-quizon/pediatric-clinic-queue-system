@@ -1,7 +1,7 @@
 {
   "rules": {
     "users": {
-      ".read": "auth.token.isDemo == true && (auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor'))",
+      ".read": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin')",
       ".indexOn": [
         "phone",
         "phoneNumber",
@@ -9,19 +9,19 @@
       ],
       "$uid": {
         ".read": "auth.token.isDemo == true && (auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'secretary'))",
-        ".write": "auth.token.isDemo == true && (auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor') && (root.child('users').child(auth.uid).child('status').val() === 'active' || (!root.child('users').child(auth.uid).child('status').exists() && newData.child('status').val() === 'active') || (auth.uid === $uid && root.child('users').child($uid).child('role').val() === 'parent' && root.child('users').child($uid).child('status').val() === 'inactive' && root.child('users').child($uid).child('isDeleted').val() !== true && newData.child('status').val() === 'active' && newData.child('isDeleted').val() !== true)))",
+        ".write": "auth.token.isDemo == true && (auth != null && (auth.uid === $uid || (root.child('users').child(auth.uid).child('role').val() === 'admin' && data.child('role').val() !== 'admin')) && (root.child('users').child(auth.uid).child('status').val() === 'active' || (!root.child('users').child(auth.uid).child('status').exists() && newData.child('status').val() === 'active') || (auth.uid === $uid && root.child('users').child($uid).child('role').val() === 'parent' && root.child('users').child($uid).child('status').val() === 'inactive' && root.child('users').child($uid).child('isDeleted').val() !== true && newData.child('status').val() === 'active' && newData.child('isDeleted').val() !== true)))",
         ".validate": "(newData.child('role').val() !== 'parent' && (data.child('role').val() !== 'parent' || !data.exists())) || (newData.child('dataPrivacyConsent').val() === true && newData.child('dataPrivacyConsentVersion').isString() && newData.child('dataPrivacyConsentTimestamp').isNumber()) || (data.exists() && data.child('role').val() === 'parent' && data.child('dataPrivacyConsent').val() !== true)",
         "role": {
-          ".validate": "newData.isString() && ((data.exists() && newData.val() === data.val()) || (!data.exists() && auth.uid === $uid && newData.val() === 'parent') || ((root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor') && newData.val() === 'secretary'))"
+          ".validate": "newData.isString() && ((data.exists() && newData.val() === data.val()) || (!data.exists() && auth.uid === $uid && newData.val() === 'parent') || (!root.child('users').child($uid).exists() && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('status').val() === 'active' && newData.val() === 'secretary'))"
         },
         "status": {
           ".validate": "!data.exists() || newData.val() === data.val() || auth.uid !== $uid || root.child('users').child($uid).child('role').val() !== 'doctor' || newData.val() === 'active'"
         },
         "assignedBranchId": {
-          ".validate": "!data.exists() || newData.val() === data.val() || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor'"
+          ".validate": "!data.exists() || newData.val() === data.val() || root.child('users').child(auth.uid).child('role').val() === 'admin'"
         },
         "assignedBranch": {
-          ".validate": "!data.exists() || newData.val() === data.val() || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor'"
+          ".validate": "!data.exists() || newData.val() === data.val() || root.child('users').child(auth.uid).child('role').val() === 'admin'"
         },
         "name": {
           ".validate": "auth.uid === $uid || !data.exists() || newData.val() === data.val() || root.child('users').child($uid).child('role').val() !== 'parent'"
@@ -33,7 +33,7 @@
           ".validate": "auth.uid === $uid || !data.exists() || newData.val() === data.val() || root.child('users').child($uid).child('role').val() !== 'parent'"
         },
         "mustChangePassword": {
-          ".validate": "auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor'"
+          ".validate": "auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'admin'"
         },
         "nearTurnSms": {
           ".validate": false
@@ -52,7 +52,7 @@
     "notifications": {
       "$uid": {
         ".read": "auth.token.isDemo == true && (auth != null && auth.uid === $uid)",
-        ".write": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('status').val() === 'active' && (auth.uid === $uid || ((root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor') && (!root.child('users').child($uid).exists() || root.child('users').child($uid).child('role').val() !== 'parent'))))"
+        ".write": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('status').val() === 'active' && (auth.uid === $uid || (root.child('users').child(auth.uid).child('role').val() === 'admin' && (!root.child('users').child($uid).exists() || root.child('users').child($uid).child('role').val() !== 'parent'))))"
       }
     },
     "smsOtps": {
@@ -69,7 +69,7 @@
     },
     "branchConfigurations": {
       ".read": "auth.token.isDemo == true && (auth != null)",
-      ".write": "auth.token.isDemo == true && (auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor') && root.child('users').child(auth.uid).child('status').val() === 'active')"
+      ".write": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('status').val() === 'active')"
     },
     "schedules": {
       ".read": "auth.token.isDemo == true && (auth != null)",
@@ -78,7 +78,13 @@
         "clinicDate"
       ],
       "$scheduleId": {
-        ".write": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('status').val() === 'active' && (root.child('users').child(auth.uid).child('role').val() === 'doctor' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && ((newData.exists() && (newData.child('branchId').val() === root.child('users').child(auth.uid).child('assignedBranchId').val() || newData.child('branch').val() === root.child('users').child(auth.uid).child('assignedBranch').val())) || (!newData.exists() && (data.child('branchId').val() === root.child('users').child(auth.uid).child('assignedBranchId').val() || data.child('branch').val() === root.child('users').child(auth.uid).child('assignedBranch').val()))))) && (!newData.exists() || (newData.child('booking').child('activeSlotCount').val() == data.child('booking').child('activeSlotCount').val() && newData.child('booking').child('nextQueueNumber').val() == data.child('booking').child('nextQueueNumber').val())) && (data.exists() || !newData.exists()) && (!newData.exists() || newData.child('status').val() !== 'published' || data.child('status').val() === 'published'))"
+        ".write": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('status').val() === 'active' && (root.child('users').child(auth.uid).child('role').val() === 'doctor' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && ((newData.exists() && (newData.child('branchId').val() === root.child('users').child(auth.uid).child('assignedBranchId').val() || newData.child('branch').val() === root.child('users').child(auth.uid).child('assignedBranch').val())) || (!newData.exists() && (data.child('branchId').val() === root.child('users').child(auth.uid).child('assignedBranchId').val() || data.child('branch').val() === root.child('users').child(auth.uid).child('assignedBranch').val()))))) && (!newData.exists() || (newData.child('booking').child('activeSlotCount').val() == data.child('booking').child('activeSlotCount').val() && newData.child('booking').child('nextQueueNumber').val() == data.child('booking').child('nextQueueNumber').val())) && (data.exists() || !newData.exists()) && (!newData.exists() || newData.child('status').val() !== 'published' || data.child('status').val() === 'published'))",
+        "branch": {
+          ".write": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('status').val() === 'active' && root.child('schedules').child($scheduleId).exists() && newData.isString())"
+        },
+        "branchId": {
+          ".write": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('status').val() === 'active' && root.child('schedules').child($scheduleId).exists() && newData.isString())"
+        }
       }
     },
     "clinicClosures": {
@@ -113,7 +119,7 @@
       }
     },
     "auditLogs": {
-      ".read": "auth.token.isDemo == true && (auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor'))",
+      ".read": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin')",
       ".write": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('status').val() === 'active' && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor'))",
       ".indexOn": [
         "timestamp",
@@ -127,6 +133,12 @@
         ".write": "auth.token.isDemo == true && (auth != null && auth.uid === $uid && root.child('users').child(auth.uid).child('status').val() === 'active')"
       }
     },
+    "adminAlerts": {
+      "$uid": {
+        ".read": "auth.token.isDemo == true && (auth != null && auth.uid === $uid && root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth.token.isDemo == true && (auth != null && auth.uid === $uid && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('status').val() === 'active')"
+      }
+    },
     "systemConfiguration": {
       "queue": {
         ".read": "auth.token.isDemo == true && (auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'secretary'))",
@@ -138,7 +150,7 @@
       },
       "$branchId": {
         ".read": "auth.token.isDemo == true && (auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'parent' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('assignedBranchId').val() === $branchId)))",
-        ".write": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('status').val() === 'active' && root.child('branchConfigurations').child($branchId).exists() && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('assignedBranchId').val() === $branchId)))",
+        ".write": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('status').val() === 'active' && root.child('branchConfigurations').child($branchId).exists() && (root.child('users').child(auth.uid).child('role').val() === 'doctor' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('assignedBranchId').val() === $branchId)))",
         "sms": {
           ".read": "auth.token.isDemo == true && (auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'parent' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('assignedBranchId').val() === $branchId)))"
         }

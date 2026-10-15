@@ -9,9 +9,9 @@ Read when modifying Firebase data, server routes, or environment setup.
 {
   uid, name, email, phone,
   isPhoneVerified: true,      // parents; set after SMS OTP during registration
-  role: "parent" | "secretary" | "doctor" | "admin", // admin = legacy/transition only; do not assign in UI
+  role: "parent" | "secretary" | "doctor" | "admin", // admin = System Admin, Admin SDK only; never assigned in the UI
   status: "active" | "inactive",
-  deactivationSource: "self" | "admin" | null, // "admin" = administrative (doctor-performed)
+  deactivationSource: "self" | "admin" | null, // "admin" = administrative (System Admin-performed)
   isDeleted: false,               // parent soft-delete tombstone; Auth is revoked
   deletedAt,                      // epoch ms when soft-deleted
   onboardingComplete: true,       // parents; false until first child profile during onboarding
@@ -30,7 +30,7 @@ Read when modifying Firebase data, server routes, or environment setup.
 ```
 
 ### `passwordResetLimits/{emailKey}`
-Server-only daily cap for Forgot Password + Admin Reset Password. Email key is lowercase with `. # $ [ ]` replaced by `_`. Counter resets on a new **Asia/Manila** calendar date.
+Server-only daily cap for Forgot Password + the admin's parent reset email (reset emails are parents-only). Email key is lowercase with `. # $ [ ]` replaced by `_`. Counter resets on a new **Asia/Manila** calendar date.
 ```js
 {
   email,                 // normalized lowercase
@@ -158,21 +158,25 @@ Each branch (Angeles, Magalang, …) has an independent node keyed by `branchCon
 
 | Node | Read | Write |
 |------|------|-------|
-| `users` | Admin all; user own | Own profile (active status); a doctor's `status` is server-only |
-| `notifications` | Parent own | Parent own |
-| `branchConfigurations` | All auth | Admin |
-| `schedules` | All auth | Secretary or doctor (create/publish/start and queue control; active) |
-| `reservations` | All auth | Parent, doctor, secretary (active) |
-| `auditLogs` | Admin | Admin, doctor, secretary |
-| `systemConfiguration/{branchId}` | Admin, doctor, parent; secretary own branch | Admin; secretary own branch |
+| `users` (list) | Admin only | — |
+| `users/{uid}` | Self, admin, doctor, secretary | Self (active status); active admin for others, never on a `role: "admin"` record; `role: "secretary"` only on a new record by an active admin; `admin`/`doctor` never from the client; `assignedBranch`/`assignedBranchId`/`mustChangePassword` by others: admin only; a doctor's `status` is server-only |
+| `notifications/{uid}` | Own | Own (active); active admin for non-parent targets |
+| `branchConfigurations` | All auth | Active admin |
+| `schedules/{id}` | All auth | Secretary (own branch) or doctor (active); active admin may write only `branch` / `branchId` strings on an existing schedule (rename cascade) |
+| `reservations` | Doctor, secretary, admin (read-only deviation), parent own | Parent own, doctor, secretary (active) |
+| `bookingLocks`, `parentBookingCaps` | Own, doctor, secretary, admin | denied |
+| `auditLogs` | Admin | Active admin or doctor (client-side writes; accepted forgery risk) |
+| `doctorAlerts/{uid}` | Owner | Owner (history; nothing writes new alerts) |
+| `adminAlerts/{uid}` | Owning admin | Owning active admin (mark read); Admin SDK writes alerts |
+| `systemConfiguration/{branchId}` | Admin, doctor, parent; secretary own branch | Doctor; secretary own branch |
 | `systemConfiguration/{branchId}/sms` | + parents | (same write as parent node) |
 | `smsOtps`, `phoneVerifications`, `passwordResetLimits` | denied | denied (Admin SDK only) |
 
-Rules file: `database.rules.json` (repo root). The same file is copied to `client/database.rules.json` because `client/firebase.json` deploys that copy.
+Rules file: `client/database.rules.json` is the single source of truth (`client/firebase.json` deploys it to the `main` database target; `client/database.demo.rules.json` mirrors it for the demo target). There is no repo-root copy. `client/tests/adminRoleRules.test.js` pins the admin/doctor split.
 
 ## Demo database
 
-Demo accounts carry the Auth custom claim `isDemo: true`. The client (`getDb()` in `client/src/firebase/database.js`) and Cloud Functions (`client/functions/rtdbRouter.js`) send those accounts to a second Realtime Database, `{projectId}-demo`, with the same node names. Production rules reject `auth.token.isDemo == true`. Demo rules (`database.demo.rules.json`) reject everyone else. The demo doctor also has `demoOperator: true` and can call `resetDemoClinicDay` to clear one clinic date inside the demo database only.
+Demo accounts carry the Auth custom claim `isDemo: true`. The client (`getDb()` in `client/src/firebase/database.js`) and Cloud Functions (`client/functions/rtdbRouter.js`) send those accounts to a second Realtime Database, `{projectId}-demo`, with the same node names. Production rules reject `auth.token.isDemo == true`. Demo rules (`client/database.demo.rules.json`) reject everyone else. The demo doctor also has `demoOperator: true` and can call `resetDemoClinicDay` to clear one clinic date inside the demo database only.
 
 Seed (does not write the default database):
 
@@ -194,11 +198,13 @@ Create the `{projectId}-demo` database in the Firebase console before deploying 
 | POST | `/api/save-subscription` | Bearer Firebase ID token | Save Web Push subscription |
 | POST | `/api/delete-subscription` | Bearer token | Remove subscription |
 | POST | `/api/send-notification` | Bearer token or `x-push-secret` | Dispatch notification + push |
-| POST | `/api/admin/delete-user` | Bearer admin ID token | Delete Auth user + RTDB profile (doctor targets: active admin only) |
+| POST | `/api/admin/delete-user` | Bearer admin ID token | Delete Auth user + RTDB profile (active admin only, any non-admin target) |
+| POST | `/api/admin/update-user` | Bearer admin ID token | Update staff name/phone/branch (active admin only) |
+| POST | `/api/admin/reset-secretary-password` | Bearer admin ID token | One-time temporary password for a secretary or doctor (active admin only) |
 | POST | `/api/admin/create-doctor` | Bearer admin ID token | Create the Doctor (one-active-doctor rule) |
 | POST | `/api/admin/doctor-status` | Bearer admin ID token | Deactivate / reactivate the Doctor (`{ uid, status }`) |
 | POST | `/api/auth/resolve-identifier` | None | Resolve email or phone → account email for password login |
-| POST | `/api/auth/password-reset/claim` | None | Consume 1 of 5 daily reset slots per email (Asia/Manila) before `sendPasswordResetEmail` |
+| POST | `/api/auth/password-reset/claim` | None | Consume 1 of 5 daily reset slots per email (Asia/Manila) before `sendPasswordResetEmail`; 403 `auth_denied` for doctor, secretary, and admin emails |
 | POST | `/api/auth/sms/send-otp` | None | Generate + SMS-deliver 6-digit OTP (textbee) |
 | POST | `/api/auth/sms/verify-otp` | None | Validate OTP → custom token (login) or verificationId (register) |
 
@@ -208,7 +214,7 @@ Listeners: `server/services/pushListeners.js` watches `reservations` and `schedu
 - Utility: `server/services/smsService.js` (mirrored in `client/functions/smsService.js`)
 - Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`; once via `slotReservedSmsSent`), `QUEUE_STARTED`, `NEARING_TURN` (at **queue start only**; patients-ahead from `systemConfiguration/{branchId}/sms`, default 3; fires when `0 < aheadOfYou <=` count; SMS once per parent account, ever, via `users/{uid}/nearTurnSms` transaction in `nearTurnSmsGuard.js` (push/in-app still once per reservation via `reservations/{id}/nearTurnSmsSent`); Secretary-editable per branch), `PENALIZED` (once per increment via `penaltySmsSent/{count}`), `FORFEITED`. TextBee credentials remain env-global.
 - OTP store: `smsOtps/{phoneKey}` — bcrypt-hashed code, 5-minute `expiresAt`; client R/W denied in rules
-- Password reset cap: `passwordResetLimits/{emailKey}` — 5 claims per email per Asia/Manila day; client R/W denied; Forgot Password and Admin Reset share the same counter
+- Password reset cap: `passwordResetLimits/{emailKey}` — 5 claims per email per Asia/Manila day; client R/W denied; Forgot Password and the admin's parent reset email share the same counter; staff are refused
 
 ## Cloud Functions (`client/functions/index.js`)
 
@@ -216,7 +222,10 @@ Listeners: `server/services/pushListeners.js` watches `reservations` and `schedu
 |----------|---------|---------|
 | `onReservationWrite` | RTDB `/reservations/{id}` onWrite | Push on reservation changes |
 | `onScheduleWrite` | RTDB `/schedules/{id}` onWrite | Push on schedule/queue changes |
-| `deleteUserAccount` | HTTPS callable | Admin deletes Auth user + profile (incl. Doctor) |
+| `deleteUserAccount` | HTTPS callable | Active admin deletes Auth user + profile (incl. Doctor) |
+| `updateUserAccount` | HTTPS callable | Active admin updates staff profile fields |
+| `resetSecretaryPassword` | HTTPS callable | Active admin resets a secretary or doctor password (temporary password + `mustChangePassword`) |
+| `evaluateSuspiciousAccounts` | Scheduled (20:00 Manila) | Flag no-show parents; alert active admins (`adminAlerts` + push) |
 | `createDoctorAccount` | HTTPS callable | Admin creates the Doctor (one active doctor) |
 | `setDoctorAccountStatus` | HTTPS callable | Admin deactivates / reactivates the Doctor |
 | `testRTDBAccess` | HTTPS callable | Infrastructure test |

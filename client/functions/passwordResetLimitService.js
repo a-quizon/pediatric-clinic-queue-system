@@ -4,6 +4,8 @@ const LIMIT_MESSAGE =
   "You've reached today's password reset limit. Please try again tomorrow.";
 const ADMIN_RESET_BLOCKED_MESSAGE =
   "Password reset is not available for this account. Contact the system owner.";
+const STAFF_RESET_BLOCKED_MESSAGE =
+  "Password reset emails are for parent accounts only. Ask the System Admin for a temporary password.";
 
 const admin = require("firebase-admin");
 const { getRtdb } = require("./rtdbRouter");
@@ -41,7 +43,10 @@ function limitError() {
   return err;
 }
 
-/** System Admin credentials are managed via the Admin SDK only (docs/AdminBreakGlass.md). */
+/**
+ * Reset emails are for parents only. Doctors and secretaries get a temporary password from
+ * the System Admin; admin credentials are managed via the Admin SDK (docs/AdminBreakGlass.md).
+ */
 async function assertResetAllowed(email, { auth, db }) {
   let record;
   try {
@@ -51,8 +56,9 @@ async function assertResetAllowed(email, { auth, db }) {
     throw err;
   }
   const roleSnap = await db.ref(`users/${record.uid}/role`).once("value");
-  if (roleSnap.val() === "admin") {
-    const err = new Error(ADMIN_RESET_BLOCKED_MESSAGE);
+  const role = roleSnap.val();
+  if (role && role !== "parent") {
+    const err = new Error(role === "admin" ? ADMIN_RESET_BLOCKED_MESSAGE : STAFF_RESET_BLOCKED_MESSAGE);
     err.code = "auth_denied";
     throw err;
   }
@@ -60,7 +66,7 @@ async function assertResetAllowed(email, { auth, db }) {
 
 /**
  * Atomically consume one password-reset slot for today (Asia/Manila).
- * Shared by Forgot Password and Admin Reset Password. Admin accounts are refused.
+ * Shared by Forgot Password and the admin's parent reset email. Non-parent accounts are refused.
  */
 async function claimPasswordResetSlot(rawEmail, deps = {}) {
   const email = normalizeEmail(rawEmail);
@@ -107,6 +113,7 @@ async function claimPasswordResetSlot(rawEmail, deps = {}) {
 module.exports = {
   claimPasswordResetSlot,
   ADMIN_RESET_BLOCKED_MESSAGE,
+  STAFF_RESET_BLOCKED_MESSAGE,
   DAILY_LIMIT,
   TIME_ZONE,
   LIMIT_MESSAGE,

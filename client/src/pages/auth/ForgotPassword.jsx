@@ -37,6 +37,7 @@ export default function ForgotPassword() {
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight">Reset Password</h1>
           <p className="pq-muted mt-2 text-sm">Enter your email to receive a reset link</p>
+          <p className="pq-muted mt-1 text-xs">Clinic staff: ask the System Admin for a temporary password.</p>
         </div>
 
         <div className="p-8">

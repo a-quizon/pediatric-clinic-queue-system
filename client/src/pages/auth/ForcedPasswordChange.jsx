@@ -8,7 +8,7 @@ import { PqAuthShell, PqBrand } from "../../components/parent/pqUi";
 import LogoutButton from "../../components/common/LogoutButton";
 
 /**
- * Forced password change after a doctor-issued temporary secretary password.
+ * Forced password change after an admin-issued temporary secretary or doctor password.
  */
 export default function ForcedPasswordChange() {
   const { user, role } = useAuth();
@@ -44,8 +44,8 @@ export default function ForcedPasswordChange() {
         return;
       }
       toast.success("Password updated. You can continue.");
-      if (role === "secretary") {
-        navigate("/secretary", { replace: true });
+      if (role === "secretary" || role === "doctor") {
+        navigate(`/${role}`, { replace: true });
       } else {
         navigate("/", { replace: true });
       }
@@ -74,7 +74,7 @@ export default function ForcedPasswordChange() {
             <div>
               <h1 className="text-xl font-extrabold tracking-tight">Change your password</h1>
               <p className="text-sm pq-muted mt-1">
-                Your temporary password must be changed before you can use the secretary dashboard.
+                Your temporary password must be changed before you can use the {role === "doctor" ? "doctor" : "secretary"} dashboard.
               </p>
             </div>
           </div>

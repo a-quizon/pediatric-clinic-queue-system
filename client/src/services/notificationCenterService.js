@@ -9,37 +9,34 @@ import { subscribeOnValue } from "../firebase/rtdbSubscribe";
  * in Firebase Realtime Database at `notifications/${parentId}`.
  */
 
-export const cleanupNonParentNotifications = async () => {
+/**
+ * Staff never keep Notification Center records. Each signed-in non-parent clears only
+ * its own leftovers (no `users` list read, so it works under per-role rules).
+ */
+export const cleanupOwnStaffNotifications = async () => {
   try {
     const uid = getAuth().currentUser?.uid;
     if (!uid) return;
 
-    const roleSnapshot = await get(ref(getDb(), `users/${uid}/role`));
-    const role = roleSnapshot.exists() ? roleSnapshot.val() : null;
-    // Doctor owns clinic-admin cleanup; admin kept during transition
-    if (role !== "doctor" && role !== "admin") return;
+    const userSnapshot = await get(ref(getDb(), `users/${uid}`));
+    if (!userSnapshot.exists()) return;
+    const userData = userSnapshot.val();
+    if (!userData.role || userData.role === "parent") return;
 
-    const snapshot = await get(ref(getDb(), "users"));
-    if (!snapshot.exists()) return;
-
-    const users = snapshot.val();
     const updates = {};
-
-    Object.entries(users).forEach(([uid, userData]) => {
-      if (userData && userData.role !== "parent") {
-        if (userData.notifications) {
-          updates[`users/${uid}/notifications`] = null;
-        }
-        updates[`notifications/${uid}`] = null;
-      }
-    });
+    if (userData.notifications) {
+      updates[`users/${uid}/notifications`] = null;
+    }
+    const ownSnapshot = await get(ref(getDb(), `notifications/${uid}`));
+    if (ownSnapshot.exists()) {
+      updates[`notifications/${uid}`] = null;
+    }
 
     if (Object.keys(updates).length > 0) {
       await update(ref(getDb()), updates);
-      console.log("[NotificationCenterService] Cleaned non-parent notifications:", Object.keys(updates));
     }
   } catch (error) {
-    console.error("[NotificationCenterService] Failed to cleanup non-parent notifications:", error);
+    console.error("[NotificationCenterService] Failed to clean own staff notifications:", error);
   }
 };
 

@@ -236,7 +236,7 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         if (
             !user?.uid ||
-            (user.role !== "parent" && user.role !== "doctor" && user.role !== "admin") ||
+            (user.role !== "parent" && user.role !== "admin") ||
             typeof navigator === "undefined" ||
             !("serviceWorker" in navigator)
         ) {
