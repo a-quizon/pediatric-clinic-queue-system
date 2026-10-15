@@ -9,7 +9,7 @@ import {
 import { formatName, branchesMatch } from "../../utils/stringUtils";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
-import { canAdminEditUserProfile, isDirectPasswordResetRole } from "../../utils/adminUserManagementPolicy";
+import { getUserRowActions, isDirectPasswordResetRole } from "../../utils/adminUserManagementPolicy";
 import { ACTIVE_DOCTOR_EXISTS_MESSAGE, canReactivateDoctor } from "../../utils/doctorAccountPolicy";
 import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
@@ -81,14 +81,16 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
 
   const isDoctorTarget = user.role === "doctor";
   const isParentTarget = user.role === "parent";
+  const isAdminTarget = user.role === "admin";
   const isDirectResetTarget = isDirectPasswordResetRole(user.role);
-  const canResetPassword = isDirectResetTarget || isParentTarget;
   const staffRoleLabel = isDoctorTarget ? "doctor" : "secretary";
   const isSelf = Boolean(currentUser?.uid && user.id === currentUser.uid);
-  const canToggleStatus = !isSelf && user.id !== "admin" && user.role !== "admin";
+  const rowActions = getUserRowActions({ target: user, currentUid: currentUser?.uid });
+  const canResetPassword = rowActions.canResetPassword;
+  const canToggleStatus = rowActions.canToggleStatus;
   const reactivateBlocked =
     isDoctorTarget && user.status !== "active" && !canReactivateDoctor(allUsers || [], user.id);
-  const canEditProfile = canAdminEditUserProfile(user.role) && !isParentTarget;
+  const canEditProfile = rowActions.canEdit && !isParentTarget;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -137,7 +139,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
       if (error.status === 403 || error.code === "permission-denied") {
         toast.error(error.message || "You do not have permission to edit this account.");
       } else {
-        toast.error("Failed to update user.");
+        toast.error(error.message || "Failed to update user.");
       }
     } finally {
       setIsSaving(false);
@@ -300,6 +302,12 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
           {isParentTarget && (
             <p className="text-sm pq-muted">
               Parent accounts are view-only. You can deactivate, delete, or send a password reset email.
+            </p>
+          )}
+          {isAdminTarget && (
+            <p className="text-sm pq-muted">
+              {isSelf ? "This is your account. " : ""}
+              Admin accounts are managed outside the app. They cannot be edited, deactivated, deleted, or reset here.
             </p>
           )}
 

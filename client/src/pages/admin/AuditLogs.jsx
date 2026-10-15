@@ -181,6 +181,11 @@ function AuditLogDetailModal({
                   {log.targetType || "record"}
                   {log.targetId ? ` · ${log.targetId}` : ""}
                 </p>
+                {(log.metadata?.targetName || log.metadata?.targetEmail) && (
+                  <p className="text-sm pq-muted mt-0.5">
+                    {[log.metadata.targetName, log.metadata.targetEmail].filter(Boolean).join(" · ")}
+                  </p>
+                )}
               </div>
             )}
             {log.branchId && (
@@ -560,10 +565,10 @@ export default function AuditLogs() {
                     <div className="pq-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", minHeight: 0, alignItems: "start" }}>
                       <div className="text-sm min-w-0">
                         <span className="pq-faint text-xs block mb-1">Actor</span>
-                        <span className="font-semibold block truncate">{log.actorName}</span>
+                        <span className="font-semibold block truncate">{log.actorName || "Unknown"}</span>
                         <span className={`${roleChip(log.actorRole)} capitalize mt-1`}>
                           {getRoleIcon(log.actorRole)}
-                          {log.actorRole}
+                          {log.actorRole || "unknown"}
                         </span>
                       </div>
                       <div className="text-sm min-w-0">
@@ -612,12 +617,12 @@ export default function AuditLogs() {
                           <p className="text-xs pq-muted mt-0.5 leading-tight">{formatLogTime(log.timestamp)}</p>
                         </td>
                         <td className="w-px max-w-[9rem] align-top">
-                          <span className="font-semibold block truncate">{log.actorName}</span>
+                          <span className="font-semibold block truncate">{log.actorName || "Unknown"}</span>
                         </td>
                         <td className="align-top">
                           <span className={`${roleChip(log.actorRole)} capitalize`}>
                             {getRoleIcon(log.actorRole)}
-                            {log.actorRole}
+                            {log.actorRole || "unknown"}
                           </span>
                         </td>
                         <td className="text-sm font-semibold align-top">

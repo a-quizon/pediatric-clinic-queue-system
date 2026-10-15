@@ -34,6 +34,21 @@ test("users/$uid writes by others are admin only and never on admin records", ()
   assert.ok(!expr.includes(IS_SECRETARY));
 });
 
+const ADMIN_RECORD_GUARD =
+  "(data.child('role').val() !== 'admin' || (newData.exists() && newData.child('role').val() === 'admin' && newData.child('isDeleted').val() === data.child('isDeleted').val() && (newData.child('status').val() === data.child('status').val() || (!data.child('status').exists() && newData.child('status').val() === 'active'))))";
+
+test("admin records: no client (including the owner) can remove, demote, soft-delete, or deactivate them", () => {
+  const demoRules = JSON.parse(fs.readFileSync(path.join(clientRoot, "database.demo.rules.json"), "utf8")).rules;
+  for (const [label, set] of [["main", rules], ["demo", demoRules]]) {
+    const expr = set.users.$uid[".write"];
+    assert.ok(expr.endsWith(` && ${ADMIN_RECORD_GUARD})`), `${label}: guard is a top-level conjunct`);
+  }
+});
+
+test("doctor status stays server-only", () => {
+  assert.ok(rules.users.$uid.status[".validate"].includes("root.child('users').child($uid).child('role').val() !== 'doctor'"));
+});
+
 test("secretary role only on a brand-new record by an active admin; admin never settable", () => {
   const expr = rules.users.$uid.role[".validate"];
   assert.ok(expr.includes(`!root.child('users').child($uid).exists() && ${IS_ADMIN} && ${IS_ACTIVE} && newData.val() === 'secretary'`));

@@ -38,6 +38,7 @@ const require = createRequire(import.meta.url);
 const { createDoctorAccount, LOCK_PATH } = require("../functions/createDoctorAccountRuntime.js");
 const { setDoctorAccountStatus } = require("../functions/doctorStatusRuntime.js");
 const { deleteUserAccount } = require("../functions/deleteUserAccountRuntime.js");
+const { updateUserAccount } = require("../functions/updateUserAccountRuntime.js");
 const { claimPasswordResetSlot } = require("../functions/passwordResetLimitService.js");
 const {
   evaluateAndFlagParent,
@@ -540,6 +541,58 @@ describe("doctor delete (admin only)", () => {
     });
     await deleteUserAccount({ admin, callerUid: "admin1", targetUid: "doc1" });
     assert.equal(db.root.users.doc1, undefined);
+  });
+});
+
+describe("self and last-admin protection (server runtimes)", () => {
+  const SOLE_ADMIN = { users: { admin1: ADMIN, sec1: { role: "secretary", status: "active", name: "Sec" } } };
+
+  it("the only active admin cannot delete their own account", async () => {
+    const { admin, db, deletedAuthUids } = createFakeAdmin(SOLE_ADMIN);
+    await assert.rejects(
+      deleteUserAccount({ admin, callerUid: "admin1", targetUid: "admin1" }),
+      (err) => err.status === 400 && /your own account/.test(err.message)
+    );
+    assert.deepEqual(db.root.users.admin1, ADMIN);
+    assert.deepEqual(deletedAuthUids, []);
+  });
+
+  it("an admin cannot delete, edit, or change the status of another admin", async () => {
+    const { admin, db, deletedAuthUids } = createFakeAdmin({
+      users: { admin1: ADMIN, admin2: { ...ADMIN, uid: "admin2", name: "Second Admin" } },
+    });
+    await assert.rejects(
+      deleteUserAccount({ admin, callerUid: "admin1", targetUid: "admin2" }),
+      (err) => err.status === 400 && err.message === "Admin accounts cannot be deleted."
+    );
+    await assert.rejects(
+      updateUserAccount({ admin, callerUid: "admin1", targetUid: "admin2", updates: { name: "X" } }),
+      (err) => err.status === 403 && err.message === "Admin accounts cannot be edited in the app."
+    );
+    await assert.rejects(
+      setDoctorAccountStatus({ admin, callerUid: "admin1", targetUid: "admin2", status: "inactive" }),
+      (err) => err.status === 400
+    );
+    assert.equal(db.root.users.admin2.status, "active");
+    assert.equal(db.root.users.admin2.name, "Second Admin");
+    assert.deepEqual(deletedAuthUids, []);
+  });
+
+  it("an admin cannot change their own status through the doctor status function", async () => {
+    const { admin, db } = createFakeAdmin(SOLE_ADMIN);
+    await assert.rejects(
+      setDoctorAccountStatus({ admin, callerUid: "admin1", targetUid: "admin1", status: "inactive" }),
+      (err) => err.status === 400 && /your own account status/.test(err.message)
+    );
+    assert.equal(db.root.users.admin1.status, "active");
+  });
+
+  it("an admin cannot edit their own profile through the update function", async () => {
+    const { admin } = createFakeAdmin(SOLE_ADMIN);
+    await assert.rejects(
+      updateUserAccount({ admin, callerUid: "admin1", targetUid: "admin1", updates: { name: "Me" } }),
+      (err) => err.status === 403
+    );
   });
 });
 

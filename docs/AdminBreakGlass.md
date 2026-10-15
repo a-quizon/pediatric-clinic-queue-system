@@ -4,7 +4,7 @@ Use when the **Doctor** cannot sign in (forgotten password, Auth disabled) and n
 
 - **Doctor lifecycle is in-app**: the System Admin creates, deactivates, reactivates, and permanently deletes the Doctor from **Admin → Users**. Create and reactivate are allowed only while **no other active doctor** exists (server-enforced with a lock at `systemLocks/doctorProvisioning`). Deactivate and delete are refused while a patient is in consultation on a running session. To replace a doctor: deactivate (or delete) the current one, then add or reactivate the new one. The Admin SDK steps below are only for when no admin can sign in.
 - **Doctor status is server-only**: RTDB rules refuse client writes to a doctor's `status`. The Admin SDK bypasses rules, so the snippets below still work.
-- **Admin records are owner-only in the rules**: no other account (doctor, secretary, or another admin) can write or delete a `role: "admin"` profile from the client. Use the Admin SDK for any admin profile change.
+- **Admin records are owner-only in the rules**: no other account (doctor, secretary, or another admin) can write or delete a `role: "admin"` profile from the client. The owner also cannot remove their own profile or change its `role`, `status`, or `isDeleted` (the only allowed status write is filling in a missing status as `active`). Use the Admin SDK for any admin profile change.
 - **Admin credentials**: admins have no in-app Profile page and cannot change their own name, phone, email, or password in the app. Forgot Password is refused for admin emails. Use the Admin SDK steps below (create script, **Reset password (Auth)**).
 
 **Never run against production until the project owner explicitly approves the target Firebase project.**

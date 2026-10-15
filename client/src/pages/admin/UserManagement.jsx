@@ -13,6 +13,13 @@ import toast from "react-hot-toast";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleDoctorUsers } from "../../components/onboarding/DoctorTourSampleViews";
 import Pagination from "../../components/common/Pagination";
+import { getUserRowActions } from "../../utils/adminUserManagementPolicy";
+import {
+  USER_ROLE_FILTER_OPTIONS,
+  parseUserRoleParam,
+  matchesUserRoleFilter,
+  isListedUser,
+} from "../../utils/userListFilters";
 
 const roleChip = (role) => {
   if (role === "doctor") return "pq-chip pq-chip-info";
@@ -37,10 +44,7 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState(() => {
-    const role = searchParams.get("role");
-    return role === "parent" || role === "doctor" || role === "secretary" || role === "staff" ? role : "all";
-  });
+  const [roleFilter, setRoleFilter] = useState(() => parseUserRoleParam(searchParams.get("role")) || "all");
   const [statusFilter, setStatusFilter] = useState("all");
 
   const [selectedUser, setSelectedUser] = useState(null);
@@ -63,7 +67,7 @@ export default function UserManagement() {
         const usersList = Object.keys(usersData).map((key) => ({
           id: key,
           ...usersData[key]
-        })).filter((user) => user.role !== "admin" && user.id !== "admin" && user.isDeleted !== true);
+        })).filter(isListedUser);
 
         setUsers(usersList);
       } else {
@@ -109,9 +113,7 @@ export default function UserManagement() {
     const matchesSearch = (user.name && user.name.toLowerCase().includes(term)) ||
                           (user.email && user.email.toLowerCase().includes(term));
 
-    const matchesRole = roleFilter === "all"
-      || (roleFilter === "staff" && (user.role === "doctor" || user.role === "secretary"))
-      || user.role === roleFilter;
+    const matchesRole = matchesUserRoleFilter(user, roleFilter);
     const matchesStatus = statusFilter === "all" || user.status === statusFilter;
 
     return matchesSearch && matchesRole && matchesStatus;
@@ -122,10 +124,8 @@ export default function UserManagement() {
   }, [searchQuery, roleFilter, statusFilter]);
 
   useEffect(() => {
-    const role = searchParams.get("role");
-    if (role === "parent" || role === "doctor" || role === "secretary" || role === "staff") {
-      setRoleFilter(role);
-    }
+    const role = parseUserRoleParam(searchParams.get("role"));
+    if (role) setRoleFilter(role);
   }, [searchParams]);
 
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
@@ -153,10 +153,8 @@ export default function UserManagement() {
     setUserToDelete(user);
   };
 
-  const canDeleteUser = (user) =>
-    user?.id &&
-    user.role !== "admin" &&
-    !(currentUser?.uid && user.id === currentUser.uid);
+  const canDeleteUser = (user) => getUserRowActions({ target: user, currentUid: currentUser?.uid }).canDelete;
+  const isSelf = (user) => Boolean(currentUser?.uid && user?.id === currentUser.uid);
 
   const deleteMessage = userToDelete?.role === "doctor"
     ? `This will permanently delete the doctor account for ${userToDelete?.name || "this doctor"} (${userToDelete?.email || "no email"}) and revoke their login. This action is permanent and cannot be undone. Past sessions, reservations, and audit logs are kept. Until a doctor is added or reactivated, no one can complete consultations.`
@@ -216,11 +214,9 @@ export default function UserManagement() {
               onChange={(e) => setRoleFilter(e.target.value)}
               className="pq-input appearance-none cursor-pointer min-w-[10rem]"
             >
-              <option value="all">All Roles</option>
-              <option value="staff">Staff</option>
-              <option value="doctor">Doctor</option>
-              <option value="secretary">Secretary</option>
-              <option value="parent">Parent</option>
+              {USER_ROLE_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
           </div>
 
@@ -281,7 +277,10 @@ export default function UserManagement() {
                     aria-label={`View details for ${user.name || "user"}`}
                     className="min-w-0 text-left flex-1"
                   >
-                      <h3 className="font-extrabold tracking-tight text-base">{user.name || "Unnamed"}</h3>
+                      <h3 className="font-extrabold tracking-tight text-base">
+                        {user.name || "Unnamed"}
+                        {isSelf(user) && <span className="pq-chip ml-2 text-xs align-middle">You</span>}
+                      </h3>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         <span className={`${roleChip(user.role)} capitalize`}>
                           {getRoleIcon(user.role)}
@@ -353,7 +352,10 @@ export default function UserManagement() {
                           aria-label={`View details for ${user.name || "user"}`}
                           className="text-left min-h-11"
                         >
-                          <div className="font-extrabold tracking-tight">{user.name || "Unnamed"}</div>
+                          <div className="font-extrabold tracking-tight">
+                            {user.name || "Unnamed"}
+                            {isSelf(user) && <span className="pq-chip ml-2 text-xs align-middle">You</span>}
+                          </div>
                           <div className="text-sm pq-muted mt-0.5 font-medium">{user.email}</div>
                         </button>
                       </td>
