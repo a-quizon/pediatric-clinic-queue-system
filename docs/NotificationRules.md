@@ -142,11 +142,11 @@ A notification transitions from `read: false` to `read: true` via a direct datab
 2. **Deduplication Rule**
    * *A notification event will be entirely dropped if it matches a recently cached signature or an existing `dedupeKey` record.*
 3. **Database Storage Rule**
-   * *Valid parent notifications are written to Firebase for historical tracking and the Notification Center. Doctor abuse alerts use `doctorAlerts/{doctorUid}`.*
+   * *Valid parent notifications are written to Firebase for historical tracking and the Notification Center. System Admin abuse alerts use `adminAlerts/{adminUid}`; older `doctorAlerts/{doctorUid}` records are kept as history and nothing writes new ones.*
 4. **Push Notification Rule**
    * *Web Push is sent to registered devices after the record is stored. It never replaces in-app storage.*
 
-*Why this order?* Role restriction ensures data privacy and database optimization (preventing secretaries from bloating the DB with irrelevant alerts, while still allowing a narrow doctor abuse channel). Deduplication prevents spamming the user and the database.
+*Why this order?* Role restriction ensures data privacy and database optimization (preventing secretaries from bloating the DB with irrelevant alerts, while still allowing a narrow System Admin abuse channel). Deduplication prevents spamming the user and the database.
 
 ---
 
@@ -166,6 +166,7 @@ When modifying the Notification System, developers must verify the following con
 - [ ] ✓ Push subscription for this device is wiped from the database upon logout.
 - [ ] ✓ Closed-browser push still delivers via `/sw.js` + `web-push`.
 - [ ] ✓ Role filtering correctly blocks Doctors and Secretaries from receiving persistent notifications.
+- [ ] ✓ `SUSPICIOUS_ACCOUNT` alerts reach active System Admins only (`adminAlerts/{adminUid}` + admin Web Push, link `/admin/audit-logs?highlight={logId}`); the doctor receives no alert or push.
 - [ ] ✓ `NEARING_TURN` threshold and SMS templates come from `systemConfiguration/{branchId}/sms` (defaults when missing); push/toast near-turn text stays count-synced only.
 - [ ] ✓ `NEARING_TURN` SMS sends once per parent account, ever (`users/{parentId}/nearTurnSms`, claimed by transaction, set only after the provider accepts; failed sends release the claim). A later reservation, another child, another branch, or a post-penalty re-queue does not get a second SMS. The push/in-app alert still fires once per reservation (`reservations/{id}/nearTurnSmsSent`) **only when the queue starts**, for tickets with `0 < aheadOfYou <=` that branch’s count (not when already first; not on later position changes).
 - [ ] ✓ `SLOT_RESERVED` SMS sends once per reservation (`reservations/{id}/slotReservedSmsSent`).

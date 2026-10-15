@@ -13,9 +13,13 @@ The Pediatric Clinic Queue Management System is designed to digitize and orchest
 
 * **Parent / Guardian**: The end-user who consumes clinic services. They browse available schedules, reserve slots, monitor their dynamic queue position remotely, and bring the patient to the clinic for QR validation.
 * **Secretary**: The frontline branch manager. They manage open clinic days for their assigned branch (hold/close/resume, capacity overrides), start the clinic queue, physically verify patient arrivals (Check In), enforce attendance policies (Penalize, including walk-ins already marked checked-in), control the flow of patients into the doctor's room (Send to Doctor), and can pause/resume/close/end the live session from Manage Queue.
-* **Doctor**: The primary medical provider. They can manage open clinic days for any branch (hold/close/resume, capacity overrides), start the clinic queue, control the live consultation room (pause/resume/close queue via Queue Control — Secretary can trigger the same four session actions), add optional consultation notes, and finalize medical visits (Complete Consultation).
-* **System Admin**: A separate, non-clinical role (`role: "admin"`, no `assignedBranch`) with its own `/admin` module: Dashboard, Users, Branches, Audit Logs, and Reports. One or two admins may exist. Admin accounts are created only with the Admin SDK (`docs/AdminBreakGlass.md`); the admin cannot change their own profile or password in the app (no admin Profile page, and Forgot Password is refused for admin emails, as it is for all staff).
-* **Doctor**: There is exactly one active doctor system-wide. The doctor runs schedules, the queue, consultations, and Reports (`/doctor/*`) and no longer has staff, branch, or audit-log management pages.
+* **Doctor**: The primary medical provider, and exactly one active doctor exists system-wide. They work in `/doctor/*` (Dashboard, Queue, Schedules, Reports, Profile). They can manage open clinic days for any branch (hold/close/resume, capacity overrides), start the clinic queue, control the live consultation room (pause/resume/close queue via Queue Control — Secretary can trigger the same four session actions), add optional consultation notes, and finalize medical visits (Complete Consultation). The doctor has no staff, branch, or audit-log management and receives no suspicious-account alerts.
+* **System Admin**: A separate, non-clinical role (`role: "admin"`, no `assignedBranch`) with its own `/admin` module: Dashboard, Users, Branches, Audit Logs, and Reports. One or two admins may exist. In short, the admin:
+  * creates, deactivates, reactivates, and deletes **Secretary and Doctor** accounts (and deactivates, reactivates, or deletes Parents), under the one-active-doctor rule (Section 10);
+  * manages branches, reads the full audit log, and receives suspicious-account alerts;
+  * sees Reports as **Clinic Overview** plus a **read-only Session History**;
+  * has accounts created only with the Admin SDK (`docs/AdminBreakGlass.md`), has **no Profile page**, and cannot change their own profile or password in the app (Forgot Password is refused for admin emails, as it is for all staff);
+  * never runs the clinic: no schedules, queue, reservations, or consultations.
 
 ---
 
@@ -181,6 +185,6 @@ Future system modifications must ensure the following business behaviors remain 
 - [ ] ✓ Queue recalculation never changes Ticket Numbers.
 - [ ] ✓ Reservation History remains immutable.
 - [ ] ✓ Queue Engine remains perfectly synchronized with Reservation state transitions.
-- [ ] ✓ Notification delivery remains bound exclusively to Parent accounts.
+- [ ] ✓ Notification delivery remains bound exclusively to Parent accounts, except the System Admin `SUSPICIOUS_ACCOUNT` alert (`adminAlerts` + admin Web Push). The doctor receives none.
 - [ ] ✓ User role permissions strictly prevent Parents from accessing staff routes and vice versa.
 - [ ] ✓ Updates to Branch Management configurations instantly propagate to Secretary Dashboards and Parent UI cards.

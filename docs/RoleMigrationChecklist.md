@@ -1,6 +1,24 @@
 # Admin Separation Checklist
 
-The System Admin (`/admin`) and the Doctor (`/doctor`) are separate roles. The admin manages staff, branches, audit logs, and clinic-wide reports. The doctor runs the clinic (schedules, queue, consultations, reports) and has no admin powers. Phase 2 enforces the split at all three levels: UI, server (Cloud Functions + Express mirror), and RTDB rules. Use this checklist for every deploy that touches roles, rules, or the admin module.
+The System Admin (`/admin`) and the Doctor (`/doctor`) are separate roles. The admin manages staff, branches, audit logs, and clinic-wide reports. The doctor runs the clinic (schedules, queue, consultations, reports) and has no admin powers. Phases 2 and 3 enforce the split at all three levels: UI, server (Cloud Functions + Express mirror), and RTDB rules. Use this checklist for every deploy that touches roles, rules, or the admin module.
+
+## Status
+
+Done:
+
+- [x] Phase 1: separate `/admin` module (Dashboard, Users, Branches, Audit Logs, Reports with Clinic Overview + read-only Session History); doctor nav has no Users/Branches/Audit Logs; admin has no Profile page.
+- [x] Phase 2: admin-only guards in the server runtimes (`assertActiveAdmin`) and RTDB rules; admin is not clinical staff; admin creates/deactivates/reactivates/deletes secretaries and the doctor (one active doctor); staff password reset by temporary password; suspicious-account alerts moved to `adminAlerts` + admin Web Push.
+- [x] Phase 3: admin accounts listed read-only in Users ("You" marker, no row actions); rules block any client from removing an admin profile or changing its `role`, `status`, or `isDeleted`; admin policy rename and audit text.
+- [x] Phase 4: doctor tour has no admin steps and every step has a rendered target (test-enforced); docs updated; `npm test` passes.
+
+Remaining (Phase 5):
+
+- [ ] Run the full staging verification below end to end (Admin, Doctor, Secretary, Parent), including a real suspicious-account push to the admin.
+- [ ] Rules Playground (or emulator) denial checks for the doctor/secretary cases listed under "Staging verification: Doctor".
+- [ ] Decide who the production admin is and create it with the Admin SDK on production (needs a production-safe variant of the create script; the current one is staging-only).
+- [ ] Production deploy only with explicit owner approval.
+
+The original Phase 5 item "Admin Profile works" is obsolete: the admin has no Profile page by design.
 
 Rules live only in `client/database.rules.json` (mirrored in `client/database.demo.rules.json`); `client/firebase.json` deploys both. There is no repo-root rules file.
 
@@ -22,6 +40,7 @@ Rules live only in `client/database.rules.json` (mirrored in `client/database.de
 - [ ] Login lands on `/admin`; Dashboard, Users, Branches, Audit Logs, Reports (Clinic Overview + Session History) load.
 - [ ] Create a secretary; edit a secretary; reset a secretary and a doctor password (temporary password, forced change on next login); Forgot Password refuses doctor/secretary emails; deactivate/reactivate a parent or secretary.
 - [ ] Create a doctor only when none is active; deactivate, reactivate, delete the doctor.
+- [ ] Admin accounts appear in Users with the Admin badge and filter, the own row is marked "You", and admin rows have no Edit/Reset/Deactivate/Delete actions. There is no admin Profile page (`/admin/profile` redirects to `/admin`).
 - [ ] Create, rename, and delete a branch. Renaming a branch with schedules succeeds and updates the schedules' `branch`/`branchId` and secretaries' `assignedBranch`.
 - [ ] No reservation actions are offered anywhere in the admin UI (Session History drawer is read-only).
 - [ ] A suspicious-account flag produces an `adminAlerts/{adminUid}` entry, a toast/push for the admin, and the link opens `/admin/audit-logs?highlight={logId}`.
