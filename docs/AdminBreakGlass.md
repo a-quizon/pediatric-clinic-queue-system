@@ -84,6 +84,10 @@ Remove-Item Env:ADMIN_PASSWORD
 
 The script prints the uid, the active admin count, and the active doctor count (expected: exactly 1). Record the uid in your deployment notes.
 
+### Remove an orphan admin profile
+
+An admin profile with no matching Auth user (for example, the Auth user was deleted and the email was reused by the create script) still shows in **Admin → Users** and still counts as an active admin for alerts. The create script ignores it and logs "Ignoring orphan admin profile". The rules block clients from removing admin profiles, so use the Admin SDK: confirm `admin.auth().getUser(uid)` returns `auth/user-not-found`, then remove `users/<uid>` (and `adminAlerts/<uid>` if present).
+
 ### Reactivate an inactive doctor profile (RTDB)
 
 Prefer **Admin → Users → (doctor) → Activate Account**. Use this only when no admin can sign in, and only if no other doctor is active.
