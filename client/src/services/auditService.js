@@ -1,15 +1,11 @@
 import { ref, push, set } from "firebase/database";
 import { getDb } from "../firebase/database";
 import { auth } from "../firebase/auth";
-
-export const AUDIT_CATEGORIES = {
-  USER_MANAGEMENT: "user_management",
-  BRANCH_MANAGEMENT: "branch_management",
-  SCHEDULE_MANAGEMENT: "schedule_management",
-  QUEUE_OPERATIONS: "queue_operations",
-  QUEUE_INTERVENTION: "queue_intervention",
-  SYSTEM_MANAGEMENT: "system_management"
-};
+export {
+  AUDIT_CATEGORIES,
+  AUDIT_CATEGORY_DEFS,
+  AUDIT_CATEGORY_LABELS,
+} from "../utils/auditCategories.js";
 
 export const AUDIT_ACTIONS = {
   // User Management

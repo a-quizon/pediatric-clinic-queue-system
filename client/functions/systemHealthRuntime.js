@@ -231,7 +231,7 @@ async function notifySmsServiceStatusChange(database, previousStatus, nextStatus
     const auditRef = database.ref("auditLogs").push();
     await auditRef.set({
       action: "SMS_SERVICE_STATUS_CHANGED",
-      category: "SYSTEM_MANAGEMENT",
+      category: "system_management",
       actorUid: "system",
       actorName: "System",
       actorRole: "system",

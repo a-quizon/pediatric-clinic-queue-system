@@ -1,3 +1,8 @@
+import {
+  AUDIT_CATEGORY_DEFS,
+  AUDIT_CATEGORY_LABELS,
+} from "./auditCategories.js";
+
 export const AUDIT_ROLE_FILTER_OPTIONS = [
   { value: "all", label: "All Roles" },
   { value: "admin", label: "Admin" },
@@ -10,6 +15,36 @@ export const AUDIT_ROLE_FILTER_OPTIONS = [
 export function matchesAuditRoleFilter(log, roleFilter) {
   if (!roleFilter || roleFilter === "all") return true;
   return log?.actorRole === roleFilter;
+}
+
+/** Normalize stored category for comparison (handles legacy SYSTEM_MANAGEMENT, etc.). */
+export function normalizeAuditCategory(value) {
+  if (value == null || value === "") return "";
+  return String(value).trim().toLowerCase();
+}
+
+/** Category filter options for Admin → Audit Logs (excludes "all"). */
+export const AUDIT_CATEGORY_FILTER_OPTIONS = AUDIT_CATEGORY_DEFS.map(({ key, label }) => ({
+  value: key,
+  label,
+}));
+
+/** Match by stable key; legacy uppercase / mixed-case values normalize to the same key. */
+export function matchesAuditCategoryFilter(log, categoryFilter) {
+  if (!categoryFilter || categoryFilter === "all") return true;
+  return normalizeAuditCategory(log?.category) === normalizeAuditCategory(categoryFilter);
+}
+
+/** Title-case label from the shared defs; unknown values get a best-effort title case. */
+export function formatAuditCategoryLabel(value) {
+  if (!value) return "System";
+  const normalized = normalizeAuditCategory(value);
+  if (AUDIT_CATEGORY_LABELS[normalized]) return AUDIT_CATEGORY_LABELS[normalized];
+  return normalized
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 /** Action / event-type filter options for Admin → Audit Logs. */

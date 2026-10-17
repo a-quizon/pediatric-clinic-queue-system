@@ -17,7 +17,7 @@ import {
 import { ref, query, limitToLast } from "firebase/database";
 import { getDb } from "../../firebase/database";
 import { subscribeOnValue } from "../../firebase/rtdbSubscribe";
-import { AUDIT_CATEGORIES, AUDIT_ACTIONS } from "../../services/auditService";
+import { AUDIT_ACTIONS } from "../../services/auditService";
 import {
   dismissSuspiciousAccount,
   deactivateSuspiciousAccount,
@@ -29,8 +29,11 @@ import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import toast from "react-hot-toast";
 import {
   AUDIT_ACTION_FILTER_OPTIONS,
+  AUDIT_CATEGORY_FILTER_OPTIONS,
   AUDIT_ROLE_FILTER_OPTIONS,
+  formatAuditCategoryLabel,
   matchesAuditActionFilter,
+  matchesAuditCategoryFilter,
   matchesAuditRoleFilter,
 } from "../../utils/auditLogFilters";
 import Pagination from "../../components/common/Pagination";
@@ -108,7 +111,6 @@ function AuditLogDetailModal({
   onDismiss,
   onDeactivate,
   getRoleIcon,
-  formatCategory,
 }) {
   useHistoryOverlay(Boolean(log), onClose);
   if (!log) return null;
@@ -143,7 +145,7 @@ function AuditLogDetailModal({
               {log.reviewStatus && (
                 <span className="pq-chip text-xs capitalize">{log.reviewStatus}</span>
               )}
-              <span className="pq-chip">{formatCategory(log.category)}</span>
+              <span className="pq-chip">{formatAuditCategoryLabel(log.category)}</span>
             </div>
             <h2 id="audit-detail-title" className="text-lg font-extrabold tracking-tight leading-snug">
               {log.description}
@@ -426,7 +428,7 @@ export default function AuditLogs() {
     const matchesSearch = (log.actorName && log.actorName.toLowerCase().includes(term)) ||
                           (log.description && log.description.toLowerCase().includes(term)) ||
                           (log.metadata?.parentName && String(log.metadata.parentName).toLowerCase().includes(term));
-    const matchesCategory = categoryFilter === "all" || log.category === categoryFilter;
+    const matchesCategory = matchesAuditCategoryFilter(log, categoryFilter);
     const matchesRole = matchesAuditRoleFilter(log, roleFilter);
     const matchesAction = matchesAuditActionFilter(log, actionFilter);
 
@@ -445,11 +447,6 @@ export default function AuditLogs() {
       case "system": return <AlertTriangle className="w-4 h-4" aria-hidden="true" />;
       default: return <User className="w-4 h-4" aria-hidden="true" />;
     }
-  };
-
-  const formatCategory = (categoryStr) => {
-    if (!categoryStr) return "System";
-    return categoryStr.split("_").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
   };
 
   const closeDetailModal = () => {
@@ -547,8 +544,8 @@ export default function AuditLogs() {
               className="pq-input pr-10 appearance-none cursor-pointer w-full"
             >
               <option value="all">All Categories</option>
-              {Object.values(AUDIT_CATEGORIES).map((cat) => (
-                <option key={cat} value={cat}>{formatCategory(cat)}</option>
+              {AUDIT_CATEGORY_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
             <SelectChevron />
@@ -645,7 +642,7 @@ export default function AuditLogs() {
                       <div className="text-sm min-w-0">
                         <span className="pq-faint text-xs block mb-1">Category</span>
                         <span className="pq-chip max-w-full truncate">
-                          {formatCategory(log.category)}
+                          {formatAuditCategoryLabel(log.category)}
                         </span>
                       </div>
                     </div>
@@ -706,7 +703,7 @@ export default function AuditLogs() {
                         </td>
                         <td className="pr-6 align-top">
                           <span className="pq-chip">
-                            {formatCategory(log.category)}
+                            {formatAuditCategoryLabel(log.category)}
                           </span>
                         </td>
                       </tr>
@@ -784,7 +781,6 @@ export default function AuditLogs() {
         onClose={closeDetailModal}
         actionBusy={actionBusy}
         getRoleIcon={getRoleIcon}
-        formatCategory={formatCategory}
         onDismiss={() =>
           setConfirmAction({
             type: "dismiss",
