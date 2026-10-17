@@ -75,7 +75,9 @@ Secretaries and doctors receive local toasts only.
 
 2. **Manual code lockout** — When secretary/doctor manual reservation-code entry hits the rate-limit lockout (`validateReservationCodeRuntime.js`), every active admin receives an `adminAlerts` row (`type: MANUAL_CODE_LOCKOUT`) linking to the lockout audit entry. No Web Push is required for this alert.
 
-**System Health recording (not parent-facing):** On push/SMS send failure and after scheduled jobs (`expirePenaltyTimers`, `evaluateSuspiciousAccounts`), the server writes under `systemHealth` (Admin SDK only). Active admins may read this tree on `/admin/system-health`. Clients cannot write it.
+**System Health recording (not parent-facing):** On push/SMS send failure and after scheduled jobs (`expirePenaltyTimers`, `pollTextBeeSmsStatus`, `evaluateSuspiciousAccounts`), the server writes under `systemHealth` (Admin SDK only). Active admins may read this tree on `/admin/system-health`. Clients cannot write it.
+
+**SMS delivery tracking (TextBee):** `POST /gateway/send-sms` only means the message was **queued**. The backend stores each attempt under `systemHealth/smsMessages` with status `queued` and the TextBee `smsBatchId`. Real outcomes arrive via the signed webhook `POST /api/webhooks/textbee` (`MESSAGE_SENT`, `MESSAGE_DELIVERED`, `MESSAGE_FAILED`, `UNKNOWN_STATE`; HMAC `X-Signature` with `TEXTBEE_WEBHOOK_SECRET`). A 5-minute job polls stuck `queued` batches as a fallback. Gateway aggregate `systemHealth/smsGateway.serviceStatus` is `healthy` / `degraded` / `down` from failure-rate and consecutive-failure thresholds. Transitions to Degraded/Down write an audit log and a debounced `adminAlerts` row (`SMS_SERVICE_STATUS`). Phone numbers are masked in health records and the admin UI.
 
 ---
 

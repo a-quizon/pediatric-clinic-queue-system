@@ -162,6 +162,33 @@ exports.expirePenaltyTimers = functions
   });
 
 /**
+ * Fallback: poll TextBee for SMS stuck in queued when webhooks are delayed.
+ */
+exports.pollTextBeeSmsStatus = functions
+  .region("asia-southeast1")
+  .pubsub.schedule("every 5 minutes")
+  .timeZone("Asia/Manila")
+  .onRun(async () => {
+    const { pollTextBeeSmsStatus } = require("./pollTextBeeSmsStatus");
+    try {
+      const result = await pollTextBeeSmsStatus();
+      if (result.updated) {
+        console.log(
+          `pollTextBeeSmsStatus checked=${result.checked} updated=${result.updated}`
+        );
+      }
+    } catch (err) {
+      console.error("pollTextBeeSmsStatus failed:", err);
+      const { recordJobRun } = require("./systemHealthRuntime");
+      await recordJobRun("pollTextBeeSmsStatus", {
+        success: false,
+        error: err.message,
+      });
+    }
+    return null;
+  });
+
+/**
  * After clinic hours: scan parents for suspicious no-show patterns (Rules A/B/C).
  */
 exports.evaluateSuspiciousAccounts = functions

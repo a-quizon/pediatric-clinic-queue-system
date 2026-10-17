@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { CalendarDays, MapPin, Users, User, Activity, Clock } from "lucide-react";
-import { ref, query, orderByChild, limitToLast } from "firebase/database";
+import { ref, query, orderByChild, limitToLast, onValue } from "firebase/database";
 import { getDb } from "../../firebase/database";
 import { subscribeOnValue } from "../../firebase/rtdbSubscribe";
 import { PqSpinner } from "../../components/parent/pqUi";
 import EmptyState from "../../components/common/EmptyState";
 import { manilaDateString } from "../../utils/manilaDate";
 import { countActiveClinicStaff } from "../../utils/staffCounts";
+import { smsServiceStatusLabel } from "../../utils/systemHealth";
 
 const PREVIEW_LOG_COUNT = 10;
 const PREVIEW_BRANCH_COUNT = 4;
@@ -127,6 +128,20 @@ export default function Dashboard() {
   const [recentLogs, setRecentLogs] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityError, setActivityError] = useState(null);
+  const [smsServiceStatus, setSmsServiceStatus] = useState(null);
+
+  useEffect(() => {
+    const gatewayRef = ref(getDb(), "systemHealth/smsGateway");
+    const unsub = onValue(
+      gatewayRef,
+      (snap) => {
+        const val = snap.exists() ? snap.val() : null;
+        setSmsServiceStatus(val?.serviceStatus || null);
+      },
+      () => setSmsServiceStatus(null)
+    );
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     const usersRef = ref(getDb(), "users");
@@ -261,12 +276,35 @@ export default function Dashboard() {
     );
   }
 
+  const smsStatusLabel = smsServiceStatusLabel(smsServiceStatus);
+  const smsUnhealthy = smsServiceStatus === "degraded" || smsServiceStatus === "down";
+
   return (
     <div className="space-y-6 pb-8">
       {error && (
         <div className="pq-note pq-note-alert flex items-center gap-3">
           <Activity className="w-5 h-5 shrink-0" aria-hidden="true" />
           <p className="font-medium text-sm leading-snug">{error}</p>
+        </div>
+      )}
+
+      {smsUnhealthy && (
+        <div className="pq-note pq-note-alert flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <Activity className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="font-medium text-sm leading-snug">
+              SMS service is {smsStatusLabel}. TextBee delivery failures may be delaying parent
+              notifications. Check the gateway phone (default SMS app, signal, airplane mode) on
+              System Health.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="pq-btn pq-btn-secondary shrink-0"
+            onClick={() => navigate("/admin/system-health")}
+          >
+            Open System Health
+          </button>
         </div>
       )}
 

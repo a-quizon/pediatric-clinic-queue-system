@@ -26,11 +26,33 @@ function normalizePhoneE164(phone) {
   return "";
 }
 
-async function sendSms(to, message) {
+function extractSmsBatchId(data) {
+  return (
+    data?.data?.smsBatchId ||
+    data?.smsBatchId ||
+    data?.data?.batchId ||
+    data?.batchId ||
+    null
+  );
+}
+
+/**
+ * @param {string|string[]} to
+ * @param {string} message
+ * @param {{ messageType?: string, reservationId?: string, branch?: string }} [meta]
+ */
+async function sendSms(to, message, meta = {}) {
   const apiKey = getApiKey();
   if (!apiKey) {
     console.warn("[functions/sms] TEXTBEE_API_KEY not set — SMS skipped");
-    return { success: false, skipped: true, reason: "not_configured" };
+    const result = { success: false, skipped: true, reason: "not_configured" };
+    try {
+      const { recordSmsGatewayResult } = require("./systemHealthRuntime");
+      await recordSmsGatewayResult(result);
+    } catch (_) {
+      /* best-effort */
+    }
+    return result;
   }
   if (!message || typeof message !== "string" || !message.trim()) {
     return { success: false, reason: "empty_message" };
@@ -57,28 +79,68 @@ async function sendSms(to, message) {
       console.error("[functions/sms] textbee send failed:", response.status, data);
       const result = { success: false, reason: "provider_error", status: response.status, data };
       try {
-        const { recordSmsGatewayResult, recordNotificationFailure } = require("./systemHealthRuntime");
+        const {
+          recordSmsGatewayResult,
+          recordNotificationFailure,
+          createSmsDeliveryRecord,
+          maskPhoneE164,
+        } = require("./systemHealthRuntime");
         await recordSmsGatewayResult(result);
         await recordNotificationFailure({
           channel: "sms",
           error: `provider_error:${response.status}`,
-          notificationType: "SMS",
+          notificationType: meta.messageType || "SMS",
+          targetId: meta.reservationId || null,
+        });
+        await createSmsDeliveryRecord({
+          reservationId: meta.reservationId || null,
+          branch: meta.branch || null,
+          messageType: meta.messageType || "SMS",
+          recipient: recipients[0],
+          maskedRecipient: maskPhoneE164(recipients[0]),
+          status: "failed",
+          errorCode: String(response.status),
+          errorName: "PROVIDER_HTTP_ERROR",
+          errorMessage: `TextBee rejected the send request (HTTP ${response.status}).`,
         });
       } catch (_) {
         /* health write is best-effort */
       }
       return result;
     }
+
+    const smsBatchId = extractSmsBatchId(data);
     console.log(
-      "[functions/sms] textbee accepted:",
+      "[functions/sms] textbee accepted (queued):",
       response.status,
-      data?.data?.success === true || data?.success === true,
+      smsBatchId || "no-batch-id",
       data?.data?.message || data?.message || "ok"
     );
-    const ok = { success: true, data, status: response.status };
+
+    // HTTP accept means queued only — not delivered.
+    const ok = {
+      success: true,
+      queued: true,
+      data,
+      status: response.status,
+      smsBatchId,
+    };
     try {
-      const { recordSmsGatewayResult } = require("./systemHealthRuntime");
+      const {
+        recordSmsGatewayResult,
+        createSmsDeliveryRecord,
+        maskPhoneE164,
+      } = require("./systemHealthRuntime");
       await recordSmsGatewayResult(ok);
+      await createSmsDeliveryRecord({
+        reservationId: meta.reservationId || null,
+        branch: meta.branch || null,
+        messageType: meta.messageType || "SMS",
+        recipient: recipients[0],
+        maskedRecipient: maskPhoneE164(recipients[0]),
+        textbeeBatchId: smsBatchId,
+        status: "queued",
+      });
     } catch (_) {
       /* health write is best-effort */
     }
@@ -87,12 +149,28 @@ async function sendSms(to, message) {
     console.error("[functions/sms] textbee request error:", err.message);
     const result = { success: false, reason: "network_error", error: err.message };
     try {
-      const { recordSmsGatewayResult, recordNotificationFailure } = require("./systemHealthRuntime");
+      const {
+        recordSmsGatewayResult,
+        recordNotificationFailure,
+        createSmsDeliveryRecord,
+        maskPhoneE164,
+      } = require("./systemHealthRuntime");
       await recordSmsGatewayResult(result);
       await recordNotificationFailure({
         channel: "sms",
         error: err.message,
-        notificationType: "SMS",
+        notificationType: meta.messageType || "SMS",
+        targetId: meta.reservationId || null,
+      });
+      await createSmsDeliveryRecord({
+        reservationId: meta.reservationId || null,
+        branch: meta.branch || null,
+        messageType: meta.messageType || "SMS",
+        recipient: recipients[0],
+        maskedRecipient: maskPhoneE164(recipients[0]),
+        status: "failed",
+        errorName: "NETWORK_ERROR",
+        errorMessage: err.message,
       });
     } catch (_) {
       /* health write is best-effort */
@@ -101,4 +179,4 @@ async function sendSms(to, message) {
   }
 }
 
-module.exports = { sendSms, normalizePhoneE164 };
+module.exports = { sendSms, normalizePhoneE164, extractSmsBatchId, getApiKey, getDeviceId };

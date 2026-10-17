@@ -271,6 +271,7 @@ FIREBASE_PROJECT_ID=pediatric-clinic-queue-testing
 FIREBASE_DATABASE_URL=https://...firebasedatabase.app
 TEXTBEE_API_KEY=
 # TEXTBEE_DEVICE_ID=
+# TEXTBEE_WEBHOOK_SECRET=   # ≥20 chars; TextBee dashboard Webhooks signing secret
 # GOOGLE_APPLICATION_CREDENTIALS=./serviceAccountKey.json
 # FIREBASE_SERVICE_ACCOUNT={"type":"service_account",...}
 # PUSH_DISPATCH_SECRET=

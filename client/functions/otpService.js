@@ -89,7 +89,8 @@ async function deliverAndStoreOtp({ phone, purpose, uid = null }) {
 
   const smsResult = await sendSms(
     phone,
-    `Your verification code is: ${code}. It will expire in 5 minutes.`
+    `Your verification code is: ${code}. It will expire in 5 minutes.`,
+    { messageType: "OTP" }
   );
 
   if (!smsResult.success || smsResult.skipped) {

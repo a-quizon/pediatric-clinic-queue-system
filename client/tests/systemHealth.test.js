@@ -17,6 +17,7 @@ const {
 describe("inferSmsGatewayStatus", () => {
   it("maps success and failures", () => {
     assert.equal(inferSmsGatewayStatus({ success: true }), "ok");
+    assert.equal(inferSmsGatewayStatus({ success: true, queued: true }), "unknown");
     assert.equal(inferSmsGatewayStatus({ success: false, skipped: true, reason: "not_configured" }), "not_configured");
     assert.equal(inferSmsGatewayStatus({ success: false, reason: "network_error" }), "failing");
     assert.equal(inferSmsGatewayStatus({ success: false, error: "device offline" }), "failing");
@@ -53,7 +54,9 @@ describe("connectionLabelFromInfoConnected", () => {
 describe("smsStatusLabel", () => {
   it("labels gateway snapshot", () => {
     assert.equal(smsStatusLabel(null), "Unknown");
-    assert.equal(smsStatusLabel({ inferredStatus: "ok" }), "OK");
-    assert.equal(smsStatusLabel({ inferredStatus: "failing" }), "Failing");
+    assert.equal(smsStatusLabel({ serviceStatus: "healthy" }), "Healthy");
+    assert.equal(smsStatusLabel({ serviceStatus: "degraded" }), "Degraded");
+    assert.equal(smsStatusLabel({ inferredStatus: "ok" }), "Healthy");
+    assert.equal(smsStatusLabel({ inferredStatus: "failing" }), "Degraded");
   });
 });

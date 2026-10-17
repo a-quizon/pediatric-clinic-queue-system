@@ -11,6 +11,7 @@ const smsAuthRouter = require("./routes/smsAuth");
 const smsTestRouter = require("./routes/smsTest");
 const authRouter = require("./routes/auth");
 const reservationsRouter = require("./routes/reservations");
+const textbeeWebhookRouter = require("./routes/textbeeWebhook");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -35,7 +36,14 @@ app.use(
       : undefined
   )
 );
-app.use(express.json({ limit: "256kb" }));
+app.use(
+  express.json({
+    limit: "256kb",
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 
 app.get("/", (_req, res) => {
   res.json({ status: "ok", service: "pediatric-clinic-queue-server" });
@@ -51,6 +59,7 @@ app.use("/api", smsAuthRouter);
 app.use("/api", smsTestRouter);
 app.use("/api", authRouter);
 app.use("/api", reservationsRouter);
+app.use("/api", textbeeWebhookRouter);
 
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);

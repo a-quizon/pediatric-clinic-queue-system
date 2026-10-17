@@ -117,10 +117,33 @@ function createApiApp() {
         : { origin: true }
     )
   );
-  app.use(express.json({ limit: "256kb" }));
+  app.use(
+    express.json({
+      limit: "256kb",
+      verify: (req, _res, buf) => {
+        req.rawBody = buf;
+      },
+    })
+  );
 
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", service: "functions-api" });
+  });
+
+  /**
+   * TextBee delivery webhooks (signed). Public endpoint — no Firebase auth.
+   * Configure deliveryUrl to https://<host>/api/webhooks/textbee
+   */
+  app.post("/api/webhooks/textbee", async (req, res) => {
+    try {
+      const { processTextBeeWebhookRequest } = require("./textbeeWebhookRuntime");
+      const { getRtdb } = require("./rtdbRouter");
+      const outcome = await processTextBeeWebhookRequest(req, { db: getRtdb() });
+      return res.status(outcome.status).json(outcome.body);
+    } catch (err) {
+      console.error("[functions/api] textbee webhook failed:", err.message);
+      return res.status(500).json({ success: false, error: "webhook_handler_error" });
+    }
   });
 
   app.post("/api/auth/resolve-identifier", async (req, res) => {

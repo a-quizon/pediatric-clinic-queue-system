@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { onValue, ref } from "firebase/database";
-import { Activity, Bell, Radio, Server, Wifi, WifiOff } from "lucide-react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { onValue, ref, get } from "firebase/database";
+import { Activity, Bell, Radio, RefreshCw, Server, Wifi, WifiOff } from "lucide-react";
 import { getDb } from "../../firebase/database";
 import EmptyState from "../../components/common/EmptyState";
 import { PqSpinner } from "../../components/parent/pqUi";
@@ -9,8 +9,10 @@ import {
   SMS_DEVICE_HELP,
   connectionLabelFromInfoConnected,
   formatHealthTimestamp,
-  smsStatusLabel,
+  formatSmsFailureExplanation,
+  smsServiceStatusLabel,
   summarizeNotificationFailures,
+  summarizeSmsMessages,
 } from "../../utils/systemHealth";
 
 function StatusPill({ label, tone = "neutral" }) {
@@ -32,15 +34,21 @@ function connectionTone(label) {
   return "neutral";
 }
 
-function smsTone(label) {
-  if (label === "OK") return "ok";
-  if (label === "Failing") return "bad";
-  if (label === "Not configured") return "warn";
+function smsServiceTone(label) {
+  if (label === "Healthy") return "ok";
+  if (label === "Degraded") return "warn";
+  if (label === "Down") return "bad";
   return "neutral";
+}
+
+function formatPercent(rate) {
+  if (rate == null || Number.isNaN(rate)) return "—";
+  return `${Math.round(Number(rate) * 100)}%`;
 }
 
 export default function SystemHealth() {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [health, setHealth] = useState(null);
   const [connected, setConnected] = useState(null);
@@ -75,14 +83,45 @@ export default function SystemHealth() {
     };
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const snap = await get(ref(getDb(), "systemHealth"));
+      setHealth(snap.exists() ? snap.val() : null);
+      setError(null);
+    } catch (err) {
+      console.error("System Health refresh failed", err);
+      setError("Could not refresh system health.");
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   const connectionLabel = connectionLabelFromInfoConnected(connected, { everConnected });
   const failureSummary = useMemo(
     () => summarizeNotificationFailures(health?.notificationFailures),
     [health]
   );
   const gateway = health?.smsGateway || null;
-  const gatewayLabel = smsStatusLabel(gateway);
+  const smsSummary = useMemo(() => {
+    const fromMessages = summarizeSmsMessages(health?.smsMessages);
+    if (gateway?.serviceStatus) {
+      return {
+        ...fromMessages,
+        serviceStatus: gateway.serviceStatus,
+        failureRate1h: gateway.failureRate1h ?? fromMessages.failureRate1h,
+        failureRate24h: gateway.failureRate24h ?? fromMessages.failureRate24h,
+        failures24h: gateway.failures24h ?? fromMessages.failures24h,
+        stuckCount: gateway.stuckCount ?? fromMessages.stuckCount,
+        lastSuccessAt: gateway.lastDeliveredOrSentAt || gateway.lastSuccessAt || fromMessages.lastSuccessAt,
+        lastFailure: gateway.lastFailure || fromMessages.lastFailure,
+      };
+    }
+    return fromMessages;
+  }, [health, gateway]);
+  const gatewayLabel = smsServiceStatusLabel(smsSummary.serviceStatus);
   const jobs = health?.jobs || {};
+  const recentSmsFailures = smsSummary.recentFailures || [];
 
   if (loading) {
     return (
@@ -103,11 +142,30 @@ export default function SystemHealth() {
   }
 
   const hasFailures = failureSummary.count7d > 0;
-  const hasGatewayData = Boolean(gateway?.lastSuccessAt || gateway?.lastFailureAt || gateway?.inferredStatus);
+  const hasGatewayData = Boolean(
+    gateway?.lastSuccessAt ||
+      gateway?.lastDeliveredOrSentAt ||
+      gateway?.lastFailureAt ||
+      gateway?.serviceStatus ||
+      gateway?.inferredStatus ||
+      Object.keys(health?.smsMessages || {}).length
+  );
   const hasJobData = KNOWN_JOBS.some((job) => jobs[job.id]?.lastRunAt);
 
   return (
     <div className="space-y-6 pb-8">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <button
+          type="button"
+          className="pq-btn pq-btn-secondary inline-flex items-center gap-2"
+          onClick={handleRefresh}
+          disabled={refreshing}
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" />
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
+
       <section className="pq-card p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -130,7 +188,7 @@ export default function SystemHealth() {
       {!hasFailures && !hasGatewayData && !hasJobData ? (
         <EmptyState
           title="All quiet so far"
-          description="No notification failures, SMS gateway results, or background job runs are recorded yet."
+          description="No notification failures, SMS delivery records, or background job runs are recorded yet."
           nextStep="After the clinic sends SMS or push, or after scheduled jobs run, status will appear here. You can also check Audit Logs for lockouts and suspicious-account alerts."
         />
       ) : null}
@@ -139,11 +197,110 @@ export default function SystemHealth() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-[var(--pq-ink)] flex items-center gap-2">
+              <Radio className="w-5 h-5" aria-hidden="true" />
+              SMS / Notification (TextBee)
+            </h2>
+            <p className="text-sm pq-muted mt-1">{SMS_DEVICE_HELP}</p>
+          </div>
+          <StatusPill label={gatewayLabel} tone={smsServiceTone(gatewayLabel)} />
+        </div>
+
+        <div className="flex flex-wrap gap-3 text-sm">
+          <span className="pq-chip">Failures (24h): {smsSummary.failures24h ?? 0}</span>
+          <span className="pq-chip">Failure rate (24h): {formatPercent(smsSummary.failureRate24h)}</span>
+          <span className="pq-chip">Failure rate (1h): {formatPercent(smsSummary.failureRate1h)}</span>
+          {smsSummary.stuckCount > 0 ? (
+            <span className="pq-chip pq-chip-wait">
+              Possibly stuck (queued &gt; 10m): {smsSummary.stuckCount}
+            </span>
+          ) : null}
+        </div>
+
+        <dl className="grid sm:grid-cols-2 gap-3 text-sm">
+          <div>
+            <dt className="pq-muted">Last successful delivery</dt>
+            <dd className="font-medium text-[var(--pq-ink)]">
+              {formatHealthTimestamp(smsSummary.lastSuccessAt)}
+            </dd>
+            <p className="text-xs pq-muted mt-0.5">
+              Counts TextBee <code>sent</code> or <code>delivered</code> (carrier delivery reports are optional).
+            </p>
+          </div>
+          <div>
+            <dt className="pq-muted">Most recent failure</dt>
+            <dd className="font-medium text-[var(--pq-ink)]">
+              {formatHealthTimestamp(smsSummary.lastFailure?.at || gateway?.lastFailureAt)}
+            </dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="pq-muted">Latest failure detail</dt>
+            <dd className="font-medium text-[var(--pq-ink)] break-words">
+              {smsSummary.lastFailure
+                ? formatSmsFailureExplanation(smsSummary.lastFailure)
+                : gateway?.lastFailureDetail || gateway?.lastFailureReason || "No data yet"}
+            </dd>
+          </div>
+        </dl>
+
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--pq-ink)] mb-2">Recent failed SMS</h3>
+          {recentSmsFailures.length === 0 ? (
+            <EmptyState
+              title="No SMS delivery failures recorded"
+              description="When TextBee reports MESSAGE_FAILED (for example code 32), rows appear here."
+              nextStep="Confirm the TextBee webhook is configured and the gateway phone has a default SMS app."
+              className="py-6"
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead>
+                  <tr className="border-b border-[var(--pq-line)] pq-muted">
+                    <th className="py-2 pr-3 font-medium">Time</th>
+                    <th className="py-2 pr-3 font-medium">Recipient</th>
+                    <th className="py-2 pr-3 font-medium">Type</th>
+                    <th className="py-2 pr-3 font-medium">Branch</th>
+                    <th className="py-2 pr-3 font-medium">Error</th>
+                    <th className="py-2 font-medium">Reservation</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--pq-line)]">
+                  {recentSmsFailures.map((row) => (
+                    <tr key={row.id}>
+                      <td className="py-2 pr-3 whitespace-nowrap">
+                        {formatHealthTimestamp(row.updatedAt || row.createdAt)}
+                      </td>
+                      <td className="py-2 pr-3">{row.maskedRecipient || "—"}</td>
+                      <td className="py-2 pr-3">{row.messageType || "SMS"}</td>
+                      <td className="py-2 pr-3">{row.branch || "—"}</td>
+                      <td className="py-2 pr-3 max-w-xs break-words">
+                        {row.errorCode ? `${row.errorCode} ` : ""}
+                        {row.errorName || row.errorMessage || "failed"}
+                        {String(row.errorCode) === "32" ? (
+                          <span className="block text-xs pq-muted mt-0.5">
+                            Gateway phone has no default SMS app (not the patient&apos;s number).
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="py-2 font-mono text-xs break-all">{row.reservationId || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="pq-card p-4 sm:p-5 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-[var(--pq-ink)] flex items-center gap-2">
               <Bell className="w-5 h-5" aria-hidden="true" />
-              Notifications
+              Other notification failures
             </h2>
             <p className="text-sm pq-muted mt-1">
-              Recent push and SMS delivery failures recorded by the server.
+              Push failures and low-level SMS HTTP errors recorded by the server.
             </p>
           </div>
         </div>
@@ -154,7 +311,7 @@ export default function SystemHealth() {
         {failureSummary.recent.length === 0 ? (
           <EmptyState
             title="No notification failures"
-            description="Push and SMS sends that fail are listed here."
+            description="Push and SMS channel errors are listed here."
             nextStep="If parents report missing alerts, confirm VAPID keys and TextBee next."
             className="py-6"
           />
@@ -172,35 +329,6 @@ export default function SystemHealth() {
             ))}
           </ul>
         )}
-      </section>
-
-      <section className="pq-card p-4 sm:p-5 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--pq-ink)] flex items-center gap-2">
-              <Radio className="w-5 h-5" aria-hidden="true" />
-              SMS gateway (TextBee)
-            </h2>
-            <p className="text-sm pq-muted mt-1">{SMS_DEVICE_HELP}</p>
-          </div>
-          <StatusPill label={gatewayLabel} tone={smsTone(gatewayLabel)} />
-        </div>
-        <dl className="grid sm:grid-cols-2 gap-3 text-sm">
-          <div>
-            <dt className="pq-muted">Last success</dt>
-            <dd className="font-medium text-[var(--pq-ink)]">{formatHealthTimestamp(gateway?.lastSuccessAt)}</dd>
-          </div>
-          <div>
-            <dt className="pq-muted">Last failure</dt>
-            <dd className="font-medium text-[var(--pq-ink)]">{formatHealthTimestamp(gateway?.lastFailureAt)}</dd>
-          </div>
-          <div className="sm:col-span-2">
-            <dt className="pq-muted">Last failure reason</dt>
-            <dd className="font-medium text-[var(--pq-ink)] break-words">
-              {gateway?.lastFailureDetail || gateway?.lastFailureReason || "No data yet"}
-            </dd>
-          </div>
-        </dl>
       </section>
 
       <section className="pq-card p-4 sm:p-5 space-y-4">

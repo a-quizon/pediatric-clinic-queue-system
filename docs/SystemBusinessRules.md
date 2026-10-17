@@ -18,7 +18,7 @@ The Pediatric Clinic Queue Management System is designed to digitize and orchest
   * creates, deactivates, reactivates, and deletes **Secretary and Doctor** accounts (and deactivates, reactivates, or deletes Parents), under the one-active-doctor rule (Section 10);
   * manages branches, reads the full audit log, and receives suspicious-account and manual-code-lockout alerts;
   * sees Reports as **Clinic Overview** plus a **read-only Session History** (metrics listed in `docs/ImplementedAnalytics.md`);
-  * reads **System Health** (notification failures, SMS gateway status, background job last-run times, own realtime connection) — read-only; data under `systemHealth` is written only by the server;
+  * reads **System Health** (notification failures, TextBee SMS delivery records and Healthy/Degraded/Down status, background job last-run times, own realtime connection) — read-only; data under `systemHealth` is written only by the server;
   * has accounts created only with the Admin SDK (`docs/AdminBreakGlass.md`), has **no Profile page**, and cannot change their own profile or password in the app (Forgot Password is refused for admin emails, as it is for all staff);
   * never runs the clinic: no schedules, queue, reservations, or consultations.
 
