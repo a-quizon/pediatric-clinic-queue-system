@@ -200,6 +200,69 @@ function AuditLogDetailModal({
             )}
           </div>
 
+          {(log.metadata?.before || log.metadata?.after) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {log.metadata?.before && (
+                <div>
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1.5">Before</p>
+                  <pre className="text-xs pq-muted whitespace-pre-wrap break-words rounded-lg p-3 bg-[var(--pq-glass)] border border-[var(--pq-glass-line)] max-h-48 overflow-y-auto">
+                    {typeof log.metadata.before === "string"
+                      ? log.metadata.before
+                      : JSON.stringify(log.metadata.before, null, 2)}
+                  </pre>
+                </div>
+              )}
+              {log.metadata?.after && (
+                <div>
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1.5">After</p>
+                  <pre className="text-xs pq-muted whitespace-pre-wrap break-words rounded-lg p-3 bg-[var(--pq-glass)] border border-[var(--pq-glass-line)] max-h-48 overflow-y-auto">
+                    {typeof log.metadata.after === "string"
+                      ? log.metadata.after
+                      : JSON.stringify(log.metadata.after, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+
+          {(log.metadata?.postedDates ||
+            log.metadata?.dateRange ||
+            log.metadata?.slotCount != null ||
+            log.metadata?.postedCount != null) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              {log.metadata?.dateRange && (
+                <div>
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Date range</p>
+                  <p className="font-medium">{log.metadata.dateRange}</p>
+                </div>
+              )}
+              {Array.isArray(log.metadata?.postedDates) && log.metadata.postedDates.length > 0 && (
+                <div className="sm:col-span-2">
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Posted dates</p>
+                  <p className="font-medium">{log.metadata.postedDates.join(", ")}</p>
+                </div>
+              )}
+              {log.metadata?.postedCount != null && (
+                <div>
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Days published</p>
+                  <p className="font-medium">{log.metadata.postedCount}</p>
+                </div>
+              )}
+              {log.metadata?.slotCount != null && (
+                <div>
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Total slots</p>
+                  <p className="font-medium">{log.metadata.slotCount}</p>
+                </div>
+              )}
+              {log.metadata?.doctorId && (
+                <div>
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Doctor</p>
+                  <p className="font-medium break-all">{log.metadata.doctorId}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {suspicious && (
             <>
               {rules.length > 0 && (

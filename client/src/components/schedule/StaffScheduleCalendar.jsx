@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
 import { getDefaultSlotCapacity } from "../../services/systemConfigurationService";
-import { updateQueueStatus, updateSchedule } from "../../services/scheduleService";
+import { updateQueueStatus, updateSlotCapacity } from "../../services/scheduleService";
 import {
   subscribeToClinicClosures,
   previewPublishDates,
@@ -389,7 +389,7 @@ export default function StaffScheduleCalendar({
     }
     setBusy(true);
     try {
-      await updateSchedule(publishedSchedule.id, { slotCapacity: newCap });
+      await updateSlotCapacity(publishedSchedule.id, newCap);
       toast.success("Capacity updated.");
       setDayModal((prev) => ({
         ...prev,

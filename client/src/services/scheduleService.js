@@ -1,6 +1,8 @@
 import { getDb } from "../firebase/database";
-import { ref, push, set, get, update, remove, serverTimestamp, query, orderByChild, equalTo, startAt } from "firebase/database";
+import { ref, push, set, get, update, remove, query, orderByChild, equalTo, startAt } from "firebase/database";
 import { subscribeOnValue } from "../firebase/rtdbSubscribe";
+import { auth } from "../firebase/auth";
+import { getPushApiBase } from "./pushService";
 import { getReservationsBySchedule } from "./reservationService";
 import { recalculateRollingValidation } from "./rollingValidationService";
 import { recalculateEntireQueue } from "./queueEngine";
@@ -8,10 +10,37 @@ import { validateScheduleClosingTime } from "./branchConfigurationService";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { branchesMatch } from "../utils/stringUtils";
 import { isLiveQueueStatus } from "../utils/penaltyTimer";
-import { anyQueueLive, isStartBeforeHours, scheduleCanStart } from "../utils/scheduleCalendar";
-import { manilaDateString, manilaNowMinutes } from "../utils/manilaDate";
+import { manilaDateString } from "../utils/manilaDate";
 
 export { validateScheduleClosingTime };
+
+const callScheduleApi = async (path, payload) => {
+  const current = auth.currentUser;
+  if (!current) throw new Error("You must be signed in.");
+  const token = await current.getIdToken();
+  let response;
+  try {
+    response = await fetch(`${getPushApiBase()}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    const wrapped = new Error("Unable to reach the clinic server. Please try again.");
+    wrapped.cause = error;
+    throw wrapped;
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const wrapped = new Error(body.message || "Could not update the schedule.");
+    wrapped.cause = body;
+    throw wrapped;
+  }
+  return body;
+};
 
 // check muna if hindi pa past closing time ng branch for today before creating
 export const createSchedule = async ( scheduleData ) => {
@@ -137,142 +166,41 @@ export const moveToReady = async ( scheduleId ) => {
 };
 
 /**
- * First-start preconditions. Time of day is deliberately not checked so staff can
- * start before clinic hours or start an upcoming date's session early.
+ * Pause / resume / close / start via server (audited after success).
+ * Client still recalculates queue order after a live-status change.
  */
-const assertScheduleCanStart = async (scheduleId, scheduleData) => {
-  const today = manilaDateString();
-  if (scheduleData.status !== "published") {
-    throw new Error("Only a published schedule can be started.");
-  }
-  if (["ended", "completed"].includes(scheduleData.queueStatus) || scheduleData.status === "completed") {
-    throw new Error("This clinic queue has already ended.");
-  }
-  if (!scheduleData.clinicDate || scheduleData.clinicDate < today) {
-    throw new Error("This clinic date has already passed.");
-  }
-  if (!scheduleCanStart(scheduleData, today)) {
-    throw new Error("This queue has already been started.");
-  }
-  const publishedSnap = await get(
-    query(ref(getDb(), "schedules"), orderByChild("status"), equalTo("published"))
-  );
-  const others = publishedSnap.exists()
-    ? Object.entries(publishedSnap.val())
-      .filter(([id]) => id !== scheduleId)
-      .map(([id, value]) => ({ id, ...value }))
-    : [];
-  if (anyQueueLive(others)) {
-    throw new Error("Another clinic queue is still running. Complete it before starting this one.");
-  }
-};
-
 export const updateQueueStatus = async (scheduleId, queueStatus) => {
-  const updates = {
+  const result = await callScheduleApi("/api/schedules/queue-status", {
+    scheduleId,
     queueStatus,
-    [`queueStatusUpdatedAt`]: Date.now()
-  };
-  
-  const snap = await get(ref(getDb(), `schedules/${scheduleId}`));
-  let isFirstStart = false;
-  let scheduleData = null;
+  });
 
-  if (snap.exists()) {
-    scheduleData = snap.val();
-    if (scheduleData.dayClosed) {
-      throw new Error("Cannot change queue status on a closed clinic day.");
-    }
-    if (queueStatus === "active" && !scheduleData.queueStartedAt) {
-      await assertScheduleCanStart(scheduleId, scheduleData);
-      updates.queueStartedAt = serverTimestamp();
-      updates.queueStartedBeforeHours = isStartBeforeHours(
-        scheduleData,
-        manilaDateString(),
-        manilaNowMinutes()
-      );
-      isFirstStart = true;
-    }
-  } else {
-    throw new Error("Schedule not found.");
-  }
-
-  await update(ref(getDb(), `schedules/${scheduleId}`), updates);
+  if (result?.unchanged) return result;
 
   if (queueStatus === "active") {
     await recalculateRollingValidation(scheduleId);
   }
-
   // Stamp becameCurrentTurnAt on the first penalize target once the queue is live.
-  // Without this, Penalize stays disabled forever for patients already waiting at start.
   if (isLiveQueueStatus(queueStatus)) {
     await recalculateEntireQueue(scheduleId);
   }
-
-  // Audit Logs
-  if (scheduleData) {
-    let action = null;
-    let description = "";
-
-    if (queueStatus === "active") {
-      action = isFirstStart ? AUDIT_ACTIONS.QUEUE_STARTED : AUDIT_ACTIONS.QUEUE_RESUMED;
-      description = isFirstStart
-        ? `Started the clinic queue for ${scheduleData.clinicDate || "an unknown date"} (scheduled ${scheduleData.openingTime || "?"}–${scheduleData.closingTime || "?"})${updates.queueStartedBeforeHours ? " before scheduled hours" : ""}`
-        : "Resumed the clinic queue";
-    } else if (queueStatus === "paused") {
-      action = AUDIT_ACTIONS.QUEUE_PAUSED;
-      description = "Paused the clinic queue";
-    } else if (queueStatus === "closed") {
-      action = AUDIT_ACTIONS.QUEUE_CLOSED;
-      description = "Closed the clinic queue";
-    }
-
-    if (action) {
-      logAuditEvent({
-        action,
-        category: AUDIT_CATEGORIES.QUEUE_OPERATIONS,
-        description,
-        targetType: "schedule",
-        targetId: scheduleId,
-        branchId: scheduleData.branch
-      });
-    }
-  }
+  return result;
 };
 
-export const completeSchedule = async ( scheduleId ) => {
-  const now = Date.now();
-  await update( ref(getDb(), `schedules/${scheduleId}`), {
-    status: "completed", 
-    queueStatus: "completed",
-    completedAt: now,
-    scheduleCompletedAt: now
-  });
+/**
+ * End clinic session via server (audited after success).
+ */
+export const completeSchedule = async (scheduleId) => {
+  return callScheduleApi("/api/schedules/end-session", { scheduleId });
+};
 
-  const reservations = await getReservationsBySchedule(scheduleId);
-  const updates = {};
-  const finalStatuses = ["cancelled", "cancelled_by_clinic", "completed", "consultation_completed", "forfeited", "penalized", "late_limit_reached", "expired", "validation_expired"];
-  reservations.forEach(res => {
-    if (!finalStatuses.includes(res.status)) {
-      updates[`reservations/${res.id}/status`] = "completed";
-      updates[`reservations/${res.id}/completedAt`] = now;
-    }
-  });
-
-  if (Object.keys(updates).length > 0) {
-    await update(ref(getDb()), updates);
-  }
-
-  // Audit Log
-  const snap = await get(ref(getDb(), `schedules/${scheduleId}`));
-  const branch = snap.exists() ? snap.val().branch : null;
-
-  logAuditEvent({
-    action: AUDIT_ACTIONS.SCHEDULE_COMPLETED,
-    category: AUDIT_CATEGORIES.SCHEDULE_MANAGEMENT,
-    description: `Completed schedule`,
-    targetType: "schedule",
-    targetId: scheduleId,
-    branchId: branch
+/**
+ * Update published-day slot capacity via server (audited after success).
+ */
+export const updateSlotCapacity = async (scheduleId, slotCapacity) => {
+  return callScheduleApi("/api/schedules/slot-capacity", {
+    scheduleId,
+    slotCapacity: Number(slotCapacity),
   });
 };
 

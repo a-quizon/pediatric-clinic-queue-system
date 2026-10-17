@@ -27,10 +27,19 @@ export const AUDIT_ACTION_FILTER_OPTIONS = [
   { value: "BRANCH_EDITED", label: "Branch edited" },
   { value: "BRANCH_DELETED", label: "Branch deleted" },
   { value: "QUEUE_STARTED", label: "Queue started" },
+  { value: "QUEUE_PAUSED", label: "Queue paused" },
+  { value: "QUEUE_RESUMED", label: "Queue resumed" },
+  { value: "QUEUE_CLOSED", label: "Queue closed" },
   { value: "PATIENT_FORFEITED", label: "Patient forfeited" },
   { value: "PATIENT_PENALIZED", label: "Patient penalized" },
   { value: "WALK_IN_CREATED", label: "Walk-in created" },
   { value: "SYSTEM_CONFIGURATION_CHANGED", label: "System configuration" },
+  { value: "QUEUE_RULES_UPDATED", label: "Queue rules updated" },
+  { value: "SMS_RULES_UPDATED", label: "SMS rules updated" },
+  { value: "SCHEDULE_PUBLISHED", label: "Schedule published" },
+  { value: "SCHEDULE_RANGE_PUBLISHED", label: "Schedule range published" },
+  { value: "SCHEDULE_COMPLETED", label: "Session ended" },
+  { value: "SLOT_CAPACITY_UPDATED", label: "Slot capacity updated" },
 ];
 
 export function matchesAuditActionFilter(log, actionFilter) {

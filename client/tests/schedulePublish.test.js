@@ -35,6 +35,7 @@ function createMemoryDb(initial = {}) {
       const value = get(nodePath);
       return { exists: () => value != null, val: () => structuredClone(value) };
     },
+    set: async (value) => set(nodePath, value),
     push() {
       pushCount += 1;
       return ref(`${nodePath}/sched-new-${pushCount}`);
@@ -46,14 +47,31 @@ function createMemoryDb(initial = {}) {
   return { ref, read: (nodePath) => structuredClone(get(nodePath)) };
 }
 
+function listAuditLogs(db) {
+  const logs = db.read("auditLogs") || {};
+  return Object.values(logs);
+}
+
 const closedDay = { isOpen: false, openingTime: "", closingTime: "" };
 
 function seed() {
   return {
     users: {
-      doc1: { role: "doctor", status: "active", email: "doc@example.com" },
-      secMag: { role: "secretary", status: "active", assignedBranchId: "magalang", assignedBranch: "Magalang" },
-      secAng: { role: "secretary", status: "active", assignedBranchId: "angeles", assignedBranch: "Angeles" },
+      doc1: { role: "doctor", status: "active", email: "doc@example.com", name: "Dr. Ada" },
+      secMag: {
+        role: "secretary",
+        status: "active",
+        assignedBranchId: "magalang",
+        assignedBranch: "Magalang",
+        name: "Sec Mag",
+      },
+      secAng: {
+        role: "secretary",
+        status: "active",
+        assignedBranchId: "angeles",
+        assignedBranch: "Angeles",
+        name: "Sec Ang",
+      },
       parent1: { role: "parent", status: "active" },
     },
     branchConfigurations: {
@@ -114,6 +132,18 @@ for (const [role, uid] of STAFF) {
       assert.equal(saved.slotCapacity, 20);
       assert.equal(saved.createdByRole, role);
       assert.equal(saved.doctorId, "doc1");
+
+      const audits = listAuditLogs(db);
+      assert.equal(audits.length, 1);
+      assert.equal(audits[0].action, "SCHEDULE_PUBLISHED");
+      assert.equal(audits[0].category, "schedule_management");
+      assert.equal(audits[0].actorUid, uid);
+      assert.equal(audits[0].actorRole, role);
+      assert.equal(audits[0].branchId, "magalang");
+      assert.equal(audits[0].targetId, result.posted[0].scheduleId);
+      assert.deepEqual(audits[0].metadata.postedDates, [TODAY]);
+      assert.equal(audits[0].metadata.slotCount, 20);
+      assert.equal(audits[0].metadata.doctorId, "doc1");
     });
 
     it("rejects today at 12:01 PM after Magalang closes", async () => {
@@ -178,5 +208,20 @@ describe("publishClinicDays per-location hours and access", () => {
       result.skipped.map((item) => [item.dateStr, item.code]),
       [[YESTERDAY, "past_date"], [TODAY, "after_hours"]]
     );
+
+    const audits = listAuditLogs(db);
+    assert.equal(audits.length, 1);
+    assert.equal(audits[0].action, "SCHEDULE_RANGE_PUBLISHED");
+    assert.equal(audits[0].actorRole, "secretary");
+    assert.equal(audits[0].actorUid, "secMag");
+    assert.deepEqual(audits[0].metadata.postedDates, [FUTURE]);
+    assert.equal(audits[0].metadata.postedCount, 1);
+    assert.equal(audits[0].metadata.slotCount, 15);
+  });
+
+  it("does not write an audit when publish fails", async () => {
+    const db = createMemoryDb(seed());
+    await assert.rejects(post({ db, uid: "secMag", dateStr: YESTERDAY, time: "08:00" }));
+    assert.equal(listAuditLogs(db).length, 0);
   });
 });

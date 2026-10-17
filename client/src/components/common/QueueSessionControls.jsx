@@ -99,13 +99,12 @@ export default function QueueSessionControls({
 
   const confirmEndSession = async () => {
     try {
-      await updateQueueStatus(schedule.id, "completed");
       await completeSchedule(schedule.id);
       toast.success("Clinic session ended successfully.");
       setIsEndSessionModalOpen(false);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to end clinic session");
+      toast.error(err.message || "Failed to end clinic session");
     }
   };
 

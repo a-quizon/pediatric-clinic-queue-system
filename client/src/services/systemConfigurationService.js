@@ -1,8 +1,37 @@
 import { getDb } from "../firebase/database";
-import { ref, get, onValue, update } from "firebase/database";
-import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
+import { ref, get, onValue } from "firebase/database";
+import { auth } from "../firebase/auth";
+import { getPushApiBase } from "./pushService";
 import { branchesMatch } from "../utils/stringUtils";
 import { isPermissionDenied, noopUnsub, safeUnsub, subscribeOnValue } from "../firebase/rtdbSubscribe";
+
+const callSystemConfigurationApi = async (path, payload) => {
+  const current = auth.currentUser;
+  if (!current) throw new Error("You must be signed in.");
+  const token = await current.getIdToken();
+  let response;
+  try {
+    response = await fetch(`${getPushApiBase()}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    const wrapped = new Error("Unable to reach the clinic server. Please try again.");
+    wrapped.cause = error;
+    throw wrapped;
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const wrapped = new Error(body.message || "Could not save configuration.");
+    wrapped.cause = body;
+    throw wrapped;
+  }
+  return body;
+};
 
 const MAX_PENALTY_MOVE_BACK = 10;
 const MIN_PENALTY_MOVE_BACK = 0;
@@ -451,7 +480,7 @@ export const resolveScheduleBranchId = async (schedule) => {
 };
 
 /**
- * Seed a branch node from legacy global config (or defaults) when missing.
+ * Read branch config with defaults. Seeding writes are server-only (API updates).
  */
 export const ensureBranchSystemConfiguration = async (branchId) => {
   if (!isUsableBranchId(branchId)) {
@@ -477,31 +506,13 @@ export const ensureBranchSystemConfiguration = async (branchId) => {
   }
 
   const legacy = await readLegacyGlobal();
-  const parsed = parseBranchConfig({
+  return parseBranchConfig({
     penaltyMoveBack: existing?.penaltyMoveBack ?? legacy.queue?.penaltyMoveBack,
     penaltyTimerMinutes: existing?.penaltyTimerMinutes,
     penaltyGraceMinutes: existing?.penaltyGraceMinutes,
+    defaultSlotCapacity: existing?.defaultSlotCapacity,
     sms: existing?.sms ?? legacy.sms,
   });
-
-  try {
-    await update(ref(getDb(), path), {
-      penaltyMoveBack: parsed.penaltyMoveBack,
-      penaltyTimerMinutes: parsed.penaltyTimerMinutes,
-      penaltyGraceMinutes: parsed.penaltyGraceMinutes,
-      sms: {
-        ...parsed.sms,
-        updatedAt: Date.now(),
-      },
-      updatedAt: Date.now(),
-    });
-  } catch (error) {
-    if (!isPermissionDenied(error)) {
-      console.error("Failed to seed branch system configuration:", error);
-    }
-  }
-
-  return parsed;
 };
 
 export const getBranchSystemConfiguration = async (branchId) => {
@@ -606,107 +617,69 @@ export const subscribeToQueueConfiguration = (branchId, callback) => {
 };
 
 /**
- * Updates the penalty move back value and logs an audit event.
+ * Updates all queue rules for a branch via the server (audited after success).
  */
+export const updateQueueRules = async (branchId, queueRules) => {
+  if (!isUsableBranchId(branchId)) {
+    throw new Error("Branch is required to update queue rules");
+  }
+
+  const move = validatePenaltyMoveBack(queueRules?.penaltyMoveBack);
+  if (!move.valid) throw new Error(move.error);
+  const timer = validatePenaltyTimerMinutes(queueRules?.penaltyTimerMinutes);
+  if (!timer.valid) throw new Error(timer.error);
+  const grace = validatePenaltyGraceMinutes(queueRules?.penaltyGraceMinutes);
+  if (!grace.valid) throw new Error(grace.error);
+  const capacity = validateSlotCapacity(queueRules?.defaultSlotCapacity);
+  if (!capacity.valid) throw new Error(capacity.error);
+
+  const payload = {
+    branchId,
+    queueRules: {
+      penaltyMoveBack: move.value,
+      penaltyTimerMinutes: timer.value,
+      penaltyGraceMinutes: grace.value,
+      defaultSlotCapacity: capacity.value,
+    },
+  };
+
+  const result = await callSystemConfigurationApi(
+    "/api/system-configuration/queue-rules",
+    payload
+  );
+  return result.queueRules || payload.queueRules;
+};
+
+/** @deprecated Prefer updateQueueRules for a single audited save. */
 export const updatePenaltyMoveBack = async (branchId, newValue) => {
-  if (!isUsableBranchId(branchId)) {
-    throw new Error("Branch is required to update Penalty Move-Back");
-  }
-
-  const validation = validatePenaltyMoveBack(newValue);
-  if (!validation.valid) {
-    throw new Error(validation.error);
-  }
-
-  const newSafeValue = validation.value;
-  await ensureBranchSystemConfiguration(branchId);
-  const currentConfig = await getQueueConfiguration(branchId);
-  const currentValue = currentConfig.penaltyMoveBack;
-
-  if (currentValue === newSafeValue) {
-    return;
-  }
-
-  await update(ref(getDb(), branchConfigPath(branchId)), {
-    penaltyMoveBack: newSafeValue,
-    updatedAt: Date.now(),
-  });
-
-  logAuditEvent({
-    action: AUDIT_ACTIONS.SYSTEM_CONFIGURATION_CHANGED,
-    category: AUDIT_CATEGORIES.SYSTEM_MANAGEMENT,
-    description: `Changed Queue Penalty Move-Back from ${currentValue} to ${newSafeValue}`,
-    targetType: "systemConfiguration",
-    targetId: branchId,
-    branchId,
+  const current = await getQueueConfiguration(branchId);
+  const capacity = await getDefaultSlotCapacity(branchId);
+  return updateQueueRules(branchId, {
+    ...current,
+    defaultSlotCapacity: capacity,
+    penaltyMoveBack: newValue,
   });
 };
 
+/** @deprecated Prefer updateQueueRules for a single audited save. */
 export const updatePenaltyTimerMinutes = async (branchId, newValue) => {
-  if (!isUsableBranchId(branchId)) {
-    throw new Error("Branch is required to update Penalty Timer");
-  }
-
-  const validation = validatePenaltyTimerMinutes(newValue);
-  if (!validation.valid) {
-    throw new Error(validation.error);
-  }
-
-  const newSafeValue = validation.value;
-  await ensureBranchSystemConfiguration(branchId);
-  const currentConfig = await getQueueConfiguration(branchId);
-  const currentValue = currentConfig.penaltyTimerMinutes;
-
-  if (currentValue === newSafeValue) {
-    return;
-  }
-
-  await update(ref(getDb(), branchConfigPath(branchId)), {
-    penaltyTimerMinutes: newSafeValue,
-    updatedAt: Date.now(),
-  });
-
-  logAuditEvent({
-    action: AUDIT_ACTIONS.SYSTEM_CONFIGURATION_CHANGED,
-    category: AUDIT_CATEGORIES.SYSTEM_MANAGEMENT,
-    description: `Changed Penalty Timer from ${currentValue} to ${newSafeValue} minutes`,
-    targetType: "systemConfiguration",
-    targetId: branchId,
-    branchId,
+  const current = await getQueueConfiguration(branchId);
+  const capacity = await getDefaultSlotCapacity(branchId);
+  return updateQueueRules(branchId, {
+    ...current,
+    defaultSlotCapacity: capacity,
+    penaltyTimerMinutes: newValue,
   });
 };
 
+/** @deprecated Prefer updateQueueRules for a single audited save. */
 export const updatePenaltyGraceMinutes = async (branchId, newValue) => {
-  if (!isUsableBranchId(branchId)) {
-    throw new Error("Branch is required to update Penalty Grace Period");
-  }
-
-  const validation = validatePenaltyGraceMinutes(newValue);
-  if (!validation.valid) {
-    throw new Error(validation.error);
-  }
-
-  const newSafeValue = validation.value;
-  await ensureBranchSystemConfiguration(branchId);
-  const currentConfig = await getQueueConfiguration(branchId);
-  const currentValue = currentConfig.penaltyGraceMinutes;
-
-  if (currentValue === newSafeValue) {
-    return;
-  }
-
-  await update(ref(getDb(), branchConfigPath(branchId)), {
-    penaltyGraceMinutes: newSafeValue,
-    updatedAt: Date.now(),
-  });
-
-  logAuditEvent({
-    action: AUDIT_ACTIONS.SYSTEM_CONFIGURATION_CHANGED,
-    category: AUDIT_CATEGORIES.SYSTEM_MANAGEMENT,
-    description: `Changed Penalty Grace Period from ${currentValue} to ${newSafeValue} minutes`,
-    targetType: "systemConfiguration",
-    targetId: branchId,
-    branchId,
+  const current = await getQueueConfiguration(branchId);
+  const capacity = await getDefaultSlotCapacity(branchId);
+  return updateQueueRules(branchId, {
+    ...current,
+    defaultSlotCapacity: capacity,
+    penaltyGraceMinutes: newValue,
   });
 };
 
@@ -741,7 +714,7 @@ export const subscribeToSmsConfiguration = (branchId, callback) => {
 };
 
 /**
- * Updates SMS notification configuration and logs an audit event.
+ * Updates SMS notification configuration via the server (audited after success).
  */
 export const updateSmsConfiguration = async (branchId, input) => {
   if (!isUsableBranchId(branchId)) {
@@ -753,70 +726,11 @@ export const updateSmsConfiguration = async (branchId, input) => {
     throw new Error(validation.error);
   }
 
-  const next = validation.value;
-  await ensureBranchSystemConfiguration(branchId);
-  const current = await getSmsConfiguration(branchId);
-
-  const unchanged =
-    current.nearingTurnAheadCount === next.nearingTurnAheadCount &&
-    current.templateSlotReserved === next.templateSlotReserved &&
-    current.templateQueueStarted === next.templateQueueStarted &&
-    current.templateNearingTurn === next.templateNearingTurn &&
-    current.templateSlotReservedActiveQueue === next.templateSlotReservedActiveQueue &&
-    current.templatePenalized === next.templatePenalized &&
-    current.templateForfeited === next.templateForfeited &&
-    current.templateClinicCancelled === next.templateClinicCancelled;
-
-  if (unchanged) {
-    return current;
-  }
-
-  const payload = {
-    ...next,
-    updatedAt: Date.now(),
-  };
-
-  await update(ref(getDb(), `${branchConfigPath(branchId)}/sms`), payload);
-  await update(ref(getDb(), branchConfigPath(branchId)), { updatedAt: Date.now() });
-
-  const changes = [];
-  if (current.nearingTurnAheadCount !== next.nearingTurnAheadCount) {
-    changes.push(
-      `near-turn ahead ${current.nearingTurnAheadCount} → ${next.nearingTurnAheadCount}`
-    );
-  }
-  if (current.templateSlotReserved !== next.templateSlotReserved) {
-    changes.push("reservation SMS template");
-  }
-  if (current.templateQueueStarted !== next.templateQueueStarted) {
-    changes.push("queue-started SMS template");
-  }
-  if (current.templateNearingTurn !== next.templateNearingTurn) {
-    changes.push("near-turn SMS template");
-  }
-  if (current.templateSlotReservedActiveQueue !== next.templateSlotReservedActiveQueue) {
-    changes.push("active-queue reservation SMS template");
-  }
-  if (current.templatePenalized !== next.templatePenalized) {
-    changes.push("penalty SMS template");
-  }
-  if (current.templateForfeited !== next.templateForfeited) {
-    changes.push("forfeiture SMS template");
-  }
-  if (current.templateClinicCancelled !== next.templateClinicCancelled) {
-    changes.push("clinic-closed SMS template");
-  }
-
-  logAuditEvent({
-    action: AUDIT_ACTIONS.SYSTEM_CONFIGURATION_CHANGED,
-    category: AUDIT_CATEGORIES.SYSTEM_MANAGEMENT,
-    description: `Changed SMS configuration (${changes.join(", ")})`,
-    targetType: "systemConfiguration",
-    targetId: branchId,
+  const result = await callSystemConfigurationApi("/api/system-configuration/sms-rules", {
     branchId,
+    sms: validation.value,
   });
-
-  return next;
+  return result.sms || validation.value;
 };
 
 /**
@@ -836,28 +750,19 @@ export const getDefaultSlotCapacity = async (branchId) => {
   }
 };
 
+/** @deprecated Prefer updateQueueRules for a single audited save. */
 export const updateDefaultSlotCapacity = async (branchId, newValue) => {
   if (!isUsableBranchId(branchId)) {
     throw new Error("Branch is required to update the default slot capacity");
   }
   const validation = validateSlotCapacity(newValue);
   if (!validation.valid) throw new Error(validation.error);
-  await ensureBranchSystemConfiguration(branchId);
-  const current = await getDefaultSlotCapacity(branchId);
-  if (current === validation.value) return validation.value;
-  await update(ref(getDb(), branchConfigPath(branchId)), {
+  const current = await getQueueConfiguration(branchId);
+  const result = await updateQueueRules(branchId, {
+    ...current,
     defaultSlotCapacity: validation.value,
-    updatedAt: Date.now(),
   });
-  logAuditEvent({
-    action: AUDIT_ACTIONS.SYSTEM_CONFIGURATION_CHANGED,
-    category: AUDIT_CATEGORIES.SYSTEM_MANAGEMENT,
-    description: `Changed default slot capacity from ${current} to ${validation.value}`,
-    targetType: "systemConfiguration",
-    targetId: branchId,
-    branchId,
-  });
-  return validation.value;
+  return result?.defaultSlotCapacity ?? validation.value;
 };
 
 export const buildNearingTurnPushMessage = (count = DEFAULT_NEARING_TURN_AHEAD) => {

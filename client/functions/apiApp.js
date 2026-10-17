@@ -22,6 +22,12 @@ const { claimReservationSlot } = require("./claimReservationRuntime");
 const { releaseReservationForCaller } = require("./slotRelease");
 const { publishClinicDays } = require("./schedulePublishRuntime");
 const { validateReservationCode } = require("./validateReservationCodeRuntime");
+const { updateQueueRules, updateSmsRules } = require("./systemConfigurationRuntime");
+const {
+  updateQueueSessionStatus,
+  endClinicSession,
+  updateScheduleSlotCapacity,
+} = require("./queueSessionRuntime");
 const { notifyParentsScheduleAvailable } = require("./pushRuntime");
 const { defaultDatabase, getRtdb, runForToken } = require("./rtdbRouter");
 
@@ -353,6 +359,160 @@ function createApiApp() {
         success: false,
         error: code,
         message: err.message || "Could not post this day.",
+      });
+    }
+  });
+
+  app.post("/api/schedules/queue-status", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await runForToken(decoded, () =>
+        updateQueueSessionStatus({
+          admin,
+          callerUid: decoded.uid,
+          scheduleId: req.body?.scheduleId,
+          queueStatus: req.body?.queueStatus,
+        })
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] schedules/queue-status:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not update queue status.",
+      });
+    }
+  });
+
+  app.post("/api/schedules/end-session", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await runForToken(decoded, () =>
+        endClinicSession({
+          admin,
+          callerUid: decoded.uid,
+          scheduleId: req.body?.scheduleId,
+        })
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] schedules/end-session:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not end the clinic session.",
+      });
+    }
+  });
+
+  app.post("/api/schedules/slot-capacity", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await runForToken(decoded, () =>
+        updateScheduleSlotCapacity({
+          admin,
+          callerUid: decoded.uid,
+          scheduleId: req.body?.scheduleId,
+          slotCapacity: req.body?.slotCapacity,
+        })
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] schedules/slot-capacity:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not update slot capacity.",
+      });
+    }
+  });
+
+  app.post("/api/system-configuration/queue-rules", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await runForToken(decoded, () =>
+        updateQueueRules({
+          admin,
+          callerUid: decoded.uid,
+          branchId: req.body?.branchId,
+          queueRules: req.body?.queueRules || req.body,
+        })
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] system-configuration/queue-rules:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not update queue rules.",
+      });
+    }
+  });
+
+  app.post("/api/system-configuration/sms-rules", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await runForToken(decoded, () =>
+        updateSmsRules({
+          admin,
+          callerUid: decoded.uid,
+          branchId: req.body?.branchId,
+          sms: req.body?.sms || req.body,
+        })
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] system-configuration/sms-rules:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not update SMS rules.",
       });
     }
   });

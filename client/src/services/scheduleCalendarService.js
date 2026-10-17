@@ -3,10 +3,10 @@ import { auth } from "../firebase/auth";
 import { ref, push, set, get, update, remove } from "firebase/database";
 import { subscribeOnValue } from "../firebase/rtdbSubscribe";
 import { getPushApiBase } from "./pushService";
+import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { getBranchConfigurations } from "./branchConfigurationService";
 import { getReservationsBySchedule, ACTIVE_RESERVATION_STATUSES } from "./reservationService";
 import { deleteSchedule } from "./scheduleService";
-import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { recalculateEntireQueue } from "./queueEngine";
 import { recalculateRollingValidation } from "./rollingValidationService";
 import { branchesMatch } from "../utils/stringUtils";
@@ -120,16 +120,7 @@ export async function publishSingleDay({ branchId, branchName, dateStr, slotCapa
     branchName,
     days: [{ dateStr, slotCapacity: Number(slotCapacity) }],
   });
-  const scheduleId = result.posted?.[0]?.scheduleId || null;
-  logAuditEvent({
-    action: AUDIT_ACTIONS.SCHEDULE_PUBLISHED,
-    category: AUDIT_CATEGORIES.SCHEDULE_MANAGEMENT,
-    description: `Published schedule for ${result.branchName || branchName} on ${dateStr}`,
-    targetType: "schedule",
-    targetId: scheduleId,
-    branchId: result.branchName || branchName,
-  });
-  return scheduleId;
+  return result.posted?.[0]?.scheduleId || null;
 }
 
 export async function publishDateRange({ branchId, branchName, startDate, endDate, slotCapacity }) {
@@ -151,13 +142,6 @@ export async function publishDateRange({ branchId, branchName, startDate, endDat
     }
     throw error;
   }
-  logAuditEvent({
-    action: AUDIT_ACTIONS.SCHEDULE_RANGE_PUBLISHED,
-    category: AUDIT_CATEGORIES.SCHEDULE_MANAGEMENT,
-    description: `Published ${result.posted.length} day(s) for ${result.branchName || branchName} from ${startDate} to ${endDate}`,
-    targetType: "schedule",
-    branchId: result.branchId || branchId,
-  });
   return { posted: result.posted.map((item) => item.dateStr), skipped: result.skipped || [] };
 }
 
@@ -203,13 +187,6 @@ export async function copyPreviousWeek({ branchId, branchName, weekStart }) {
     }
     throw error;
   }
-  logAuditEvent({
-    action: AUDIT_ACTIONS.SCHEDULE_RANGE_PUBLISHED,
-    category: AUDIT_CATEGORIES.SCHEDULE_MANAGEMENT,
-    description: `Copied ${result.posted.length} posted day(s) into the week of ${weekStart} for ${name}`,
-    targetType: "schedule",
-    branchId: branch?.id || branchId,
-  });
   return { posted: result.posted, skipped: [...skipped, ...(result.skipped || [])] };
 }
 
