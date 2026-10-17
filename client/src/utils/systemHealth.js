@@ -24,7 +24,8 @@ export function summarizeNotificationFailures(failuresMap, now = Date.now()) {
   rows.sort((a, b) => (b.at || 0) - (a.at || 0));
   const day = 24 * 60 * 60 * 1000;
   return {
-    recent: rows.slice(0, 20),
+    // Full sorted list (server-capped); UI paginates client-side.
+    recent: rows,
     count24h: rows.filter((r) => now - (r.at || 0) <= day).length,
     count7d: rows.filter((r) => now - (r.at || 0) <= 7 * day).length,
   };
@@ -47,6 +48,43 @@ export function formatHealthTimestamp(ts) {
     minute: "2-digit",
     hour12: true,
   }).format(new Date(ts));
+}
+
+/** Last-updated label for System Health refresh toolbar (Asia/Manila). */
+export function formatLastUpdatedManila(ts) {
+  if (!ts) return null;
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  }).format(new Date(ts));
+}
+
+export function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Await work immediately; keep the caller in a loading state until at least minMs
+ * have elapsed (does not delay starting the request).
+ */
+export async function settleWithMinDuration(workPromise, minMs = 500) {
+  const started = Date.now();
+  try {
+    const result = await workPromise;
+    const remaining = minMs - (Date.now() - started);
+    if (remaining > 0) await delay(remaining);
+    return result;
+  } catch (err) {
+    const remaining = minMs - (Date.now() - started);
+    if (remaining > 0) await delay(remaining);
+    throw err;
+  }
 }
 
 export const KNOWN_JOBS = [
@@ -160,7 +198,8 @@ export function computeSmsServiceStatus(messages, now = Date.now()) {
           at: Number(failures[0].updatedAt || failures[0].createdAt),
         }
       : null,
-    recentFailures: failures.slice(0, 20),
+    // Full failed list (server-capped); UI paginates client-side.
+    recentFailures: failures,
   };
 }
 

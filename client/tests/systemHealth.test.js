@@ -40,6 +40,18 @@ describe("summarizeNotificationFailures", () => {
     assert.equal(summary.recent[0].id, "a");
     assert.deepEqual(summarizeServer(map, now).count7d, 2);
   });
+
+  it("returns the full sorted failure list for client-side pagination (not capped at 20)", () => {
+    const now = Date.UTC(2026, 0, 10, 12);
+    const map = {};
+    for (let i = 0; i < 25; i++) {
+      map[`id${i}`] = { at: now - i * 1000, error: `e${i}` };
+    }
+    const summary = summarizeNotificationFailures(map, now);
+    assert.equal(summary.recent.length, 25);
+    assert.equal(summary.recent[0].id, "id0");
+    assert.equal(summary.recent[24].id, "id24");
+  });
 });
 
 describe("connectionLabelFromInfoConnected", () => {
