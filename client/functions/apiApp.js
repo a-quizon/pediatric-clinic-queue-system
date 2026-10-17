@@ -286,7 +286,11 @@ function createApiApp() {
       };
       const code = statusByCode[err.code] ? err.code : "internal";
       console.error("[functions/api] reservations/validate-code:", err.message);
-      return res.status(statusByCode[code] || 500).json({
+      const status = statusByCode[code] || 500;
+      if (status === 429 && err.retryAfterSeconds != null) {
+        res.set("Retry-After", String(err.retryAfterSeconds));
+      }
+      return res.status(status).json({
         success: false,
         error: code,
         message: err.message || "Could not validate the reservation code.",

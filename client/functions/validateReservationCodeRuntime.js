@@ -6,7 +6,7 @@
  * - Scope: failed manual lookups (code not found)
  * - Key: secretary uid + assignedBranch
  * - Allowance: 5 failures per rolling 15 minutes
- * - Lockout: 15 minutes from the attempt that crossed the limit
+ * - Lockout: 5 minutes from the attempt that crossed the limit
  */
 
 const { databaseFor } = require("./rtdbRouter");
@@ -14,7 +14,8 @@ const { listActiveAdminIds } = require("./suspiciousAccountRuntime");
 
 const MAX_FAILED_ATTEMPTS = 5;
 const WINDOW_MS = 15 * 60 * 1000;
-const LOCKOUT_MS = 15 * 60 * 1000;
+const MANUAL_CODE_LOCKOUT_MINUTES = 5;
+const LOCKOUT_MS = MANUAL_CODE_LOCKOUT_MINUTES * 60 * 1000;
 const RATE_LIMIT_PATH = (uid) => `rateLimits/manualCode/${uid}`;
 
 function coded(code, message, extra = {}) {
@@ -34,21 +35,66 @@ function maskReservationCode(code) {
 }
 
 /**
+ * Lockout toast / audit message. Duration always comes from MANUAL_CODE_LOCKOUT_MINUTES.
+ * @param {string} maskedCode e.g. "1****1"
+ */
+function formatManualCodeLockMessage(maskedCode) {
+  const masked = maskedCode || "******";
+  return `Manual reservation-code entry locked for ${MANUAL_CODE_LOCKOUT_MINUTES} minutes after repeated failures (${masked}).`;
+}
+
+/**
+ * Cap legacy 15-minute (or otherwise longer) locks to MANUAL_CODE_LOCKOUT_MINUTES from lock start.
+ * @param {object|null} state
+ * @param {number} now
+ * @returns {number} effective lockedUntil (0 if not locked / expired)
+ */
+function effectiveLockedUntil(state, now = Date.now()) {
+  const lockedUntil = Number(state?.lockedUntil) || 0;
+  if (lockedUntil <= now) return 0;
+
+  const updatedAt = Number(state?.updatedAt) || 0;
+  if (updatedAt > 0) {
+    return Math.min(lockedUntil, updatedAt + LOCKOUT_MS);
+  }
+  return Math.min(lockedUntil, now + LOCKOUT_MS);
+}
+
+/**
  * Pure rate-limit evaluation (testable without RTDB).
  * @param {object|null} state existing rateLimits/manualCode/{uid} value
  * @param {number} now Date.now()
- * @returns {{ allowed: boolean, locked: boolean, failCount: number, windowStartedAt: number|null, lockedUntil: number|null, remainingAttempts: number }}
+ * @returns {{ allowed: boolean, locked: boolean, failCount: number, windowStartedAt: number|null, lockedUntil: number|null, remainingAttempts: number, lastMaskedCode: string|null, cappedLockedUntil: boolean }}
  */
 function evaluateManualCodeRateLimit(state, now = Date.now()) {
-  const lockedUntil = Number(state?.lockedUntil) || 0;
-  if (lockedUntil > now) {
+  const rawLockedUntil = Number(state?.lockedUntil) || 0;
+  const cappedUntil = effectiveLockedUntil(state, now);
+
+  if (cappedUntil > now) {
     return {
       allowed: false,
       locked: true,
       failCount: Number(state?.failCount) || 0,
       windowStartedAt: Number(state?.windowStartedAt) || null,
-      lockedUntil,
+      lockedUntil: cappedUntil,
       remainingAttempts: 0,
+      lastMaskedCode: state?.lastMaskedCode || null,
+      cappedLockedUntil: cappedUntil < rawLockedUntil,
+    };
+  }
+
+  // After a lock expires (including a capped legacy 15-minute lock), allow a fresh
+  // set of attempts instead of leaving failCount at the threshold with no lockedUntil.
+  if (rawLockedUntil > 0) {
+    return {
+      allowed: true,
+      locked: false,
+      failCount: 0,
+      windowStartedAt: null,
+      lockedUntil: null,
+      remainingAttempts: MAX_FAILED_ATTEMPTS,
+      lastMaskedCode: state?.lastMaskedCode || null,
+      cappedLockedUntil: false,
     };
   }
 
@@ -64,6 +110,8 @@ function evaluateManualCodeRateLimit(state, now = Date.now()) {
       windowStartedAt: null,
       lockedUntil: null,
       remainingAttempts: MAX_FAILED_ATTEMPTS,
+      lastMaskedCode: state?.lastMaskedCode || null,
+      cappedLockedUntil: false,
     };
   }
 
@@ -75,21 +123,29 @@ function evaluateManualCodeRateLimit(state, now = Date.now()) {
     windowStartedAt,
     lockedUntil: null,
     remainingAttempts: remaining,
+    lastMaskedCode: state?.lastMaskedCode || null,
+    cappedLockedUntil: false,
   };
 }
 
 /**
  * After a failed attempt, compute the next persisted state.
+ * @param {object|null} state
+ * @param {number} now
+ * @param {string|null} branchId
+ * @param {string|null} [maskedCode]
  */
-function nextFailedAttemptState(state, now, branchId) {
+function nextFailedAttemptState(state, now, branchId, maskedCode = null) {
   const current = evaluateManualCodeRateLimit(state, now);
+  const lastMaskedCode = maskedCode || state?.lastMaskedCode || null;
   if (current.locked) {
     return {
       failCount: current.failCount,
       windowStartedAt: current.windowStartedAt || now,
       lockedUntil: current.lockedUntil,
       branchId: branchId || state?.branchId || null,
-      updatedAt: now,
+      updatedAt: Number(state?.updatedAt) || now,
+      lastMaskedCode,
       justLocked: false,
     };
   }
@@ -103,6 +159,7 @@ function nextFailedAttemptState(state, now, branchId) {
     lockedUntil: justLocked ? now + LOCKOUT_MS : null,
     branchId: branchId || state?.branchId || null,
     updatedAt: now,
+    lastMaskedCode,
     justLocked,
   };
 }
@@ -181,15 +238,19 @@ async function validateReservationCode({ admin, callerUid, code, source = "manua
     const rateState = rateSnap.exists() ? rateSnap.val() : null;
     const evaluation = evaluateManualCodeRateLimit(rateState, now);
     if (!evaluation.allowed) {
-      const retryAfterMs = Math.max(0, (evaluation.lockedUntil || now) - now);
-      throw coded(
-        "resource-exhausted",
-        "Too many incorrect codes. Try again after the lockout ends.",
-        {
+      // Persist capped lockedUntil so RTDB matches the new 5-minute rule.
+      if (evaluation.cappedLockedUntil && evaluation.lockedUntil) {
+        await rateRef.update({
           lockedUntil: evaluation.lockedUntil,
-          retryAfterSeconds: Math.ceil(retryAfterMs / 1000),
-        }
-      );
+          updatedAt: Number(rateState?.updatedAt) || now,
+        });
+      }
+      const retryAfterMs = Math.max(0, (evaluation.lockedUntil || now) - now);
+      const masked = evaluation.lastMaskedCode || maskReservationCode(normalized);
+      throw coded("resource-exhausted", formatManualCodeLockMessage(masked), {
+        lockedUntil: evaluation.lockedUntil,
+        retryAfterSeconds: Math.ceil(retryAfterMs / 1000),
+      });
     }
   }
 
@@ -203,11 +264,11 @@ async function validateReservationCode({ admin, callerUid, code, source = "manua
     if (isManual) {
       const rateSnap = await rateRef.once("value");
       const rateState = rateSnap.exists() ? rateSnap.val() : null;
-      const next = nextFailedAttemptState(rateState, now, branchId);
+      const masked = maskReservationCode(normalized);
+      const next = nextFailedAttemptState(rateState, now, branchId, masked);
       const { justLocked, ...persist } = next;
       await rateRef.set(persist);
 
-      const masked = maskReservationCode(normalized);
       const actorName = user.name || "Secretary";
       const failAuditId = await writeQueueAudit(db, {
         action: "MANUAL_CODE_FAILED",
@@ -227,13 +288,14 @@ async function validateReservationCode({ admin, callerUid, code, source = "manua
       });
 
       if (justLocked) {
+        const lockMessage = formatManualCodeLockMessage(masked);
         const lockAuditId = await writeQueueAudit(db, {
           action: "MANUAL_CODE_LOCKED",
           category: "queue_operations",
           actorUid: callerUid,
           actorName,
           actorRole: user.role || "secretary",
-          description: `Manual reservation-code entry locked for 15 minutes after repeated failures (${masked}).`,
+          description: lockMessage,
           targetType: "reservation_code",
           targetId: null,
           branchId,
@@ -255,14 +317,10 @@ async function validateReservationCode({ admin, callerUid, code, source = "manua
         } catch (err) {
           console.error("[validateReservationCode] lockout alert failed:", err.message);
         }
-        throw coded(
-          "resource-exhausted",
-          "Too many incorrect codes. Try again after the lockout ends.",
-          {
-            lockedUntil: persist.lockedUntil,
-            retryAfterSeconds: Math.ceil(LOCKOUT_MS / 1000),
-          }
-        );
+        throw coded("resource-exhausted", lockMessage, {
+          lockedUntil: persist.lockedUntil,
+          retryAfterSeconds: Math.ceil(LOCKOUT_MS / 1000),
+        });
       }
 
       return {
@@ -289,8 +347,11 @@ async function validateReservationCode({ admin, callerUid, code, source = "manua
 module.exports = {
   MAX_FAILED_ATTEMPTS,
   WINDOW_MS,
+  MANUAL_CODE_LOCKOUT_MINUTES,
   LOCKOUT_MS,
   maskReservationCode,
+  formatManualCodeLockMessage,
+  effectiveLockedUntil,
   evaluateManualCodeRateLimit,
   nextFailedAttemptState,
   validateReservationCode,

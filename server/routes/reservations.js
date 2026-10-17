@@ -65,7 +65,11 @@ router.post("/reservations/validate-code", async (req, res) => {
   } catch (err) {
     const code = STATUS_BY_CODE[err.code] ? err.code : "internal";
     console.error("[reservations/validate-code]", err.message);
-    return res.status(STATUS_BY_CODE[code] || 500).json({
+    const status = STATUS_BY_CODE[code] || 500;
+    if (status === 429 && err.retryAfterSeconds != null) {
+      res.set("Retry-After", String(err.retryAfterSeconds));
+    }
+    return res.status(status).json({
       success: false,
       error: code,
       message: err.message || "Could not validate the reservation code.",

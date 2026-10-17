@@ -164,7 +164,7 @@ Secretary (and doctor) check-in may enter a 6-character `reservationCode`. **Man
 | Scope | Failed **manual** lookups only (code not found). Valid codes that fail check-in for status reasons do not count. QR lookups use the same endpoint with `source: "qr"` and are **not** rate-limited. |
 | Key | Per secretary/doctor **uid** (and stores `assignedBranch` / branch id on the counter) |
 | Allowance | **5** failures per rolling **15 minutes** |
-| Lockout | **15 minutes** from the attempt that crosses the limit |
+| Lockout | **5 minutes** from the attempt that crosses the limit |
 | Storage | `rateLimits/manualCode/{uid}` — server (Admin SDK) write only; clients cannot read or write |
 | Audit | Server writes `MANUAL_CODE_FAILED` and `MANUAL_CODE_LOCKED` to `auditLogs` with `actorRole`, branch, **masked** code (e.g. `A****Z`), and timestamp |
 | Admin alert | On lockout, every active admin gets an `adminAlerts` entry (`type: MANUAL_CODE_LOCKOUT`) linking to Audit Logs |

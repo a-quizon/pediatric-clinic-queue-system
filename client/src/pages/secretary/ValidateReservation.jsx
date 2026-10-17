@@ -7,6 +7,14 @@ import { validateReservationByCodeOnServer, checkInReservation } from "../../ser
 import { getScheduleById } from "../../services/scheduleService";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
+import {
+  MANUAL_CODE_LOCKOUT_TOAST_ID,
+  MANUAL_CODE_LOCKOUT_TOAST_MS,
+  saveManualCodeLockout,
+  loadManualCodeLockout,
+  clearManualCodeLockout,
+  formatLockCountdown,
+} from "../../utils/manualCodeLockoutUi";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleValidate } from "../../components/onboarding/SecretaryTourSampleViews";
@@ -61,6 +69,8 @@ export default function ValidateReservation() {
   const showSampleValidate = useTourSample("validate-qr");
   const [reservationCode, setReservationCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [lockedUntil, setLockedUntil] = useState(null);
+  const [lockCountdown, setLockCountdown] = useState("");
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showInvalidModal, setShowInvalidModal] = useState(false);
@@ -82,6 +92,7 @@ export default function ValidateReservation() {
   const isLoadingRef = useRef(false);
   const processRef = useRef(null);
   const autoStartedRef = useRef(false);
+  const isManualLocked = lockedUntil != null && lockedUntil > Date.now();
 
   const anyModalOpen =
     showSuccessModal ||
@@ -100,6 +111,55 @@ export default function ValidateReservation() {
   useEffect(() => {
     isScanningRef.current = isScanning;
   }, [isScanning]);
+
+  // Restore lock UI from sessionStorage after refresh (server still enforces).
+  useEffect(() => {
+    if (!user?.uid) return;
+    const saved = loadManualCodeLockout(user.uid);
+    if (saved?.lockedUntil) {
+      setLockedUntil(saved.lockedUntil);
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!lockedUntil) {
+      setLockCountdown("");
+      return undefined;
+    }
+    const tick = () => {
+      const now = Date.now();
+      if (lockedUntil <= now) {
+        setLockedUntil(null);
+        setLockCountdown("");
+        if (user?.uid) clearManualCodeLockout(user.uid);
+        return;
+      }
+      setLockCountdown(formatLockCountdown(lockedUntil, now));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [lockedUntil, user?.uid]);
+
+  const applyManualCodeLockout = useCallback(
+    (error) => {
+      const until = Number(error?.lockedUntil) || 0;
+      const message =
+        error?.message ||
+        "Manual reservation-code entry locked after repeated failures.";
+      if (until > Date.now()) {
+        setLockedUntil(until);
+        if (user?.uid) {
+          saveManualCodeLockout(user.uid, { lockedUntil: until, message });
+        }
+      }
+      toast.error(message, {
+        id: MANUAL_CODE_LOCKOUT_TOAST_ID,
+        duration: MANUAL_CODE_LOCKOUT_TOAST_MS,
+      });
+    },
+    [user?.uid]
+  );
 
   const stopScanner = useCallback(async () => {
     if (html5QrCodeRef.current && isScanningRef.current) {
@@ -192,13 +252,13 @@ export default function ValidateReservation() {
     } catch (error) {
       console.error(error);
       if (error?.code === "resource-exhausted") {
-        toast.error(error.message || "Too many incorrect codes. Please wait and try again.");
+        applyManualCodeLockout(error);
       }
       setShowInvalidModal(true);
     } finally {
       setIsLoading(false);
     }
-  }, [stopScanner]);
+  }, [stopScanner, applyManualCodeLockout]);
 
   const startScanner = useCallback(async (cameraId = selectedCameraId) => {
     if (!cameraId) {
@@ -283,6 +343,17 @@ export default function ValidateReservation() {
     const trimmed = (code || "").toUpperCase().trim();
     if (trimmed.length !== CODE_LENGTH || isLoadingRef.current) return;
 
+    if (lockedUntil && lockedUntil > Date.now()) {
+      applyManualCodeLockout({
+        lockedUntil,
+        message:
+          loadManualCodeLockout(user?.uid)?.message ||
+          "Manual reservation-code entry locked after repeated failures.",
+      });
+      setReservationCode("");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const reservation = await validateReservationByCodeOnServer(trimmed, { source: "manual" });
@@ -290,7 +361,7 @@ export default function ValidateReservation() {
     } catch (error) {
       console.error("Validation error:", error);
       if (error?.code === "resource-exhausted") {
-        toast.error(error.message || "Too many incorrect codes. Please wait and try again.");
+        applyManualCodeLockout(error);
       } else {
         toast.error(error?.message || "An error occurred during validation.");
       }
@@ -298,14 +369,19 @@ export default function ValidateReservation() {
       setIsLoading(false);
       setReservationCode("");
     }
-  }, []);
+  }, [lockedUntil, applyManualCodeLockout, user?.uid]);
 
   // Auto-submit when code reaches expected length
   useEffect(() => {
-    if (reservationCode.trim().length === CODE_LENGTH && !isLoading && !anyModalOpen) {
+    if (
+      reservationCode.trim().length === CODE_LENGTH &&
+      !isLoading &&
+      !anyModalOpen &&
+      !isManualLocked
+    ) {
       handleManualValidate(reservationCode);
     }
-  }, [reservationCode, isLoading, anyModalOpen, handleManualValidate]);
+  }, [reservationCode, isLoading, anyModalOpen, isManualLocked, handleManualValidate]);
 
   const closeAllModals = async () => {
     setShowSuccessModal(false);
@@ -419,7 +495,8 @@ export default function ValidateReservation() {
                 )
               }
               maxLength={CODE_LENGTH}
-              disabled={isLoading}
+              disabled={isLoading || isManualLocked}
+              aria-disabled={isManualLocked}
               className="pq-input text-center font-mono text-xl tracking-[0.35em] uppercase"
             />
             {isLoading && (
@@ -428,9 +505,15 @@ export default function ValidateReservation() {
               </div>
             )}
           </div>
-          <p className="mt-2 text-xs pq-faint text-center">
-            Validates automatically when all {CODE_LENGTH} characters are entered
-          </p>
+          {isManualLocked && lockCountdown ? (
+            <p className="mt-2 text-xs text-center font-medium" style={{ color: "var(--pq-alert)" }} role="status">
+              Try again in {lockCountdown}
+            </p>
+          ) : (
+            <p className="mt-2 text-xs pq-faint text-center">
+              Validates automatically when all {CODE_LENGTH} characters are entered
+            </p>
+          )}
         </div>
       </section>
 
