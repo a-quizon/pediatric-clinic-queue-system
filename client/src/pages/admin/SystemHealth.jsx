@@ -3,11 +3,12 @@ import { onValue, ref, get } from "firebase/database";
 import { Activity, Bell, Radio, RefreshCw, Server, Wifi, WifiOff } from "lucide-react";
 import { getDb } from "../../firebase/database";
 import EmptyState from "../../components/common/EmptyState";
+import ConnectionStatusPill from "../../components/common/ConnectionStatusPill";
 import { PqSpinner } from "../../components/parent/pqUi";
+import { useRtdbConnection } from "../../hooks/useRtdbConnection";
 import {
   KNOWN_JOBS,
   SMS_DEVICE_HELP,
-  connectionLabelFromInfoConnected,
   formatHealthTimestamp,
   formatSmsFailureExplanation,
   smsServiceStatusLabel,
@@ -27,13 +28,6 @@ function StatusPill({ label, tone = "neutral" }) {
   return <span className={toneClass}>{label}</span>;
 }
 
-function connectionTone(label) {
-  if (label === "Online") return "ok";
-  if (label === "Reconnecting") return "warn";
-  if (label === "Offline") return "bad";
-  return "neutral";
-}
-
 function smsServiceTone(label) {
   if (label === "Healthy") return "ok";
   if (label === "Degraded") return "warn";
@@ -51,8 +45,7 @@ export default function SystemHealth() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [health, setHealth] = useState(null);
-  const [connected, setConnected] = useState(null);
-  const [everConnected, setEverConnected] = useState(false);
+  const { label: connectionLabel } = useRtdbConnection();
 
   useEffect(() => {
     const healthRef = ref(getDb(), "systemHealth");
@@ -70,16 +63,8 @@ export default function SystemHealth() {
       }
     );
 
-    const connectedRef = ref(getDb(), ".info/connected");
-    const unsubConnected = onValue(connectedRef, (snap) => {
-      const value = snap.val();
-      setConnected(value === true);
-      if (value === true) setEverConnected(true);
-    });
-
     return () => {
       unsubHealth();
-      unsubConnected();
     };
   }, []);
 
@@ -97,7 +82,6 @@ export default function SystemHealth() {
     }
   }, []);
 
-  const connectionLabel = connectionLabelFromInfoConnected(connected, { everConnected });
   const failureSummary = useMemo(
     () => summarizeNotificationFailures(health?.notificationFailures),
     [health]
@@ -181,7 +165,7 @@ export default function SystemHealth() {
               Live status of this admin browser&apos;s realtime database link.
             </p>
           </div>
-          <StatusPill label={connectionLabel} tone={connectionTone(connectionLabel)} />
+          <ConnectionStatusPill />
         </div>
       </section>
 

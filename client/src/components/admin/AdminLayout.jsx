@@ -6,6 +6,7 @@ import AddStaffModal from "./AddStaffModal";
 import ConfirmationModal from "../common/ConfirmationModal";
 import MobileNavDrawer, { MobileNavToggle } from "../common/MobileNavDrawer";
 import { useLogout } from "../../hooks/useLogout";
+import ConnectionStatusPill from "../common/ConnectionStatusPill";
 
 export default function AdminLayout() {
   const location = useLocation();
@@ -123,6 +124,7 @@ export default function AdminLayout() {
               </h1>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <ConnectionStatusPill />
               {headerInfo.showAddStaff ? (
                 <button
                   type="button"

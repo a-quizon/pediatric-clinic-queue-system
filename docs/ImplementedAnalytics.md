@@ -1,6 +1,8 @@
-# Implemented analytics (Admin)
+# Implemented analytics
 
-Copy-ready list of metrics the Admin Dashboard and Admin Reports actually compute from Firebase Realtime Database. None of these measure waiting-time reduction or overcrowding.
+Copy-ready list of metrics the system actually computes and displays from Firebase Realtime Database. **None** of these measure average waiting time, wait-time reduction, overcrowding, or before/after clinic throughput.
+
+Authoritative for manuscript Feature 3 / Reports wording. Cross-link: `docs/SystemBusinessRules.md` (Admin Reports bullet).
 
 ## Admin Dashboard
 
@@ -12,8 +14,11 @@ Copy-ready list of metrics the Admin Dashboard and Admin Reports actually comput
 | Current Clinic Operation | Per branch: published schedule state (active / paused / closed / published) with date and hours |
 | Clinic Branches preview | Branch name and address |
 | Recent Audit Logs | Latest 10 `auditLogs` entries |
+| SMS service status chip | `systemHealth/smsGateway.serviceStatus` (Healthy / Degraded / Down) |
 
 ## Admin Reports → Clinic Overview
+
+Computed in `client/src/hooks/useAdminReportsData.js`, shown in `ClinicOverviewReports.jsx`.
 
 | Metric / chart | Source |
 |----------------|--------|
@@ -28,9 +33,30 @@ Copy-ready list of metrics the Admin Dashboard and Admin Reports actually comput
 
 | Metric | Source |
 |--------|--------|
-| Per completed session: Total, Checked Up, Cancelled, Forfeited / penalized, Completion % | Reservations for that schedule; forfeited set is `forfeited` / `penalized` / `late_limit_reached` |
+| Per completed session: Total, Checked Up, Cancelled, Forfeited / penalized, Completion % | `utils/reportSessions.js`; forfeited set is `forfeited` / `penalized` / `late_limit_reached` |
 | Session reservation drawer | Full reservation list for the selected schedule |
+
+## Doctor Reports
+
+Same session pipeline as Admin Session History (`useReportsData` + `reportSessions.js`), shown on `/doctor/reports`.
+
+| Metric / chart | Source |
+|----------------|--------|
+| Aggregated Total, Checked Up, Cancelled, Forfeited, Completion % | Filtered completed sessions |
+| Reservation Trend (line) | Reservations per clinic date in range |
+| Outcome Distribution (pie) | Checked Up / Cancelled / Forfeited from session metrics |
+| Session History table + reservation drawer | Same as Admin Session History |
+
+## Admin System Health (operational, not clinic analytics)
+
+| Metric | Source |
+|--------|--------|
+| Your connection (Online / Reconnecting / Offline) | RTDB `.info/connected` via shared connection hook |
+| SMS Healthy / Degraded / Down, failure rates, recent failures | `systemHealth` / SMS message rows |
+| Notification failure counts (24h / 7d) | `systemHealth/notificationFailures` |
+| Background job last-run | `systemHealth` job markers |
 
 ## Not implemented
 
 - Average waiting time, wait-time reduction, overcrowding %, or before/after clinic throughput studies.
+- Live “queue wait estimate” for parents.

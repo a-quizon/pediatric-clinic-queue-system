@@ -4,6 +4,7 @@ import { Home, Users, User, BarChart3, ArrowLeft, CalendarDays } from "lucide-re
 import { PqBrand } from "../parent/pqUi";
 import { goBackOr } from "../../utils/navigationRoots";
 import LogoutButton from "../common/LogoutButton";
+import ConnectionStatusPill from "../common/ConnectionStatusPill";
 import DemoResetBar from "./DemoResetBar";
 
 export default function Layout() {
@@ -122,6 +123,7 @@ export default function Layout() {
                 ) : null}
               </div>
             </div>
+            <ConnectionStatusPill />
           </header>
         </div>
 

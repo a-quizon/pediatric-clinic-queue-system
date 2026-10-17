@@ -17,8 +17,10 @@ import {
 } from "../../utils/manualCodeLockoutUi";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { useTourSample } from "../../hooks/useTourPreview";
+import { useRtdbConnection } from "../../hooks/useRtdbConnection";
 import { TourSampleValidate } from "../../components/onboarding/SecretaryTourSampleViews";
 import ModalScrim from "../../components/common/ModalScrim";
+import OfflineMutationNote from "../../components/common/OfflineMutationNote";
 
 const CODE_LENGTH = 6;
 
@@ -66,6 +68,7 @@ function ValidateResultModal({
 
 export default function ValidateReservation() {
   const { user } = useAuth();
+  const { canMutateRealtime } = useRtdbConnection();
   const showSampleValidate = useTourSample("validate-qr");
   const [reservationCode, setReservationCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -178,6 +181,10 @@ export default function ValidateReservation() {
       setShowInvalidModal(true);
       return;
     }
+    if (!canMutateRealtime) {
+      toast.error("Reconnect before checking in patients.");
+      return;
+    }
 
     const schedule = await getScheduleById(reservation.scheduleId);
 
@@ -219,10 +226,10 @@ export default function ValidateReservation() {
         setReservationCode("");
       } catch (error) {
         console.error(error);
-        toast.error("Failed to check in reservation.");
+        toast.error(error?.message || "Failed to check in reservation.");
       }
     }
-  }, [user]);
+  }, [user, canMutateRealtime]);
 
   processRef.current = processReservation;
 
@@ -408,6 +415,7 @@ export default function ValidateReservation() {
 
   return (
     <div className="space-y-6 max-w-lg mx-auto pb-8 relative">
+      <OfflineMutationNote className="text-center" />
       <section className="pq-glass p-5 md:p-6 flex flex-col items-center text-center">
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
@@ -495,8 +503,8 @@ export default function ValidateReservation() {
                 )
               }
               maxLength={CODE_LENGTH}
-              disabled={isLoading || isManualLocked}
-              aria-disabled={isManualLocked}
+              disabled={!canMutateRealtime || isLoading || isManualLocked}
+              aria-disabled={!canMutateRealtime || isManualLocked}
               className="pq-input text-center font-mono text-xl tracking-[0.35em] uppercase"
             />
             {isLoading && (
@@ -505,7 +513,11 @@ export default function ValidateReservation() {
               </div>
             )}
           </div>
-          {isManualLocked && lockCountdown ? (
+          {!canMutateRealtime ? (
+            <p className="mt-2 text-xs text-center font-medium pq-muted" role="status">
+              Reconnect before checking in patients.
+            </p>
+          ) : isManualLocked && lockCountdown ? (
             <p className="mt-2 text-xs text-center font-medium" style={{ color: "var(--pq-alert)" }} role="status">
               Try again in {lockCountdown}
             </p>

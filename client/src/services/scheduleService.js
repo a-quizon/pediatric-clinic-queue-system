@@ -11,6 +11,7 @@ import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { branchesMatch } from "../utils/stringUtils";
 import { isLiveQueueStatus } from "../utils/penaltyTimer";
 import { manilaDateString } from "../utils/manilaDate";
+import { assertCanMutateRealtime } from "../utils/rtdbConnectionState";
 
 export { validateScheduleClosingTime };
 
@@ -44,6 +45,7 @@ const callScheduleApi = async (path, payload) => {
 
 // check muna if hindi pa past closing time ng branch for today before creating
 export const createSchedule = async ( scheduleData ) => {
+  assertCanMutateRealtime();
   const timeValidation = await validateScheduleClosingTime(scheduleData.branch, scheduleData.clinicDate);
   if (!timeValidation.valid) {
     throw new Error(timeValidation.message);
@@ -90,6 +92,7 @@ export const scheduleExists = async ( branch, clinicDate ) => {
 
 // check closing time before updating draft schedule or publishing
 export const updateSchedule = async ( scheduleId, updatedData ) => {
+  assertCanMutateRealtime();
   const snapshot = await get(ref(getDb(), `schedules/${scheduleId}`));
   if (snapshot.exists()) {
     const currentSchedule = snapshot.val();
@@ -112,6 +115,7 @@ export const updateSchedule = async ( scheduleId, updatedData ) => {
 };
 
 export const deleteSchedule = async (scheduleId) => {
+  assertCanMutateRealtime();
   const snapshot = await get(ref(getDb(), `schedules/${scheduleId}`));
   if (snapshot.exists()) {
     const schedule = snapshot.val();
@@ -129,6 +133,7 @@ export const deleteSchedule = async (scheduleId) => {
 };
 
 export const publishSchedule = async (scheduleId, options = {}) => {
+  assertCanMutateRealtime();
   let currentSchedule = null;
   const snapshot = await get(ref(getDb(), `schedules/${scheduleId}`));
   if (snapshot.exists()) {
@@ -159,6 +164,7 @@ export const publishSchedule = async (scheduleId, options = {}) => {
 };
 
 export const moveToReady = async ( scheduleId ) => {
+  assertCanMutateRealtime();
   await update( ref(getDb(), `schedules/${scheduleId}`), {
     isReady: true,
     movedToReadyAt: Date.now(),
@@ -170,6 +176,7 @@ export const moveToReady = async ( scheduleId ) => {
  * Client still recalculates queue order after a live-status change.
  */
 export const updateQueueStatus = async (scheduleId, queueStatus) => {
+  assertCanMutateRealtime();
   const result = await callScheduleApi("/api/schedules/queue-status", {
     scheduleId,
     queueStatus,
@@ -191,6 +198,7 @@ export const updateQueueStatus = async (scheduleId, queueStatus) => {
  * End clinic session via server (audited after success).
  */
 export const completeSchedule = async (scheduleId) => {
+  assertCanMutateRealtime();
   return callScheduleApi("/api/schedules/end-session", { scheduleId });
 };
 
@@ -198,6 +206,7 @@ export const completeSchedule = async (scheduleId) => {
  * Update published-day slot capacity via server (audited after success).
  */
 export const updateSlotCapacity = async (scheduleId, slotCapacity) => {
+  assertCanMutateRealtime();
   return callScheduleApi("/api/schedules/slot-capacity", {
     scheduleId,
     slotCapacity: Number(slotCapacity),

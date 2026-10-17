@@ -19,6 +19,7 @@ import {
   sameBranch,
 } from "../utils/scheduleCalendar";
 import { checkScheduleOpening } from "../utils/scheduleOpeningRules";
+import { assertCanMutateRealtime } from "../utils/rtdbConnectionState";
 
 const closuresRef = () => ref(getDb(), "clinicClosures");
 
@@ -114,6 +115,7 @@ export async function previewPublishDates({ branchId, branchName, dates }) {
 }
 
 export async function publishSingleDay({ branchId, branchName, dateStr, slotCapacity }) {
+  assertCanMutateRealtime();
   const result = await callPublishClinicDays({
     mode: "single",
     branchId,
@@ -124,6 +126,7 @@ export async function publishSingleDay({ branchId, branchName, dateStr, slotCapa
 }
 
 export async function publishDateRange({ branchId, branchName, startDate, endDate, slotCapacity }) {
+  assertCanMutateRealtime();
   const dates = eachDateInclusive(startDate, endDate);
   if (dates.length === 0) {
     throw new Error("No days in that range can be posted.");
@@ -146,6 +149,7 @@ export async function publishDateRange({ branchId, branchName, startDate, endDat
 }
 
 export async function copyPreviousWeek({ branchId, branchName, weekStart }) {
+  assertCanMutateRealtime();
   const sourceStart = addManilaDays(weekStart, -7);
   const { branch, schedules, closures } = await contextForBranch(branchId, branchName);
   const name = branch?.name || branchName;
@@ -275,6 +279,7 @@ export async function applyClosure({
   user,
   allBranches = false,
 }) {
+  assertCanMutateRealtime();
   const preview = await previewClosure({ branchId, branchName, startDate, endDate, allBranches });
   if (preview.targets.length === 0) throw new Error("Branch not found.");
   if (preview.overlaps.length > 0) {
@@ -341,6 +346,7 @@ export async function applyClosure({
 }
 
 export async function removeClosure(closureId) {
+  assertCanMutateRealtime();
   const snapshot = await get(ref(getDb(), `clinicClosures/${closureId}`));
   if (!snapshot.exists()) throw new Error("Closure not found.");
   const closure = snapshot.val();

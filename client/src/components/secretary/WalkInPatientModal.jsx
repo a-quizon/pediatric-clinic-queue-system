@@ -12,7 +12,9 @@ import { formatBranchLabel } from "../../utils/stringUtils";
 import { formatToE164 } from "../../utils/phoneUtils";
 import MessageModal from "../common/MessageModal";
 import ModalScrim from "../common/ModalScrim";
+import OfflineMutationNote from "../common/OfflineMutationNote";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
+import { useRtdbConnection } from "../../hooks/useRtdbConnection";
 
 const MAX_CHILDREN = 10;
 
@@ -74,6 +76,7 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
   const { user } = useAuth();
   const nameInputRef = useRef(null);
   const submitLockRef = useRef(false);
+  const { canMutateRealtime } = useRtdbConnection();
 
   const [activeCount, setActiveCount] = useState(0);
   const [form, setForm] = useState(initialFormState);
@@ -213,6 +216,7 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
   const parentPhoneValid = parentPhoneLocal === "" || parentPhoneLocal.length === 10;
 
   const canSubmit =
+    canMutateRealtime &&
     accepting &&
     !isFull &&
     childCountValid &&
@@ -223,7 +227,7 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!user?.uid || !schedule?.id || isSubmitting || submitLockRef.current) return;
+    if (!user?.uid || !schedule?.id || isSubmitting || submitLockRef.current || !canMutateRealtime) return;
 
     const n = parseChildCount(childCountInput);
     if (n == null) {
@@ -323,6 +327,9 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
             >
               <X className="w-5 h-5" />
             </button>
+          </div>
+          <div className="px-6 pt-3">
+            <OfflineMutationNote />
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">

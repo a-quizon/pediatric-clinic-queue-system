@@ -14,6 +14,13 @@ Owner-operated plan for Firebase data. There is **no in-app backup UI**. Never r
 | Hosting | Firebase Hosting site(s) | Staging site `plus-queue`; production hosting target may be separate |
 | Service accounts / API keys | Secure store (password manager) | Never commit; rotate after turnover |
 
+## Not used by this app (no backup product work required)
+
+| Product | Status |
+|---------|--------|
+| Cloud Firestore | **Not used.** No scheduled Firestore exports or point-in-time recovery to enable. |
+| Firebase Storage | **Not used** for clinic files in app code. No Storage backup job required unless you later store uploads there. |
+
 ## Firebase plan capabilities (verify in Console)
 
 On **Blaze** projects, Firebase can offer:
@@ -29,7 +36,7 @@ On **Blaze** projects, Firebase can offer:
 3. **Auth export** — `npx firebase auth:export auth-users.json --format=json --project staging` (Admin SDK / CLI).
 4. **Rules / functions** — recover from git + `firebase deploy`; keep a dated zip of `.env` templates **without** secret values plus a private password-manager entry for real secrets.
 
-Confirm in the Firebase Console whether automated RTDB backups are **enabled** for staging and production. Status at authoring time: **not verified from this repo** (requires Console access).
+Confirm in the Firebase Console whether automated RTDB backups are **enabled** for staging and production. Status at authoring time: **not verified from this repo** (requires Console access). Record the result in the owner checklist below.
 
 ## Frequency and who runs it
 
@@ -39,6 +46,16 @@ Confirm in the Firebase Console whether automated RTDB backups are **enabled** f
 | Production | Daily automated backup if Blaze+Backups enabled; otherwise weekly manual | Weekly | Every production deploy | Owner after turnover (see ProjectTurnover.md) |
 
 Store exports in a private Cloud Storage bucket or encrypted drive. Name files `YYYY-MM-DD-{project}-{asset}.json`. Retention: keep at least **4 weekly** and **1 monthly** copy.
+
+Suggested retention for clinic records (manuscript / turnover wording):
+
+| Record type | Retention guidance |
+|-------------|-------------------|
+| Reservations / visit history | Keep indefinitely in RTDB (no physical deletes); backups follow the schedule above |
+| Visit reminder notes | Stored on the reservation; same as reservations |
+| Notifications | Parent notification center under `notifications/{uid}`; retained with account history |
+| Audit logs | Retain indefinitely for compliance review |
+| Deleted parent Auth | Login removed; past visits kept in RTDB |
 
 ## How to restore (staging practice)
 
@@ -85,6 +102,21 @@ Use `firebase auth:import` with the exported JSON. Password hashes only work if 
 5. Update this table with the date and Pass/Fail
 
 **Never** run section B against `pediatric-clinic-queue-system` (production) without written owner approval.
+
+## Owner checklist (Console / ops — cannot be done from app code)
+
+Complete and check off in your own notes; then update the “verified” lines below.
+
+1. [ ] Confirm **Blaze** billing on staging (`pediatric-clinic-queue-testing`) and production (`pediatric-clinic-queue-system`).
+2. [ ] Console → Realtime Database → **Backups**: enable daily backup for the **main** RTDB; note Cloud Storage bucket name.
+3. [ ] If the demo RTDB is used in production/staging, enable backups for it too (or document that demo data is disposable).
+4. [ ] Record here when enabled:
+   - Staging automated RTDB backups: **not verified from repo** — owner date: ________ / bucket: ________
+   - Production automated RTDB backups: **not verified from repo** — owner date: ________ / bucket: ________
+5. [ ] Run Auth export on the cadence in the frequency table; store encrypted off-repo.
+6. [ ] Confirm Firestore and Storage remain unused for clinic data (or add a backup job if that changes).
+7. [ ] Secrets (VAPID, TextBee, service accounts) only in a password manager — never in git.
+8. [ ] Re-run section A restore drill on staging at least once per semester; log Pass/Fail in the table above.
 
 ## Rollback of database rules
 

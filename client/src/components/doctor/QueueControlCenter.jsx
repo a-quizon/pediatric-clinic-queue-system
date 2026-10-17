@@ -20,6 +20,8 @@ import { presentChildForRole } from "../../utils/pediatricAge";
 import ReservationPatientNames from "../common/ReservationPatientNames";
 import { PqSpinner } from "../parent/pqUi";
 import { useTourSample } from "../../hooks/useTourPreview";
+import { useRtdbConnection } from "../../hooks/useRtdbConnection";
+import OfflineMutationNote from "../common/OfflineMutationNote";
 import { TourSampleDoctorQueue } from "../onboarding/DoctorTourSampleViews";
 
 function WalkInChip({ reservation }) {
@@ -29,6 +31,7 @@ function WalkInChip({ reservation }) {
 
 export default function QueueControlCenter() {
   const navigate = useNavigate();
+  const { canMutateRealtime } = useRtdbConnection();
   const [schedules, setSchedules] = useState([]);
   const [schedulesLoaded, setSchedulesLoaded] = useState(false);
   const [reservations, setReservations] = useState([]);
@@ -110,8 +113,11 @@ export default function QueueControlCenter() {
   const walkInQueueOpen = ["active", "paused"].includes(activeSchedule?.queueStatus);
   const walkInDayClosed = Boolean(activeSchedule?.dayClosed);
   const walkInFull = slotCapacity > 0 && activeSlotCount >= slotCapacity;
-  const canAddWalkIn = Boolean(activeSchedule) && walkInQueueOpen && !walkInDayClosed && !walkInFull;
-  const walkInDisabledReason = !activeSchedule
+  const canAddWalkIn =
+    canMutateRealtime && Boolean(activeSchedule) && walkInQueueOpen && !walkInDayClosed && !walkInFull;
+  const walkInDisabledReason = !canMutateRealtime
+    ? "Reconnect to add a walk-in."
+    : !activeSchedule
     ? "No live queue is running."
     : walkInDayClosed
       ? "This clinic day is closed."
@@ -144,7 +150,7 @@ export default function QueueControlCenter() {
   };
 
   const handleComplete = async () => {
-    if (!selectedPatient) return;
+    if (!selectedPatient || !canMutateRealtime || isSubmitting) return;
     setIsSubmitting(true);
     try {
       const isWalkIn = selectedPatient.source === "walk_in";
@@ -157,7 +163,7 @@ export default function QueueControlCenter() {
       setSelectedPatient(null);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to complete consultation.");
+      toast.error(err?.message || "Failed to complete consultation.");
     } finally {
       setIsSubmitting(false);
     }
@@ -211,8 +217,10 @@ export default function QueueControlCenter() {
           <QueueSessionControls
             schedule={activeSchedule}
             canEndSession={canEndSession}
+            mutationsEnabled={canMutateRealtime}
           />
         </div>
+        <OfflineMutationNote className="mt-3" />
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           <button
             type="button"
@@ -310,7 +318,9 @@ export default function QueueControlCenter() {
                 e.stopPropagation();
                 handleOpenCompleteModal(inConsultation);
               }}
+              disabled={!canMutateRealtime}
               className="pq-btn-live w-full relative z-10"
+              title={canMutateRealtime ? undefined : "Reconnect to complete consultation"}
             >
               <CheckCircle className="w-5 h-5" aria-hidden="true" /> Complete Consultation
             </button>
@@ -527,7 +537,7 @@ export default function QueueControlCenter() {
               <button 
                 type="button"
                 onClick={handleComplete}
-                disabled={isSubmitting}
+                disabled={!canMutateRealtime || isSubmitting}
                 className="pq-btn-live"
               >
                 {isSubmitting ? (

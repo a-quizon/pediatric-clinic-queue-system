@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../hooks/useAuth";
+import { useRtdbConnection } from "../../hooks/useRtdbConnection";
+import OfflineMutationNote from "../common/OfflineMutationNote";
 import { getDefaultSlotCapacity } from "../../services/systemConfigurationService";
 import { updateQueueStatus, updateSlotCapacity } from "../../services/scheduleService";
 import {
@@ -56,6 +58,7 @@ export default function StaffScheduleCalendar({
   onMonthChange,
 }) {
   const { user } = useAuth();
+  const { canMutateRealtime } = useRtdbConnection();
   const navigate = useNavigate();
   const today = manilaDateString();
   const horizon = bookingHorizonEnd(today);
@@ -186,8 +189,10 @@ export default function StaffScheduleCalendar({
     setDayModal({ mode: "post", dateStr, capacity: String(defaultCapacity) });
   };
 
+  const actionsLocked = busy || !canMutateRealtime;
+
   const postDay = async () => {
-    if (!branch || !dayModal) return;
+    if (!branch || !dayModal || !canMutateRealtime) return;
     setBusy(true);
     try {
       await publishSingleDay({
@@ -208,7 +213,7 @@ export default function StaffScheduleCalendar({
   };
 
   const startQueue = async () => {
-    if (!dayModal?.schedule) return;
+    if (!dayModal?.schedule || !canMutateRealtime) return;
     setBusy(true);
     try {
       await updateQueueStatus(dayModal.schedule.id, "active");
@@ -436,9 +441,10 @@ export default function StaffScheduleCalendar({
               ))}
             </select>
           )}
-          <button type="button" className="pq-btn-secondary" onClick={() => setRangeOpen(true)}>Publish range</button>
-          <button type="button" className="pq-btn-secondary" onClick={reviewCopy}>Copy previous week</button>
+          <button type="button" className="pq-btn-secondary" onClick={() => setRangeOpen(true)} disabled={!canMutateRealtime}>Publish range</button>
+          <button type="button" className="pq-btn-secondary" onClick={reviewCopy} disabled={!canMutateRealtime}>Copy previous week</button>
         </div>
+        <OfflineMutationNote className="mt-2" />
       </div>
 
       <div className="flex items-center justify-between mb-3">
@@ -538,7 +544,7 @@ export default function StaffScheduleCalendar({
             </div>
             <div className="pq-modal-footer p-5 pt-0 flex gap-2 justify-end">
               <button type="button" className="pq-btn-secondary" onClick={closeDayModal} disabled={busy}>Cancel</button>
-              <button type="button" className="pq-btn-primary" onClick={postDay} disabled={busy}>Post day</button>
+              <button type="button" className="pq-btn-primary" onClick={postDay} disabled={actionsLocked}>Post day</button>
             </div>
           </div>
         </ModalScrim>
