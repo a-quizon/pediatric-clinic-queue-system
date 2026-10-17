@@ -23,6 +23,7 @@ import {
   assertCanSendToDoctor,
   assertCanStartConsultation,
   assertCanUpdatePatientInfo,
+  applyCheckInStatusTransition,
 } from "../utils/reservationTransitions";
 import { finalizeParentClaim } from "../utils/parentClaimFinalize";
 import { ACTIVE_RESERVATION_STATUSES } from "../utils/reservationStatuses";
@@ -248,8 +249,8 @@ export const createWalkInReservation = async ({
     parentName: trimmedParentName,
     parentPhone: trimmedParentPhone,
   });
-  await recalculateRollingValidation(scheduleId);
-  await recalculateEntireQueue(scheduleId);
+  // Queue order is recalculated by onReservationWrite (Admin SDK). Avoid a second
+  // client-side multi-path update that races secretary check-in transactions.
 
   const reservationId = data.reservationId;
   const queueNumber = Number(data.queueNumber) || null;
@@ -593,45 +594,131 @@ export const validateReservationByCodeOnServer = async (code, options = {}) => {
   return scheduleReservations.find((res) => res.id === reservation.id) || reservation;
 };
 
+const TEMPORARY_RESERVATION_UPDATE_MESSAGE =
+  "Temporary error updating this reservation. Please try again.";
+
 /**
  * Atomically apply a reservation field patch when the current status still allows it.
  * Returning undefined from the updater aborts (no write / no queued offline replay).
+ * Updater may set `abortMessage.current` so callers get a specific error instead of failMessage.
  */
 const commitReservationIf = async (reservationId, updater, failMessage) => {
   const resRef = ref(getDb(), `reservations/${reservationId}`);
+  // Prime the local cache so the first transaction callback is less likely to see null
+  // while the node still exists on the server (RTDB transaction pitfall).
+  const primed = await get(resRef);
+  if (!primed.exists()) {
+    throw new Error("Reservation not found.");
+  }
+
+  const abortMessage = { current: null };
   const result = await runTransaction(resRef, (current) => {
-    if (!current) return;
-    return updater(current);
+    if (current == null) {
+      // After a successful prime, null usually means a concurrent delete — abort as not found.
+      abortMessage.current = "Reservation not found.";
+      return;
+    }
+    return updater(current, abortMessage);
   });
   if (!result.committed || !result.snapshot.exists()) {
-    throw new Error(failMessage || "This reservation could not be updated. Refresh and try again.");
+    const message =
+      abortMessage.current || failMessage || TEMPORARY_RESERVATION_UPDATE_MESSAGE;
+    console.error("[commitReservationIf] aborted", { reservationId, message });
+    throw new Error(message);
   }
   return { id: reservationId, ...result.snapshot.val() };
 };
 
+/**
+ * Check in by reservation id only. Uses a status-path CAS so concurrent queue
+ * recalculation (queueOrder / aheadOfYou child writes) cannot abort the whole node.
+ * QR scan and manual code entry both call this after code→id lookup.
+ */
 export const checkInReservation = async (reservationId, secretaryUid) => {
   assertCanMutateRealtime();
+  if (!reservationId) {
+    throw new Error("Reservation not found.");
+  }
+
+  const resRef = ref(getDb(), `reservations/${reservationId}`);
+  const statusRef = ref(getDb(), `reservations/${reservationId}/status`);
+
+  let existing;
+  try {
+    const snap = await get(resRef);
+    if (!snap.exists()) {
+      throw new Error("Reservation not found.");
+    }
+    existing = snap.val();
+  } catch (error) {
+    if (error?.message === "Reservation not found.") throw error;
+    console.error("[checkInReservation] read failed", { reservationId, error });
+    throw new Error(TEMPORARY_RESERVATION_UPDATE_MESSAGE);
+  }
+
+  const gate = assertCanCheckIn(existing);
+  if (!gate.ok) {
+    throw new Error(gate.message);
+  }
+
+  // Prime the status child so the transaction is unlikely to start from a null guess.
+  try {
+    await get(statusRef);
+  } catch (error) {
+    console.error("[checkInReservation] status prime failed", { reservationId, error });
+    throw new Error(TEMPORARY_RESERVATION_UPDATE_MESSAGE);
+  }
+
+  const abortMessage = { current: null };
+  let statusResult;
+  try {
+    statusResult = await runTransaction(statusRef, (currentStatus) => {
+      if (currentStatus == null) {
+        // After priming, null means the status child is gone (or reservation deleted).
+        abortMessage.current = "Reservation not found.";
+        return;
+      }
+      const transition = applyCheckInStatusTransition(currentStatus);
+      if (!transition.ok) {
+        abortMessage.current = transition.message;
+        return;
+      }
+      return transition.nextStatus;
+    });
+  } catch (error) {
+    console.error("[checkInReservation] status CAS failed", { reservationId, error });
+    throw new Error(TEMPORARY_RESERVATION_UPDATE_MESSAGE);
+  }
+
+  if (!statusResult.committed) {
+    const message = abortMessage.current || TEMPORARY_RESERVATION_UPDATE_MESSAGE;
+    console.error("[checkInReservation] status CAS aborted", { reservationId, message });
+    throw new Error(message);
+  }
+
   const now = Date.now();
-  const reservation = await commitReservationIf(
-    reservationId,
-    (current) => {
-      const gate = assertCanCheckIn(current);
-      if (!gate.ok) return;
-      return {
-        ...current,
-        checkedIn: true,
-        checkedInAt: now,
-        checkedInBy: secretaryUid,
-        status: "checked_in",
-        penaltyTimerExpiresAt: null,
-        penaltyTimerStartedAt: null,
-        becameCurrentTurnAt: null,
-        penaltyTimerClearedAt: now,
-      };
-    },
-    "This reservation cannot be checked in (it may already be checked in)."
-  );
+  try {
+    await update(resRef, {
+      checkedIn: true,
+      checkedInAt: now,
+      checkedInBy: secretaryUid,
+      penaltyTimerExpiresAt: null,
+      penaltyTimerStartedAt: null,
+      becameCurrentTurnAt: null,
+      penaltyTimerClearedAt: now,
+    });
+  } catch (error) {
+    // Status already flipped; surface a retryable error without inventing "already checked in".
+    console.error("[checkInReservation] field patch failed after status CAS", {
+      reservationId,
+      error,
+    });
+    throw new Error(TEMPORARY_RESERVATION_UPDATE_MESSAGE);
+  }
+
+  const reservation = { id: reservationId, ...existing, status: "checked_in", checkedIn: true };
   await recalculateQueueBestEffort(reservation.scheduleId);
+  return reservation;
 };
 
 export const startConsultation = async (reservationId) => {
@@ -639,9 +726,12 @@ export const startConsultation = async (reservationId) => {
   const now = Date.now();
   const reservation = await commitReservationIf(
     reservationId,
-    (current) => {
+    (current, abortMessage) => {
       const gate = assertCanStartConsultation(current);
-      if (!gate.ok) return;
+      if (!gate.ok) {
+        if (abortMessage) abortMessage.current = gate.message;
+        return;
+      }
       return {
         ...current,
         status: "in_consultation",
@@ -658,9 +748,12 @@ export const sendToDoctor = async (reservationId) => {
   const now = Date.now();
   const reservation = await commitReservationIf(
     reservationId,
-    (current) => {
+    (current, abortMessage) => {
       const gate = assertCanSendToDoctor(current);
-      if (!gate.ok) return;
+      if (!gate.ok) {
+        if (abortMessage) abortMessage.current = gate.message;
+        return;
+      }
       return {
         ...current,
         status: "with_doctor",
@@ -678,9 +771,12 @@ export const completeConsultation = async (reservationId, doctorNotes) => {
   const now = Date.now();
   const reservation = await commitReservationIf(
     reservationId,
-    (current) => {
+    (current, abortMessage) => {
       const gate = assertCanCompleteConsultation(current);
-      if (!gate.ok) return;
+      if (!gate.ok) {
+        if (abortMessage) abortMessage.current = gate.message;
+        return;
+      }
       return {
         ...current,
         status: "consultation_completed",
@@ -774,8 +870,13 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
 
   const after = await commitReservationIf(
     reservationId,
-    (current) => {
-      if (!current || !PENALIZE_ALLOWED_STATUSES.has(current.status)) return;
+    (current, abortMessage) => {
+      if (!current || !PENALIZE_ALLOWED_STATUSES.has(current.status)) {
+        if (abortMessage) {
+          abortMessage.current = "This patient can no longer be penalized (status may have changed).";
+        }
+        return;
+      }
       const nextCount = (current.penaltyCount || 0) + 1;
       if (forfeitOnZeroMoveBack) {
         return applyForfeitFields(current, {

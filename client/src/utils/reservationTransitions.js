@@ -89,20 +89,61 @@ export function assertCanCancelReservation(reservation, actor = {}) {
   return { ok: true };
 }
 
+/**
+ * Human-readable reason a status cannot move to checked_in.
+ * Used by assertCanCheckIn and by the status-path CAS in checkInReservation.
+ */
+export function checkInBlockedMessage(status, { checkedIn = false } = {}) {
+  if (status == null && !checkedIn) {
+    return "Reservation not found.";
+  }
+  if (status === "checked_in" || checkedIn) {
+    return "This reservation is already checked in.";
+  }
+  if (status === "with_doctor" || status === "in_consultation") {
+    return "This patient is already with the doctor.";
+  }
+  if (status === "cancelled" || status === "cancelled_by_clinic") {
+    return "This reservation was cancelled.";
+  }
+  if (status === "forfeited" || status === "penalized" || status === "late_limit_reached") {
+    return "This reservation was forfeited.";
+  }
+  if (status === "expired" || status === "validation_expired") {
+    return "This reservation has expired.";
+  }
+  if (status === "completed" || status === "consultation_completed") {
+    return "This reservation is already completed.";
+  }
+  if (!CHECK_IN_ALLOWED_STATUSES.includes(status)) {
+    return "This reservation cannot be checked in.";
+  }
+  return null;
+}
+
+/**
+ * Pure status CAS for check-in. Safe to unit-test without Firebase.
+ * @param {string|null|undefined} currentStatus
+ * @returns {{ ok: true, nextStatus: "checked_in" } | { ok: false, message: string }}
+ */
+export function applyCheckInStatusTransition(currentStatus) {
+  if (currentStatus === "checked_in") {
+    return { ok: false, message: "This reservation is already checked in." };
+  }
+  if (CHECK_IN_ALLOWED_STATUSES.includes(currentStatus)) {
+    return { ok: true, nextStatus: "checked_in" };
+  }
+  const message = checkInBlockedMessage(currentStatus) || "This reservation cannot be checked in.";
+  return { ok: false, message };
+}
+
 export function assertCanCheckIn(reservation) {
   if (!reservation) return { ok: false, message: "Reservation not found." };
-  if (isTerminalReservationStatus(reservation.status)) {
-    return { ok: false, message: "This reservation cannot be checked in." };
-  }
   if (reservation.status === "checked_in" || reservation.checkedIn) {
     return { ok: false, message: "This reservation is already checked in." };
   }
-  if (["with_doctor", "in_consultation"].includes(reservation.status)) {
-    return { ok: false, message: "This patient is already with the doctor." };
-  }
-  if (!CHECK_IN_ALLOWED_STATUSES.includes(reservation.status)) {
-    return { ok: false, message: "This reservation cannot be checked in." };
-  }
+  const blocked = checkInBlockedMessage(reservation.status, { checkedIn: Boolean(reservation.checkedIn) });
+  if (blocked) return { ok: false, message: blocked };
   return { ok: true };
 }
 

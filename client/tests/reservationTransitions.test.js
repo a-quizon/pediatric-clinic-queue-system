@@ -6,6 +6,8 @@ import {
   assertCanCompleteConsultation,
   assertCanSendToDoctor,
   assertCanUpdatePatientInfo,
+  applyCheckInStatusTransition,
+  checkInBlockedMessage,
 } from "../src/utils/reservationTransitions.js";
 
 describe("C4 reservation transitions", () => {
@@ -71,11 +73,34 @@ describe("C4 reservation transitions", () => {
   it("blocks check-in of forfeited reservations", () => {
     const result = assertCanCheckIn({ status: "forfeited" });
     assert.equal(result.ok, false);
+    assert.match(result.message, /forfeited/i);
   });
 
   it("blocks check-in of cancelled_by_clinic", () => {
     const result = assertCanCheckIn({ status: "cancelled_by_clinic" });
     assert.equal(result.ok, false);
+    assert.match(result.message, /cancelled/i);
+  });
+
+  it("surfaces distinct check-in failure messages", () => {
+    assert.match(assertCanCheckIn({ status: "checked_in" }).message, /already checked in/i);
+    assert.match(assertCanCheckIn({ status: "reserved", checkedIn: true }).message, /already checked in/i);
+    assert.match(assertCanCheckIn({ status: "with_doctor" }).message, /with the doctor/i);
+    assert.match(assertCanCheckIn({ status: "expired" }).message, /expired/i);
+    assert.match(assertCanCheckIn({ status: "consultation_completed" }).message, /completed/i);
+    assert.equal(assertCanCheckIn({ status: "reserved" }).ok, true);
+    assert.equal(assertCanCheckIn({ status: "waiting" }).ok, true);
+  });
+
+  it("applyCheckInStatusTransition allows waiting statuses and rejects others", () => {
+    assert.deepEqual(applyCheckInStatusTransition("reserved"), {
+      ok: true,
+      nextStatus: "checked_in",
+    });
+    assert.equal(applyCheckInStatusTransition("checked_in").ok, false);
+    assert.match(applyCheckInStatusTransition("checked_in").message, /already checked in/i);
+    assert.match(applyCheckInStatusTransition("forfeited").message, /forfeited/i);
+    assert.equal(checkInBlockedMessage("reserved"), null);
   });
 
   it("requires checked_in before send-to-doctor", () => {
