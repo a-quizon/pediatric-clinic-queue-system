@@ -552,6 +552,51 @@ export const validateReservationByCode = async (code) => {
   return scheduleReservations.find(res => res.id === rawReservation.id) || null;
 };
 
+/**
+ * Server-side code lookup (rate-limited for manual entry). Prefer this for secretary check-in.
+ * @param {string} code
+ * @param {{ source?: "manual"|"qr" }} [options]
+ * @returns {Promise<object|null>} reservation or null when not found
+ */
+export const validateReservationByCodeOnServer = async (code, options = {}) => {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error("You must be signed in.");
+  }
+  const token = await user.getIdToken();
+  let response;
+  try {
+    response = await fetch(`${getPushApiBase()}/api/reservations/validate-code`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        code,
+        source: options.source === "qr" ? "qr" : "manual",
+      }),
+    });
+  } catch (error) {
+    const wrapped = new Error("Unable to reach the clinic server. Please try again.");
+    wrapped.cause = error;
+    throw wrapped;
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const wrapped = new Error(body.message || "Could not validate the reservation code.");
+    wrapped.code = body.error || "internal";
+    wrapped.lockedUntil = body.lockedUntil ?? null;
+    wrapped.retryAfterSeconds = body.retryAfterSeconds ?? null;
+    wrapped.cause = body;
+    throw wrapped;
+  }
+  const reservation = body.reservation || null;
+  if (!reservation?.id || !reservation.scheduleId) return null;
+  const scheduleReservations = await getReservationsBySchedule(reservation.scheduleId);
+  return scheduleReservations.find((res) => res.id === reservation.id) || reservation;
+};
+
 export const checkInReservation = async (reservationId, secretaryUid) => {
   const reservation = await requireReservation(reservationId);
   const gate = assertCanCheckIn(reservation);

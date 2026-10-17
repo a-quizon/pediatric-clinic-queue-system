@@ -46,6 +46,7 @@ import AdminUserManagement from "../pages/admin/UserManagement";
 import AdminBranchManagement from "../pages/admin/BranchManagement";
 import AdminAuditLogs from "../pages/admin/AuditLogs";
 import AdminReports from "../pages/admin/Reports";
+import AdminSystemHealth from "../pages/admin/SystemHealth";
 import OnboardingRoute from "./OnboardingRoute";
 import RoleRoute from "./RoleRoute";
 import MustChangePasswordRoute from "./MustChangePasswordRoute";
@@ -129,6 +130,7 @@ export default function AppRoutes() {
           <Route path="audit-logs" element={<AdminAuditLogs />} />
           <Route path="activity" element={<RedirectAdminActivity />} />
           <Route path="reports" element={<AdminReports />} />
+          <Route path="system-health" element={<AdminSystemHealth />} />
           <Route path="profile" element={<Navigate to="/admin" replace />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Route>

@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { CalendarDays, MapPin, Users, User, Activity, Clock } from "lucide-react";
 import { ref, query, orderByChild, limitToLast } from "firebase/database";
 import { getDb } from "../../firebase/database";
 import { subscribeOnValue } from "../../firebase/rtdbSubscribe";
 import { PqSpinner } from "../../components/parent/pqUi";
+import EmptyState from "../../components/common/EmptyState";
 import { manilaDateString } from "../../utils/manilaDate";
 import { countActiveClinicStaff } from "../../utils/staffCounts";
 
@@ -112,6 +113,7 @@ const formatOperation = (schedule, branchName) => {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
@@ -287,18 +289,14 @@ export default function Dashboard() {
         <section className="pq-glass p-6 lg:p-8">
           <h2 className="text-lg font-extrabold tracking-tight mb-5">Current Clinic Operation</h2>
           {branchOperations.length === 0 ? (
-            <div className="text-center py-8">
-              <div
-                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ background: "color-mix(in srgb, #ffffff 55%, transparent)", color: "var(--pq-ink-faint)" }}
-              >
-                <Activity className="w-8 h-8" aria-hidden="true" />
-              </div>
-              <h3 className="text-xl font-extrabold tracking-tight mb-2">No branches yet</h3>
-              <p className="pq-muted max-w-md mx-auto">
-                Add a branch to see clinic sessions here.
-              </p>
-            </div>
+            <EmptyState
+              title="No branches yet"
+              description="Clinic operation status appears once at least one branch exists."
+              nextStep="Open Branches and add a clinic branch."
+              actionLabel="Go to Branches"
+              onAction={() => navigate("/admin/branches")}
+              className="py-8"
+            />
           ) : (
             <div className="space-y-2">
               {branchOperations.map((operation) => (
@@ -346,11 +344,14 @@ export default function Dashboard() {
           </div>
 
           {previewBranches.length === 0 ? (
-            <div className="pq-row flex-col items-center text-center min-h-0 py-8 flex-1 justify-center">
-              <MapPin className="w-8 h-8 pq-faint mb-3" aria-hidden="true" />
-              <p className="font-extrabold tracking-tight">No branches yet</p>
-              <p className="text-sm pq-muted mt-1">Add a branch to start clinic operations.</p>
-            </div>
+            <EmptyState
+              title="No branches yet"
+              description="Branches you add will show here."
+              nextStep="Open Branches and add your first clinic location."
+              actionLabel="Manage branches"
+              onAction={() => navigate("/admin/branches")}
+              className="py-8 flex-1"
+            />
           ) : (
             <div className="space-y-2 flex-1">
               {previewBranches.map((branch) => (
@@ -388,13 +389,14 @@ export default function Dashboard() {
         ) : activityLoading ? (
           <PqSpinner label="Loading recent audit logs" />
         ) : recentLogs.length === 0 ? (
-          <div className="pq-row flex-col items-center text-center min-h-0 py-10">
-            <Activity className="w-8 h-8 pq-faint mb-3" aria-hidden="true" />
-            <p className="font-extrabold tracking-tight">No audit logs yet</p>
-            <p className="text-sm pq-muted mt-1 max-w-sm">
-              Staff and admin actions will appear here as they happen.
-            </p>
-          </div>
+          <EmptyState
+            title="No audit logs yet"
+            description="Staff and admin actions appear here as they happen."
+            nextStep="Create a staff account or change a branch to generate the first entry, then open Audit Logs for the full list."
+            actionLabel="Open Audit Logs"
+            onAction={() => navigate("/admin/audit-logs")}
+            className="py-10"
+          />
         ) : (
           <ul className="space-y-2">
             {recentLogs.map((log) => (

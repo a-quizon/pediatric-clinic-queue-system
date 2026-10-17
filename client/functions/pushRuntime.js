@@ -226,6 +226,18 @@ async function sendPushToParent(parentId, notification, notificationId) {
           gone[key] = null;
         } else {
           console.error(`[functions/push] send failed parentId=${parentId}:`, err.message);
+          try {
+            const { recordNotificationFailure } = require("./systemHealthRuntime");
+            await recordNotificationFailure({
+              channel: "push",
+              targetRole: "parent",
+              targetId: parentId,
+              error: err.message,
+              notificationType: payload.type,
+            });
+          } catch (_) {
+            /* health write is best-effort */
+          }
         }
       }
     })
@@ -305,6 +317,18 @@ async function sendPushToAdmin(adminId, notification, notificationId) {
           gone[key] = null;
         } else {
           console.error(`[functions/push] send failed adminId=${adminId}:`, err.message);
+          try {
+            const { recordNotificationFailure } = require("./systemHealthRuntime");
+            await recordNotificationFailure({
+              channel: "push",
+              targetRole: "admin",
+              targetId: adminId,
+              error: err.message,
+              notificationType: payload.type,
+            });
+          } catch (_) {
+            /* health write is best-effort */
+          }
         }
       }
     })

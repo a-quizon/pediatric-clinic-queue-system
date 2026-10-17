@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { Home, Users, MapPin, Plus, ScrollText, LogOut, BarChart3 } from "lucide-react";
+import { Home, Users, MapPin, Plus, ScrollText, LogOut, BarChart3, HeartPulse } from "lucide-react";
 import { PqBrand } from "../parent/pqUi";
 import AddStaffModal from "./AddStaffModal";
 import ConfirmationModal from "../common/ConfirmationModal";
@@ -37,6 +37,9 @@ export default function AdminLayout() {
     if (path.startsWith("/admin/reports")) {
       return { title: "Reports" };
     }
+    if (path.startsWith("/admin/system-health")) {
+      return { title: "System Health" };
+    }
     return { title: "Dashboard" };
   };
 
@@ -48,6 +51,7 @@ export default function AdminLayout() {
     { name: "Branches", path: "/admin/branches", icon: MapPin },
     { name: "Audit Logs", path: "/admin/audit-logs", icon: ScrollText },
     { name: "Reports", path: "/admin/reports", icon: BarChart3 },
+    { name: "System Health", path: "/admin/system-health", icon: HeartPulse },
   ];
 
   const isActive = (path) => {

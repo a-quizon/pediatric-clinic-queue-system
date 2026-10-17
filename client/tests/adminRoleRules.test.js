@@ -120,6 +120,17 @@ test("reservations: admin may read (documented deviation) but never write", () =
   assert.equal(rules.parentBookingCaps.$uid[".write"], false);
 });
 
+test("systemHealth is active-admin read only; rateLimits are server-only", () => {
+  const demoRules = JSON.parse(fs.readFileSync(path.join(clientRoot, "database.demo.rules.json"), "utf8")).rules;
+  for (const [label, set] of [["main", rules], ["demo", demoRules]]) {
+    assert.ok(set.systemHealth[".read"].includes(IS_ADMIN), label);
+    assert.ok(set.systemHealth[".read"].includes(IS_ACTIVE), label);
+    assert.equal(set.systemHealth[".write"], false, label);
+    assert.equal(set.rateLimits[".read"], false, label);
+    assert.equal(set.rateLimits[".write"], false, label);
+  }
+});
+
 function escape(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

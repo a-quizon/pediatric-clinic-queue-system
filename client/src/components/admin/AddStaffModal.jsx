@@ -113,7 +113,7 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isChecking) return;
+    if (isChecking || loading) return;
 
     const errorMsg = validateForm();
     if (errorMsg) {

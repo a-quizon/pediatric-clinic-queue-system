@@ -1,7 +1,8 @@
-import { Activity as ActivityIcon, MapPin, AlertCircle, Users, Inbox } from "lucide-react";
+import { Activity as ActivityIcon, MapPin, AlertCircle, Users } from "lucide-react";
 import { useAdminReportsData } from "../../hooks/useAdminReportsData";
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { PqSpinner } from "../parent/pqUi";
+import EmptyState from "../common/EmptyState";
 
 const CHART_INK = "#16344a";
 const CHART_MUTED = "#5a7a88";
@@ -10,7 +11,7 @@ const CHART_GRID = "rgba(22, 52, 74, 0.1)";
 const OUTCOME_COLORS = {
   "Checked Up": "#0f7a5a",
   Cancelled: "#b4232c",
-  Forfeited: "#9a5b12",
+  "Forfeited / expired": "#9a5b12",
 };
 
 const tooltipStyle = {
@@ -47,17 +48,12 @@ export default function ClinicOverviewReports({ range }) {
   return (
     <div className="space-y-4 md:flex-1 md:flex md:flex-col md:min-h-0">
       {!hasData ? (
-        <div className="pq-glass p-12 text-center md:flex-1 flex flex-col items-center justify-center min-h-[300px]">
-          <div
-            className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4"
-            style={{ background: "color-mix(in srgb, #ffffff 55%, transparent)", color: "var(--pq-ink-faint)" }}
-          >
-            <Inbox className="w-8 h-8" aria-hidden="true" />
-          </div>
-          <h3 className="text-lg font-extrabold tracking-tight mb-1">No activity found</h3>
-          <p className="pq-muted text-sm max-w-sm mx-auto">
-            There is no system activity for the selected date range. Try expanding your search.
-          </p>
+        <div className="pq-glass md:flex-1 flex flex-col items-center justify-center min-h-[300px]">
+          <EmptyState
+            title="No activity in this date range"
+            description="There are no new parents, completed sessions, or reservations for the filters you chose."
+            nextStep="Widen the date range (for example All Time) or clear the branch filter, then try again."
+          />
         </div>
       ) : (
         <div className="pq-glass p-5 sm:p-6 space-y-6 md:flex-1">
@@ -171,7 +167,10 @@ export default function ClinicOverviewReports({ range }) {
             </div>
 
             <div>
-              <h3 className="text-lg font-extrabold tracking-tight mb-4">Global Outcomes</h3>
+              <h3 className="text-lg font-extrabold tracking-tight mb-1">Reservation outcomes</h3>
+              <p className="text-xs pq-muted mb-4">
+                Counts from reservations on completed sessions in this range. &quot;Forfeited / expired&quot; includes forfeited, expired, and validation_expired statuses (not the same set as Session History forfeited).
+              </p>
               <div className="h-72 w-full">
                 {outcomeData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">

@@ -90,18 +90,54 @@ async function sendSms(to, message) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       console.error("[sms] textbee send failed:", response.status, data);
-      return {
+      const result = {
         success: false,
         reason: "provider_error",
         status: response.status,
         data,
       };
+      try {
+        const { getDb } = require("./firebaseAdmin");
+        const { recordSmsGatewayResult, recordNotificationFailure } = require("../../client/functions/systemHealthRuntime");
+        const db = getDb();
+        await recordSmsGatewayResult(result, { db });
+        await recordNotificationFailure({
+          channel: "sms",
+          error: `provider_error:${response.status}`,
+          notificationType: "SMS",
+        }, { db });
+      } catch (_) {
+        /* health write is best-effort */
+      }
+      return result;
     }
 
-    return { success: true, data };
+    const ok = { success: true, data, status: response.status };
+    try {
+      const { getDb } = require("./firebaseAdmin");
+      const { recordSmsGatewayResult } = require("../../client/functions/systemHealthRuntime");
+      await recordSmsGatewayResult(ok, { db: getDb() });
+    } catch (_) {
+      /* health write is best-effort */
+    }
+    return ok;
   } catch (err) {
     console.error("[sms] textbee request error:", err.message);
-    return { success: false, reason: "network_error", error: err.message };
+    const result = { success: false, reason: "network_error", error: err.message };
+    try {
+      const { getDb } = require("./firebaseAdmin");
+      const { recordSmsGatewayResult, recordNotificationFailure } = require("../../client/functions/systemHealthRuntime");
+      const db = getDb();
+      await recordSmsGatewayResult(result, { db });
+      await recordNotificationFailure({
+        channel: "sms",
+        error: err.message,
+        notificationType: "SMS",
+      }, { db });
+    } catch (_) {
+      /* health write is best-effort */
+    }
+    return result;
   }
 }
 

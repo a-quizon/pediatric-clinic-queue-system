@@ -140,8 +140,7 @@ export const useAdminReportsData = ({ range = {} } = {}) => {
       else if (r.status === "cancelled") {
         cancelled++;
       } 
-      // Forfeited statuses (expired, validation_expired, or forfeited by exceeding penalty limit)
-      // Note: 'penalized' is NOT a status, it's just a metadata state
+      // Overview pie: forfeited + expired ticket statuses (session history uses a different set).
       else if (["forfeited", "expired", "validation_expired"].includes(r.status)) {
         forfeited++;
       }
@@ -150,7 +149,7 @@ export const useAdminReportsData = ({ range = {} } = {}) => {
     const outcomeData = [
       { name: 'Checked Up', value: checkedUp, color: '#16a34a' },
       { name: 'Cancelled', value: cancelled, color: '#dc2626' },
-      { name: 'Forfeited', value: forfeited, color: '#ea580c' },
+      { name: 'Forfeited / expired', value: forfeited, color: '#ea580c' },
     ].filter(item => item.value > 0);
 
     const hasData = totalParents > 0 || totalSessions > 0 || totalReservations > 0;

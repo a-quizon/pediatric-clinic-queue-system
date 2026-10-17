@@ -55,7 +55,19 @@ async function sendSms(to, message) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       console.error("[functions/sms] textbee send failed:", response.status, data);
-      return { success: false, reason: "provider_error", status: response.status, data };
+      const result = { success: false, reason: "provider_error", status: response.status, data };
+      try {
+        const { recordSmsGatewayResult, recordNotificationFailure } = require("./systemHealthRuntime");
+        await recordSmsGatewayResult(result);
+        await recordNotificationFailure({
+          channel: "sms",
+          error: `provider_error:${response.status}`,
+          notificationType: "SMS",
+        });
+      } catch (_) {
+        /* health write is best-effort */
+      }
+      return result;
     }
     console.log(
       "[functions/sms] textbee accepted:",
@@ -63,10 +75,29 @@ async function sendSms(to, message) {
       data?.data?.success === true || data?.success === true,
       data?.data?.message || data?.message || "ok"
     );
-    return { success: true, data };
+    const ok = { success: true, data, status: response.status };
+    try {
+      const { recordSmsGatewayResult } = require("./systemHealthRuntime");
+      await recordSmsGatewayResult(ok);
+    } catch (_) {
+      /* health write is best-effort */
+    }
+    return ok;
   } catch (err) {
     console.error("[functions/sms] textbee request error:", err.message);
-    return { success: false, reason: "network_error", error: err.message };
+    const result = { success: false, reason: "network_error", error: err.message };
+    try {
+      const { recordSmsGatewayResult, recordNotificationFailure } = require("./systemHealthRuntime");
+      await recordSmsGatewayResult(result);
+      await recordNotificationFailure({
+        channel: "sms",
+        error: err.message,
+        notificationType: "SMS",
+      });
+    } catch (_) {
+      /* health write is best-effort */
+    }
+    return result;
   }
 }
 

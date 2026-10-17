@@ -9,6 +9,7 @@ import ConfirmationModal from "../../components/common/ConfirmationModal";
 import { deleteUserAccount } from "../../services/adminService";
 import { useAuth } from "../../hooks/useAuth";
 import { PqSpinner } from "../../components/parent/pqUi";
+import EmptyState from "../../components/common/EmptyState";
 import toast from "react-hot-toast";
 import Pagination from "../../components/common/Pagination";
 import { getUserRowActions } from "../../utils/adminUserManagementPolicy";
@@ -154,7 +155,7 @@ export default function UserManagement() {
     : `This will permanently remove ${userToDelete?.name || "this user"} (${userToDelete?.email || "no email"}) and revoke their login. Historical reservations will be kept. This cannot be undone.`;
 
   const confirmDeleteUser = async () => {
-    if (!userToDelete?.id) return;
+    if (!userToDelete?.id || isDeleting) return;
     setIsDeleting(true);
     try {
       await deleteUserAccount(userToDelete.id);
@@ -394,17 +395,30 @@ export default function UserManagement() {
             />
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center p-12 text-center md:flex-1">
-            <User className="w-12 h-12 pq-faint mb-3" aria-hidden="true" />
-            <p className="font-extrabold tracking-tight">No users found matching your filters.</p>
-            <button
-              type="button"
-              onClick={() => { setSearchQuery(""); setRoleFilter("all"); setStatusFilter("all"); }}
-              className="pq-btn-ghost mt-4"
-            >
-              Clear Filters
-            </button>
-          </div>
+          <EmptyState
+            className="p-12 md:flex-1"
+            title={users.length === 0 ? "No users yet" : "No users match these filters"}
+            description={
+              users.length === 0
+                ? "Staff and parent accounts will appear in this list."
+                : "Nothing matches your search, role, or status filters."
+            }
+            nextStep={
+              users.length === 0
+                ? "Use Add Staff to create a secretary or doctor account."
+                : "Clear filters to see all listed accounts."
+            }
+            actionLabel={users.length === 0 ? undefined : "Clear filters"}
+            onAction={
+              users.length === 0
+                ? undefined
+                : () => {
+                    setSearchQuery("");
+                    setRoleFilter("all");
+                    setStatusFilter("all");
+                  }
+            }
+          />
         )}
       </div>
 

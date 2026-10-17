@@ -3,7 +3,7 @@ import { QrCode, CheckCircle, X, CameraOff, AlertCircle, AlertTriangle, StopCirc
 import toast from "react-hot-toast";
 import { Html5Qrcode } from "html5-qrcode";
 import { useAuth } from "../../hooks/useAuth";
-import { validateReservationByCode, checkInReservation } from "../../services/reservationService";
+import { validateReservationByCodeOnServer, checkInReservation } from "../../services/reservationService";
 import { getScheduleById } from "../../services/scheduleService";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
@@ -180,10 +180,15 @@ export default function ValidateReservation() {
         return;
       }
 
-      const reservation = await validateReservationByCode(payload.reservationCode);
+      const reservation = await validateReservationByCodeOnServer(payload.reservationCode, {
+        source: "qr",
+      });
       await processRef.current?.(reservation);
     } catch (error) {
       console.error(error);
+      if (error?.code === "resource-exhausted") {
+        toast.error(error.message || "Too many incorrect codes. Please wait and try again.");
+      }
       setShowInvalidModal(true);
     } finally {
       setIsLoading(false);
@@ -275,11 +280,15 @@ export default function ValidateReservation() {
 
     setIsLoading(true);
     try {
-      const reservation = await validateReservationByCode(trimmed);
+      const reservation = await validateReservationByCodeOnServer(trimmed, { source: "manual" });
       await processRef.current?.(reservation);
     } catch (error) {
       console.error("Validation error:", error);
-      toast.error("An error occurred during validation.");
+      if (error?.code === "resource-exhausted") {
+        toast.error(error.message || "Too many incorrect codes. Please wait and try again.");
+      } else {
+        toast.error(error?.message || "An error occurred during validation.");
+      }
     } finally {
       setIsLoading(false);
       setReservationCode("");

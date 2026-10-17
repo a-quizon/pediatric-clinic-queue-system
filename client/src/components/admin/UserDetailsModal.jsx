@@ -162,6 +162,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
       confirmText: isDeactivating ? "Deactivate" : "Activate",
       isDestructive: isDeactivating,
       action: async () => {
+        if (isTogglingStatus) return;
         setIsTogglingStatus(true);
         try {
           await toggleUserStatus(user.id, user.status);

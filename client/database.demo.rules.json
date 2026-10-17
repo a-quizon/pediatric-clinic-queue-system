@@ -67,6 +67,14 @@
       ".read": false,
       ".write": false
     },
+    "rateLimits": {
+      ".read": false,
+      ".write": false
+    },
+    "systemHealth": {
+      ".read": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('status').val() === 'active')",
+      ".write": false
+    },
     "branchConfigurations": {
       ".read": "auth.token.isDemo == true && (auth != null)",
       ".write": "auth.token.isDemo == true && (auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('status').val() === 'active')"

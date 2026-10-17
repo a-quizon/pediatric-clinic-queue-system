@@ -27,8 +27,14 @@ import ConfirmationModal from "../../components/common/ConfirmationModal";
 import ModalScrim from "../../components/common/ModalScrim";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import toast from "react-hot-toast";
-import { AUDIT_ROLE_FILTER_OPTIONS, matchesAuditRoleFilter } from "../../utils/auditLogFilters";
+import {
+  AUDIT_ACTION_FILTER_OPTIONS,
+  AUDIT_ROLE_FILTER_OPTIONS,
+  matchesAuditActionFilter,
+  matchesAuditRoleFilter,
+} from "../../utils/auditLogFilters";
 import Pagination from "../../components/common/Pagination";
+import EmptyState from "../../components/common/EmptyState";
 
 const roleChip = (role) => {
   if (role === "doctor") return "pq-chip pq-chip-info";
@@ -269,6 +275,7 @@ export default function AuditLogs() {
 
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [actionFilter, setActionFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -358,8 +365,9 @@ export default function AuditLogs() {
                           (log.metadata?.parentName && String(log.metadata.parentName).toLowerCase().includes(term));
     const matchesCategory = categoryFilter === "all" || log.category === categoryFilter;
     const matchesRole = matchesAuditRoleFilter(log, roleFilter);
+    const matchesAction = matchesAuditActionFilter(log, actionFilter);
 
-    return matchesSearch && matchesCategory && matchesRole;
+    return matchesSearch && matchesCategory && matchesRole && matchesAction;
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ITEMS_PER_PAGE));
@@ -492,6 +500,21 @@ export default function AuditLogs() {
               className="pq-input pr-10 appearance-none cursor-pointer min-w-[9rem]"
             >
               {AUDIT_ROLE_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <SelectChevron />
+          </div>
+
+          <div className="relative flex-1 md:flex-none">
+            <label htmlFor="activity-action-filter" className="sr-only">Filter by action</label>
+            <select
+              id="activity-action-filter"
+              value={actionFilter}
+              onChange={(e) => { setActionFilter(e.target.value); setCurrentPage(1); }}
+              className="pq-input pr-10 appearance-none cursor-pointer min-w-[12rem]"
+            >
+              {AUDIT_ACTION_FILTER_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
@@ -656,19 +679,40 @@ export default function AuditLogs() {
             </Pagination>
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center p-12 text-center md:flex-1">
-            <ActivityIcon className="w-12 h-12 pq-faint mb-3" aria-hidden="true" />
-            <p className="font-extrabold tracking-tight">No activity logs found.</p>
-            {(searchQuery || categoryFilter !== "all" || roleFilter !== "all") && (
-              <button
-                type="button"
-                onClick={() => { setSearchQuery(""); setCategoryFilter("all"); setRoleFilter("all"); setCurrentPage(1); }}
-                className="pq-btn-ghost mt-4"
-              >
-                Clear Filters
-              </button>
-            )}
-          </div>
+          <EmptyState
+            className="p-12 md:flex-1"
+            title={
+              searchQuery || categoryFilter !== "all" || roleFilter !== "all" || actionFilter !== "all"
+                ? "No audit entries match these filters"
+                : "No audit logs yet"
+            }
+            description={
+              searchQuery || categoryFilter !== "all" || roleFilter !== "all" || actionFilter !== "all"
+                ? "Try a different search or action filter."
+                : "Admin, doctor, and system actions are recorded here as they happen."
+            }
+            nextStep={
+              searchQuery || categoryFilter !== "all" || roleFilter !== "all" || actionFilter !== "all"
+                ? "Clear filters to see all entries."
+                : "Perform an admin action (for example edit a branch) or wait for staff activity."
+            }
+            actionLabel={
+              searchQuery || categoryFilter !== "all" || roleFilter !== "all" || actionFilter !== "all"
+                ? "Clear filters"
+                : undefined
+            }
+            onAction={
+              searchQuery || categoryFilter !== "all" || roleFilter !== "all" || actionFilter !== "all"
+                ? () => {
+                    setSearchQuery("");
+                    setCategoryFilter("all");
+                    setRoleFilter("all");
+                    setActionFilter("all");
+                    setCurrentPage(1);
+                  }
+                : undefined
+            }
+          />
         )}
       </div>
 

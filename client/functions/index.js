@@ -141,13 +141,22 @@ exports.expirePenaltyTimers = functions
   .timeZone("Asia/Manila")
   .onRun(async () => {
     const { expirePenaltyTimers } = require("./expirePenaltyTimers");
+    const { recordJobRun } = require("./systemHealthRuntime");
     try {
       const result = await expirePenaltyTimers();
       if (result.forfeited) {
         console.log(`expirePenaltyTimers forfeited ${result.forfeited} reservation(s)`);
       }
+      await recordJobRun("expirePenaltyTimers", {
+        success: true,
+        meta: { forfeited: result.forfeited || 0 },
+      });
     } catch (err) {
       console.error("expirePenaltyTimers failed:", err);
+      await recordJobRun("expirePenaltyTimers", {
+        success: false,
+        error: err.message,
+      });
     }
     return null;
   });
@@ -161,13 +170,22 @@ exports.evaluateSuspiciousAccounts = functions
   .timeZone("Asia/Manila")
   .onRun(async () => {
     const { evaluateAllSuspiciousParents } = require("./suspiciousAccountRuntime");
+    const { recordJobRun } = require("./systemHealthRuntime");
     try {
       const result = await evaluateAllSuspiciousParents();
       console.log(
         `evaluateSuspiciousAccounts evaluated=${result.evaluated} flagged=${result.flagged}`
       );
+      await recordJobRun("evaluateSuspiciousAccounts", {
+        success: true,
+        meta: { evaluated: result.evaluated || 0, flagged: result.flagged || 0 },
+      });
     } catch (err) {
       console.error("evaluateSuspiciousAccounts failed:", err);
+      await recordJobRun("evaluateSuspiciousAccounts", {
+        success: false,
+        error: err.message,
+      });
     }
     return null;
   });

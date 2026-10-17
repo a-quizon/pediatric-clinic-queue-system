@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Pagination from "../common/Pagination";
+import EmptyState from "../common/EmptyState";
 import { sortSessionsNewestFirst } from "../../utils/reportSessions";
 import { formatManilaLong } from "../../utils/manilaDate";
 import { sessionRowProps } from "../../utils/sessionRowInteraction";
@@ -37,9 +38,12 @@ export default function SessionHistoryTable({ sessions, onOpenSession, emptyMess
         <h3 className="text-lg font-extrabold tracking-tight">Session History</h3>
       </div>
       {pageRows.length === 0 ? (
-        <div className="p-8 text-center pq-muted text-sm">
-          {emptyMessage || "No completed clinic sessions match the selected filters."}
-        </div>
+        <EmptyState
+          className="p-8"
+          title="No sessions in this view"
+          description={emptyMessage || "No completed clinic sessions match the selected filters."}
+          nextStep="Widen the date range or choose All branches to see more history."
+        />
       ) : (
         <>
           <div className="hidden md:block overflow-x-auto pq-scroll-x">
@@ -51,7 +55,7 @@ export default function SessionHistoryTable({ sessions, onOpenSession, emptyMess
                   <th className="text-center">Total</th>
                   <th className="text-center">Checked Up</th>
                   <th className="text-center">Cancelled</th>
-                  <th className="text-center">Forfeited</th>
+                  <th className="text-center">Forfeited / penalized</th>
                   <th className="text-center">Completion</th>
                 </tr>
               </thead>

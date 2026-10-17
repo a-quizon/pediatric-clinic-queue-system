@@ -9,6 +9,7 @@ const {
 const { claimReservationSlot } = require("../../client/functions/claimReservationRuntime");
 const { releaseReservationForCaller } = require("../../client/functions/slotRelease");
 const { publishClinicDays } = require("../../client/functions/schedulePublishRuntime");
+const { validateReservationCode } = require("../../client/functions/validateReservationCodeRuntime");
 const { runWithDatabase } = require("../../client/functions/rtdbRouter");
 const { notifyParentsScheduleAvailable } = require("../services/notificationEngine");
 
@@ -26,9 +27,44 @@ const STATUS_BY_CODE = {
   "invalid-argument": 400,
   "failed-precondition": 409,
   "not-found": 404,
+  "resource-exhausted": 429,
 };
 
 const STAFF_ROLES = new Set(["doctor", "secretary"]);
+
+router.post("/reservations/validate-code", async (req, res) => {
+  try {
+    initFirebaseAdmin();
+    const decoded = await verifyIdToken(req.headers.authorization);
+    if (!decoded?.uid) {
+      return res.status(401).json({
+        success: false,
+        error: "unauthenticated",
+        message: "You must be signed in.",
+      });
+    }
+
+    const result = await runForCaller(decoded, () =>
+      validateReservationCode({
+        admin,
+        callerUid: decoded.uid,
+        code: req.body?.code,
+        source: req.body?.source === "qr" ? "qr" : "manual",
+      })
+    );
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    const code = STATUS_BY_CODE[err.code] ? err.code : "internal";
+    console.error("[reservations/validate-code]", err.message);
+    return res.status(STATUS_BY_CODE[code] || 500).json({
+      success: false,
+      error: code,
+      message: err.message || "Could not validate the reservation code.",
+      ...(err.lockedUntil != null ? { lockedUntil: err.lockedUntil } : {}),
+      ...(err.retryAfterSeconds != null ? { retryAfterSeconds: err.retryAfterSeconds } : {}),
+    });
+  }
+});
 
 router.post("/reservations/claim", async (req, res) => {
   try {

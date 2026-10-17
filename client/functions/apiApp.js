@@ -20,6 +20,7 @@ const { claimPasswordResetSlot } = require("./passwordResetLimitService");
 const { claimReservationSlot } = require("./claimReservationRuntime");
 const { releaseReservationForCaller } = require("./slotRelease");
 const { publishClinicDays } = require("./schedulePublishRuntime");
+const { validateReservationCode } = require("./validateReservationCodeRuntime");
 const { notifyParentsScheduleAvailable } = require("./pushRuntime");
 const { defaultDatabase, getRtdb, runForToken } = require("./rtdbRouter");
 
@@ -214,6 +215,40 @@ function createApiApp() {
       return res.json(result);
     } catch (err) {
       return sendError(res, err);
+    }
+  });
+
+  app.post("/api/reservations/validate-code", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await runForToken(decoded, () =>
+        validateReservationCode({
+          admin,
+          callerUid: decoded.uid,
+          code: req.body?.code,
+          source: req.body?.source === "qr" ? "qr" : "manual",
+        })
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+        "resource-exhausted": 429,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] reservations/validate-code:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not validate the reservation code.",
+        ...(err.lockedUntil != null ? { lockedUntil: err.lockedUntil } : {}),
+        ...(err.retryAfterSeconds != null ? { retryAfterSeconds: err.retryAfterSeconds } : {}),
+      });
     }
   });
 
