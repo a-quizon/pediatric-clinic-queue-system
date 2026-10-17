@@ -253,7 +253,7 @@ export function TourSampleDoctorQueue() {
               <div className="text-sm pq-muted flex flex-col gap-1 mt-2">
                 <span className="flex items-center">
                   <User className="w-4 h-4 mr-1.5" aria-hidden="true" />
-                  Age: {sample.inConsultation.birthdate ? "4 years" : sample.inConsultation.age} • {sample.inConsultation.sex}
+                  Age: {sample.inConsultation.birthdate ? "4" : sample.inConsultation.age} • {sample.inConsultation.sex}
                 </span>
               </div>
             </div>

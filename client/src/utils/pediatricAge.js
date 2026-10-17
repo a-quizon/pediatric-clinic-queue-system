@@ -1,6 +1,7 @@
 /**
  * Pediatric age helpers. Birthdate is stored as date-only YYYY-MM-DD.
- * Age is always computed (never persisted as the source of truth).
+ * Registered children: age is computed from birthdate (never persisted as source of truth).
+ * Walk-ins: secretary enters age in whole years; that value is stored as-is.
  */
 import { MANILA_TZ, manilaDateString } from "./manilaDate.js";
 
@@ -62,6 +63,12 @@ export function calculateAge(birthdate, asOf = manilaDateString()) {
   return { years, months, days };
 }
 
+/** Completed whole years only (Asia/Manila date-only math). */
+export function calculateAgeInYears(birthdate, asOf = manilaDateString()) {
+  const age = calculateAge(birthdate, asOf);
+  return age ? age.years : null;
+}
+
 export function getBirthdateError(birthdate, asOf = manilaDateString()) {
   if (!birthdate) return "Birthdate is required.";
   if (!parseDateParts(birthdate)) return "Enter a valid birthdate.";
@@ -82,27 +89,28 @@ export function isValidBirthdate(birthdate, asOf = manilaDateString()) {
 }
 
 /**
- * Staff-facing pediatric age string.
- * < 1 month → days; < 2 years → months; else years (+ months if > 0).
+ * Walk-in / entered age validation (whole years).
+ * @returns {string} empty when valid
+ */
+export function getEnteredAgeError(raw) {
+  if (raw == null || String(raw).trim() === "") return "Age is required.";
+  const trimmed = String(raw).trim();
+  if (/^-\d+$/.test(trimmed)) return "Age cannot be negative.";
+  if (!/^\d+$/.test(trimmed)) return "Enter age as a whole number in years.";
+  const n = Number(trimmed);
+  if (!Number.isInteger(n) || n < 0) return "Age cannot be negative.";
+  if (n > MAX_PEDIATRIC_AGE_YEARS) {
+    return `Pediatric patients must be ${MAX_PEDIATRIC_AGE_YEARS} years or younger.`;
+  }
+  return "";
+}
+
+/**
+ * Staff-facing pediatric age string: completed whole years only (e.g. "5", "0").
  */
 export function formatPediatricAge(birthdate, asOf = manilaDateString()) {
-  const age = calculateAge(birthdate, asOf);
-  if (!age) return "";
-
-  const totalMonths = age.years * 12 + age.months;
-  if (totalMonths < 1) {
-    const d = Math.max(age.days, 0);
-    return d === 1 ? "1 day" : `${d} days`;
-  }
-  if (age.years < 2) {
-    return totalMonths === 1 ? "1 month" : `${totalMonths} months`;
-  }
-  if (age.months === 0) {
-    return age.years === 1 ? "1 year" : `${age.years} years`;
-  }
-  const yearPart = age.years === 1 ? "1 year" : `${age.years} years`;
-  const monthPart = age.months === 1 ? "1 month" : `${age.months} months`;
-  return `${yearPart}, ${monthPart}`;
+  const years = calculateAgeInYears(birthdate, asOf);
+  return years == null ? "" : String(years);
 }
 
 /** Parent-facing long date, e.g. "March 5, 2019". */
@@ -120,7 +128,7 @@ export function formatBirthdateLong(birthdate) {
 
 /**
  * Role-shaped child view for UI.
- * parent → birthdate display only; secretary/doctor → age display only.
+ * parent → birthdate display only; secretary/doctor → age display only (whole years).
  */
 export function presentChildForRole(child, role = "parent", asOf = manilaDateString()) {
   const base = {
@@ -144,7 +152,7 @@ export function presentChildForRole(child, role = "parent", asOf = manilaDateStr
   if (birthdate) {
     ageDisplay = formatPediatricAge(birthdate, asOf);
   } else if (legacyAge) {
-    ageDisplay = /^\d+$/.test(legacyAge) ? `${legacyAge} years` : legacyAge;
+    ageDisplay = /^\d+$/.test(legacyAge.trim()) ? String(Number(legacyAge.trim())) : legacyAge;
   }
 
   return {

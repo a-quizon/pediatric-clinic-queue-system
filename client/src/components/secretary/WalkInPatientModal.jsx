@@ -6,8 +6,7 @@ import {
   createWalkInReservation,
 } from "../../services/reservationService";
 import { slotsTaken } from "../../utils/scheduleCalendar";
-import { getBirthdateError } from "../parent/ChildProfileForm";
-import { manilaDateString } from "../../utils/manilaDate";
+import { getEnteredAgeError } from "../../utils/pediatricAge";
 import { formatBranchLabel } from "../../utils/stringUtils";
 import { formatToE164 } from "../../utils/phoneUtils";
 import MessageModal from "../common/MessageModal";
@@ -18,7 +17,7 @@ import { useRtdbConnection } from "../../hooks/useRtdbConnection";
 
 const MAX_CHILDREN = 10;
 
-const emptyChild = () => ({ childName: "", birthdate: "", sex: "" });
+const emptyChild = () => ({ childName: "", age: "", sex: "" });
 
 const initialFormState = () => ({
   childCountInput: "1",
@@ -182,8 +181,9 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
     }));
   };
 
-  const handleBirthdateChange = (index, rawVal) => {
-    updateChild(index, { birthdate: rawVal });
+  const handleAgeChange = (index, rawVal) => {
+    const sanitized = String(rawVal || "").replace(/[^0-9]/g, "");
+    updateChild(index, { age: sanitized });
   };
 
   const capacity = Number(schedule?.slotCapacity || 0);
@@ -208,9 +208,9 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
     fieldsMatchCount &&
     children.every((c) => {
       const nameOk = Boolean(c.childName?.trim());
-      const birthdate = c.birthdate?.trim() || "";
+      const ageOk = !getEnteredAgeError(c.age);
       const sexOk = Boolean(c.sex);
-      return nameOk && !getBirthdateError(birthdate) && sexOk;
+      return nameOk && ageOk && sexOk;
     });
 
   const parentPhoneValid = parentPhoneLocal === "" || parentPhoneLocal.length === 10;
@@ -247,9 +247,9 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
 
     const allValid = finalChildren.every((c) => {
       const nameOk = Boolean(c.childName?.trim());
-      const birthdate = c.birthdate?.trim() || "";
+      const ageOk = !getEnteredAgeError(c.age);
       const sexOk = Boolean(c.sex);
-      return nameOk && !getBirthdateError(birthdate) && sexOk;
+      return nameOk && ageOk && sexOk;
     });
     if (!allValid) return;
 
@@ -385,19 +385,21 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
                   </div>
                   <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(9.5rem, 1fr) minmax(0, 1fr)" }}>
                     <div className="min-w-0">
-                      <label htmlFor="walkin-child-0-birthdate" className="pq-label">Birthdate <span style={{ color: "var(--pq-alert)" }}>*</span>
+                      <label htmlFor="walkin-child-0-age" className="pq-label">Age (years) <span style={{ color: "var(--pq-alert)" }}>*</span>
                       </label>
                       <input
-                        id="walkin-child-0-birthdate"
-                        type="date"
-                        max={manilaDateString()}
-                        value={children[0]?.birthdate || ""}
-                        onChange={(e) => handleBirthdateChange(0, e.target.value)}
-                        className={`pq-input ${getBirthdateError(children[0]?.birthdate || "") ? "pq-input-error" : ""}`}
+                        id="walkin-child-0-age"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={children[0]?.age || ""}
+                        onChange={(e) => handleAgeChange(0, e.target.value)}
+                        placeholder="e.g. 2"
+                        className={`pq-input ${getEnteredAgeError(children[0]?.age ?? "") ? "pq-input-error" : ""}`}
                         disabled={Boolean(blockReason)}
                       />
-                      {getBirthdateError(children[0]?.birthdate || "") && (
-                        <p className="mt-1 pq-error-text">{getBirthdateError(children[0]?.birthdate || "")}</p>
+                      {getEnteredAgeError(children[0]?.age ?? "") && (
+                        <p className="mt-1 pq-error-text">{getEnteredAgeError(children[0]?.age ?? "")}</p>
                       )}
                     </div>
                     <div className="min-w-0">
@@ -555,7 +557,7 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
                     {fieldsMatchCount &&
                       children.slice(1).map((child, offset) => {
                         const index = offset + 1;
-                        const birthdateError = getBirthdateError(child.birthdate || "");
+                        const ageError = getEnteredAgeError(child.age ?? "");
                         return (
                           <div
                             key={index}
@@ -585,17 +587,19 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
                             </div>
                             <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(9.5rem, 1fr) minmax(0, 1fr)" }}>
                               <div className="min-w-0">
-                                <label htmlFor={`walkin-child-${index}-birthdate`} className="pq-label">Birthdate <span style={{ color: "var(--pq-alert)" }}>*</span>
+                                <label htmlFor={`walkin-child-${index}-age`} className="pq-label">Age (years) <span style={{ color: "var(--pq-alert)" }}>*</span>
                                 </label>
                                 <input
-                                  id={`walkin-child-${index}-birthdate`}
-                                  type="date"
-                                  max={manilaDateString()}
-                                  value={child.birthdate}
-                                  onChange={(e) => handleBirthdateChange(index, e.target.value)}
-                                  className={`pq-input ${birthdateError ? "pq-input-error" : ""}`}
+                                  id={`walkin-child-${index}-age`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  autoComplete="off"
+                                  value={child.age}
+                                  onChange={(e) => handleAgeChange(index, e.target.value)}
+                                  placeholder="e.g. 2"
+                                  className={`pq-input ${ageError ? "pq-input-error" : ""}`}
                                 />
-                                {birthdateError && <p className="mt-1 pq-error-text">{birthdateError}</p>}
+                                {ageError && <p className="mt-1 pq-error-text">{ageError}</p>}
                               </div>
                               <div className="min-w-0">
                                 <label htmlFor={`walkin-child-${index}-sex`} className="pq-label">

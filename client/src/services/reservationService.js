@@ -7,7 +7,6 @@ import { recalculateRollingValidation } from "./rollingValidationService";
 import { recalculateEntireQueue, enrichReservationsWithState } from "./queueEngine";
 import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { getScheduleById } from "./scheduleService";
-import { buildPatientInfoPayload } from "../utils/reservationPatients";
 import {
   getQueueConfiguration,
   resolveScheduleBranchId,
@@ -214,13 +213,16 @@ export const createWalkInReservation = async ({
     throw new Error("This schedule is already full.");
   }
 
-  const { getBirthdateError } = await import("../utils/pediatricAge");
-  const normalizedChildren = (children || []).map((child) => ({
-    childName: String(child.childName || "").trim(),
-    birthdate: String(child.birthdate ?? "").trim(),
-    sex: child.sex === "Male" || child.sex === "Female" ? child.sex : "",
-    childId: null,
-  }));
+  const { getEnteredAgeError } = await import("../utils/pediatricAge");
+  const normalizedChildren = (children || []).map((child) => {
+    const ageRaw = child.age != null ? String(child.age).trim() : "";
+    return {
+      childName: String(child.childName || "").trim(),
+      age: ageRaw,
+      sex: child.sex === "Male" || child.sex === "Female" ? child.sex : "",
+      childId: null,
+    };
+  });
 
   if (normalizedChildren.length === 0) {
     throw new Error("At least one child is required.");
@@ -231,21 +233,26 @@ export const createWalkInReservation = async ({
   if (normalizedChildren.some((c) => !c.childName)) {
     throw new Error("Each child must have a name.");
   }
-  if (normalizedChildren.some((c) => getBirthdateError(c.birthdate))) {
-    throw new Error("Each child must have a valid birthdate.");
+  if (normalizedChildren.some((c) => getEnteredAgeError(c.age))) {
+    throw new Error("Each child must have a valid age.");
   }
   if (normalizedChildren.some((c) => !c.sex)) {
     throw new Error("Each child must have a sex selected.");
   }
 
-  const patientPayload = buildPatientInfoPayload(normalizedChildren, trimmedConcern);
+  const walkInChildren = normalizedChildren.map((c) => ({
+    childId: null,
+    childName: c.childName,
+    age: String(Number(c.age)),
+    sex: c.sex,
+  }));
   const trimmedParentName = String(parentName || "").trim();
   const trimmedParentPhone = String(parentPhone || "").trim();
   const data = await callClaimReservation({
     mode: "walk_in",
     scheduleId,
-    children: patientPayload.children,
-    concern: patientPayload.concern,
+    children: walkInChildren,
+    concern: trimmedConcern,
     parentName: trimmedParentName,
     parentPhone: trimmedParentPhone,
   });

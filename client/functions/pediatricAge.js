@@ -52,6 +52,11 @@ function calculateAge(birthdate, asOf = manilaDateString()) {
   return { years, months, days };
 }
 
+function calculateAgeInYears(birthdate, asOf = manilaDateString()) {
+  const age = calculateAge(birthdate, asOf);
+  return age ? age.years : null;
+}
+
 function getBirthdateError(birthdate, asOf = manilaDateString()) {
   if (!birthdate) return "Birthdate is required.";
   if (!parseDateParts(birthdate)) return "Enter a valid birthdate.";
@@ -71,30 +76,31 @@ function isValidBirthdate(birthdate, asOf = manilaDateString()) {
   return !getBirthdateError(birthdate, asOf);
 }
 
+function getEnteredAgeError(raw) {
+  if (raw == null || String(raw).trim() === "") return "Age is required.";
+  const trimmed = String(raw).trim();
+  if (/^-\d+$/.test(trimmed)) return "Age cannot be negative.";
+  if (!/^\d+$/.test(trimmed)) return "Enter age as a whole number in years.";
+  const n = Number(trimmed);
+  if (!Number.isInteger(n) || n < 0) return "Age cannot be negative.";
+  if (n > MAX_PEDIATRIC_AGE_YEARS) {
+    return `Pediatric patients must be ${MAX_PEDIATRIC_AGE_YEARS} years or younger.`;
+  }
+  return "";
+}
+
 function formatPediatricAge(birthdate, asOf = manilaDateString()) {
-  const age = calculateAge(birthdate, asOf);
-  if (!age) return "";
-  const totalMonths = age.years * 12 + age.months;
-  if (totalMonths < 1) {
-    const d = Math.max(age.days, 0);
-    return d === 1 ? "1 day" : `${d} days`;
-  }
-  if (age.years < 2) {
-    return totalMonths === 1 ? "1 month" : `${totalMonths} months`;
-  }
-  if (age.months === 0) {
-    return age.years === 1 ? "1 year" : `${age.years} years`;
-  }
-  const yearPart = age.years === 1 ? "1 year" : `${age.years} years`;
-  const monthPart = age.months === 1 ? "1 month" : `${age.months} months`;
-  return `${yearPart}, ${monthPart}`;
+  const years = calculateAgeInYears(birthdate, asOf);
+  return years == null ? "" : String(years);
 }
 
 module.exports = {
   MAX_PEDIATRIC_AGE_YEARS,
   BIRTHDATE_RE,
   calculateAge,
+  calculateAgeInYears,
   getBirthdateError,
+  getEnteredAgeError,
   isValidBirthdate,
   formatPediatricAge,
 };

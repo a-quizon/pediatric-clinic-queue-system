@@ -133,7 +133,7 @@ async function claimWalkIn(db, secretaryUid = "sec1") {
     payload: {
       mode: "walk_in",
       scheduleId: SCHEDULE_ID,
-      children: [{ childName: "Walk In Child", birthdate: "2020-01-15", sex: "Female" }],
+      children: [{ childName: "Walk In Child", age: "5", sex: "Female" }],
       concern: "",
     },
   });
@@ -202,6 +202,9 @@ describe("check-in after walk-in", () => {
     const walkInRow = db.read(`reservations/${walkIn.reservationId}`);
     assert.equal(walkInRow.status, "checked_in");
     assert.equal(walkInRow.source, "walk_in");
+    assert.equal(walkInRow.age, "5");
+    assert.equal(walkInRow.children[0].age, "5");
+    assert.equal(walkInRow.birthdate, undefined);
   });
 
   it("succeeds even when queue recalc touches the parent node first", async () => {

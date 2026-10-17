@@ -130,22 +130,27 @@ function bookingLockIsStale(value, now) {
   return now - Number(value.at || 0) > ABANDONED_HOLDER_MS;
 }
 
-function normalizeChildren(children) {
-  const { getBirthdateError } = require("./pediatricAge");
-  const list = (children || []).map((child) => ({
-    childName: String(child.childName || "").trim(),
-    birthdate: String(child.birthdate ?? "").trim(),
-    sex: child.sex === "Male" || child.sex === "Female" ? child.sex : "",
-    childId: null,
-  }));
+function normalizeWalkInChildren(children) {
+  const { getEnteredAgeError } = require("./pediatricAge");
+  const list = (children || []).map((child) => {
+    const ageRaw = child.age != null ? String(child.age).trim() : "";
+    const ageError = getEnteredAgeError(ageRaw);
+    return {
+      childName: String(child.childName || "").trim(),
+      age: ageError ? ageRaw : String(Number(ageRaw)),
+      sex: child.sex === "Male" || child.sex === "Female" ? child.sex : "",
+      childId: null,
+      _ageError: ageError,
+    };
+  });
   if (list.length === 0) throw coded("invalid-argument", "At least one child is required.");
   if (list.length > 10) throw coded("invalid-argument", "A maximum of 10 children is allowed.");
   if (list.some((child) => !child.childName)) throw coded("invalid-argument", "Each child must have a name.");
-  if (list.some((child) => getBirthdateError(child.birthdate))) {
-    throw coded("invalid-argument", "Each child must have a valid birthdate.");
+  if (list.some((child) => child._ageError)) {
+    throw coded("invalid-argument", "Each child must have a valid age.");
   }
   if (list.some((child) => !child.sex)) throw coded("invalid-argument", "Each child must have a sex selected.");
-  return list;
+  return list.map(({ childName, age, sex, childId }) => ({ childName, age, sex, childId }));
 }
 
 async function rollbackSlot(bookingRef, reservationId) {
@@ -186,7 +191,7 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
   let walkInChildren = null;
   let walkInConcern = "";
   if (mode === "walk_in") {
-    walkInChildren = normalizeChildren(payload.children);
+    walkInChildren = normalizeWalkInChildren(payload.children);
     walkInConcern = String(payload.concern || "").trim();
   }
 
@@ -292,7 +297,7 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
         originalQueueNumber: queueNumber,
         queuePosition: queueNumber,
         childName: children[0].childName,
-        birthdate: children[0].birthdate,
+        age: children[0].age,
         sex: children[0].sex,
         concern,
         children,
