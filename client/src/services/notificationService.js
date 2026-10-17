@@ -77,20 +77,20 @@ const NOTIFICATION_CONFIG = {
   },
   [NOTIFICATION_EVENTS.NEARING_TURN]: {
     type: 'warning',
-    title: 'Your Turn Is Near',
-    message: 'There are only 3 patients ahead of you. Please proceed to the clinic.',
+    title: 'Your turn is near.',
+    message: 'Your turn is near.',
     duration: 7000,
   },
   [NOTIFICATION_EVENTS.ALMOST_NEXT]: {
     type: 'warning',
-    title: 'Almost Next',
-    message: 'Your turn is approaching soon. Please be ready.',
+    title: 'Your Almost Next',
+    message: 'Your Almost Next',
     duration: 6000,
   },
   [NOTIFICATION_EVENTS.YOU_ARE_NEXT]: {
     type: 'warning',
-    title: "You're Next",
-    message: "You're next in line for consultation. Please prepare your QR code.",
+    title: 'You are next.',
+    message: 'You are next.',
     duration: 6000,
   },
   [NOTIFICATION_EVENTS.QR_VERIFIED]: {
@@ -190,7 +190,7 @@ class NotificationService {
    * Trigger a system notification by Event ID.
    *
    * @param {string} eventId - One of NOTIFICATION_EVENTS
-   * @param {object} context - { dedupeKey, customMessage, parentId, ... }
+   * @param {object} context - { dedupeKey, customMessage, customTitle, parentId, ... }
    * @returns {boolean} Whether the notification was dispatched
    */
   notify(eventId, context = {}) {
@@ -209,7 +209,7 @@ class NotificationService {
     this.markAsShown(dedupeKey);
 
     const body = context.customMessage || config.message;
-    const title = config.title;
+    const title = context.customTitle || config.title;
     const severity = config.type;
     const duration = config.duration || 3000;
 

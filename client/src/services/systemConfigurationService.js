@@ -733,9 +733,6 @@ export const updateSmsConfiguration = async (branchId, input) => {
   return result.sms || validation.value;
 };
 
-/**
- * Push/toast copy for NEARING_TURN — count-synced, not admin-editable.
- */
 export const getDefaultSlotCapacity = async (branchId) => {
   if (!isUsableBranchId(branchId)) return DEFAULT_SLOT_CAPACITY;
   try {
@@ -765,6 +762,7 @@ export const updateDefaultSlotCapacity = async (branchId, newValue) => {
   return result?.defaultSlotCapacity ?? validation.value;
 };
 
+/** @deprecated Push/in-app no longer use patients-ahead copy; kept for SMS-adjacent callers. */
 export const buildNearingTurnPushMessage = (count = DEFAULT_NEARING_TURN_AHEAD) => {
   const safeCount = Number.isInteger(count) ? count : DEFAULT_NEARING_TURN_AHEAD;
   return `There are only ${safeCount} patients ahead of you. Please proceed to the clinic.`;

@@ -7,10 +7,14 @@ const {
   enrichSmsContext,
   computeAheadOfYouForSms,
   getSmsConfiguration,
-  buildNearingTurnPushMessage,
   claimNearTurnSms,
-  DEFAULT_NEARING_TURN_AHEAD,
 } = require("./smsNotificationService");
+const {
+  computeWaitingLinePosition,
+  getPushQueuePositionNotification,
+  buildPushQueuePositionDedupeKey,
+  PUSH_QUEUE_POSITION_MESSAGES,
+} = require(path.join(__dirname, "../../client/functions/pushQueuePositionRules"));
 
 const ACTIVE_RESERVATION_STATUSES = [
   "reserved",
@@ -43,8 +47,8 @@ const NOTIFICATION_CONFIG = {
   },
   NEARING_TURN: {
     type: "warning",
-    title: "Your Turn Is Near",
-    message: buildNearingTurnPushMessage(DEFAULT_NEARING_TURN_AHEAD),
+    title: PUSH_QUEUE_POSITION_MESSAGES[3],
+    message: PUSH_QUEUE_POSITION_MESSAGES[3],
     url: "/parent/reservations",
   },
   QUEUE_PAUSED: {
@@ -73,14 +77,14 @@ const NOTIFICATION_CONFIG = {
   },
   ALMOST_NEXT: {
     type: "warning",
-    title: "Almost Next",
-    message: "Your turn is approaching soon. Please be ready.",
+    title: PUSH_QUEUE_POSITION_MESSAGES[2],
+    message: PUSH_QUEUE_POSITION_MESSAGES[2],
     url: "/parent/reservations",
   },
   YOU_ARE_NEXT: {
     type: "warning",
-    title: "You're Next",
-    message: "You're next in line for consultation. Please prepare your QR code.",
+    title: PUSH_QUEUE_POSITION_MESSAGES[1],
+    message: PUSH_QUEUE_POSITION_MESSAGES[1],
     url: "/parent/reservations",
   },
   QR_VERIFIED: {
@@ -174,13 +178,16 @@ async function deliverNotification(eventId, context = {}) {
   if (!config || !context.parentId) return false;
   if (!(await isParent(context.parentId))) return false;
 
+  const smsOnly = context.smsOnly === true;
+  const skipSms = context.skipSms === true;
   const key = sanitizeKey(context.dedupeKey || `${eventId}_${Date.now()}`);
   const body = context.customMessage || config.message;
+  const title = context.customTitle || config.title;
   const notification = {
     id: key,
     parentId: context.parentId,
     type: eventId,
-    title: config.title,
+    title,
     body,
     message: body,
     severity: config.type,
@@ -193,21 +200,31 @@ async function deliverNotification(eventId, context = {}) {
     url: config.url,
   };
 
-  const notifRef = getDb().ref(`notifications/${context.parentId}/${key}`);
-  const existing = await notifRef.once("value");
-  if (!existing.exists()) {
-    await notifRef.update(notification);
-  }
-  await sendPushToParent(context.parentId, existing.exists() ? existing.val() : notification, { notificationId: key });
-
-  try {
-    const smsContext = await enrichSmsContext(eventId, context);
-    const smsResult = await deliverSmsForNotification(eventId, smsContext, key);
-    if (smsResult && !smsResult.success && !smsResult.skipped) {
-      console.error(`[notificationEngine] SMS delivery failed for ${eventId}:`, smsResult.reason, smsResult.status || "");
+  if (!smsOnly) {
+    const notifRef = getDb().ref(`notifications/${context.parentId}/${key}`);
+    const existing = await notifRef.once("value");
+    if (!existing.exists()) {
+      await notifRef.update(notification);
     }
-  } catch (err) {
-    console.error(`[notificationEngine] SMS delivery failed for ${eventId}:`, err.message);
+    await sendPushToParent(context.parentId, existing.exists() ? existing.val() : notification, {
+      notificationId: key,
+    });
+  }
+
+  if (!skipSms) {
+    try {
+      const smsContext = await enrichSmsContext(eventId, context);
+      const smsResult = await deliverSmsForNotification(eventId, smsContext, key);
+      if (smsResult && !smsResult.success && !smsResult.skipped) {
+        console.error(
+          `[notificationEngine] SMS delivery failed for ${eventId}:`,
+          smsResult.reason,
+          smsResult.status || ""
+        );
+      }
+    } catch (err) {
+      console.error(`[notificationEngine] SMS delivery failed for ${eventId}:`, err.message);
+    }
   }
 
   return true;
@@ -445,8 +462,10 @@ async function evaluatePositionEvents(schedule, reservations, options = {}) {
   const smsConfig = await getSmsConfiguration(schedule.branchId || schedule.branch);
   const nearingTurnAheadCount = smsConfig.nearingTurnAheadCount;
   const sendNearTurnSms = options.sendNearTurnSms === true;
+  const clinicDate = schedule.clinicDate || null;
+  const branchId = schedule.branchId || schedule.branch || null;
 
-  // Near Turn / position events use parentId only. Walk-in parentPhone is never a recipient.
+  // Position push / Near Turn SMS use parentId only. Walk-in parentPhone is never a recipient.
   const candidates = reservations.filter(
     (r) =>
       r.parentId &&
@@ -456,29 +475,27 @@ async function evaluatePositionEvents(schedule, reservations, options = {}) {
   );
 
   for (const reservation of candidates) {
-    const queueState = computeReservationState(reservation, reservations);
+    const waitingPosition = computeWaitingLinePosition(reservation, reservations);
+    const pushRule = getPushQueuePositionNotification(waitingPosition);
+    if (pushRule) {
+      const dedupeKey = buildPushQueuePositionDedupeKey(reservation.id, pushRule.position, clinicDate);
+      await deliverNotification(pushRule.eventId, {
+        parentId: reservation.parentId,
+        reservationId: reservation.id,
+        branchId: reservation.branchId || reservation.branch || branchId,
+        customMessage: pushRule.message,
+        customTitle: pushRule.message,
+        dedupeKey,
+        skipSms: true,
+      });
+    }
+
+    // Near Turn SMS only at queue start (unchanged). SMS-only — push uses the position map above.
     const aheadOfYou =
       reservation.aheadOfYou != null
         ? Number(reservation.aheadOfYou)
         : computeAheadOfYouForSms(reservation, reservations);
 
-    if (queueState === "YOU_ARE_NEXT") {
-      await deliverNotification("YOU_ARE_NEXT", {
-        parentId: reservation.parentId,
-        reservationId: reservation.id,
-        branchId: reservation.branchId || reservation.branch || schedule.branch || null,
-        dedupeKey: `you_are_next_${reservation.id}`,
-      });
-    } else if (queueState === "ALMOST_NEXT") {
-      await deliverNotification("ALMOST_NEXT", {
-        parentId: reservation.parentId,
-        reservationId: reservation.id,
-        branchId: reservation.branchId || reservation.branch || schedule.branch || null,
-        dedupeKey: `almost_next_${reservation.id}`,
-      });
-    }
-
-    // Near Turn SMS only at queue start, and only for parents still approaching (not already first).
     if (
       sendNearTurnSms &&
       Number.isFinite(aheadOfYou) &&
@@ -492,12 +509,12 @@ async function evaluatePositionEvents(schedule, reservations, options = {}) {
           parentId: reservation.parentId,
           reservationId: reservation.id,
           scheduleId: schedule.id,
-          branchId: reservation.branchId || reservation.branch || schedule.branch || null,
+          branchId: reservation.branchId || reservation.branch || branchId,
           queueNumber: reservation.queueNumber ?? reservation.originalQueueNumber,
-          clinicDate: schedule.clinicDate,
+          clinicDate,
           nearingTurnAheadCount,
-          customMessage: buildNearingTurnPushMessage(nearingTurnAheadCount),
-          dedupeKey: `nearing_turn_${reservation.id}`,
+          dedupeKey: `nearing_turn_sms_${reservation.id}`,
+          smsOnly: true,
         });
       }
     }

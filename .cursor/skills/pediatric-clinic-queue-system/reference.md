@@ -225,7 +225,8 @@ Listeners: `server/services/pushListeners.js` watches `reservations` and `schedu
 
 ### SMS (textbee.dev)
 - Utility: `server/services/smsService.js` (mirrored in `client/functions/smsService.js`)
-- Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`; once via `slotReservedSmsSent`), `QUEUE_STARTED`, `NEARING_TURN` (at **queue start only**; patients-ahead from `systemConfiguration/{branchId}/sms`, default 3; fires when `0 < aheadOfYou <=` count; SMS once per parent account, ever, via `users/{uid}/nearTurnSms` transaction in `nearTurnSmsGuard.js` (push/in-app still once per reservation via `reservations/{id}/nearTurnSmsSent`); Secretary-editable per branch), `PENALIZED` (once per increment via `penaltySmsSent/{count}`), `FORFEITED`. TextBee credentials remain env-global.
+- Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`; once via `slotReservedSmsSent`), `QUEUE_STARTED`, `NEARING_TURN` (SMS at **queue start only**; patients-ahead from `systemConfiguration/{branchId}/sms`, default 3; fires when `0 < aheadOfYou <=` count; SMS once per parent account, ever, via `users/{uid}/nearTurnSms`; reservation claim `nearTurnSmsSent`; SMS-only — does not write push/NC threshold copy), `PENALIZED` (once per increment via `penaltySmsSent/{count}`), `FORFEITED`. TextBee credentials remain env-global.
+- Push / in-app queue positions (decoupled from SMS threshold): waiting-line 1→`"You are next."`, 2→`"Your Almost Next"`, 3→`"Your turn is near."`; once per reservation per position per clinic day (`push_queue_pos_*`); see `pushQueuePositionRules.js`.
 - OTP store: `smsOtps/{phoneKey}` — bcrypt-hashed code, 5-minute `expiresAt`; **30s** resend cooldown; client R/W denied in rules
 - Password reset cap: `passwordResetLimits/{emailKey}` — 5 claims per email per Asia/Manila day + **30s** `lastSentAt` cooldown; client R/W denied; Forgot Password and the admin's parent reset email share the same counter; staff are refused
 - Email verification cooldown: `emailVerificationLimits/{uid}` — **30s** between sends; client R/W denied
@@ -302,7 +303,8 @@ TEXTBEE_API_KEY=
 | `adminService.js` | Staff accounts, branch management |
 | `auditLogService.js` | Audit trail |
 | `pushService.js` | Web Push subscription API calls |
-| `positionEventEngine.js` | ALMOST_NEXT / YOU_ARE_NEXT events |
+| `pushQueuePositionRules.js` | Fixed push map for waiting-line places 1–3 |
+| `positionEventEngine.js` | Client toast/fallback for positions 1–3 |
 
 ## Queue Management Critical Path
 

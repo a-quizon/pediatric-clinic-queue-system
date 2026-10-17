@@ -5,11 +5,6 @@ import { subscribeToParentReservations, subscribeToScheduleReservations, ACTIVE_
 import notificationService, { NOTIFICATION_EVENTS } from '../../services/notificationService';
 import { evaluatePositionEvents } from '../../services/positionEventEngine';
 import { cleanupOwnStaffNotifications } from '../../services/notificationCenterService';
-import {
-  subscribeToSmsConfiguration,
-  resolveScheduleBranchId,
-  DEFAULT_NEARING_TURN_AHEAD,
-} from '../../services/systemConfigurationService';
 import { safeUnsub } from '../../firebase/rtdbSubscribe';
 
 /**
@@ -74,47 +69,10 @@ export default function NotificationObserver() {
   const prevSchedulesRef = useRef({});
   const prevMyReservationsRef = useRef({});
   const prevPatientsAheadRef = useRef({});
-  const nearingTurnAheadCountRef = useRef(DEFAULT_NEARING_TURN_AHEAD);
-  const smsUnsubRef = useRef(() => {});
-  const smsBranchIdRef = useRef(null);
-  const smsResolveTokenRef = useRef(0);
   const activeParentScheduleIdRef = useRef(null);
-
-  const unbindSms = () => {
-    smsResolveTokenRef.current += 1;
-    safeUnsub(smsUnsubRef.current);
-    smsUnsubRef.current = () => {};
-    smsBranchIdRef.current = null;
-    nearingTurnAheadCountRef.current = DEFAULT_NEARING_TURN_AHEAD;
-  };
-
-  const bindSmsForSchedule = (schedule) => {
-    const token = ++smsResolveTokenRef.current;
-    resolveScheduleBranchId(schedule).then((branchId) => {
-      if (token !== smsResolveTokenRef.current) return;
-      if (branchId === smsBranchIdRef.current) return;
-      safeUnsub(smsUnsubRef.current);
-      smsBranchIdRef.current = branchId || null;
-      if (!branchId) {
-        nearingTurnAheadCountRef.current = DEFAULT_NEARING_TURN_AHEAD;
-        smsUnsubRef.current = () => {};
-        return;
-      }
-      smsUnsubRef.current = subscribeToSmsConfiguration(branchId, (config) => {
-        nearingTurnAheadCountRef.current = config.nearingTurnAheadCount;
-      });
-    });
-  };
-
-  useEffect(() => {
-    return () => {
-      unbindSms();
-    };
-  }, []);
 
   useEffect(() => {
     if (!user || role !== 'parent') {
-      unbindSms();
       return;
     }
 
@@ -125,10 +83,6 @@ export default function NotificationObserver() {
       if (isInitialSchedulesLoad.current) {
         prevSchedulesRef.current = { ...currentSchedules };
         isInitialSchedulesLoad.current = false;
-        const activeSchedId = activeParentScheduleIdRef.current;
-        if (activeSchedId && currentSchedules[activeSchedId]) {
-          bindSmsForSchedule({ id: activeSchedId, ...currentSchedules[activeSchedId] });
-        }
         return;
       }
 
@@ -192,10 +146,6 @@ export default function NotificationObserver() {
       });
 
       prevSchedulesRef.current = { ...currentSchedules };
-      const activeSchedId = activeParentScheduleIdRef.current;
-      if (activeSchedId && currentSchedules[activeSchedId]) {
-        bindSmsForSchedule({ id: activeSchedId, ...currentSchedules[activeSchedId] });
-      }
     });
 
     return () => safeUnsub(unsubSchedules);
@@ -292,10 +242,6 @@ export default function NotificationObserver() {
         unsubSchedule();
         activeScheduleId = newScheduleId;
         activeParentScheduleIdRef.current = newScheduleId;
-        const activeSchedule = newScheduleId
-          ? { id: newScheduleId, ...(prevSchedulesRef.current[newScheduleId] || {}) }
-          : null;
-        bindSmsForSchedule(activeSchedule);
 
         if (newScheduleId) {
           isInitialScheduleLoad.current = true;
@@ -303,10 +249,8 @@ export default function NotificationObserver() {
             if (isInitialScheduleLoad.current) {
               isInitialScheduleLoad.current = false;
             } else {
-              // Position Event Architecture: Re-evaluate position thresholds across active reservations
-              evaluatePositionEvents(scheduleData || [], prevSchedulesRef.current, user, {
-                nearingTurnAheadCount: nearingTurnAheadCountRef.current,
-              });
+              // Re-evaluate waiting-line positions 1–3 for push / in-app alerts
+              evaluatePositionEvents(scheduleData || [], prevSchedulesRef.current, user);
             }
           });
         }
