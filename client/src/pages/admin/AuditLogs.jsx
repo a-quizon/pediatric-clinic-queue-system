@@ -127,13 +127,13 @@ function AuditLogDetailModal({
   return (
     <ModalScrim className="z-[60]" onClick={(e) => e.target === e.currentTarget && !actionBusy && onClose()}>
       <div
-        className="pq-modal w-full max-w-lg overflow-hidden flex flex-col max-h-[min(90vh,40rem)]"
+        className="pq-modal pq-modal--lg"
         role="dialog"
         aria-modal="true"
         aria-labelledby="audit-detail-title"
       >
         <div
-          className="flex items-start justify-between gap-3 p-5 sm:p-6"
+          className="pq-modal-header flex items-start justify-between gap-3 p-5 sm:p-6"
           style={{ borderBottom: "1px solid var(--pq-glass-line)" }}
         >
           <div className="min-w-0">
@@ -164,7 +164,7 @@ function AuditLogDetailModal({
           </button>
         </div>
 
-        <div className="p-5 sm:p-6 overflow-y-auto pq-scroll-y flex-1 space-y-4">
+        <div className="pq-modal-body pq-scroll-y p-5 sm:p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div>
               <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Actor</p>
@@ -228,7 +228,7 @@ function AuditLogDetailModal({
         </div>
 
         <div
-          className="p-5 sm:p-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2"
+          className="pq-modal-footer p-5 sm:p-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2"
           style={{ borderTop: "1px solid var(--pq-glass-line)" }}
         >
           {suspicious && !reviewed && parentId ? (
@@ -474,14 +474,14 @@ export default function AuditLogs() {
           />
         </div>
 
-        <div className="flex gap-3">
-          <div className="relative flex-1 md:flex-none">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 min-w-0">
+          <div className="relative w-full sm:flex-1 md:flex-none md:min-w-[12rem]">
             <label htmlFor="activity-category-filter" className="sr-only">Filter by category</label>
             <select
               id="activity-category-filter"
               value={categoryFilter}
               onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
-              className="pq-input pr-10 appearance-none cursor-pointer min-w-[12rem]"
+              className="pq-input pr-10 appearance-none cursor-pointer w-full"
             >
               <option value="all">All Categories</option>
               {Object.values(AUDIT_CATEGORIES).map((cat) => (
@@ -491,13 +491,13 @@ export default function AuditLogs() {
             <SelectChevron />
           </div>
 
-          <div className="relative flex-1 md:flex-none">
+          <div className="relative w-full sm:flex-1 md:flex-none md:min-w-[9rem]">
             <label htmlFor="activity-role-filter" className="sr-only">Filter by role</label>
             <select
               id="activity-role-filter"
               value={roleFilter}
               onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
-              className="pq-input pr-10 appearance-none cursor-pointer min-w-[9rem]"
+              className="pq-input pr-10 appearance-none cursor-pointer w-full"
             >
               {AUDIT_ROLE_FILTER_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -506,13 +506,13 @@ export default function AuditLogs() {
             <SelectChevron />
           </div>
 
-          <div className="relative flex-1 md:flex-none">
+          <div className="relative w-full sm:flex-1 md:flex-none md:min-w-[12rem]">
             <label htmlFor="activity-action-filter" className="sr-only">Filter by action</label>
             <select
               id="activity-action-filter"
               value={actionFilter}
               onChange={(e) => { setActionFilter(e.target.value); setCurrentPage(1); }}
-              className="pq-input pr-10 appearance-none cursor-pointer min-w-[12rem]"
+              className="pq-input pr-10 appearance-none cursor-pointer w-full"
             >
               {AUDIT_ACTION_FILTER_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>

@@ -10,6 +10,7 @@ import { getBranchConfigurations } from "../../services/branchConfigurationServi
 import { isReservationExpired } from "../../services/timeService";
 import { useAuth } from "../../hooks/useAuth";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
+import ModalScrim from "../../components/common/ModalScrim";
 import ReservationStatusBadge from "../../components/common/ReservationStatusBadge";
 import ChildProfileForm, { isChildProfileValid } from "../../components/parent/ChildProfileForm";
 import toast from "react-hot-toast";
@@ -220,13 +221,14 @@ export default function QRTicket() {
             
             {/* Warning Strip if Patient Info Required */}
             {isIncomplete && (
-              <div className="pq-note pq-note-wait px-5 py-3 flex items-center justify-between rounded-none">
-                <div className="flex items-center text-xs font-bold">
-                  <AlertCircle className="w-4 h-4 mr-2 shrink-0" /> Patient Information Required
+              <div className="pq-note pq-note-wait px-4 sm:px-5 py-3 flex flex-col min-[400px]:flex-row items-stretch min-[400px]:items-center gap-2 min-[400px]:justify-between rounded-none min-w-0">
+                <div className="flex items-center text-xs font-bold min-w-0">
+                  <AlertCircle className="w-4 h-4 mr-2 shrink-0" /> <span className="break-words">Patient Information Required</span>
                 </div>
                 <button 
+                  type="button"
                   onClick={handleOpenPatientInfo}
-                  className="text-xs font-extrabold px-3 py-1 rounded-lg min-h-[32px]"
+                  className="text-xs font-extrabold px-3 py-2 rounded-lg min-h-11 shrink-0 self-stretch min-[400px]:self-auto"
                   style={{ background: "color-mix(in srgb, var(--pq-wait) 18%, white)", color: "var(--pq-wait)" }}
                 >
                   Complete Now
@@ -431,7 +433,10 @@ export default function QRTicket() {
 
       {/* FULLSCREEN QR MODAL (Only when NOT validated) */}
       {isQrModalOpen && activeReservation && !isValidated && (
-        <div className="pq-modal-scrim flex-col">
+        <ModalScrim
+          className="flex-col"
+          onClick={(e) => e.target === e.currentTarget && setIsQrModalOpen(false)}
+        >
           <button 
             onClick={() => setIsQrModalOpen(false)}
             className="pq-icon-btn absolute top-6 right-6 sm:top-8 sm:right-8 z-50"
@@ -441,8 +446,8 @@ export default function QRTicket() {
             <X className="w-6 h-6" />
           </button>
 
-          <div className="pq-modal w-full max-w-sm p-6 sm:p-8 text-center flex flex-col items-center justify-center">
-            <div className="w-full pb-4 mb-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <div className="pq-modal pq-modal--sm text-center">
+            <div className="pq-modal-header w-full p-6 sm:p-8 pb-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 className="text-3xl font-extrabold" style={{ color: "var(--pq-mark-blue-deep)" }}>
                 Queue #{permanentQueueNumber || "-"}
               </h2>
@@ -452,29 +457,33 @@ export default function QRTicket() {
               </p>
             </div>
 
-            {/* Large QR Code */}
-            <div className="pq-row mb-6 w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center">
-              {qrImageUrl ? (
-                <img src={qrImageUrl} alt="Full Screen QR" className="w-full h-full object-contain" />
-              ) : (
-                <div className="pq-spinner" />
-              )}
+            <div className="pq-modal-body pq-scroll-y px-6 sm:px-8 py-5 flex flex-col items-center">
+              {/* Large QR Code — constrained so header + download stay reachable */}
+              <div className="pq-row mb-5 w-full max-w-full aspect-square max-h-[min(42vh,18rem)] flex items-center justify-center">
+                {qrImageUrl ? (
+                  <img src={qrImageUrl} alt="Full Screen QR" className="max-w-full max-h-full w-auto h-auto object-contain" />
+                ) : (
+                  <div className="pq-spinner" />
+                )}
+              </div>
+
+              <span className="text-xs font-bold pq-muted block">Reservation Code</span>
+              <div className="text-3xl font-extrabold tracking-wider mt-0.5 font-mono">
+                {activeReservation.reservationCode || "------"}
+              </div>
             </div>
 
-            <span className="text-xs font-bold pq-muted block">Reservation Code</span>
-            <div className="text-3xl font-extrabold tracking-wider mt-0.5 mb-6 font-mono">
-              {activeReservation.reservationCode || "------"}
+            <div className="pq-modal-footer p-6 sm:p-8 pt-0">
+              <a
+                href={qrImageUrl}
+                download={`reservation-${activeReservation.reservationCode || 'pass'}.png`}
+                className="pq-btn-primary w-full"
+              >
+                <Download className="w-5 h-5" /> Download QR
+              </a>
             </div>
-
-            <a
-              href={qrImageUrl}
-              download={`reservation-${activeReservation.reservationCode || 'pass'}.png`}
-              className="pq-btn-primary w-full"
-            >
-              <Download className="w-5 h-5" /> Download QR
-            </a>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       {/* Cancel Confirmation Modal */}
@@ -491,9 +500,9 @@ export default function QRTicket() {
 
       {/* Complete Patient Info Modal */}
       {isPatientInfoModalOpen && (
-        <div className="pq-modal-scrim">
-          <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center px-6 py-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <ModalScrim onClick={(e) => e.target === e.currentTarget && !isSubmitting && setIsPatientInfoModalOpen(false)}>
+          <div className="pq-modal pq-modal--md">
+            <div className="pq-modal-header flex justify-between items-center px-6 py-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <div>
                 <h2 className="text-lg font-bold">Complete Information</h2>
                 <p className="text-xs pq-muted mt-0.5">Please provide patient details to proceed</p>
@@ -503,7 +512,7 @@ export default function QRTicket() {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto pq-scroll-y">
+            <div className="pq-modal-body pq-scroll-y p-6">
               <div className="space-y-4 text-left">
                 <ChildProfileForm
                   value={formData}
@@ -524,7 +533,7 @@ export default function QRTicket() {
               </div>
             </div>
 
-            <div className="px-6 py-4 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer px-6 py-4 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button 
                 onClick={() => setIsPatientInfoModalOpen(false)}
                 disabled={isSubmitting}
@@ -546,7 +555,7 @@ export default function QRTicket() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
     </div>
   );

@@ -43,6 +43,7 @@ import ConfirmationModal from "../common/ConfirmationModal";
 import ModalScrim from "../common/ModalScrim";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
 
 export default function StaffScheduleCalendar({
   branches,
@@ -450,10 +451,15 @@ export default function StaffScheduleCalendar({
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold pq-muted mb-1">
-        {WEEKDAYS.map((label) => <div key={label}>{label}</div>)}
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 text-center text-[0.65rem] sm:text-xs font-bold pq-muted mb-1 min-w-0">
+        {WEEKDAYS.map((label, i) => (
+          <div key={`${label}-${i}`} className="min-w-0 truncate px-0.5">
+            <span className="sm:hidden">{WEEKDAYS_SHORT[i]}</span>
+            <span className="hidden sm:inline">{label}</span>
+          </div>
+        ))}
       </div>
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 min-w-0">
         {cells.map((dateStr, index) => {
           if (!dateStr) return <div key={`blank-${index}`} />;
           const schedule = scheduleForDate(schedules, dateStr, branch?.id, branch?.name);
@@ -496,7 +502,7 @@ export default function StaffScheduleCalendar({
               onClick={() => openDay(dateStr)}
               disabled={isLoading || ended}
               title={ended ? "Queue has ended" : undefined}
-              className={`min-h-14 rounded-xl text-left p-1.5 ${isLoading ? 'animate-pulse opacity-60' : ended ? 'cursor-default' : 'hover:brightness-95'}`}
+              className={`min-h-14 min-w-0 rounded-xl text-left p-1 sm:p-1.5 ${isLoading ? 'animate-pulse opacity-60' : ended ? 'cursor-default' : 'hover:brightness-95'}`}
               style={{
                 background,
                 color,
@@ -505,7 +511,7 @@ export default function StaffScheduleCalendar({
               aria-label={ended ? "Queue has ended" : `${formatManilaLong(dateStr)}, ${label}`}
             >
               <div className="text-sm font-extrabold">{Number(dateStr.slice(-2))}</div>
-              <div className="text-[10px] leading-tight font-semibold">{label}</div>
+              <div className="text-[9px] sm:text-[10px] leading-tight font-semibold truncate">{label}</div>
             </button>
           );
         })}
@@ -513,20 +519,24 @@ export default function StaffScheduleCalendar({
       {previewText ? <p className="sr-only">{previewText}</p> : null}
 
       {dayModal?.mode === "post" && (
-        <ModalScrim>
-          <div className="pq-modal w-full max-w-sm p-5">
-            <h3 className="text-lg font-extrabold mb-1">Post {formatManilaLong(dayModal.dateStr)}</h3>
-            <p className="pq-muted text-sm mb-4">Parents can reserve as soon as this is posted.</p>
-            <label className="pq-label" htmlFor="dayCapacity">Slots</label>
-            <input
-              id="dayCapacity"
-              type="number"
-              min="1"
-              className="pq-input mb-4"
-              value={dayModal.capacity}
-              onChange={(event) => setDayModal({ ...dayModal, capacity: event.target.value })}
-            />
-            <div className="flex gap-2 justify-end">
+        <ModalScrim onClick={(e) => e.target === e.currentTarget && !busy && closeDayModal()}>
+          <div className="pq-modal pq-modal--sm">
+            <div className="pq-modal-header p-5 pb-0">
+              <h3 className="text-lg font-extrabold mb-1">Post {formatManilaLong(dayModal.dateStr)}</h3>
+              <p className="pq-muted text-sm mb-4">Parents can reserve as soon as this is posted.</p>
+            </div>
+            <div className="pq-modal-body pq-scroll-y px-5">
+              <label className="pq-label" htmlFor="dayCapacity">Slots</label>
+              <input
+                id="dayCapacity"
+                type="number"
+                min="1"
+                className="pq-input mb-4"
+                value={dayModal.capacity}
+                onChange={(event) => setDayModal({ ...dayModal, capacity: event.target.value })}
+              />
+            </div>
+            <div className="pq-modal-footer p-5 pt-0 flex gap-2 justify-end">
               <button type="button" className="pq-btn-secondary" onClick={closeDayModal} disabled={busy}>Cancel</button>
               <button type="button" className="pq-btn-primary" onClick={postDay} disabled={busy}>Post day</button>
             </div>
@@ -535,126 +545,135 @@ export default function StaffScheduleCalendar({
       )}
 
       {publishedModal && (
-        <ModalScrim>
-          <div className="pq-modal w-full max-w-sm p-5">
-            <h3 className="text-lg font-extrabold mb-1">{formatManilaLong(publishedModal.dateStr)}</h3>
-            
-            {(user?.role === "doctor" || user?.role === "secretary") && !closingMode ? (
-              <div className="mb-4">
-                <p className="pq-muted text-sm mb-2">
-                  {formatBranchLabel(branch?.name)} · {taken} reserved
+        <ModalScrim onClick={(e) => e.target === e.currentTarget && !busy && closeDayModal()}>
+          <div className="pq-modal pq-modal--sm">
+            <div className="pq-modal-header p-5 pb-0">
+              <h3 className="text-lg font-extrabold mb-1">{formatManilaLong(publishedModal.dateStr)}</h3>
+            </div>
+
+            <div className="pq-modal-body pq-scroll-y px-5">
+              {(user?.role === "doctor" || user?.role === "secretary") && !closingMode ? (
+                <div className="mb-4">
+                  <p className="pq-muted text-sm mb-2">
+                    {formatBranchLabel(branch?.name)} · {taken} reserved
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="editCapacity" className="text-sm font-semibold pq-ink">Slots:</label>
+                    <input
+                      id="editCapacity"
+                      type="number"
+                      min={taken}
+                      className="pq-input w-24"
+                      value={dayModal.editCapacity !== undefined ? dayModal.editCapacity : capacity}
+                      onChange={(event) => setDayModal({ ...dayModal, editCapacity: event.target.value })}
+                    />
+                    {dayModal.editCapacity !== undefined && Number(dayModal.editCapacity) !== capacity && (
+                      <button type="button" className="pq-btn-primary px-3 py-1 text-sm" onClick={saveCapacity} disabled={busy}>
+                        Save
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="pq-muted text-sm mb-1">
+                  {formatBranchLabel(branch?.name)} · {taken}/{capacity || "—"} reserved
                 </p>
-                <div className="flex items-center gap-2">
-                  <label htmlFor="editCapacity" className="text-sm font-semibold pq-ink">Slots:</label>
+              )}
+              <p className="text-sm font-semibold mb-4" style={{ color: queueLive ? "var(--pq-live)" : "var(--pq-ink)" }}>
+                {queueHasEnded(publishedSchedule)
+                  ? "Queue ended"
+                  : queueLive
+                    ? `Queue ${publishedSchedule.queueStatus}`
+                    : "Posted — queue not started"}
+              </p>
+
+              {closingMode && (
+                <>
+                  <p className="pq-muted text-sm mb-3">
+                    Waiting reservations will be cancelled so parents can book another date. This does not count as a no-show.
+                  </p>
+                  <label className="pq-label" htmlFor="closeThrough">Through (optional range)</label>
                   <input
-                    id="editCapacity"
-                    type="number"
-                    min={taken}
-                    className="pq-input w-24"
-                    value={dayModal.editCapacity !== undefined ? dayModal.editCapacity : capacity}
-                    onChange={(event) => setDayModal({ ...dayModal, editCapacity: event.target.value })}
+                    id="closeThrough"
+                    type="date"
+                    className="pq-input mb-3"
+                    min={publishedModal.dateStr}
+                    value={closeForm.endDate}
+                    onChange={(event) => setCloseForm({ ...closeForm, endDate: event.target.value })}
                   />
-                  {dayModal.editCapacity !== undefined && Number(dayModal.editCapacity) !== capacity && (
-                    <button type="button" className="pq-btn-primary px-3 py-1 text-sm" onClick={saveCapacity} disabled={busy}>
-                      Save
+                  <label className="pq-label" htmlFor="closeReason">Reason</label>
+                  <select
+                    id="closeReason"
+                    className="pq-input mb-3"
+                    value={closeForm.reason}
+                    onChange={(event) => setCloseForm({ ...closeForm, reason: event.target.value })}
+                  >
+                    {CLOSURE_REASONS.map((reason) => (
+                      <option key={reason.id} value={reason.id}>{reason.label}</option>
+                    ))}
+                  </select>
+                  <label className="pq-label" htmlFor="closeNote">Note for parents</label>
+                  <textarea
+                    id="closeNote"
+                    className="pq-input mb-3"
+                    rows={3}
+                    value={closeForm.note}
+                    onChange={(event) => setCloseForm({ ...closeForm, note: event.target.value })}
+                  />
+                  <p className="text-xs pq-muted mb-3">
+                    Parents will see: {closureAnnouncement(closeForm.reason, closeForm.note)}
+                  </p>
+                  {!lockBranch && (
+                    <label className="flex items-center gap-2 text-sm mb-4">
+                      <input
+                        type="checkbox"
+                        checked={closeForm.allBranches}
+                        onChange={(event) => setCloseForm({ ...closeForm, allBranches: event.target.checked })}
+                      />
+                      Apply to all branches
+                    </label>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="pq-modal-footer p-5 pt-0">
+              {!closingMode ? (
+                <div className="flex flex-col gap-2">
+                  {canStartQueue && (
+                    <button type="button" className="pq-btn-live w-full justify-center" onClick={requestStartQueue} disabled={busy}>
+                      <Play className="w-4 h-4" aria-hidden="true" />
+                      Start Queue
                     </button>
                   )}
+                  {queueLive && queuePath && (
+                    <button
+                      type="button"
+                      className="pq-btn-primary w-full justify-center"
+                      onClick={() => {
+                        closeDayModal();
+                        navigate(queuePath);
+                      }}
+                      disabled={busy}
+                    >
+                      Open live queue
+                    </button>
+                  )}
+                  {canClose && (
+                    <button
+                      type="button"
+                      className="pq-btn-danger w-full justify-center"
+                      onClick={() => setClosingMode(true)}
+                      disabled={busy}
+                    >
+                      Close Clinic
+                    </button>
+                  )}
+                  <button type="button" className="pq-btn-secondary w-full justify-center" onClick={closeDayModal} disabled={busy}>
+                    Done
+                  </button>
                 </div>
-              </div>
-            ) : (
-              <p className="pq-muted text-sm mb-1">
-                {formatBranchLabel(branch?.name)} · {taken}/{capacity || "—"} reserved
-              </p>
-            )}
-            <p className="text-sm font-semibold mb-4" style={{ color: queueLive ? "var(--pq-live)" : "var(--pq-ink)" }}>
-              {queueHasEnded(publishedSchedule)
-                ? "Queue ended"
-                : queueLive
-                  ? `Queue ${publishedSchedule.queueStatus}`
-                  : "Posted — queue not started"}
-            </p>
-
-            {!closingMode ? (
-              <div className="flex flex-col gap-2">
-                {canStartQueue && (
-                  <button type="button" className="pq-btn-live w-full justify-center" onClick={requestStartQueue} disabled={busy}>
-                    <Play className="w-4 h-4" aria-hidden="true" />
-                    Start Queue
-                  </button>
-                )}
-                {queueLive && queuePath && (
-                  <button
-                    type="button"
-                    className="pq-btn-primary w-full justify-center"
-                    onClick={() => {
-                      closeDayModal();
-                      navigate(queuePath);
-                    }}
-                    disabled={busy}
-                  >
-                    Open live queue
-                  </button>
-                )}
-                {canClose && (
-                  <button
-                    type="button"
-                    className="pq-btn-danger w-full justify-center"
-                    onClick={() => setClosingMode(true)}
-                    disabled={busy}
-                  >
-                    Close Clinic
-                  </button>
-                )}
-                <button type="button" className="pq-btn-secondary w-full justify-center" onClick={closeDayModal} disabled={busy}>
-                  Done
-                </button>
-              </div>
-            ) : (
-              <div>
-                <p className="pq-muted text-sm mb-3">
-                  Waiting reservations will be cancelled so parents can book another date. This does not count as a no-show.
-                </p>
-                <label className="pq-label" htmlFor="closeThrough">Through (optional range)</label>
-                <input
-                  id="closeThrough"
-                  type="date"
-                  className="pq-input mb-3"
-                  min={publishedModal.dateStr}
-                  value={closeForm.endDate}
-                  onChange={(event) => setCloseForm({ ...closeForm, endDate: event.target.value })}
-                />
-                <label className="pq-label" htmlFor="closeReason">Reason</label>
-                <select
-                  id="closeReason"
-                  className="pq-input mb-3"
-                  value={closeForm.reason}
-                  onChange={(event) => setCloseForm({ ...closeForm, reason: event.target.value })}
-                >
-                  {CLOSURE_REASONS.map((reason) => (
-                    <option key={reason.id} value={reason.id}>{reason.label}</option>
-                  ))}
-                </select>
-                <label className="pq-label" htmlFor="closeNote">Note for parents</label>
-                <textarea
-                  id="closeNote"
-                  className="pq-input mb-3"
-                  rows={3}
-                  value={closeForm.note}
-                  onChange={(event) => setCloseForm({ ...closeForm, note: event.target.value })}
-                />
-                <p className="text-xs pq-muted mb-3">
-                  Parents will see: {closureAnnouncement(closeForm.reason, closeForm.note)}
-                </p>
-                {!lockBranch && (
-                  <label className="flex items-center gap-2 text-sm mb-4">
-                    <input
-                      type="checkbox"
-                      checked={closeForm.allBranches}
-                      onChange={(event) => setCloseForm({ ...closeForm, allBranches: event.target.checked })}
-                    />
-                    Apply to all branches
-                  </label>
-                )}
+              ) : (
                 <div className="flex gap-2 justify-end">
                   <button type="button" className="pq-btn-secondary" onClick={() => setClosingMode(false)} disabled={busy}>
                     Back
@@ -663,23 +682,27 @@ export default function StaffScheduleCalendar({
                     Review close
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </ModalScrim>
       )}
 
       {rangeOpen && (
-        <ModalScrim>
-          <div className="pq-modal w-full max-w-sm p-5">
-            <h3 className="text-lg font-extrabold mb-3">Publish a range</h3>
-            <label className="pq-label" htmlFor="rangeStart">From</label>
-            <input id="rangeStart" type="date" className="pq-input mb-3" min={today} max={horizon} value={rangeForm.start} onChange={(event) => setRangeForm({ ...rangeForm, start: event.target.value })} />
-            <label className="pq-label" htmlFor="rangeEnd">To</label>
-            <input id="rangeEnd" type="date" className="pq-input mb-3" min={rangeForm.start} max={horizon} value={rangeForm.end} onChange={(event) => setRangeForm({ ...rangeForm, end: event.target.value })} />
-            <label className="pq-label" htmlFor="rangeCapacity">Slots each day</label>
-            <input id="rangeCapacity" type="number" min="1" className="pq-input mb-4" value={rangeForm.capacity} onChange={(event) => setRangeForm({ ...rangeForm, capacity: event.target.value })} />
-            <div className="flex gap-2 justify-end">
+        <ModalScrim onClick={(e) => e.target === e.currentTarget && !busy && setRangeOpen(false)}>
+          <div className="pq-modal pq-modal--sm">
+            <div className="pq-modal-header p-5 pb-0">
+              <h3 className="text-lg font-extrabold mb-3">Publish a range</h3>
+            </div>
+            <div className="pq-modal-body pq-scroll-y px-5">
+              <label className="pq-label" htmlFor="rangeStart">From</label>
+              <input id="rangeStart" type="date" className="pq-input mb-3" min={today} max={horizon} value={rangeForm.start} onChange={(event) => setRangeForm({ ...rangeForm, start: event.target.value })} />
+              <label className="pq-label" htmlFor="rangeEnd">To</label>
+              <input id="rangeEnd" type="date" className="pq-input mb-3" min={rangeForm.start} max={horizon} value={rangeForm.end} onChange={(event) => setRangeForm({ ...rangeForm, end: event.target.value })} />
+              <label className="pq-label" htmlFor="rangeCapacity">Slots each day</label>
+              <input id="rangeCapacity" type="number" min="1" className="pq-input mb-4" value={rangeForm.capacity} onChange={(event) => setRangeForm({ ...rangeForm, capacity: event.target.value })} />
+            </div>
+            <div className="pq-modal-footer p-5 pt-0 flex gap-2 justify-end">
               <button type="button" className="pq-btn-secondary" onClick={() => setRangeOpen(false)} disabled={busy}>Cancel</button>
               <button type="button" className="pq-btn-primary" onClick={reviewRange} disabled={busy}>Review</button>
             </div>

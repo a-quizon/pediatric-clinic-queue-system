@@ -310,13 +310,13 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
     <>
       <ModalScrim className="z-50" onClick={(e) => e.target === e.currentTarget && !isSubmitting && handleClose()}>
         <div
-          className="pq-modal w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden"
+          className="pq-modal pq-modal--lg"
           role="dialog"
           aria-modal="true"
           aria-labelledby="walkin-title"
           data-tour="walkin-form"
         >
-          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <div className="pq-modal-header flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
             <h2 id="walkin-title" className="text-lg font-extrabold tracking-tight">
               Add Walk-in
             </h2>
@@ -332,7 +332,7 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-            <div className="px-6 py-5 space-y-5 overflow-y-auto pq-scroll-y flex-1">
+            <div className="pq-modal-body pq-scroll-y px-6 py-5 space-y-5">
               {schedule && (
                 <div className="pq-row min-h-0 flex-col items-stretch gap-1.5 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
@@ -631,7 +631,7 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
               </div>
             </div>
 
-            <div className="px-6 py-4 flex gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer px-6 py-4 flex gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button type="button" onClick={handleClose} disabled={isSubmitting} className="pq-btn-secondary flex-1">
                 Cancel
               </button>

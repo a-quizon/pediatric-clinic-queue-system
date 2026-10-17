@@ -15,6 +15,7 @@ import { useAuth } from "../../hooks/useAuth";
 import toast from "react-hot-toast";
 import { mapPasswordResetError } from "../../utils/authErrors";
 import ConfirmationModal from "../common/ConfirmationModal";
+import ModalScrim from "../common/ModalScrim";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 
 export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allUsers }) {
@@ -279,10 +280,13 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
     return new Date(timestamp).toLocaleString();
   };
 
+  const detailsBusy = isSaving || isTogglingStatus || isResettingPassword;
+
   return (
-    <div className="pq-modal-scrim z-50">
-      <div className="pq-modal w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="user-details-title">
-        <div className="flex items-center justify-between p-6" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+    <>
+    <ModalScrim className="z-50" onClick={(e) => e.target === e.currentTarget && !detailsBusy && onClose()}>
+      <div className="pq-modal pq-modal--xl" role="dialog" aria-modal="true" aria-labelledby="user-details-title">
+        <div className="pq-modal-header flex items-center justify-between p-6" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <div className="flex items-center gap-4 min-w-0">
             <div className="w-12 h-12 rounded-[0.9rem] flex items-center justify-center shrink-0" style={roleIconStyle(user.role)}>
               {getRoleIcon(user.role)}
@@ -299,7 +303,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto pq-scroll-y flex-1 space-y-8">
+        <div className="pq-modal-body pq-scroll-y p-6 space-y-8">
           {isParentTarget && (
             <p className="text-sm pq-muted">
               Parent accounts are view-only. You can deactivate, delete, or send a password reset email.
@@ -404,7 +408,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
           </section>
         </div>
 
-        <div className="p-5" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+        <div className="pq-modal-footer p-5" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
           {isEditing && canEditProfile ? (
             <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
               <button
@@ -471,6 +475,7 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
           )}
         </div>
       </div>
+    </ModalScrim>
 
       <ConfirmationModal
         isOpen={confirmConfig.isOpen}
@@ -484,10 +489,20 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
       />
 
       {tempPasswordReveal && (
-        <div className="pq-modal-scrim z-[60]">
-          <div className="pq-modal w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="temp-password-title">
-            <div className="p-6 space-y-4">
+        <ModalScrim
+          className="z-[60]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setTempPasswordReveal(null);
+              setCopied(false);
+            }
+          }}
+        >
+          <div className="pq-modal pq-modal--md" role="dialog" aria-modal="true" aria-labelledby="temp-password-title">
+            <div className="pq-modal-header p-6 pb-0">
               <h3 id="temp-password-title" className="text-lg font-extrabold tracking-tight">Temporary Password</h3>
+            </div>
+            <div className="pq-modal-body pq-scroll-y p-6 space-y-4">
               <p className="text-sm pq-muted">
                 Share this password with the {staffRoleLabel} once. They must change it on next login. It will not be shown again.
               </p>
@@ -497,6 +512,8 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
               </div>
+            </div>
+            <div className="pq-modal-footer p-6 pt-0">
               <button
                 type="button"
                 className="pq-btn-primary w-full"
@@ -509,8 +526,8 @@ export default function UserDetailsModal({ isOpen, onClose, user, onUpdate, allU
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
-    </div>
+    </>
   );
 }

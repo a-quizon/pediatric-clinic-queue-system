@@ -191,14 +191,14 @@ export default function UserManagement() {
           />
         </div>
 
-        <div className="flex gap-3">
-          <div className="relative flex-1 md:flex-none">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 min-w-0">
+          <div className="relative w-full sm:flex-1 md:flex-none md:min-w-[10rem]">
             <label htmlFor="user-role-filter" className="sr-only">Filter by role</label>
             <select
               id="user-role-filter"
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="pq-input appearance-none cursor-pointer min-w-[10rem]"
+              className="pq-input appearance-none cursor-pointer w-full"
             >
               {USER_ROLE_FILTER_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -206,13 +206,13 @@ export default function UserManagement() {
             </select>
           </div>
 
-          <div className="relative flex-1 md:flex-none">
+          <div className="relative w-full sm:flex-1 md:flex-none md:min-w-[9rem]">
             <label htmlFor="user-status-filter" className="sr-only">Filter by status</label>
             <select
               id="user-status-filter"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="pq-input appearance-none cursor-pointer min-w-[9rem]"
+              className="pq-input appearance-none cursor-pointer w-full"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>

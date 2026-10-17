@@ -255,9 +255,9 @@ export default function Dashboard() {
         </section>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-4 gap-3 min-w-0">
         {stats.map((stat) => (
-          <div key={stat.name} className={statClass(stat.tone)}>
+          <div key={stat.name} className={`${statClass(stat.tone)} min-w-0`}>
             <span className="pq-stat-label">{stat.name}</span>
             <span className="pq-stat-value">{stat.value}</span>
           </div>

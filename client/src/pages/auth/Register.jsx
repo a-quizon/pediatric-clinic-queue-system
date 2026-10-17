@@ -14,6 +14,7 @@ import { formatToE164 } from "../../utils/phoneUtils";
 import { startOtpAutofill } from "../../utils/loginIdentifier";
 import { RESEND_FLOW } from "../../utils/resendCooldown";
 import { useResendCooldown } from "../../hooks/useResendCooldown";
+import ModalScrim from "../../components/common/ModalScrim";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -522,18 +523,28 @@ export default function Register() {
       </div>
 
       {showConsentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
+        <ModalScrim
+          className="z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowConsentModal(false);
+              setConsentCancelled(true);
+            }
+          }}
+        >
           <div
             ref={modalRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="consent-modal-title"
-            className="pq-modal max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
+            className="pq-modal pq-modal--lg"
           >
-            <div className="p-6 overflow-y-auto flex-1">
+            <div className="pq-modal-header p-6 pb-0">
               <h2 id="consent-modal-title" className="text-xl font-bold mb-4">
                 Plus Queue Data Privacy Consent
               </h2>
+            </div>
+            <div className="pq-modal-body pq-scroll-y px-6">
               <div className="space-y-4 text-sm" style={{ color: "var(--pq-ink)" }}>
                 <p>
                   Welcome to Plus Queue! We value your privacy and want to be clear about how we handle your information under the Data Privacy Act of 2012.
@@ -593,7 +604,7 @@ export default function Register() {
               </div>
             </div>
 
-            <div className="p-4 flex flex-col sm:flex-row gap-3 sm:justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)", background: "rgba(22,52,74,0.04)" }}>
+            <div className="pq-modal-footer p-4 flex flex-col sm:flex-row gap-3 sm:justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)", background: "rgba(22,52,74,0.04)" }}>
               <button
                 type="button"
                 onClick={() => {
@@ -625,7 +636,7 @@ export default function Register() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
     </PqAuthShell>

@@ -10,6 +10,7 @@ import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleValidate } from "../../components/onboarding/SecretaryTourSampleViews";
+import ModalScrim from "../../components/common/ModalScrim";
 
 const CODE_LENGTH = 6;
 
@@ -36,18 +37,22 @@ function ValidateResultModal({
           : { background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue)" };
 
   return (
-    <div className="pq-modal-scrim z-50">
-      <div className="pq-modal w-full max-w-sm overflow-hidden text-center p-8" role="dialog" aria-modal="true" aria-labelledby="validate-result-title">
-        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={iconStyle}>
-          <Icon className="w-8 h-8" aria-hidden="true" />
+    <ModalScrim className="z-50" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="pq-modal pq-modal--sm text-center" role="dialog" aria-modal="true" aria-labelledby="validate-result-title">
+        <div className="pq-modal-body pq-scroll-y p-8 pb-4">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={iconStyle}>
+            <Icon className="w-8 h-8" aria-hidden="true" />
+          </div>
+          <h2 id="validate-result-title" className="text-xl font-extrabold tracking-tight mb-2">{title}</h2>
+          <div className="pq-muted">{children}</div>
         </div>
-        <h2 id="validate-result-title" className="text-xl font-extrabold tracking-tight mb-2">{title}</h2>
-        <div className="pq-muted mb-6">{children}</div>
-        <button type="button" onClick={onClose} className={`${actionClass} w-full`}>
-          {actionLabel}
-        </button>
+        <div className="pq-modal-footer px-8 pb-8">
+          <button type="button" onClick={onClose} className={`${actionClass} w-full`}>
+            {actionLabel}
+          </button>
+        </div>
       </div>
-    </div>
+    </ModalScrim>
   );
 }
 
@@ -442,31 +447,35 @@ export default function ValidateReservation() {
       </ValidateResultModal>
 
       {showSuccessModal && validatedDetails && (
-        <div className="pq-modal-scrim z-50">
-          <div className="pq-modal w-full max-w-sm overflow-hidden text-center p-8" role="dialog" aria-modal="true" aria-labelledby="checkin-success-title">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "var(--pq-live-wash)", color: "var(--pq-live)" }}>
-              <CheckCircle className="w-8 h-8" aria-hidden="true" />
-            </div>
-            <h2 id="checkin-success-title" className="text-xl font-extrabold tracking-tight mb-6">Patient Checked In Successfully</h2>
-            <div className="text-left space-y-3 mb-6 pq-row block min-h-0">
-              <div className="flex justify-between items-center">
-                <span className="text-sm pq-muted">Child Name</span>
-                <span className="font-extrabold">
-                  {getReservationChildDisplayName(validatedDetails.reservation)}
-                </span>
+        <ModalScrim className="z-50" onClick={(e) => e.target === e.currentTarget && closeAllModals()}>
+          <div className="pq-modal pq-modal--sm text-center" role="dialog" aria-modal="true" aria-labelledby="checkin-success-title">
+            <div className="pq-modal-body pq-scroll-y p-8 pb-4">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "var(--pq-live-wash)", color: "var(--pq-live)" }}>
+                <CheckCircle className="w-8 h-8" aria-hidden="true" />
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm pq-muted">Queue Number</span>
-                <span className="font-extrabold pq-num">
-                  #{validatedDetails.reservation.queuePosition ?? validatedDetails.reservation.queueNumber}
-                </span>
+              <h2 id="checkin-success-title" className="text-xl font-extrabold tracking-tight mb-6">Patient Checked In Successfully</h2>
+              <div className="text-left space-y-3 pq-row block min-h-0">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm pq-muted">Child Name</span>
+                  <span className="font-extrabold">
+                    {getReservationChildDisplayName(validatedDetails.reservation)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm pq-muted">Queue Number</span>
+                  <span className="font-extrabold pq-num">
+                    #{validatedDetails.reservation.queuePosition ?? validatedDetails.reservation.queueNumber}
+                  </span>
+                </div>
               </div>
             </div>
-            <button type="button" onClick={closeAllModals} className="pq-btn-primary w-full">
-              OK
-            </button>
+            <div className="pq-modal-footer px-8 pb-8">
+              <button type="button" onClick={closeAllModals} className="pq-btn-primary w-full">
+                OK
+              </button>
+            </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       <ValidateResultModal

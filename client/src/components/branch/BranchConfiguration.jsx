@@ -3,6 +3,7 @@ import { createBranch, updateBranch } from "../../services/branchConfigurationSe
 import { AlertCircle, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
+import ModalScrim from "../common/ModalScrim";
 
 export default function BranchConfiguration({ isOpen, mode, branch, existingBranches = [], onClose, onSuccess }) {
   const defaultScheduleState = {
@@ -127,18 +128,18 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
   if (!isOpen) return null;
 
   return (
-    <div className="pq-modal-scrim z-[60]">
-      <div className="pq-modal w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="branch-form-title">
-        <div className="flex items-center justify-between p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
-          <h2 id="branch-form-title" className="text-xl font-extrabold tracking-tight">
+    <ModalScrim className="z-[60]" onClick={(e) => e.target === e.currentTarget && !isSubmitting && onClose()}>
+      <div className="pq-modal pq-modal--lg" role="dialog" aria-modal="true" aria-labelledby="branch-form-title">
+        <div className="pq-modal-header flex items-center justify-between gap-3 p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <h2 id="branch-form-title" className="text-xl font-extrabold tracking-tight min-w-0 truncate">
             {mode === "add" ? "Add Branch" : "Edit Branch"}
           </h2>
-          <button type="button" onClick={onClose} className="pq-icon-btn" aria-label="Close">
+          <button type="button" onClick={onClose} className="pq-icon-btn shrink-0" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-5 overflow-y-auto pq-scroll-y flex-1">
+        <div className="pq-modal-body p-5 pq-scroll-y">
           {errorMsg && (
             <div className="mb-5 pq-note pq-note-alert flex items-start">
               <AlertCircle className="w-5 h-5 mr-2 shrink-0" aria-hidden="true" />
@@ -198,8 +199,8 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
                       </div>
 
                       {dayState.isOpen && (
-                        <div className="grid grid-cols-2 gap-4 mt-3 pt-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
-                          <div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 pt-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+                          <div className="min-w-0">
                             <label htmlFor={`${key}-open`} className="pq-label">Opening Time</label>
                             <input
                               id={`${key}-open`}
@@ -209,7 +210,7 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
                               className="pq-input"
                             />
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <label htmlFor={`${key}-close`} className="pq-label">Closing Time</label>
                             <input
                               id={`${key}-close`}
@@ -229,12 +230,12 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
           </form>
         </div>
 
-        <div className="p-5 flex items-center justify-end gap-3 shrink-0" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+        <div className="pq-modal-footer p-5 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="pq-btn-secondary"
+            className="pq-btn-secondary w-full sm:w-auto"
           >
             Cancel
           </button>
@@ -242,12 +243,12 @@ export default function BranchConfiguration({ isOpen, mode, branch, existingBran
             type="submit"
             form="branch-form"
             disabled={isSubmitting}
-            className="pq-btn-primary"
+            className="pq-btn-primary w-full sm:w-auto"
           >
             {isSubmitting ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>
-    </div>
+    </ModalScrim>
   );
 }

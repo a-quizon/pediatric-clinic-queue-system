@@ -501,14 +501,14 @@ export default function ManageQueue({ hideHeader = false }) {
               title={walkInDisabledReason || "Add a walk-in patient to this queue"}
             >
               <UserPlus className="w-4 h-4 shrink-0" aria-hidden="true" />
-              <span className="whitespace-nowrap">Add Walk-in</span>
+              <span className="truncate">Add Walk-in</span>
             </button>
             <button
               type="button"
               data-tour="queue-request-checkin"
               onClick={handleRequestCheckIn}
               disabled={requestingCheckIn || nextEligibleCooldownSec > 0}
-              className="pq-btn-secondary pq-btn-pill w-full @2xl:flex-1"
+              className="pq-btn-secondary pq-btn-pill w-full @2xl:flex-1 min-w-0"
               title={
                 nextEligibleCooldownSec > 0
                   ? "Check-in request already sent. Please wait before sending another reminder."
@@ -516,7 +516,7 @@ export default function ManageQueue({ hideHeader = false }) {
               }
             >
               <UserCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
-              <span className="whitespace-nowrap">
+              <span className="truncate">
                 {nextEligibleCooldownSec > 0
                   ? `Request Check-In (${nextEligibleCooldownSec}s)`
                   : "Request Check-In"}
@@ -729,15 +729,17 @@ export default function ManageQueue({ hideHeader = false }) {
           }}
         >
           <div
-            className="pq-modal w-full max-w-sm overflow-hidden flex flex-col"
+            className="pq-modal pq-modal--sm"
             role="dialog"
             aria-modal="true"
             aria-labelledby="contact-modal-title"
           >
-            <div className="p-6">
+            <div className="pq-modal-header p-6 pb-0">
               <h2 id="contact-modal-title" className="text-xl font-extrabold tracking-tight mb-1">
                 {contactIsWalkIn ? "Walk-in Patient" : "Parent / Guardian"}
               </h2>
+            </div>
+            <div className="pq-modal-body pq-scroll-y px-6 pb-6">
               {loadingContactInfo ? (
                 <PqSpinner label="Loading contact" />
               ) : contactIsWalkIn ? (
@@ -798,7 +800,7 @@ export default function ManageQueue({ hideHeader = false }) {
                 </div>
               )}
             </div>
-            <div className="p-4 flex flex-col-reverse sm:flex-row justify-end gap-2" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer p-4 flex flex-col-reverse sm:flex-row justify-end gap-2" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               {isWalkInReservation(contactReservation) && (
                 <button
                   type="button"

@@ -193,8 +193,8 @@ function ClinicSessionsReports({ filters }) {
       ) : (
         <>
           <div className="pq-glass p-5">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-              <div className="pq-stat pq-stat-info col-span-2 md:col-span-1">
+            <div className="grid grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 min-w-0">
+              <div className="pq-stat pq-stat-info min-[360px]:col-span-2 md:col-span-1 min-w-0">
                 <span className="pq-stat-label flex items-center gap-1"><Users className="w-3.5 h-3.5" aria-hidden="true" /> Total</span>
                 <span className="pq-stat-value">{aggregated.totalReservations}</span>
               </div>

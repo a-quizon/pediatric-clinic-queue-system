@@ -28,6 +28,7 @@ import {
 
 const BRANCH_KEY = "pq-reserve-branch-id";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
 
 function formatTime(time) {
   if (!time) return "";
@@ -216,10 +217,15 @@ export default function ParentScheduleCalendar({
           <span style={{ color: "var(--pq-wait)" }}>Closed</span>
           <span className="pq-muted">Muted: no session or past</span>
         </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold pq-muted mb-1">
-          {WEEKDAYS.map((label) => <div key={label}>{label}</div>)}
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1 text-center text-[0.65rem] sm:text-xs font-bold pq-muted mb-1 min-w-0">
+          {WEEKDAYS.map((label, i) => (
+            <div key={`${label}-${i}`} className="min-w-0 truncate px-0.5">
+              <span className="sm:hidden">{WEEKDAYS_SHORT[i]}</span>
+              <span className="hidden sm:inline">{label}</span>
+            </div>
+          ))}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-0.5 sm:gap-1 min-w-0">
           {cells.map((dateStr, index) => {
             if (!dateStr) return <div key={`blank-${index}`} />;
             const schedule = scheduleForDate(branchSchedules, dateStr, branch?.id, branch?.name);
@@ -256,12 +262,12 @@ export default function ParentScheduleCalendar({
                 key={dateStr}
                 type={clickable ? "button" : undefined}
                 onClick={clickable ? () => openDate(dateStr) : undefined}
-                className="min-h-14 rounded-xl text-left p-1.5"
+                className="min-h-14 min-w-0 rounded-xl text-left p-1 sm:p-1.5"
                 style={{ ...style, border: "1px solid var(--pq-glass-line)" }}
                 aria-label={`${formatManilaLong(dateStr)} ${labels[kind] || "No session"}`}
               >
                 <div className="text-sm font-extrabold">{Number(dateStr.slice(-2))}</div>
-                <div className="text-[10px] leading-tight font-semibold">{labels[kind]}</div>
+                <div className="text-[9px] sm:text-[10px] leading-tight font-semibold truncate">{labels[kind]}</div>
               </Tag>
             );
           })}

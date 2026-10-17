@@ -370,9 +370,9 @@ export default function QueueControlCenter() {
       </div>
 
       {isInfoModalOpen && infoPatient && (
-        <ModalScrim className="z-[60]">
-          <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="patient-details-title">
-            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <ModalScrim className="z-[60]" onClick={(e) => e.target === e.currentTarget && setIsInfoModalOpen(false)}>
+          <div className="pq-modal pq-modal--md" role="dialog" aria-modal="true" aria-labelledby="patient-details-title">
+            <div className="pq-modal-header flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="patient-details-title" className="text-lg font-extrabold tracking-tight flex items-center">
                 <FileText className="w-5 h-5 mr-2" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
                 Patient Details
@@ -382,7 +382,7 @@ export default function QueueControlCenter() {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto pq-scroll-y flex-1">
+            <div className="pq-modal-body pq-scroll-y p-6">
               <div className="flex justify-between items-start mb-6 gap-3">
                 <div>
                   <div className="text-xs pq-faint font-extrabold uppercase tracking-wider mb-1">Patient</div>
@@ -438,7 +438,7 @@ export default function QueueControlCenter() {
               </div>
             </div>
 
-            <div className="p-5 flex justify-end shrink-0" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer p-5 flex justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button 
                 type="button"
                 onClick={() => setIsInfoModalOpen(false)}
@@ -452,9 +452,9 @@ export default function QueueControlCenter() {
       )}
 
       {isCompleteModalOpen && selectedPatient && (
-        <ModalScrim className="z-[60]">
-          <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="complete-consult-title">
-            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <ModalScrim className="z-[60]" onClick={(e) => e.target === e.currentTarget && !isSubmitting && setIsCompleteModalOpen(false)}>
+          <div className="pq-modal pq-modal--md" role="dialog" aria-modal="true" aria-labelledby="complete-consult-title">
+            <div className="pq-modal-header flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="complete-consult-title" className="text-lg font-extrabold tracking-tight flex items-center">
                 <CheckCircle className="w-5 h-5 mr-2" style={{ color: "var(--pq-live)" }} aria-hidden="true" />
                 Complete Consultation
@@ -464,7 +464,7 @@ export default function QueueControlCenter() {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto pq-scroll-y">
+            <div className="pq-modal-body pq-scroll-y p-6">
               <div className="pq-row mb-6">
                 <div>
                   <div className="text-xs pq-faint font-extrabold uppercase tracking-wider mb-1">Patient</div>
@@ -508,7 +508,7 @@ export default function QueueControlCenter() {
               </div>
             </div>
 
-            <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button 
                 type="button"
                 onClick={() => setIsCompleteModalOpen(false)}

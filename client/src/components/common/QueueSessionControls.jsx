@@ -190,7 +190,7 @@ export default function QueueSessionControls({
             title={!canEndSession ? "Finish all remaining consultations to end session" : "End Clinic Session"}
           >
             <Square className="w-4 h-4 shrink-0" aria-hidden="true" />
-            <span className="whitespace-nowrap">End Clinic Session</span>
+            <span className="truncate">End Clinic Session</span>
           </button>
         )
       )}
@@ -217,9 +217,9 @@ export default function QueueSessionControls({
       </div>
 
       {isCloseQueueModalOpen && (
-        <ModalScrim className="z-[60]">
-          <div className="pq-modal w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="close-queue-title">
-            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <ModalScrim className="z-[60]" onClick={(e) => e.target === e.currentTarget && setIsCloseQueueModalOpen(false)}>
+          <div className="pq-modal pq-modal--md" role="dialog" aria-modal="true" aria-labelledby="close-queue-title">
+            <div className="pq-modal-header flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="close-queue-title" className="text-lg font-extrabold tracking-tight flex items-center" style={{ color: "var(--pq-wait)" }}>
                 <Lock className="w-5 h-5 mr-2" aria-hidden="true" />
                 Close Queue to New Reservations?
@@ -229,7 +229,7 @@ export default function QueueSessionControls({
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="pq-modal-body pq-scroll-y p-6">
               <p className="font-medium text-center">
                 Are you sure you want to close this queue to new reservations?
               </p>
@@ -238,7 +238,7 @@ export default function QueueSessionControls({
               </p>
             </div>
 
-            <div className="p-5 flex justify-end gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer p-5 flex justify-end gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button
                 type="button"
                 onClick={() => setIsCloseQueueModalOpen(false)}
@@ -255,9 +255,9 @@ export default function QueueSessionControls({
       )}
 
       {isEndSessionModalOpen && (
-        <ModalScrim className="z-[60]">
-          <div className="pq-modal w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="end-session-title">
-            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <ModalScrim className="z-[60]" onClick={(e) => e.target === e.currentTarget && setIsEndSessionModalOpen(false)}>
+          <div className="pq-modal pq-modal--md" role="dialog" aria-modal="true" aria-labelledby="end-session-title">
+            <div className="pq-modal-header flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="end-session-title" className="text-lg font-extrabold tracking-tight flex items-center" style={{ color: "var(--pq-alert)" }}>
                 <Square className="w-5 h-5 mr-2" aria-hidden="true" />
                 End Clinic Session?
@@ -267,7 +267,7 @@ export default function QueueSessionControls({
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="pq-modal-body pq-scroll-y p-6">
               <p className="font-medium text-center">
                 Are you sure you want to end today's clinic session?
               </p>
@@ -276,7 +276,7 @@ export default function QueueSessionControls({
               </p>
             </div>
 
-            <div className="p-5 flex justify-end gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer p-5 flex justify-end gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button
                 type="button"
                 onClick={() => setIsEndSessionModalOpen(false)}

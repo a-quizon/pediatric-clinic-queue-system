@@ -8,6 +8,7 @@ import { usePasswordValidation } from "../../utils/passwordUtils";
 import { formatToE164 } from "../../utils/phoneUtils";
 import { ACTIVE_DOCTOR_EXISTS_MESSAGE } from "../../utils/doctorAccountPolicy";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
+import ModalScrim from "../common/ModalScrim";
 
 const ROLE_OPTIONS = [
   { value: "secretary", label: "Secretary", icon: UserCog },
@@ -157,9 +158,9 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
   };
 
   return (
-    <div className="pq-modal-scrim z-50">
-      <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="add-staff-title">
-        <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+    <ModalScrim className="z-50" onClick={(e) => e.target === e.currentTarget && !loading && handleClose()}>
+      <div className="pq-modal pq-modal--md" role="dialog" aria-modal="true" aria-labelledby="add-staff-title">
+        <div className="pq-modal-header flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <div className="flex items-center gap-3 min-w-0">
             <div
               className="w-10 h-10 rounded-[0.9rem] flex items-center justify-center shrink-0"
@@ -180,14 +181,14 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
             type="button"
             onClick={handleClose}
             disabled={loading}
-            className="pq-icon-btn"
+            className="pq-icon-btn shrink-0"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto pq-scroll-y">
+        <div className="pq-modal-body p-6 pq-scroll-y">
           <form onSubmit={handleSubmit} id="staff-form" className="space-y-4">
             <fieldset>
               <legend className="pq-label">Role <span style={{ color: "var(--pq-alert)" }}>*</span></legend>
@@ -371,12 +372,12 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
           </form>
         </div>
 
-        <div className="p-5 flex gap-3 justify-end mt-auto" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+        <div className="pq-modal-footer p-5 flex flex-col-reverse sm:flex-row gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
           <button
             type="button"
             onClick={handleClose}
             disabled={loading}
-            className="pq-btn-secondary"
+            className="pq-btn-secondary w-full sm:w-auto"
           >
             Cancel
           </button>
@@ -384,12 +385,12 @@ export default function AddStaffModal({ isOpen, onClose, onSuccess }) {
             type="submit"
             form="staff-form"
             disabled={loading || !isPasswordFormValid || isChecking || (isDoctor && doctorBlocked)}
-            className="pq-btn-primary"
+            className="pq-btn-primary w-full sm:w-auto"
           >
             {loading ? "Creating..." : "Create Account"}
           </button>
         </div>
       </div>
-    </div>
+    </ModalScrim>
   );
 }

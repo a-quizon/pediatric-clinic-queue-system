@@ -1,29 +1,30 @@
-import React from 'react';
-import { X, MapPin, CalendarDays, FileText, Activity } from 'lucide-react';
-import { getReservationChildDisplayName, getReservationChildren } from '../../utils/reservationPatients';
-import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
+import React from "react";
+import { X, MapPin, CalendarDays, FileText, Activity } from "lucide-react";
+import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
+import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
+import ModalScrim from "../common/ModalScrim";
 
 export default function NotesDetailsModal({ isOpen, onClose, reservation, schedule }) {
   useHistoryOverlay(Boolean(isOpen && reservation && schedule), onClose);
   if (!isOpen || !reservation || !schedule) return null;
 
   return (
-    <div className="pq-modal-scrim">
-      <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
-          <h2 className="text-lg font-bold flex items-center">
-            <Activity className="w-5 h-5 mr-2" style={{ color: "var(--pq-mark-blue)" }} />
-            Consultation Details
+    <ModalScrim onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="pq-modal pq-modal--md" role="dialog" aria-modal="true">
+        <div className="pq-modal-header flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <h2 className="text-lg font-bold flex items-center min-w-0 pr-2">
+            <Activity className="w-5 h-5 mr-2 shrink-0" style={{ color: "var(--pq-mark-blue)" }} />
+            <span className="truncate">Consultation Details</span>
           </h2>
-          <button onClick={onClose} className="pq-icon-btn" aria-label="Close">
+          <button type="button" onClick={onClose} className="pq-icon-btn shrink-0" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
-        
-        <div className="p-6 overflow-y-auto pq-scroll-y space-y-6">
+
+        <div className="pq-modal-body p-6 pq-scroll-y space-y-6">
           <div>
             <div className="text-xs pq-muted font-bold mb-1">Patient</div>
-            <div className="text-xl font-bold">{getReservationChildDisplayName(reservation)}</div>
+            <div className="text-xl font-bold break-words">{getReservationChildDisplayName(reservation)}</div>
             {getReservationChildren(reservation).length > 0 && (
               <div className="text-sm pq-muted mt-1">
                 {getReservationChildren(reservation)
@@ -35,16 +36,22 @@ export default function NotesDetailsModal({ isOpen, onClose, reservation, schedu
           </div>
 
           <div className="pq-row flex-col items-stretch p-4 space-y-3">
-            <div className="flex items-center text-sm">
-              <MapPin className="w-4 h-4 pq-faint mr-2" />
-              <span className="pq-muted w-24">Branch:</span>
-              <span className="font-bold">{schedule.branch || "Unknown"}</span>
+            <div className="flex items-center text-sm min-w-0">
+              <MapPin className="w-4 h-4 pq-faint mr-2 shrink-0" />
+              <span className="pq-muted w-24 shrink-0">Branch:</span>
+              <span className="font-bold truncate">{schedule.branch || "Unknown"}</span>
             </div>
-            <div className="flex items-center text-sm">
-              <CalendarDays className="w-4 h-4 pq-faint mr-2" />
-              <span className="pq-muted w-24">Date:</span>
+            <div className="flex items-center text-sm min-w-0">
+              <CalendarDays className="w-4 h-4 pq-faint mr-2 shrink-0" />
+              <span className="pq-muted w-24 shrink-0">Date:</span>
               <span className="font-bold">
-                {schedule.clinicDate ? new Date(schedule.clinicDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "N/A"}
+                {schedule.clinicDate
+                  ? new Date(schedule.clinicDate).toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "N/A"}
               </span>
             </div>
           </div>
@@ -52,23 +59,22 @@ export default function NotesDetailsModal({ isOpen, onClose, reservation, schedu
           <div className="pq-note pq-note-info">
             <h3 className="font-bold mb-3 flex items-center text-sm">
               <FileText className="w-4 h-4 mr-2" />
-              Doctor's Notes
+              Doctor&apos;s Notes
             </h3>
-            <div className="pq-row p-4 text-sm whitespace-pre-wrap leading-relaxed min-h-[100px]">
-              {reservation.doctorNotes || <span className="pq-faint italic">No notes provided for this consultation.</span>}
+            <div className="pq-row p-4 text-sm whitespace-pre-wrap leading-relaxed min-h-[100px] break-words">
+              {reservation.doctorNotes || (
+                <span className="pq-faint italic">No notes provided for this consultation.</span>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
-          <button 
-            onClick={onClose}
-            className="pq-btn-secondary w-full"
-          >
+        <div className="pq-modal-footer p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+          <button type="button" onClick={onClose} className="pq-btn-secondary w-full">
             Close
           </button>
         </div>
       </div>
-    </div>
+    </ModalScrim>
   );
 }

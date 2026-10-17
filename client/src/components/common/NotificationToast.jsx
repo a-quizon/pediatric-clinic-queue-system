@@ -56,8 +56,10 @@ export default function NotificationToast({ t, type, title, message, onDismiss }
         </p>
       </div>
       <button
+        type="button"
         onClick={onDismiss}
-        className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors shrink-0"
+        aria-label="Dismiss notification"
+        className="text-gray-400 hover:text-gray-600 min-h-11 min-w-11 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors shrink-0"
       >
         <X className="w-4 h-4" />
       </button>
