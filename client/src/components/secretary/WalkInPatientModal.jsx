@@ -210,7 +210,6 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
       return nameOk && !getBirthdateError(birthdate) && sexOk;
     });
 
-  const concernValid = Boolean(concern.trim());
   const parentPhoneValid = parentPhoneLocal === "" || parentPhoneLocal.length === 10;
 
   const canSubmit =
@@ -219,7 +218,6 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
     childCountValid &&
     fieldsMatchCount &&
     childrenValid &&
-    concernValid &&
     parentPhoneValid &&
     !isSubmitting;
 
@@ -230,11 +228,6 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
     const n = parseChildCount(childCountInput);
     if (n == null) {
       patchForm({ childCountError: `Enter a whole number from 1 to ${MAX_CHILDREN}.` });
-      return;
-    }
-
-    if (!concern.trim()) {
-      patchForm({ concernError: "A visit concern is required.", childCountError: "", childCountInput: String(n) });
       return;
     }
 
@@ -421,17 +414,16 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
 
                 <div>
                   <label htmlFor="walkin-concern" className="pq-label">
-                    Concern / reason <span style={{ color: "var(--pq-alert)" }}>*</span>
+                    Concern / reason <span className="pq-muted font-normal">(optional)</span>
                   </label>
                   <textarea
                     id="walkin-concern"
                     value={concern}
                     onChange={(e) => patchForm({ concern: e.target.value, concernError: "" })}
-                    placeholder="Brief reason for the visit"
+                    placeholder="Optional — brief reason for the visit"
                     rows={2}
                     className={`pq-input resize-none ${concernError ? "pq-input-error" : ""}`}
                     disabled={Boolean(blockReason)}
-                    required
                   />
                   {concernError && (
                     <p className="mt-1.5 pq-error-text flex items-center gap-1">

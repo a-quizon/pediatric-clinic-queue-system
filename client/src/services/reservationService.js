@@ -204,9 +204,6 @@ export const createWalkInReservation = async ({
   }
 
   const trimmedConcern = String(concern || "").trim();
-  if (!trimmedConcern) {
-    throw new Error("A visit concern is required.");
-  }
 
   const existing = await getReservationsBySchedule(scheduleId);
   if (slotsTaken({ id: scheduleId }, existing) >= Number(schedule.slotCapacity || 0)) {

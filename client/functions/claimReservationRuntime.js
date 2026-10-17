@@ -188,7 +188,6 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
   if (mode === "walk_in") {
     walkInChildren = normalizeChildren(payload.children);
     walkInConcern = String(payload.concern || "").trim();
-    if (!walkInConcern) throw coded("invalid-argument", "A visit concern is required.");
   }
 
   const today = manilaDateString();
