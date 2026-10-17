@@ -1,0 +1,5 @@
+{
+  "watch": [".", "../client/functions"],
+  "ext": "js,mjs,cjs,json",
+  "ignore": ["node_modules", "../client/functions/node_modules"]
+}
