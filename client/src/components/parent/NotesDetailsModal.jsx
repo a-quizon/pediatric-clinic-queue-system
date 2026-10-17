@@ -1,6 +1,7 @@
 import React from "react";
 import { X, MapPin, CalendarDays, FileText, Activity } from "lucide-react";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
+import { presentChildForRole } from "../../utils/pediatricAge";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import ModalScrim from "../common/ModalScrim";
 
@@ -28,7 +29,10 @@ export default function NotesDetailsModal({ isOpen, onClose, reservation, schedu
             {getReservationChildren(reservation).length > 0 && (
               <div className="text-sm pq-muted mt-1">
                 {getReservationChildren(reservation)
-                  .map((child) => [child.age, child.sex].filter(Boolean).join(" • "))
+                  .map((child) => {
+                    const presented = presentChildForRole(child, "parent");
+                    return [presented.birthdateDisplay, child.sex].filter(Boolean).join(" • ");
+                  })
                   .filter(Boolean)
                   .join(" · ")}
               </div>

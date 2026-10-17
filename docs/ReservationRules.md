@@ -51,7 +51,7 @@ A reservation follows a strict linear progression, with early exits for cancella
   6. For parent self-booking only, the parent must open the Queue Rules agreement for **that schedule's branch**, tick that they understand and agree, and tap **Proceed** before the slot is created. Cancel/back creates nothing. Secretary walk-in and phone-in bookings skip this step.
 * **Identity Generation**: Upon creation, the system generates a 6-character alphanumeric `reservationCode`.
 * **Queue Number Assignment**: The system queries existing reservations for that schedule and assigns the next incremental integer as the permanent `queueNumber`.
-* **Patients**: After the slot is claimed, the parent selects one or more saved child profiles and a single `concern` string. The reservation stores `children[]` plus legacy `childName` / `age` / `sex` mirrored from the first selected child. Multiple children still consume **one** slot.
+* **Patients**: After the slot is claimed, the parent selects one or more saved child profiles and a single `concern` string. The reservation stores `children[]` plus legacy `childName` / `birthdate` / `sex` mirrored from the first selected child (older snapshots may still have `age`). Multiple children still consume **one** slot.
 
 ---
 
@@ -110,7 +110,7 @@ Slots are evaluated dynamically at runtime by counting active reservations.
 
 ## 10. Parent Rules
 * **Reserve**: May book one active reservation per clinic day, and at most two active upcoming reservations across all dates and branches. Before the slot is created, the parent must read and agree to that branch's Queue Rules (Penalty Move-Back, forfeiture timer, grace wait, same-day / any-branch limit, and the two-upcoming cap). That reservation may include one or more saved child profiles plus a single shared visit concern. Multiple children still consume one slot and one queue ticket.
-* **Child Profiles**: Parents manage reusable child records (name, age, sex) from Profile. Selecting patients at reservation time snapshots those profiles onto the reservation.
+* **Child Profiles**: Parents manage reusable child records (name, birthdate, sex) from Profile. Selecting patients at reservation time snapshots those profiles onto the reservation. Clinic staff see an automatically computed pediatric age; parents see the birthdate only. Legacy records that still have numeric `age` and no birthdate keep that age for staff until the parent adds a birthdate.
 * **View Ticket**: Can view their live digital ticket, displaying their permanent `queueNumber`, generated QR code, and `reservationCode`.
 * **View Queue Status**: Can monitor their dynamic `queueState` (e.g., "Almost Next") and `aheadOfYou` count relative to the live clinic floor.
 * **Cancel**: May cancel at any time before consultation begins.
@@ -158,6 +158,14 @@ A reservation is a **no-show** only when all of the following are true (Manila c
 3. Status is not `cancelled` (parent cancel) and not `cancelled_by_clinic`.
 
 Walk-ins without `parentId` are excluded. No-shows feed Rules A/B/C for suspicious parent flagging (see System Business Rules §11b). The system does not invent a separate `no_show` status; scoring uses existing fields.
+
+## 14c. Past Unused Reservation Cleanup
+A scheduled Cloud Function (`expirePastUnusedReservations`, daily **00:15 Asia/Manila**) soft-expires past unused reservations:
+* Status still in `reserved` / `waiting` / `validation_open` / `waiting_for_window`
+* Manila `clinicDate` strictly before today
+* Never checked in / attended
+
+Those records are set to terminal status **`expired`** (with `expiredAt`), then slot holders and booking locks are released. Completed, cancelled, forfeited, and other attended records are never changed. Parent "My Reservations" hides past unused and expired tickets immediately (even before the job runs); they remain visible in Reservation History once expired.
 
 ---
 

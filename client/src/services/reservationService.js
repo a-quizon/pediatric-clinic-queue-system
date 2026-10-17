@@ -213,9 +213,10 @@ export const createWalkInReservation = async ({
     throw new Error("This schedule is already full.");
   }
 
+  const { getBirthdateError } = await import("../utils/pediatricAge");
   const normalizedChildren = (children || []).map((child) => ({
     childName: String(child.childName || "").trim(),
-    age: String(child.age ?? "").trim(),
+    birthdate: String(child.birthdate ?? "").trim(),
     sex: child.sex === "Male" || child.sex === "Female" ? child.sex : "",
     childId: null,
   }));
@@ -229,14 +230,8 @@ export const createWalkInReservation = async ({
   if (normalizedChildren.some((c) => !c.childName)) {
     throw new Error("Each child must have a name.");
   }
-  if (
-    normalizedChildren.some((c) => {
-      if (!/^\d+$/.test(c.age)) return true;
-      const ageNum = parseInt(c.age, 10);
-      return ageNum < 1 || ageNum > 25;
-    })
-  ) {
-    throw new Error("Each child must have a valid age (1–25).");
+  if (normalizedChildren.some((c) => getBirthdateError(c.birthdate))) {
+    throw new Error("Each child must have a valid birthdate.");
   }
   if (normalizedChildren.some((c) => !c.sex)) {
     throw new Error("Each child must have a sex selected.");

@@ -18,7 +18,7 @@ Read when modifying Firebase data, server routes, or environment setup.
   createdAt, updatedAt,           // epoch ms
   assignedBranch: "Angeles",       // secretaries only
   children/{childId}: {            // parent-saved child profiles
-    childName, age, sex, createdAt
+    childName, birthdate, sex, createdAt  // legacy: age (until parent backfills birthdate)
   },
   pushSubscriptions/{hash}: { endpoint, keys: { p256dh, auth } },
   nearTurnSms: { sentAt, reservationId, backfilled? },  // parents; server-only; Near Turn SMS once per account, never reset
@@ -119,9 +119,9 @@ Server-only lock `{ scheduleId, at }` (legacy: bare scheduleId string) so one pa
   status: "reserved" | "waiting" | "checked_in" | "with_doctor" |
           "in_consultation" | "consultation_completed" | "cancelled" |
           "cancelled_by_clinic" | "forfeited" | "expired" | ...,
-  childName, age, sex, concern,    // legacy mirrors (first selected child + shared concern)
+  childName, birthdate, sex, concern,    // mirrors (first selected child + shared concern; legacy age may remain)
   children: [                      // 1+ patients on this reservation (1 slot)
-    { childId, childName, age, sex }
+    { childId, childName, birthdate, sex }  // legacy snapshots may include age
   ],
   source,                          // "walk_in" for secretary-created tickets
   createdBy,                       // secretary uid for walk-ins

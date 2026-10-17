@@ -65,6 +65,11 @@ export const KNOWN_JOBS = [
     name: "Evaluate suspicious accounts",
     schedule: "Daily 20:00 (Asia/Manila)",
   },
+  {
+    id: "expirePastUnusedReservations",
+    name: "Expire past unused reservations",
+    schedule: "Daily 00:15 (Asia/Manila)",
+  },
 ];
 
 export const SMS_DEVICE_HELP =

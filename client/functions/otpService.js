@@ -3,6 +3,12 @@ const bcrypt = require("bcryptjs");
 const admin = require("firebase-admin");
 const { sendSms, normalizePhoneE164 } = require("./smsService");
 const { findUserByPhoneFlexible } = require("./phoneLookup");
+const {
+  PHONE_IN_USE_MESSAGE,
+  assertPhoneAvailable,
+  reservePhone,
+  bindPhone,
+} = require("./phoneRegistry");
 const { RESEND_COOLDOWN_MS, evaluateResendCooldown } = require("./resendCooldown");
 
 const OTP_TTL_MS = 5 * 60 * 1000;
@@ -138,12 +144,7 @@ async function sendRegistrationOtp(rawPhone) {
     throw err;
   }
 
-  const existing = await findParentByPhoneIncludingInactive(phone);
-  if (existing) {
-    const err = new Error("This phone number is already registered. Please sign in instead.");
-    err.code = "phone_in_use";
-    throw err;
-  }
+  await assertPhoneAvailable(getDb(), phone, { parentsOnly: true });
 
   return deliverAndStoreOtp({ phone, purpose: PURPOSE_REGISTER, uid: null });
 }
@@ -246,12 +247,7 @@ async function verifyRegistrationOtp(rawPhone, rawCode) {
     throw err;
   }
 
-  const existing = await findParentByPhoneIncludingInactive(phone);
-  if (existing) {
-    const err = new Error("This phone number is already registered. Please sign in instead.");
-    err.code = "phone_in_use";
-    throw err;
-  }
+  await assertPhoneAvailable(getDb(), phone, { parentsOnly: true });
 
   const { otpRef, record } = await loadValidOtpRecord(phone, PURPOSE_REGISTER);
   const matches = await bcrypt.compare(code, record.codeHash || "");
@@ -273,6 +269,12 @@ async function verifyRegistrationOtp(rawPhone, rawCode) {
     purpose: PURPOSE_REGISTER,
     verifiedAt: now,
     expiresAt: now + PHONE_VERIFICATION_TTL_MS,
+  });
+
+  await reservePhone(getDb(), phone, {
+    verificationId,
+    purpose: PURPOSE_REGISTER,
+    uid: null,
   });
 
   return {
@@ -297,12 +299,7 @@ async function sendUpdatePhoneOtp(rawPhone, uid) {
     throw err;
   }
 
-  const conflict = await findAnyUserByPhone(phone, uid);
-  if (conflict) {
-    const err = new Error("This phone number is already used by another account.");
-    err.code = "phone_in_use";
-    throw err;
-  }
+  await assertPhoneAvailable(getDb(), phone, { excludeUid: uid });
 
   return deliverAndStoreOtp({ phone, purpose: PURPOSE_UPDATE, uid });
 }
@@ -322,12 +319,7 @@ async function verifyUpdatePhoneOtp(rawPhone, rawCode, uid) {
     throw err;
   }
 
-  const conflict = await findAnyUserByPhone(phone, uid);
-  if (conflict) {
-    const err = new Error("This phone number is already used by another account.");
-    err.code = "phone_in_use";
-    throw err;
-  }
+  await assertPhoneAvailable(getDb(), phone, { excludeUid: uid });
 
   const { otpRef, record } = await loadValidOtpRecord(phone, PURPOSE_UPDATE);
   if (record.uid && record.uid !== uid) {
@@ -356,6 +348,12 @@ async function verifyUpdatePhoneOtp(rawPhone, rawCode, uid) {
     uid,
     verifiedAt: now,
     expiresAt: now + PHONE_VERIFICATION_TTL_MS,
+  });
+
+  await reservePhone(getDb(), phone, {
+    verificationId,
+    purpose: PURPOSE_UPDATE,
+    uid,
   });
 
   return {
@@ -409,14 +407,68 @@ async function assertPhoneVerified(rawPhone, verificationId, options = {}) {
     throw err;
   }
 
-  return { success: true, phone, verified: true, purpose: record.purpose || null };
+  const purpose = options.purpose || record.purpose || null;
+  if (purpose === PURPOSE_REGISTER) {
+    await assertPhoneAvailable(getDb(), phone, {
+      parentsOnly: true,
+      excludeUid: options.uid || null,
+      allowVerificationId: verificationId,
+    });
+  } else if (purpose === PURPOSE_UPDATE) {
+    await assertPhoneAvailable(getDb(), phone, {
+      excludeUid: options.uid || null,
+      allowVerificationId: verificationId,
+    });
+  }
+
+  return { success: true, phone, verified: true, purpose };
 }
 
 async function consumePhoneVerification(rawPhone, verificationId, options = {}) {
-  await assertPhoneVerified(rawPhone, verificationId, options);
-  const phone = normalizePhoneE164(rawPhone);
+  const asserted = await assertPhoneVerified(rawPhone, verificationId, options);
+  const phone = asserted.phone;
+  const purpose = options.purpose || asserted.purpose || null;
+  const uid = options.uid || null;
+
+  if (purpose === PURPOSE_UPDATE && uid) {
+    const userSnap = await getDb().ref(`users/${uid}`).once("value");
+    const previousPhone = userSnap.exists()
+      ? userSnap.val()?.phone || userSnap.val()?.phoneNumber || null
+      : null;
+    await bindPhone(getDb(), phone, uid, {
+      verificationId,
+      purpose: PURPOSE_UPDATE,
+      previousPhone,
+    });
+    await getDb().ref(`users/${uid}`).update({
+      phone,
+      phoneNumber: phone,
+      isPhoneVerified: true,
+      updatedAt: Date.now(),
+    });
+  } else if (purpose === PURPOSE_REGISTER && uid) {
+    await bindPhone(getDb(), phone, uid, {
+      verificationId,
+      purpose: PURPOSE_REGISTER,
+      previousPhone: null,
+    });
+    await getDb().ref(`users/${uid}`).update({
+      phone,
+      phoneNumber: phone,
+      isPhoneVerified: true,
+      updatedAt: Date.now(),
+    });
+  } else if (purpose === PURPOSE_REGISTER) {
+    // Keep registry reservation until profile bind with uid
+    await reservePhone(getDb(), phone, {
+      verificationId,
+      purpose: PURPOSE_REGISTER,
+      uid: null,
+    });
+  }
+
   await getDb().ref(`phoneVerifications/${phoneToKey(phone)}`).remove();
-  return { success: true };
+  return { success: true, phone, purpose };
 }
 
 module.exports = {
@@ -430,6 +482,7 @@ module.exports = {
   assertPhoneVerified,
   consumePhoneVerification,
   normalizePhoneE164,
+  PHONE_IN_USE_MESSAGE,
   OTP_TTL_MS,
   OTP_RESEND_COOLDOWN_MS,
   evaluateOtpResendCooldown,

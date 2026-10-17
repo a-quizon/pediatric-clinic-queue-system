@@ -131,21 +131,18 @@ function bookingLockIsStale(value, now) {
 }
 
 function normalizeChildren(children) {
+  const { getBirthdateError } = require("./pediatricAge");
   const list = (children || []).map((child) => ({
     childName: String(child.childName || "").trim(),
-    age: String(child.age ?? "").trim(),
+    birthdate: String(child.birthdate ?? "").trim(),
     sex: child.sex === "Male" || child.sex === "Female" ? child.sex : "",
     childId: null,
   }));
   if (list.length === 0) throw coded("invalid-argument", "At least one child is required.");
   if (list.length > 10) throw coded("invalid-argument", "A maximum of 10 children is allowed.");
   if (list.some((child) => !child.childName)) throw coded("invalid-argument", "Each child must have a name.");
-  if (list.some((child) => {
-    if (!/^\d+$/.test(child.age)) return true;
-    const age = parseInt(child.age, 10);
-    return age < 1 || age > 25;
-  })) {
-    throw coded("invalid-argument", "Each child must have a valid age (1–25).");
+  if (list.some((child) => getBirthdateError(child.birthdate))) {
+    throw coded("invalid-argument", "Each child must have a valid birthdate.");
   }
   if (list.some((child) => !child.sex)) throw coded("invalid-argument", "Each child must have a sex selected.");
   return list;
@@ -296,7 +293,7 @@ async function claimReservationSlot({ admin, callerUid, payload }) {
         originalQueueNumber: queueNumber,
         queuePosition: queueNumber,
         childName: children[0].childName,
-        age: children[0].age,
+        birthdate: children[0].birthdate,
         sex: children[0].sex,
         concern,
         children,

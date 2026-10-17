@@ -2,6 +2,7 @@ import React from 'react';
 import { X, MapPin, CalendarDays, Clock, User, FileText, Activity, Hash } from 'lucide-react';
 import ReservationStatusBadge from '../common/ReservationStatusBadge';
 import { getReservationChildren } from '../../utils/reservationPatients';
+import { presentChildForRole } from '../../utils/pediatricAge';
 import { useHistoryOverlay } from '../../hooks/useHistoryOverlay';
 import ModalScrim from '../common/ModalScrim';
 
@@ -124,22 +125,25 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
             </div>
             <div className="pq-row flex-col items-stretch p-4 space-y-3 text-sm">
               {getReservationChildren(reservation).length > 0 ? (
-                getReservationChildren(reservation).map((child, index) => (
+                getReservationChildren(reservation).map((child, index) => {
+                  const presented = presentChildForRole(child, "parent");
+                  return (
                   <div key={child.childId || index} className="grid grid-cols-3 gap-3">
                     <div className="col-span-3 sm:col-span-1">
                       <span className="text-xs pq-muted block mb-0.5">Child Name</span>
                       <span className="font-bold break-words">{child.childName || "N/A"}</span>
                     </div>
                     <div>
-                      <span className="text-xs pq-muted block mb-0.5">Age</span>
-                      <span className="font-semibold">{child.age || "N/A"}</span>
+                      <span className="text-xs pq-muted block mb-0.5">Birthdate</span>
+                      <span className="font-semibold">{presented.birthdateDisplay || "N/A"}</span>
                     </div>
                     <div>
                       <span className="text-xs pq-muted block mb-0.5">Sex</span>
                       <span className="font-semibold">{child.sex || "N/A"}</span>
                     </div>
                   </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-3 sm:col-span-1">
@@ -147,7 +151,7 @@ export default function ReservationDetailsModal({ isOpen, onClose, reservation, 
                     <span className="font-bold break-words">N/A</span>
                   </div>
                   <div>
-                    <span className="text-xs pq-muted block mb-0.5">Age</span>
+                    <span className="text-xs pq-muted block mb-0.5">Birthdate</span>
                     <span className="font-semibold">N/A</span>
                   </div>
                   <div>

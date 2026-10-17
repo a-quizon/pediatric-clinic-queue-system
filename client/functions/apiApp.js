@@ -582,12 +582,36 @@ function createApiApp() {
     }
   });
 
+  app.post("/api/phones/claim", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const { claimStaffPhone } = require("./claimStaffPhoneRuntime");
+      const result = await runForToken(decoded, () =>
+        claimStaffPhone({
+          admin,
+          callerUid: decoded.uid,
+          targetUid: req.body?.uid || decoded.uid,
+          phone: req.body?.phone,
+        })
+      );
+      return res.json(result);
+    } catch (err) {
+      const status = err.status || (err.code === "phone_in_use" ? 409 : 500);
+      return res.status(status).json({
+        success: false,
+        error: err.code || "internal",
+        message: err.message || "Could not claim phone number.",
+      });
+    }
+  });
+
   app.post("/api/auth/sms/consume-phone-verification", async (req, res) => {
     try {
       const purpose = req.body?.purpose || null;
       const options = {};
       if (purpose) options.purpose = purpose;
-      if (purpose === "update") {
+      if (purpose === "update" || purpose === "register") {
         const decoded = await requireAuth(req, res);
         if (!decoded) return;
         options.uid = decoded.uid;

@@ -63,6 +63,10 @@
       ".read": false,
       ".write": false
     },
+    "phoneRegistry": {
+      ".read": false,
+      ".write": false
+    },
     "passwordResetLimits": {
       ".read": false,
       ".write": false

@@ -51,6 +51,7 @@ export function getDoctorTourSampleQueue() {
       id: "tour-doc-consult-1",
       queueNumber: "01",
       childName: "Ana Santos",
+      birthdate: "2022-03-05",
       age: "4",
       sex: "Female",
       source: "reserved",

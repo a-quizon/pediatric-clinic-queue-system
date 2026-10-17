@@ -8,6 +8,7 @@ import { getBranchConfigurations } from "../../services/branchConfigurationServi
 import { useAuth } from "../../hooks/useAuth";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleLateRules, TourSampleTicket } from "../../components/onboarding/TourSampleViews";
+import { manilaDateString } from "../../utils/manilaDate";
 
 export default function MyReservation() {
   const { user } = useAuth();
@@ -41,41 +42,42 @@ export default function MyReservation() {
     };
   }, [user]);
 
-  // Filter for active/pending reservations
+  // Filter for active/pending reservations (never show past unused or already-expired)
   const activeReservations = useMemo(() => {
     if (!user) return [];
-    
-    // 1. Get all reservations belonging to the parent
-    const myRes = allReservations.filter(r => r.parentId === user.uid);
-    
-    // 2. Filter for active/pending/expired statuses (preserving business logic)
+    const today = manilaDateString();
+    const myRes = allReservations.filter((r) => r.parentId === user.uid);
+
     const eligibleStatuses = [
-      "reserved", "waiting", "validation_open", "waiting_for_window",
-      "checked_in", "in_consultation", "with_doctor",
-      "expired", "validation_expired"
+      "reserved",
+      "waiting",
+      "validation_open",
+      "waiting_for_window",
+      "checked_in",
+      "in_consultation",
+      "with_doctor",
     ];
-    
-    const eligible = myRes.filter(r => eligibleStatuses.includes(r.status));
-    
-    // 3. Sort chronologically by clinicDate, then openingTime
+
+    const eligible = myRes.filter((r) => {
+      if (!eligibleStatuses.includes(r.status)) return false;
+      const schedule = schedules[r.scheduleId];
+      const clinicDate = schedule?.clinicDate || r.clinicDate;
+      if (!clinicDate) return true;
+      // Hide past unused tickets even before the nightly cleanup job runs
+      if (clinicDate < today) return false;
+      return true;
+    });
+
     eligible.sort((a, b) => {
       const scheduleA = schedules[a.scheduleId];
       const scheduleB = schedules[b.scheduleId];
-      
-      // If schedules aren't loaded yet, preserve order
       if (!scheduleA || !scheduleB) return 0;
-      
-      const dateA = new Date(scheduleA.clinicDate);
-      const dateB = new Date(scheduleB.clinicDate);
-      
-      if (dateA.getTime() !== dateB.getTime()) {
-        return dateA.getTime() - dateB.getTime();
+      if (scheduleA.clinicDate !== scheduleB.clinicDate) {
+        return scheduleA.clinicDate < scheduleB.clinicDate ? -1 : 1;
       }
-      
-      // If same date, sort by openingTime (string comparison works for HH:mm)
-      return scheduleA.openingTime.localeCompare(scheduleB.openingTime);
+      return String(scheduleA.openingTime || "").localeCompare(String(scheduleB.openingTime || ""));
     });
-    
+
     return eligible;
   }, [allReservations, user, schedules]);
 

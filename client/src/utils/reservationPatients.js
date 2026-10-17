@@ -1,3 +1,5 @@
+import { getBirthdateError } from "./pediatricAge.js";
+
 const asChildList = (raw) => {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -10,12 +12,15 @@ export const getReservationChildren = (reservation) => {
   const fromArray = asChildList(reservation.children);
   if (fromArray.length > 0) return fromArray;
   if (reservation.childName) {
-    return [{
-      childId: reservation.childId || null,
-      childName: reservation.childName,
-      age: reservation.age,
-      sex: reservation.sex
-    }];
+    return [
+      {
+        childId: reservation.childId || null,
+        childName: reservation.childName,
+        birthdate: reservation.birthdate || "",
+        age: reservation.age,
+        sex: reservation.sex,
+      },
+    ];
   }
   return [];
 };
@@ -28,18 +33,27 @@ export const getReservationChildDisplayName = (reservation, fallback = "N/A") =>
 };
 
 export const buildPatientInfoPayload = (selectedChildren, concern = "") => {
-  const children = (selectedChildren || []).map((child) => ({
-    childId: child.id || child.childId || null,
-    childName: child.childName,
-    age: String(child.age ?? "").trim(),
-    sex: child.sex || ""
-  }));
+  const children = (selectedChildren || []).map((child) => {
+    const birthdate = String(child.birthdate || "").trim();
+    const error = getBirthdateError(birthdate);
+    if (error) {
+      throw new Error(
+        `${child.childName || "Each child"} needs a valid birthdate before reserving.`
+      );
+    }
+    return {
+      childId: child.id || child.childId || null,
+      childName: child.childName,
+      birthdate,
+      sex: child.sex || "",
+    };
+  });
   const first = children[0] || {};
   return {
     children,
     childName: first.childName || "",
-    age: first.age || "",
+    birthdate: first.birthdate || "",
     sex: first.sex || "",
-    concern: (concern || "").trim()
+    concern: (concern || "").trim(),
   };
 };

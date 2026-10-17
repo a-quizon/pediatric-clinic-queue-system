@@ -142,11 +142,13 @@ export default function PersonalInformation() {
       setTimeout(() => otpInputRef.current?.focus(), 50);
     } catch (err) {
       const message =
-        err.code === "rate_limited" && err.message
-          ? err.message
-          : err.message || "Failed to send OTP, please try again.";
+        err.code === "phone_in_use"
+          ? "This mobile number is already registered."
+          : err.code === "rate_limited" && err.message
+            ? err.message
+            : err.message || "Failed to send OTP, please try again.";
       setError(message);
-      toast.error(message);
+      if (err.code !== "phone_in_use") toast.error(message);
       if (err.retryAfterSeconds) syncCooldown(err.retryAfterSeconds);
     } finally {
       setOtpBusy(false);
@@ -166,7 +168,11 @@ export default function PersonalInformation() {
       setVerificationId(result.verificationId || "");
       toast.success("Phone number verified.");
     } catch (err) {
-      setError(err.message || "Verification failed.");
+      setError(
+        err.code === "phone_in_use"
+          ? "This mobile number is already registered."
+          : err.message || "Verification failed."
+      );
     } finally {
       setOtpBusy(false);
     }

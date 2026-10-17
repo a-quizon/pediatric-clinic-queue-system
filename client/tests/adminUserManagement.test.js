@@ -18,10 +18,38 @@ const {
 const { updateUserAccount } = require("../functions/updateUserAccountRuntime.js");
 
 function createFakeAdmin({ users = {}, authUsers = {} } = {}) {
+  // Flat path store kept for existing assertions (store["users/sec1"]).
   const store = { ...users };
   const authState = { ...authUsers };
   const revoked = [];
   const passwordUpdates = [];
+
+  const parts = (p) => String(p || "").split("/").filter(Boolean);
+  const readPath = (p) => {
+    if (Object.prototype.hasOwnProperty.call(store, p)) return store[p];
+    // Build nested view under users/ for phoneLookup orderByChild
+    if (p === "users") {
+      const nested = {};
+      for (const [key, val] of Object.entries(store)) {
+        if (key.startsWith("users/")) nested[key.slice("users/".length)] = val;
+      }
+      return nested;
+    }
+    const segs = parts(p);
+    if (segs[0] === "users" && segs.length === 2) return store[`users/${segs[1]}`];
+    if (segs[0] === "phoneRegistry") {
+      const key = segs.slice(1).join("/");
+      return key ? store[`phoneRegistry/${key}`] : Object.fromEntries(
+        Object.entries(store)
+          .filter(([k]) => k.startsWith("phoneRegistry/"))
+          .map(([k, v]) => [k.slice("phoneRegistry/".length), v])
+      );
+    }
+    return store[p];
+  };
+  const writePath = (p, value) => {
+    store[p] = value;
+  };
 
   const admin = {
     database() {
@@ -29,15 +57,78 @@ function createFakeAdmin({ users = {}, authUsers = {} } = {}) {
         ref(path) {
           return {
             async once() {
-              const val = store[path];
+              const val = readPath(path);
               return {
                 exists: () => val !== undefined && val !== null,
-                val: () => val ?? null,
+                val: () => (val === undefined ? null : val),
+                forEach: (fn) => {
+                  if (!val || typeof val !== "object") return;
+                  Object.entries(val).forEach(([key, row]) => {
+                    fn({
+                      key,
+                      val: () => row,
+                      exists: () => true,
+                    });
+                  });
+                },
               };
             },
             async update(payload) {
-              const current = store[path] || {};
-              store[path] = { ...current, ...payload };
+              const current = readPath(path) || {};
+              writePath(path, { ...current, ...payload });
+            },
+            async set(value) {
+              writePath(path, value);
+            },
+            async remove() {
+              delete store[path];
+            },
+            async transaction(fn) {
+              const current = readPath(path);
+              const next = fn(current == null ? null : structuredClone(current));
+              if (next === undefined) {
+                return {
+                  committed: false,
+                  snapshot: {
+                    exists: () => readPath(path) != null,
+                    val: () => readPath(path) ?? null,
+                  },
+                };
+              }
+              writePath(path, next);
+              return {
+                committed: true,
+                snapshot: {
+                  exists: () => true,
+                  val: () => next,
+                },
+              };
+            },
+            orderByChild(field) {
+              return {
+                equalTo(candidate) {
+                  return {
+                    async once() {
+                      const usersMap = readPath(path) || {};
+                      const matches = {};
+                      for (const [uid, user] of Object.entries(usersMap)) {
+                        if (user && user[field] === candidate) matches[uid] = user;
+                      }
+                      const value = Object.keys(matches).length ? matches : null;
+                      return {
+                        exists: () => value != null,
+                        val: () => value,
+                        forEach: (fn) => {
+                          if (!value) return;
+                          Object.entries(value).forEach(([key, row]) => {
+                            fn({ key, val: () => row });
+                          });
+                        },
+                      };
+                    },
+                  };
+                },
+              };
             },
           };
         },

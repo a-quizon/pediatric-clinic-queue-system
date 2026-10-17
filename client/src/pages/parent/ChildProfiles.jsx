@@ -15,6 +15,7 @@ import {
   subscribeToChildren,
   updateChild
 } from "../../services/childProfileService";
+import { presentChildForRole } from "../../utils/pediatricAge";
 
 export default function ChildProfiles() {
   const { user } = useAuth();
@@ -57,7 +58,7 @@ export default function ChildProfiles() {
     setEditingChild(child);
     setFormValue({
       childName: child.childName || "",
-      age: child.age || "",
+      birthdate: child.birthdate || "",
       sex: child.sex || ""
     });
     setIsFormOpen(true);
@@ -141,7 +142,7 @@ export default function ChildProfiles() {
           </div>
           <h3 className="text-lg font-bold mb-2">No children added yet</h3>
           <p className="text-sm pq-muted mb-6 max-w-sm mx-auto">
-            Add a child profile with their name, age, and sex to use it on your next reservation.
+            Add a child profile with their name, birthdate, and sex to use it on your next reservation.
           </p>
           <button
             type="button"
@@ -166,7 +167,10 @@ export default function ChildProfiles() {
                 <div className="min-w-0">
                   <h3 className="font-extrabold truncate">{child.childName}</h3>
                   <p className="text-sm pq-muted mt-0.5">
-                    {child.age ? `${child.age} years` : "Age N/A"} • {child.sex || "N/A"}
+                    {presentChildForRole(child, "parent").birthdateDisplay || (
+                      <span className="pq-error-text">Add birthdate</span>
+                    )}{" "}
+                    • {child.sex || "N/A"}
                   </p>
                 </div>
               </div>

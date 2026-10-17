@@ -89,6 +89,7 @@ export function getTourSampleTicket() {
 export const TOUR_SAMPLE_CHILD = {
   id: "tour-sample-child",
   childName: "Sample Child",
+  birthdate: "2022-03-05",
   age: "4 yrs",
   sex: "Female",
 };

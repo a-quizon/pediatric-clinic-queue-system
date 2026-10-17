@@ -162,7 +162,7 @@ router.post("/auth/sms/consume-phone-verification", async (req, res) => {
     const purpose = req.body?.purpose || null;
     const options = {};
     if (purpose) options.purpose = purpose;
-    if (purpose === "update") {
+    if (purpose === "update" || purpose === "register") {
       const decoded = await requireAuth(req, res);
       if (!decoded) return;
       options.uid = decoded.uid;

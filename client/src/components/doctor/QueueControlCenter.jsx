@@ -16,6 +16,7 @@ import WalkInPatientModal from "../secretary/WalkInPatientModal";
 import toast from "react-hot-toast";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
+import { presentChildForRole } from "../../utils/pediatricAge";
 import ReservationPatientNames from "../common/ReservationPatientNames";
 import { PqSpinner } from "../parent/pqUi";
 import { useTourSample } from "../../hooks/useTourPreview";
@@ -276,15 +277,18 @@ export default function QueueControlCenter() {
               </div>
               <div className="text-sm pq-muted flex flex-col gap-1 mt-2">
                 {getReservationChildren(inConsultation).length > 0 ? (
-                  getReservationChildren(inConsultation).map((child, index) => (
+                  getReservationChildren(inConsultation).map((child, index) => {
+                    const presented = presentChildForRole(child, "doctor");
+                    return (
                     <span key={child.childId || index} className="flex items-center">
                       <User className="w-4 h-4 mr-1.5" aria-hidden="true" />
-                      {child.childName}: {child.age || "N/A"} • {child.sex || "N/A"}
+                      {child.childName}: {presented.ageDisplay || "N/A"} • {child.sex || "N/A"}
                     </span>
-                  ))
+                    );
+                  })
                 ) : (
                   <>
-                    <span className="flex items-center"><User className="w-4 h-4 mr-1.5" aria-hidden="true" /> Age: {inConsultation.age || "N/A"}</span>
+                    <span className="flex items-center"><User className="w-4 h-4 mr-1.5" aria-hidden="true" /> Age: {presentChildForRole(inConsultation, "doctor").ageDisplay || "N/A"}</span>
                     <span className="flex items-center">Sex: {inConsultation.sex || "N/A"}</span>
                   </>
                 )}
@@ -397,7 +401,9 @@ export default function QueueControlCenter() {
               <div className="space-y-4">
                 <div className="space-y-3">
                   {getReservationChildren(infoPatient).length > 0 ? (
-                    getReservationChildren(infoPatient).map((child, index) => (
+                    getReservationChildren(infoPatient).map((child, index) => {
+                      const presented = presentChildForRole(child, "doctor");
+                      return (
                       <div key={child.childId || index} className="grid grid-cols-2 gap-3">
                         <div className="col-span-2 pq-row" style={{ minHeight: 0, display: "block" }}>
                           <div className="text-[10px] pq-faint font-extrabold uppercase tracking-wider mb-1">Child</div>
@@ -405,19 +411,20 @@ export default function QueueControlCenter() {
                         </div>
                         <div className="pq-row" style={{ minHeight: 0, display: "block" }}>
                           <div className="text-[10px] pq-faint font-extrabold uppercase tracking-wider mb-1">Age</div>
-                          <div className="font-semibold text-sm">{child.age || "N/A"}</div>
+                          <div className="font-semibold text-sm">{presented.ageDisplay || "N/A"}</div>
                         </div>
                         <div className="pq-row" style={{ minHeight: 0, display: "block" }}>
                           <div className="text-[10px] pq-faint font-extrabold uppercase tracking-wider mb-1">Sex</div>
                           <div className="font-semibold text-sm">{child.sex || "N/A"}</div>
                         </div>
                       </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
                       <div className="pq-row" style={{ minHeight: 0, display: "block" }}>
                         <div className="text-[10px] pq-faint font-extrabold uppercase tracking-wider mb-1">Age</div>
-                        <div className="font-semibold text-sm">{infoPatient.age || "N/A"}</div>
+                        <div className="font-semibold text-sm">{presentChildForRole(infoPatient, "doctor").ageDisplay || "N/A"}</div>
                       </div>
                       <div className="pq-row" style={{ minHeight: 0, display: "block" }}>
                         <div className="text-[10px] pq-faint font-extrabold uppercase tracking-wider mb-1">Sex</div>

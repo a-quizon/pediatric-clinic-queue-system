@@ -6,6 +6,7 @@ import { subscribeToAllSchedules } from "../../services/scheduleService";
 import { subscribeToParentReservations, cancelReservation, updatePatientInfo, expireReservation } from "../../services/reservationService";
 import { formatName } from "../../utils/stringUtils";
 import { buildPatientInfoPayload, getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
+import { presentChildForRole } from "../../utils/pediatricAge";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { isReservationExpired } from "../../services/timeService";
 import { useAuth } from "../../hooks/useAuth";
@@ -35,7 +36,7 @@ export default function QRTicket() {
   // Patient Info Modal
   const [isPatientInfoModalOpen, setIsPatientInfoModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ childName: "", age: "", sex: "", concern: "" });
+  const [formData, setFormData] = useState({ childName: "", birthdate: "", sex: "", concern: "" });
   useHistoryOverlay(isQrModalOpen, () => setIsQrModalOpen(false));
   useHistoryOverlay(isPatientInfoModalOpen, () => setIsPatientInfoModalOpen(false));
 
@@ -147,7 +148,7 @@ export default function QRTicket() {
     const existing = getReservationChildren(activeReservation)[0] || {};
     setFormData({
       childName: existing.childName || activeReservation.childName || "",
-      age: existing.age || activeReservation.age || "",
+      birthdate: existing.birthdate || activeReservation.birthdate || "",
       sex: existing.sex || activeReservation.sex || "",
       concern: activeReservation.concern || ""
     });
@@ -161,7 +162,7 @@ export default function QRTicket() {
       await updatePatientInfo(activeReservation.id, buildPatientInfoPayload(
         [{
           childName: formatName(formData.childName),
-          age: formData.age.trim(),
+          birthdate: formData.birthdate.trim(),
           sex: formData.sex
         }],
         formData.concern
@@ -169,7 +170,7 @@ export default function QRTicket() {
       setIsPatientInfoModalOpen(false);
       toast.success("Patient information updated successfully.");
     } catch (err) {
-      toast.error("Failed to update patient information.");
+      toast.error(err.message || "Failed to update patient information.");
     } finally {
       setIsSubmitting(false);
     }
@@ -372,20 +373,25 @@ export default function QRTicket() {
               </div>
               <div className="pq-row flex-col items-stretch p-4 space-y-3 text-xs sm:text-sm">
                 {getReservationChildren(activeReservation).length > 0 ? (
-                  getReservationChildren(activeReservation).map((child, index) => (
+                  getReservationChildren(activeReservation).map((child, index) => {
+                    const presented = presentChildForRole(child, "parent");
+                    return (
                     <div key={child.childId || index} className="grid grid-cols-2 gap-y-1 gap-x-4">
                       <div>
                         <span className="pq-muted font-semibold block text-[11px]">Child Name</span>
                         <span className="font-bold truncate block mt-0.5">{child.childName || "N/A"}</span>
                       </div>
                       <div>
-                        <span className="pq-muted font-semibold block text-[11px]">Age & Sex</span>
+                        <span className="pq-muted font-semibold block text-[11px]">Birthdate & Sex</span>
                         <span className="font-bold block mt-0.5">
-                          {child.age ? `${child.age} • ${child.sex || "N/A"}` : "N/A"}
+                          {presented.birthdateDisplay
+                            ? `${presented.birthdateDisplay} • ${child.sex || "N/A"}`
+                            : "N/A"}
                         </span>
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="grid grid-cols-2 gap-y-1 gap-x-4">
                     <div>
@@ -393,7 +399,7 @@ export default function QRTicket() {
                       <span className="font-bold truncate block mt-0.5">N/A</span>
                     </div>
                     <div>
-                      <span className="pq-muted font-semibold block text-[11px]">Age & Sex</span>
+                      <span className="pq-muted font-semibold block text-[11px]">Birthdate & Sex</span>
                       <span className="font-bold block mt-0.5">N/A</span>
                     </div>
                   </div>

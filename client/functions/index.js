@@ -218,6 +218,35 @@ exports.evaluateSuspiciousAccounts = functions
   });
 
 /**
+ * Soft-expire past unused reservations (never checked in) and release their slots.
+ */
+exports.expirePastUnusedReservations = functions
+  .region("asia-southeast1")
+  .pubsub.schedule("15 0 * * *")
+  .timeZone("Asia/Manila")
+  .onRun(async () => {
+    const { expirePastUnusedReservations } = require("./expirePastUnusedReservations");
+    const { recordJobRun } = require("./systemHealthRuntime");
+    try {
+      const result = await expirePastUnusedReservations();
+      if (result.expired) {
+        console.log(`expirePastUnusedReservations expired ${result.expired} reservation(s)`);
+      }
+      await recordJobRun("expirePastUnusedReservations", {
+        success: true,
+        meta: { expired: result.expired || 0, skipped: result.skipped || 0 },
+      });
+    } catch (err) {
+      console.error("expirePastUnusedReservations failed:", err);
+      await recordJobRun("expirePastUnusedReservations", {
+        success: false,
+        error: err.message,
+      });
+    }
+    return null;
+  });
+
+/**
  * Transactional slot claim. Clients cannot create reservations directly.
  */
 exports.claimReservationSlot = functions.region("asia-southeast1").https.onCall(async (data, context) => {
@@ -403,6 +432,30 @@ exports.evaluateDemoSuspiciousAccounts = functions
       );
     } catch (err) {
       console.error("evaluateDemoSuspiciousAccounts failed:", err);
+    }
+    return null;
+  });
+
+/**
+ * Demo-only soft-expiry of past unused reservations.
+ */
+exports.expireDemoPastUnusedReservations = functions
+  .region("asia-southeast1")
+  .pubsub.schedule("15 0 * * *")
+  .timeZone("Asia/Manila")
+  .onRun(async () => {
+    const { demoDatabaseUrl } = require("./rtdbRouter");
+    if (!demoDatabaseUrl()) return null;
+    const { expirePastUnusedReservations } = require("./expirePastUnusedReservations");
+    try {
+      const result = await runWithDatabase(demoDatabase(), () => expirePastUnusedReservations(), {
+        suppressSms: true,
+      });
+      if (result.expired) {
+        console.log(`expireDemoPastUnusedReservations expired ${result.expired} reservation(s)`);
+      }
+    } catch (err) {
+      console.error("expireDemoPastUnusedReservations failed:", err);
     }
     return null;
   });

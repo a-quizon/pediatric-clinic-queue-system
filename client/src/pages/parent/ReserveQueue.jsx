@@ -304,6 +304,16 @@ export default function ReserveQueue() {
   };
 
   const toggleChildSelection = (childId) => {
+    const child = savedChildren.find((c) => c.id === childId);
+    if (child && !child.birthdate) {
+      setMessageModalState({
+        isOpen: true,
+        type: "error",
+        title: "Birthdate Required",
+        message: "Add this child's birthdate in Child Profiles before selecting them for a reservation.",
+      });
+      return;
+    }
     setSelectedChildIds((prev) =>
       prev.includes(childId) ? prev.filter((id) => id !== childId) : [...prev, childId]
     );
@@ -482,7 +492,16 @@ export default function ReserveQueue() {
                               />
                               <span className="min-w-0 flex-1 text-left">
                                 <span className="block text-sm font-bold truncate">{child.childName}</span>
-                                <span className="block text-xs pq-muted">{child.age} • {child.sex}</span>
+                                <span className="block text-xs pq-muted">
+                                  {child.birthdate
+                                    ? `${new Intl.DateTimeFormat("en-US", {
+                                        month: "long",
+                                        day: "numeric",
+                                        year: "numeric",
+                                        timeZone: "Asia/Manila",
+                                      }).format(new Date(`${child.birthdate}T04:00:00Z`))} • ${child.sex}`
+                                    : "Birthdate required — edit this child profile first"}
+                                </span>
                               </span>
                             </label>
                           </li>

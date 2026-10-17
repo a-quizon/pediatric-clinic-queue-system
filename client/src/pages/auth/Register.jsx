@@ -43,6 +43,7 @@ export default function Register() {
   const [otpSent, setOtpSent] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [verificationId, setVerificationId] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const otpIdentity = formData.number.length === 10 ? formatToE164(formData.number) : "";
   const { cooldownLeft, beginCooldown, syncCooldown } = useResendCooldown(RESEND_FLOW.OTP, otpIdentity);
   const otpInputRef = useRef(null);
@@ -102,6 +103,7 @@ export default function Register() {
     setOtpSent(false);
     setPhoneVerified(false);
     setVerificationId("");
+    setPhoneError("");
     setFormData((prev) => ({ ...prev, otp: "" }));
   };
 
@@ -110,6 +112,7 @@ export default function Register() {
     if (name === "number") {
       const sanitized = value.replace(/\D/g, "").slice(0, 10);
       setFormData((prev) => ({ ...prev, number: sanitized }));
+      setPhoneError("");
       // Reset verification for new digits, but keep resend cooldown
       // tied to time since last OTP send (not the phone field value).
       if (sanitized !== formData.number) {
@@ -129,12 +132,13 @@ export default function Register() {
 
   const handleSendCode = async () => {
     if (formData.number.length !== 10) {
-      toast.error("Enter a valid 10-digit mobile number first.");
+      setPhoneError("Enter a valid 10-digit mobile number first.");
       return;
     }
     if (cooldownLeft > 0) return;
 
     setOtpBusy(true);
+    setPhoneError("");
     try {
       await sendSmsOtp(formData.number, "register");
       setOtpSent(true);
@@ -145,11 +149,16 @@ export default function Register() {
       toast.success("Verification code sent via SMS.");
       setTimeout(() => otpInputRef.current?.focus(), 50);
     } catch (err) {
-      toast.error(
-        err.code === "rate_limited" && err.message
-          ? err.message
-          : err.message || "Failed to send OTP, please try again."
-      );
+      if (err.code === "phone_in_use") {
+        setPhoneError("This mobile number is already registered.");
+      } else {
+        const message =
+          err.code === "rate_limited" && err.message
+            ? err.message
+            : err.message || "Failed to send OTP, please try again.";
+        setPhoneError(message);
+        toast.error(message);
+      }
       if (err.retryAfterSeconds) syncCooldown(err.retryAfterSeconds);
     } finally {
       setOtpBusy(false);
@@ -162,13 +171,18 @@ export default function Register() {
       return;
     }
     setOtpBusy(true);
+    setPhoneError("");
     try {
       const result = await verifySmsOtp(formData.number, formData.otp, "register");
       setPhoneVerified(true);
       setVerificationId(result.verificationId || "");
       toast.success("Phone number verified.");
     } catch (err) {
-      toast.error(err.message || "Verification failed.");
+      if (err.code === "phone_in_use") {
+        setPhoneError("This mobile number is already registered.");
+      } else {
+        toast.error(err.message || "Verification failed.");
+      }
     } finally {
       setOtpBusy(false);
     }
@@ -314,13 +328,17 @@ export default function Register() {
                   required
                   disabled={loading || phoneVerified}
                   autoComplete="tel-national"
-                  className="pq-input pl-20"
+                  className={`pq-input pl-20 ${phoneError ? "pq-input-error" : ""}`}
                   placeholder="9123456789"
+                  aria-invalid={Boolean(phoneError)}
                 />
                 {phoneVerified && (
                   <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "var(--pq-live)" }} />
                 )}
               </div>
+              {phoneError && (
+                <p className="pq-error-text mt-1 leading-tight">{phoneError}</p>
+              )}
             </div>
 
             <div>
@@ -555,14 +573,14 @@ export default function Register() {
                   <p>We only collect the following information:</p>
                   <ul className="list-disc pl-5 mt-1 space-y-1">
                     <li>From you (Parent/Guardian): Full name, phone number, and email address.</li>
-                    <li>From your child/children: Name, sex, and age.</li>
+                    <li>From your child/children: Name, sex, and birthdate.</li>
                   </ul>
                 </div>
 
                 <div>
                   <h3 className="font-semibold mb-1">Why we collect it</h3>
                   <p>
-                    We use this information to create and manage your account, register your child's profile for the queuing service, and contact you about your appointments. Because your child's age is considered sensitive personal information under the law, we ask for your explicit consent to process it. By agreeing to this notice, you confirm that you are the parent or legal guardian giving consent on their behalf.
+                    We use this information to create and manage your account, register your child's profile for the queuing service, and contact you about your appointments. Because your child's birthdate is considered sensitive personal information under the law, we ask for your explicit consent to process it. By agreeing to this notice, you confirm that you are the parent or legal guardian giving consent on their behalf.
                   </p>
                 </div>
 

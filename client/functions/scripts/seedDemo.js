@@ -148,7 +148,7 @@ async function seedDemoDatabase(db, usersByKey) {
   if (!childSnap.exists()) {
     await childRef.set({
       childName: "Aria Santos",
-      age: 4,
+      birthdate: "2022-03-05",
       sex: "Female",
       createdAt: now,
     });
