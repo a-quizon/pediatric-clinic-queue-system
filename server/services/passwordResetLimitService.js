@@ -1,9 +1,11 @@
 const { admin, getDb } = require("./firebaseAdmin");
+const { RESEND_COOLDOWN_MS, RESEND_COOLDOWN_SECONDS } = require("../constants/resendCooldown");
 
 const DAILY_LIMIT = 5;
 const TIME_ZONE = "Asia/Manila";
 const LIMIT_MESSAGE =
   "You've reached today's password reset limit. Please try again tomorrow.";
+const COOLDOWN_MESSAGE_PREFIX = "Please wait";
 const ADMIN_RESET_BLOCKED_MESSAGE =
   "Password reset is not available for this account. Contact the system owner.";
 const STAFF_RESET_BLOCKED_MESSAGE =
@@ -35,6 +37,15 @@ function manilaDateYYYYMMDD(nowMs = Date.now()) {
 function limitError() {
   const err = new Error(LIMIT_MESSAGE);
   err.code = "rate_limited";
+  err.limitKind = "daily";
+  return err;
+}
+
+function cooldownError(waitSec) {
+  const err = new Error(`Please wait ${waitSec}s before requesting another reset email.`);
+  err.code = "rate_limited";
+  err.limitKind = "cooldown";
+  err.retryAfterSeconds = waitSec;
   return err;
 }
 
@@ -61,6 +72,7 @@ async function assertResetAllowed(email, { auth, db }) {
 
 /**
  * Atomically consume one password-reset slot for today (Asia/Manila).
+ * Also enforces a short resend cooldown via lastSentAt (does not consume a daily slot on cooldown).
  * Shared by Forgot Password and the admin's parent reset email. Non-parent accounts are refused.
  */
 async function claimPasswordResetSlot(rawEmail, deps = {}) {
@@ -72,27 +84,55 @@ async function claimPasswordResetSlot(rawEmail, deps = {}) {
   }
 
   const db = deps.db || getDb();
+  const now = typeof deps.now === "function" ? deps.now() : Date.now();
   await assertResetAllowed(email, { auth: deps.auth || admin.auth(), db });
 
   const key = emailToKey(email);
   const limitRef = db.ref(`passwordResetLimits/${key}`);
-  const today = manilaDateYYYYMMDD();
+  const today = manilaDateYYYYMMDD(now);
+
+  let abortReason = null;
+  let abortWaitSec = 0;
 
   const result = await limitRef.transaction((current) => {
     const prev = current && typeof current === "object" ? current : {};
+    const lastSentAt = Number(prev.lastSentAt) || 0;
+    if (lastSentAt > 0) {
+      const age = now - lastSentAt;
+      if (age < RESEND_COOLDOWN_MS) {
+        abortReason = "cooldown";
+        abortWaitSec = Math.ceil((RESEND_COOLDOWN_MS - age) / 1000);
+        return;
+      }
+    }
     const count = prev.date === today ? Number(prev.count) || 0 : 0;
     if (count >= DAILY_LIMIT) {
+      abortReason = "daily";
       return;
     }
     return {
       email,
       date: today,
       count: count + 1,
-      updatedAt: Date.now(),
+      lastSentAt: now,
+      updatedAt: now,
     };
   });
 
   if (!result.committed) {
+    if (abortReason === "cooldown" || (!abortReason && abortWaitSec > 0)) {
+      throw cooldownError(abortWaitSec || RESEND_COOLDOWN_SECONDS);
+    }
+    // Re-read to distinguish cooldown vs daily when abortReason was lost to races
+    const snap = await limitRef.once("value");
+    const stored = snap.val() || {};
+    const lastSentAt = Number(stored.lastSentAt) || 0;
+    if (lastSentAt > 0) {
+      const age = now - lastSentAt;
+      if (age < RESEND_COOLDOWN_MS) {
+        throw cooldownError(Math.ceil((RESEND_COOLDOWN_MS - age) / 1000));
+      }
+    }
     throw limitError();
   }
 
@@ -102,6 +142,7 @@ async function claimPasswordResetSlot(rawEmail, deps = {}) {
     remaining: Math.max(0, DAILY_LIMIT - (Number(stored.count) || 0)),
     limit: DAILY_LIMIT,
     date: stored.date || today,
+    cooldownSeconds: RESEND_COOLDOWN_SECONDS,
   };
 }
 
@@ -112,6 +153,9 @@ module.exports = {
   DAILY_LIMIT,
   TIME_ZONE,
   LIMIT_MESSAGE,
+  COOLDOWN_MESSAGE_PREFIX,
+  RESEND_COOLDOWN_SECONDS,
+  RESEND_COOLDOWN_MS,
   manilaDateYYYYMMDD,
   emailToKey,
 };

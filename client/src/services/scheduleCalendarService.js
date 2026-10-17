@@ -3,10 +3,10 @@ import { auth } from "../firebase/auth";
 import { ref, push, set, get, update, remove } from "firebase/database";
 import { subscribeOnValue } from "../firebase/rtdbSubscribe";
 import { getPushApiBase } from "./pushService";
+import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { getBranchConfigurations } from "./branchConfigurationService";
 import { getReservationsBySchedule, ACTIVE_RESERVATION_STATUSES } from "./reservationService";
 import { deleteSchedule } from "./scheduleService";
-import { logAuditEvent, AUDIT_ACTIONS, AUDIT_CATEGORIES } from "./auditService";
 import { recalculateEntireQueue } from "./queueEngine";
 import { recalculateRollingValidation } from "./rollingValidationService";
 import { branchesMatch } from "../utils/stringUtils";
@@ -19,6 +19,7 @@ import {
   sameBranch,
 } from "../utils/scheduleCalendar";
 import { checkScheduleOpening } from "../utils/scheduleOpeningRules";
+import { assertCanMutateRealtime } from "../utils/rtdbConnectionState";
 
 const closuresRef = () => ref(getDb(), "clinicClosures");
 
@@ -114,25 +115,18 @@ export async function previewPublishDates({ branchId, branchName, dates }) {
 }
 
 export async function publishSingleDay({ branchId, branchName, dateStr, slotCapacity }) {
+  assertCanMutateRealtime();
   const result = await callPublishClinicDays({
     mode: "single",
     branchId,
     branchName,
     days: [{ dateStr, slotCapacity: Number(slotCapacity) }],
   });
-  const scheduleId = result.posted?.[0]?.scheduleId || null;
-  logAuditEvent({
-    action: AUDIT_ACTIONS.SCHEDULE_PUBLISHED,
-    category: AUDIT_CATEGORIES.SCHEDULE_MANAGEMENT,
-    description: `Published schedule for ${result.branchName || branchName} on ${dateStr}`,
-    targetType: "schedule",
-    targetId: scheduleId,
-    branchId: result.branchName || branchName,
-  });
-  return scheduleId;
+  return result.posted?.[0]?.scheduleId || null;
 }
 
 export async function publishDateRange({ branchId, branchName, startDate, endDate, slotCapacity }) {
+  assertCanMutateRealtime();
   const dates = eachDateInclusive(startDate, endDate);
   if (dates.length === 0) {
     throw new Error("No days in that range can be posted.");
@@ -151,17 +145,11 @@ export async function publishDateRange({ branchId, branchName, startDate, endDat
     }
     throw error;
   }
-  logAuditEvent({
-    action: AUDIT_ACTIONS.SCHEDULE_RANGE_PUBLISHED,
-    category: AUDIT_CATEGORIES.SCHEDULE_MANAGEMENT,
-    description: `Published ${result.posted.length} day(s) for ${result.branchName || branchName} from ${startDate} to ${endDate}`,
-    targetType: "schedule",
-    branchId: result.branchId || branchId,
-  });
   return { posted: result.posted.map((item) => item.dateStr), skipped: result.skipped || [] };
 }
 
 export async function copyPreviousWeek({ branchId, branchName, weekStart }) {
+  assertCanMutateRealtime();
   const sourceStart = addManilaDays(weekStart, -7);
   const { branch, schedules, closures } = await contextForBranch(branchId, branchName);
   const name = branch?.name || branchName;
@@ -203,13 +191,6 @@ export async function copyPreviousWeek({ branchId, branchName, weekStart }) {
     }
     throw error;
   }
-  logAuditEvent({
-    action: AUDIT_ACTIONS.SCHEDULE_RANGE_PUBLISHED,
-    category: AUDIT_CATEGORIES.SCHEDULE_MANAGEMENT,
-    description: `Copied ${result.posted.length} posted day(s) into the week of ${weekStart} for ${name}`,
-    targetType: "schedule",
-    branchId: branch?.id || branchId,
-  });
   return { posted: result.posted, skipped: [...skipped, ...(result.skipped || [])] };
 }
 
@@ -298,6 +279,7 @@ export async function applyClosure({
   user,
   allBranches = false,
 }) {
+  assertCanMutateRealtime();
   const preview = await previewClosure({ branchId, branchName, startDate, endDate, allBranches });
   if (preview.targets.length === 0) throw new Error("Branch not found.");
   if (preview.overlaps.length > 0) {
@@ -364,6 +346,7 @@ export async function applyClosure({
 }
 
 export async function removeClosure(closureId) {
+  assertCanMutateRealtime();
   const snapshot = await get(ref(getDb(), `clinicClosures/${closureId}`));
   if (!snapshot.exists()) throw new Error("Closure not found.");
   const closure = snapshot.val();

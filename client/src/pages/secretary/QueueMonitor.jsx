@@ -6,6 +6,7 @@ import { subscribeToPublishedSchedules } from "../../services/scheduleService";
 import { subscribeToScheduleReservations } from "../../services/reservationService";
 import { sortActiveQueue } from "../../services/queueEngine";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
+import ConnectionStatusPill from "../../components/common/ConnectionStatusPill";
 
 export default function QueueMonitor() {
   const { user } = useAuth();
@@ -150,6 +151,7 @@ export default function QueueMonitor() {
           <p className="text-lg sm:text-xl pq-muted font-semibold mt-1">Live Queue Monitor</p>
         </div>
         <div className="flex items-center gap-4 sm:gap-6">
+          <ConnectionStatusPill className="text-sm" />
           <div className="pq-row gap-4 px-5 py-3 min-h-0">
             <Clock className="w-7 h-7" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
             <span className="text-2xl sm:text-3xl font-extrabold tracking-wider pq-num">

@@ -12,12 +12,13 @@ import {
   AlertCircle,
   ChevronDown,
   AlertTriangle,
+  Filter,
   X,
 } from "lucide-react";
 import { ref, query, limitToLast } from "firebase/database";
 import { getDb } from "../../firebase/database";
 import { subscribeOnValue } from "../../firebase/rtdbSubscribe";
-import { AUDIT_CATEGORIES, AUDIT_ACTIONS } from "../../services/auditService";
+import { AUDIT_ACTIONS } from "../../services/auditService";
 import {
   dismissSuspiciousAccount,
   deactivateSuspiciousAccount,
@@ -27,8 +28,18 @@ import ConfirmationModal from "../../components/common/ConfirmationModal";
 import ModalScrim from "../../components/common/ModalScrim";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import toast from "react-hot-toast";
-import { AUDIT_ROLE_FILTER_OPTIONS, matchesAuditRoleFilter } from "../../utils/auditLogFilters";
+import {
+  AUDIT_ACTION_FILTER_OPTIONS,
+  AUDIT_CATEGORY_FILTER_OPTIONS,
+  AUDIT_ROLE_FILTER_OPTIONS,
+  filterAdminAuditLogs,
+  formatAuditCategoryLabel,
+  matchesAuditActionFilter,
+  matchesAuditCategoryFilter,
+  matchesAuditRoleFilter,
+} from "../../utils/auditLogFilters";
 import Pagination from "../../components/common/Pagination";
+import EmptyState from "../../components/common/EmptyState";
 
 const roleChip = (role) => {
   if (role === "doctor") return "pq-chip pq-chip-info";
@@ -102,7 +113,6 @@ function AuditLogDetailModal({
   onDismiss,
   onDeactivate,
   getRoleIcon,
-  formatCategory,
 }) {
   useHistoryOverlay(Boolean(log), onClose);
   if (!log) return null;
@@ -121,13 +131,13 @@ function AuditLogDetailModal({
   return (
     <ModalScrim className="z-[60]" onClick={(e) => e.target === e.currentTarget && !actionBusy && onClose()}>
       <div
-        className="pq-modal w-full max-w-lg overflow-hidden flex flex-col max-h-[min(90vh,40rem)]"
+        className="pq-modal pq-modal--lg"
         role="dialog"
         aria-modal="true"
         aria-labelledby="audit-detail-title"
       >
         <div
-          className="flex items-start justify-between gap-3 p-5 sm:p-6"
+          className="pq-modal-header flex items-start justify-between gap-3 p-5 sm:p-6"
           style={{ borderBottom: "1px solid var(--pq-glass-line)" }}
         >
           <div className="min-w-0">
@@ -137,7 +147,7 @@ function AuditLogDetailModal({
               {log.reviewStatus && (
                 <span className="pq-chip text-xs capitalize">{log.reviewStatus}</span>
               )}
-              <span className="pq-chip">{formatCategory(log.category)}</span>
+              <span className="pq-chip">{formatAuditCategoryLabel(log.category)}</span>
             </div>
             <h2 id="audit-detail-title" className="text-lg font-extrabold tracking-tight leading-snug">
               {log.description}
@@ -158,7 +168,7 @@ function AuditLogDetailModal({
           </button>
         </div>
 
-        <div className="p-5 sm:p-6 overflow-y-auto pq-scroll-y flex-1 space-y-4">
+        <div className="pq-modal-body pq-scroll-y p-5 sm:p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div>
               <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Actor</p>
@@ -194,6 +204,69 @@ function AuditLogDetailModal({
             )}
           </div>
 
+          {(log.metadata?.before || log.metadata?.after) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {log.metadata?.before && (
+                <div>
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1.5">Before</p>
+                  <pre className="text-xs pq-muted whitespace-pre-wrap break-words rounded-lg p-3 bg-[var(--pq-glass)] border border-[var(--pq-glass-line)] max-h-48 overflow-y-auto">
+                    {typeof log.metadata.before === "string"
+                      ? log.metadata.before
+                      : JSON.stringify(log.metadata.before, null, 2)}
+                  </pre>
+                </div>
+              )}
+              {log.metadata?.after && (
+                <div>
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1.5">After</p>
+                  <pre className="text-xs pq-muted whitespace-pre-wrap break-words rounded-lg p-3 bg-[var(--pq-glass)] border border-[var(--pq-glass-line)] max-h-48 overflow-y-auto">
+                    {typeof log.metadata.after === "string"
+                      ? log.metadata.after
+                      : JSON.stringify(log.metadata.after, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+
+          {(log.metadata?.postedDates ||
+            log.metadata?.dateRange ||
+            log.metadata?.slotCount != null ||
+            log.metadata?.postedCount != null) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              {log.metadata?.dateRange && (
+                <div>
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Date range</p>
+                  <p className="font-medium">{log.metadata.dateRange}</p>
+                </div>
+              )}
+              {Array.isArray(log.metadata?.postedDates) && log.metadata.postedDates.length > 0 && (
+                <div className="sm:col-span-2">
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Posted dates</p>
+                  <p className="font-medium">{log.metadata.postedDates.join(", ")}</p>
+                </div>
+              )}
+              {log.metadata?.postedCount != null && (
+                <div>
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Days published</p>
+                  <p className="font-medium">{log.metadata.postedCount}</p>
+                </div>
+              )}
+              {log.metadata?.slotCount != null && (
+                <div>
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Total slots</p>
+                  <p className="font-medium">{log.metadata.slotCount}</p>
+                </div>
+              )}
+              {log.metadata?.doctorId && (
+                <div>
+                  <p className="text-xs font-semibold pq-faint uppercase tracking-wide mb-1">Doctor</p>
+                  <p className="font-medium break-all">{log.metadata.doctorId}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {suspicious && (
             <>
               {rules.length > 0 && (
@@ -222,7 +295,7 @@ function AuditLogDetailModal({
         </div>
 
         <div
-          className="p-5 sm:p-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2"
+          className="pq-modal-footer p-5 sm:p-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-2"
           style={{ borderTop: "1px solid var(--pq-glass-line)" }}
         >
           {suspicious && !reviewed && parentId ? (
@@ -269,7 +342,9 @@ export default function AuditLogs() {
 
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [actionFilter, setActionFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 15;
@@ -279,6 +354,26 @@ export default function AuditLogs() {
   const [confirmAction, setConfirmAction] = useState(null);
   const highlightRef = useRef(null);
   const openedHighlightRef = useRef(null);
+
+  const filtersActive =
+    searchQuery ||
+    categoryFilter !== "all" ||
+    roleFilter !== "all" ||
+    actionFilter !== "all";
+  const activeFilterCount = [
+    searchQuery ? 1 : 0,
+    categoryFilter !== "all" ? 1 : 0,
+    roleFilter !== "all" ? 1 : 0,
+    actionFilter !== "all" ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setCategoryFilter("all");
+    setRoleFilter("all");
+    setActionFilter("all");
+    setCurrentPage(1);
+  };
 
   useEffect(() => {
     if (redirectToOverview) return undefined;
@@ -294,8 +389,9 @@ export default function AuditLogs() {
         }));
 
         logsList.sort((a, b) => b.timestamp - a.timestamp);
+        const visible = filterAdminAuditLogs(logsList);
 
-        setLogs(logsList);
+        setLogs(visible);
         setHasMoreLogs(logsList.length === logLimit);
         setCurrentPage(1);
       } else {
@@ -356,10 +452,11 @@ export default function AuditLogs() {
     const matchesSearch = (log.actorName && log.actorName.toLowerCase().includes(term)) ||
                           (log.description && log.description.toLowerCase().includes(term)) ||
                           (log.metadata?.parentName && String(log.metadata.parentName).toLowerCase().includes(term));
-    const matchesCategory = categoryFilter === "all" || log.category === categoryFilter;
+    const matchesCategory = matchesAuditCategoryFilter(log, categoryFilter);
     const matchesRole = matchesAuditRoleFilter(log, roleFilter);
+    const matchesAction = matchesAuditActionFilter(log, actionFilter);
 
-    return matchesSearch && matchesCategory && matchesRole;
+    return matchesSearch && matchesCategory && matchesRole && matchesAction;
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredLogs.length / ITEMS_PER_PAGE));
@@ -374,11 +471,6 @@ export default function AuditLogs() {
       case "system": return <AlertTriangle className="w-4 h-4" aria-hidden="true" />;
       default: return <User className="w-4 h-4" aria-hidden="true" />;
     }
-  };
-
-  const formatCategory = (categoryStr) => {
-    if (!categoryStr) return "System";
-    return categoryStr.split("_").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
   };
 
   const closeDetailModal = () => {
@@ -449,58 +541,100 @@ export default function AuditLogs() {
   };
 
   return (
-    <div className="space-y-4 pb-4 md:pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
-      <div className="pq-filter-bar p-3 sm:p-4 flex flex-col md:flex-row md:items-center gap-3">
-        <div className="relative flex-1">
-          <div className="pq-field-icon">
-            <Search className="w-5 h-5" aria-hidden="true" />
-          </div>
-          <label htmlFor="activity-search" className="sr-only">Search audit logs</label>
-          <input
-            id="activity-search"
-            type="text"
-            placeholder="Search audit logs..."
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            className="pq-input pl-10"
-          />
+    <div className="space-y-4 pb-4 md:pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col min-w-0 max-w-full">
+      <div className="pq-filter-bar p-3 sm:p-4 min-w-0 overflow-visible">
+        <div className="md:hidden">
+          <button
+            type="button"
+            className="pq-btn-secondary w-full min-h-[44px] justify-between"
+            aria-expanded={filtersOpen}
+            aria-controls="audit-filters-panel"
+            onClick={() => setFiltersOpen((open) => !open)}
+          >
+            <span className="inline-flex items-center gap-2">
+              <Filter className="w-4 h-4" aria-hidden="true" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="pq-chip text-xs">{activeFilterCount}</span>
+              )}
+            </span>
+            <ChevronDown
+              className={`w-4 h-4 transition-transform ${filtersOpen ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            />
+          </button>
         </div>
 
-        <div className="flex gap-3">
-          <div className="relative flex-1 md:flex-none">
-            <label htmlFor="activity-category-filter" className="sr-only">Filter by category</label>
-            <select
-              id="activity-category-filter"
-              value={categoryFilter}
-              onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
-              className="pq-input pr-10 appearance-none cursor-pointer min-w-[12rem]"
-            >
-              <option value="all">All Categories</option>
-              {Object.values(AUDIT_CATEGORIES).map((cat) => (
-                <option key={cat} value={cat}>{formatCategory(cat)}</option>
-              ))}
-            </select>
-            <SelectChevron />
-          </div>
+        <div
+          id="audit-filters-panel"
+          className={`${filtersOpen ? "mt-3 flex" : "hidden"} md:mt-0 md:flex flex-col gap-3 min-w-0`}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))] gap-3 min-w-0 items-end">
+            <div className="relative min-w-0 md:col-span-2 lg:col-span-1">
+              <div className="pq-field-icon">
+                <Search className="w-5 h-5" aria-hidden="true" />
+              </div>
+              <label htmlFor="activity-search" className="sr-only">Search audit logs</label>
+              <input
+                id="activity-search"
+                type="text"
+                placeholder="Search audit logs..."
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                className="pq-input pl-10 min-h-[44px] w-full"
+              />
+            </div>
 
-          <div className="relative flex-1 md:flex-none">
-            <label htmlFor="activity-role-filter" className="sr-only">Filter by role</label>
-            <select
-              id="activity-role-filter"
-              value={roleFilter}
-              onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
-              className="pq-input pr-10 appearance-none cursor-pointer min-w-[9rem]"
-            >
-              {AUDIT_ROLE_FILTER_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-            <SelectChevron />
+            <div className="relative min-w-0">
+              <label htmlFor="activity-category-filter" className="sr-only">Filter by category</label>
+              <select
+                id="activity-category-filter"
+                value={categoryFilter}
+                onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
+                className="pq-input pr-10 appearance-none cursor-pointer w-full min-h-[44px]"
+              >
+                <option value="all">All Categories</option>
+                {AUDIT_CATEGORY_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <SelectChevron />
+            </div>
+
+            <div className="relative min-w-0">
+              <label htmlFor="activity-role-filter" className="sr-only">Filter by role</label>
+              <select
+                id="activity-role-filter"
+                value={roleFilter}
+                onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
+                className="pq-input pr-10 appearance-none cursor-pointer w-full min-h-[44px]"
+              >
+                {AUDIT_ROLE_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <SelectChevron />
+            </div>
+
+            <div className="relative min-w-0">
+              <label htmlFor="activity-action-filter" className="sr-only">Filter by action</label>
+              <select
+                id="activity-action-filter"
+                value={actionFilter}
+                onChange={(e) => { setActionFilter(e.target.value); setCurrentPage(1); }}
+                className="pq-input pr-10 appearance-none cursor-pointer w-full min-h-[44px]"
+              >
+                {AUDIT_ACTION_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <SelectChevron />
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="pq-glass overflow-hidden min-h-[300px] md:flex-1 md:flex md:flex-col md:min-h-0">
+      <div className="pq-glass overflow-hidden min-h-[300px] md:flex-1 md:flex md:flex-col md:min-h-0 min-w-0 max-w-full">
         {error ? (
           <div className="flex flex-col items-center justify-center p-12 text-center md:flex-1">
             <AlertCircle className="w-12 h-12 mb-3" style={{ color: "var(--pq-alert)" }} aria-hidden="true" />
@@ -559,7 +693,7 @@ export default function AuditLogs() {
                       <div className="text-sm min-w-0">
                         <span className="pq-faint text-xs block mb-1">Category</span>
                         <span className="pq-chip max-w-full truncate">
-                          {formatCategory(log.category)}
+                          {formatAuditCategoryLabel(log.category)}
                         </span>
                       </div>
                     </div>
@@ -620,7 +754,7 @@ export default function AuditLogs() {
                         </td>
                         <td className="pr-6 align-top">
                           <span className="pq-chip">
-                            {formatCategory(log.category)}
+                            {formatAuditCategoryLabel(log.category)}
                           </span>
                         </td>
                       </tr>
@@ -656,19 +790,26 @@ export default function AuditLogs() {
             </Pagination>
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center p-12 text-center md:flex-1">
-            <ActivityIcon className="w-12 h-12 pq-faint mb-3" aria-hidden="true" />
-            <p className="font-extrabold tracking-tight">No activity logs found.</p>
-            {(searchQuery || categoryFilter !== "all" || roleFilter !== "all") && (
-              <button
-                type="button"
-                onClick={() => { setSearchQuery(""); setCategoryFilter("all"); setRoleFilter("all"); setCurrentPage(1); }}
-                className="pq-btn-ghost mt-4"
-              >
-                Clear Filters
-              </button>
-            )}
-          </div>
+          <EmptyState
+            className="p-12 md:flex-1"
+            title={
+              filtersActive
+                ? "No audit entries match these filters"
+                : "No audit logs yet"
+            }
+            description={
+              filtersActive
+                ? "Try a different search or action filter."
+                : "Admin, doctor, and system actions are recorded here as they happen."
+            }
+            nextStep={
+              filtersActive
+                ? "Clear filters to see all entries."
+                : "Perform an admin action (for example edit a branch) or wait for staff activity."
+            }
+            actionLabel={filtersActive ? "Clear filters" : undefined}
+            onAction={filtersActive ? clearFilters : undefined}
+          />
         )}
       </div>
 
@@ -677,7 +818,6 @@ export default function AuditLogs() {
         onClose={closeDetailModal}
         actionBusy={actionBusy}
         getRoleIcon={getRoleIcon}
-        formatCategory={formatCategory}
         onDismiss={() =>
           setConfirmAction({
             type: "dismiss",

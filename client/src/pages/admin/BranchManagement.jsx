@@ -3,8 +3,9 @@ import { getBranchConfigurations, checkBranchInUse, deleteBranch } from "../../s
 import BranchConfiguration from "../../components/branch/BranchConfiguration";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import MessageModal from "../../components/common/MessageModal";
-import { MapPin, Edit2, Trash2, AlertCircle, Plus } from "lucide-react";
+import { MapPin, Edit2, Trash2, AlertCircle } from "lucide-react";
 import { PqSpinner } from "../../components/parent/pqUi";
+import EmptyState from "../../components/common/EmptyState";
 import toast from "react-hot-toast";
 
 export default function BranchManagement() {
@@ -136,19 +137,14 @@ export default function BranchManagement() {
           </button>
         </div>
       ) : branches.length === 0 ? (
-        <div className="pq-glass p-12 text-center">
-          <div
-            className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4"
-            style={{ background: "color-mix(in srgb, #ffffff 55%, transparent)", color: "var(--pq-ink-faint)" }}
-          >
-            <MapPin className="w-8 h-8" aria-hidden="true" />
-          </div>
-          <p className="font-extrabold tracking-tight mb-1">No branches found.</p>
-          <p className="pq-muted text-sm mb-4">Add a branch to start clinic operations.</p>
-          <button type="button" onClick={handleOpenAdd} className="pq-btn-primary">
-            <Plus className="w-5 h-5" aria-hidden="true" />
-            Add Branch
-          </button>
+        <div className="pq-glass">
+          <EmptyState
+            title="No branches yet"
+            description="Clinic days and secretary assignments need at least one branch."
+            nextStep="Add a branch with a name and clinic address to start operations."
+            actionLabel="Add Branch"
+            onAction={handleOpenAdd}
+          />
         </div>
       ) : (
         <section className="pq-glass p-4 sm:p-5">

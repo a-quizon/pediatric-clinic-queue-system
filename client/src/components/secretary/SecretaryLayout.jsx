@@ -3,6 +3,7 @@ import { Home, QrCode, Users, User, CalendarDays, ChevronLeft } from "lucide-rea
 import { PqBrand } from "../parent/pqUi";
 import { goBackOr } from "../../utils/navigationRoots";
 import LogoutButton from "../common/LogoutButton";
+import ConnectionStatusPill from "../common/ConnectionStatusPill";
 
 export default function SecretaryLayout() {
   const location = useLocation();
@@ -99,6 +100,7 @@ export default function SecretaryLayout() {
                 {headerInfo.title}
               </h1>
             </div>
+            <ConnectionStatusPill />
           </header>
         </div>
 

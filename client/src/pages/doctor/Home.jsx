@@ -11,6 +11,7 @@ import QueueControlCenter from "../../components/doctor/QueueControlCenter";
 import { sortSchedules } from "../../utils/scheduleUtils";
 import { manilaDateString } from "../../utils/manilaDate";
 import { PqSpinner } from "../../components/parent/pqUi";
+import ModalScrim from "../../components/common/ModalScrim";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleDoctorDashboard } from "../../components/onboarding/DoctorTourSampleViews";
@@ -416,31 +417,31 @@ export default function Home() {
                 <span className="pq-stat-value">{stats.total}</span>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 flex-shrink-0">
-                <div className="pq-stat pq-stat-wait">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 flex-shrink-0 min-w-0">
+                <div className="pq-stat pq-stat-wait min-w-0">
                   <span className="pq-stat-label">Waiting</span>
                   <span className="pq-stat-value">{stats.waiting}</span>
                 </div>
-                <div className="pq-stat pq-stat-info">
-                  <span className="pq-stat-label" style={{ whiteSpace: "nowrap" }}>In Consult</span>
+                <div className="pq-stat pq-stat-info min-w-0">
+                  <span className="pq-stat-label">In Consult</span>
                   <span className="pq-stat-value">{stats.inConsultation}</span>
                 </div>
-                <div className="pq-stat pq-stat-live">
+                <div className="pq-stat pq-stat-live min-w-0">
                   <span className="pq-stat-label">Completed</span>
                   <span className="pq-stat-value">{stats.completed}</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 flex-shrink-0 mt-auto">
-                <div className="pq-stat">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 flex-shrink-0 mt-auto min-w-0">
+                <div className="pq-stat min-w-0">
                   <span className="pq-stat-label">Checked In</span>
                   <span className="pq-stat-value" style={{ fontSize: "1.125rem" }}>{stats.checkedIn}</span>
                 </div>
-                <div className="pq-stat">
+                <div className="pq-stat min-w-0">
                   <span className="pq-stat-label">Cancelled</span>
                   <span className="pq-stat-value" style={{ fontSize: "1.125rem" }}>{stats.cancelled}</span>
                 </div>
-                <div className="pq-stat">
+                <div className="pq-stat min-w-0">
                   <span className="pq-stat-label">Forfeited</span>
                   <span className="pq-stat-value" style={{ fontSize: "1.125rem" }}>{stats.forfeited}</span>
                 </div>
@@ -499,38 +500,40 @@ export default function Home() {
       </div>
 
       {hideConfirmModal.isOpen && (
-        <div className="pq-modal-scrim z-[100]">
-          <div className="pq-modal w-full max-w-sm overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="hide-session-title">
-            <div className="p-6 text-center">
+        <ModalScrim
+          className="z-[100]"
+          onClick={(e) => e.target === e.currentTarget && setHideConfirmModal({ isOpen: false, schedule: null })}
+        >
+          <div className="pq-modal pq-modal--sm text-center" role="dialog" aria-modal="true" aria-labelledby="hide-session-title">
+            <div className="pq-modal-body pq-scroll-y p-6 pb-4">
               <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue)" }}>
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <h3 id="hide-session-title" className="text-xl font-extrabold tracking-tight mb-2">Hide completed session?</h3>
               <p className="text-sm pq-muted mb-2">You've already reviewed this completed clinic session.</p>
-              <p className="text-sm pq-muted mb-6">You can still access its full summary anytime from the Schedules section. Would you like to hide it from the Dashboard?</p>
-              
-              <div className="flex gap-3">
-                <button 
-                  type="button"
-                  onClick={() => setHideConfirmModal({ isOpen: false, schedule: null })}
-                  className="pq-btn-secondary flex-1"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => {
-                    setHiddenSchedules(prev => [...prev, hideConfirmModal.schedule.id]);
-                    setHideConfirmModal({ isOpen: false, schedule: null });
-                  }}
-                  className="pq-btn-primary flex-1"
-                >
-                  Hide from Dashboard
-                </button>
-              </div>
+              <p className="text-sm pq-muted">You can still access its full summary anytime from the Schedules section. Would you like to hide it from the Dashboard?</p>
+            </div>
+            <div className="pq-modal-footer px-6 pb-6 flex gap-3">
+              <button 
+                type="button"
+                onClick={() => setHideConfirmModal({ isOpen: false, schedule: null })}
+                className="pq-btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                onClick={() => {
+                  setHiddenSchedules(prev => [...prev, hideConfirmModal.schedule.id]);
+                  setHideConfirmModal({ isOpen: false, schedule: null });
+                }}
+                className="pq-btn-primary flex-1"
+              >
+                Hide from Dashboard
+              </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
     </div>
   );

@@ -368,15 +368,24 @@ async function claimPenalizedSms(reservationId, penaltyCount) {
   return claimTransactionValue(db().ref(`reservations/${reservationId}/penaltySmsSent/${count}`), true);
 }
 
+function buildSmsMeta(eventId, context = {}) {
+  return {
+    messageType: eventId || "SMS",
+    reservationId: context.reservationId || null,
+    branch: context.branch || context.branchName || context.branchId || null,
+  };
+}
+
 /** Near Turn SMS: once per parent account, claimed atomically on users/{parentId}/nearTurnSms. */
 async function deliverNearTurnSms(context, phone, message, notificationId) {
+  const meta = buildSmsMeta("NEARING_TURN", context);
   const sendResult = await sendNearTurnSmsOnce({
     db: db(),
     parentId: context.parentId,
     reservationId: context.reservationId || null,
     phone,
     message,
-    send: sendSms,
+    send: (to, body) => sendSms(to, body, meta),
     logPrefix: "[functions/sms]",
   });
   if (sendResult?.skipped) return sendResult;
@@ -443,7 +452,7 @@ async function deliverSmsForNotification(eventId, context = {}, notificationId) 
     if (!claimed) return { success: true, skipped: true, reason: "already_dispatched" };
   }
 
-  const sendResult = await sendSms(phone, message);
+  const sendResult = await sendSms(phone, message, buildSmsMeta(eventId, context));
   if (!sendResult?.success) {
     console.error(
       `[functions/sms] ${eventId} send failed:`,

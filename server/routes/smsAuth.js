@@ -42,6 +42,9 @@ function mapOtpError(err) {
 function sendError(res, err) {
   console.error("[smsAuth]", err.message);
   const mapped = mapOtpError(err);
+  if (mapped.status === 429 && mapped.retryAfterSeconds != null) {
+    res.set("Retry-After", String(mapped.retryAfterSeconds));
+  }
   return res.status(mapped.status).json({
     success: false,
     error: mapped.code,
@@ -159,7 +162,7 @@ router.post("/auth/sms/consume-phone-verification", async (req, res) => {
     const purpose = req.body?.purpose || null;
     const options = {};
     if (purpose) options.purpose = purpose;
-    if (purpose === "update") {
+    if (purpose === "update" || purpose === "register") {
       const decoded = await requireAuth(req, res);
       if (!decoded) return;
       options.uid = decoded.uid;

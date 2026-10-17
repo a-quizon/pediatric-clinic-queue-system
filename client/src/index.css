@@ -205,6 +205,22 @@
 }
 
 /* PlusQueue parent + doctor + secretary + admin + auth */
+/* Breakpoints (match Tailwind sm/md/lg/xl). Media queries keep literal px —
+   CSS vars cannot be used in @media conditions; keep values in sync. */
+:root {
+  --pq-bp-sm: 640px;
+  --pq-bp-md: 768px;
+  --pq-bp-lg: 1024px;
+  --pq-bp-xl: 1280px;
+  --pq-vv-height: 100dvh;
+}
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
 .pq-shell {
   --pq-ink: #16344a;
   --pq-ink-soft: #3a5c6e;
@@ -253,6 +269,7 @@
     radial-gradient(80% 60% at 70% 100%, var(--pq-wash-c) 0%, transparent 55%),
     linear-gradient(165deg, #eaf7f8 0%, #f3ece4 48%, #e7f2f4 100%);
   background-attachment: fixed;
+  overflow-x: clip;
 }
 
 .pq-shell ::selection {
@@ -325,6 +342,8 @@
 }
 
 .pq-modal {
+  --pq-modal-max: 28rem;
+  --pq-modal-gutter: 2rem;
   background: var(--pq-modal, #ffffff);
   border: 1px solid var(--pq-glass-line);
   box-shadow: var(--pq-modal-shadow);
@@ -332,6 +351,51 @@
   /* Solid elevated plate — never glass / backdrop-filter (DESIGN.md Modal). */
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: min(100%, var(--pq-modal-max));
+  max-width: 100%;
+  /* vh fallback first; dvh tracks mobile browser chrome more reliably */
+  max-height: calc(100vh - var(--pq-modal-gutter));
+  max-height: calc(100dvh - var(--pq-modal-gutter));
+  max-height: calc(
+    var(--pq-vv-height, 100dvh) - var(--pq-modal-gutter) -
+      env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+  );
+  margin-block: auto;
+}
+
+.pq-modal--sm {
+  --pq-modal-max: 24rem;
+}
+
+.pq-modal--md {
+  --pq-modal-max: 28rem;
+}
+
+.pq-modal--lg {
+  --pq-modal-max: 32rem;
+}
+
+.pq-modal--xl {
+  --pq-modal-max: 42rem;
+}
+
+.pq-modal-header {
+  flex-shrink: 0;
+}
+
+.pq-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pq-modal-footer {
+  flex-shrink: 0;
 }
 
 .pq-glass-strong {
@@ -452,6 +516,7 @@
   flex-shrink: 0;
 }
 
+/* md = --pq-bp-md */
 @media (min-width: 768px) {
   .pq-header-wrap {
     padding: 0.85rem 1.25rem 0.65rem;
@@ -1088,7 +1153,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding-top: max(1rem, env(safe-area-inset-top, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background: color-mix(in srgb, var(--pq-ink) 48%, transparent);
 }
 
@@ -1184,11 +1256,18 @@ svg.pq-field-icon {
 }
 
 .pq-dock-5 .pq-dock-item {
-  padding-inline: 0.28rem;
+  padding-inline: 0.2rem;
+  min-width: 0;
 }
 
 .pq-dock-5 .pq-dock-item-active {
-  flex: 1.55 1 0;
+  flex: 1.45 1 0;
+}
+
+.pq-dock-5 .pq-dock-label {
+  font-size: 0.65rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pq-side-link {
@@ -1263,6 +1342,7 @@ svg.pq-field-icon {
   justify-content: center;
   text-align: center;
   gap: 0.35rem;
+  min-width: 0;
   min-height: 4.5rem;
   padding: 0.85rem 0.5rem;
   border-radius: 0.9rem;
@@ -1271,11 +1351,14 @@ svg.pq-field-icon {
 }
 
 .pq-stat-label {
-  font-size: 0.7rem;
+  font-size: clamp(0.6rem, 2.4vw, 0.7rem);
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--pq-ink-soft);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .pq-stat-label:has(svg) {

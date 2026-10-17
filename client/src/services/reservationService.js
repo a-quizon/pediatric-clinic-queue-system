@@ -27,6 +27,7 @@ import {
 import { finalizeParentClaim } from "../utils/parentClaimFinalize";
 import { ACTIVE_RESERVATION_STATUSES } from "../utils/reservationStatuses";
 import { slotsTaken } from "../utils/scheduleCalendar";
+import { assertCanMutateRealtime } from "../utils/rtdbConnectionState";
 
 export { finalizeParentClaim } from "../utils/parentClaimFinalize";
 
@@ -133,6 +134,7 @@ const requestSlotRelease = async (reservationId) => {
 };
 
 export const claimParentReservation = async (scheduleId) => {
+  assertCanMutateRealtime();
   const data = await callClaimReservation({ mode: "parent", scheduleId });
   // Best-effort: parent RTDB rules block multi-ticket queue rewrite; Admin CF recalculates.
   return finalizeParentClaim(scheduleId, data, async (id) => {
@@ -189,6 +191,7 @@ export const createWalkInReservation = async ({
   parentName = "",
   parentPhone = "",
 }) => {
+  assertCanMutateRealtime();
   if (!scheduleId) throw new Error("Schedule is required.");
   if (!secretaryUid) throw new Error("Staff identity is required.");
 
@@ -204,18 +207,16 @@ export const createWalkInReservation = async ({
   }
 
   const trimmedConcern = String(concern || "").trim();
-  if (!trimmedConcern) {
-    throw new Error("A visit concern is required.");
-  }
 
   const existing = await getReservationsBySchedule(scheduleId);
   if (slotsTaken({ id: scheduleId }, existing) >= Number(schedule.slotCapacity || 0)) {
     throw new Error("This schedule is already full.");
   }
 
+  const { getBirthdateError } = await import("../utils/pediatricAge");
   const normalizedChildren = (children || []).map((child) => ({
     childName: String(child.childName || "").trim(),
-    age: String(child.age ?? "").trim(),
+    birthdate: String(child.birthdate ?? "").trim(),
     sex: child.sex === "Male" || child.sex === "Female" ? child.sex : "",
     childId: null,
   }));
@@ -229,14 +230,8 @@ export const createWalkInReservation = async ({
   if (normalizedChildren.some((c) => !c.childName)) {
     throw new Error("Each child must have a name.");
   }
-  if (
-    normalizedChildren.some((c) => {
-      if (!/^\d+$/.test(c.age)) return true;
-      const ageNum = parseInt(c.age, 10);
-      return ageNum < 1 || ageNum > 25;
-    })
-  ) {
-    throw new Error("Each child must have a valid age (1–25).");
+  if (normalizedChildren.some((c) => getBirthdateError(c.birthdate))) {
+    throw new Error("Each child must have a valid birthdate.");
   }
   if (normalizedChildren.some((c) => !c.sex)) {
     throw new Error("Each child must have a sex selected.");
@@ -520,6 +515,7 @@ export const subscribeToAllReservations = (callback) => {
 };
 
 export const cancelReservation = async (reservationId) => {
+  assertCanMutateRealtime();
   const reservation = await requireReservation(reservationId);
   const actor = await resolveActor();
   const gate = assertCanCancelReservation(reservation, actor);
@@ -552,59 +548,148 @@ export const validateReservationByCode = async (code) => {
   return scheduleReservations.find(res => res.id === rawReservation.id) || null;
 };
 
-export const checkInReservation = async (reservationId, secretaryUid) => {
-  const reservation = await requireReservation(reservationId);
-  const gate = assertCanCheckIn(reservation);
-  if (!gate.ok) throw new Error(gate.message);
+/**
+ * Server-side code lookup (rate-limited for manual entry). Prefer this for secretary check-in.
+ * @param {string} code
+ * @param {{ source?: "manual"|"qr" }} [options]
+ * @returns {Promise<object|null>} reservation or null when not found
+ */
+export const validateReservationByCodeOnServer = async (code, options = {}) => {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error("You must be signed in.");
+  }
+  const token = await user.getIdToken();
+  let response;
+  try {
+    response = await fetch(`${getPushApiBase()}/api/reservations/validate-code`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        code,
+        source: options.source === "qr" ? "qr" : "manual",
+      }),
+    });
+  } catch (error) {
+    const wrapped = new Error("Unable to reach the clinic server. Please try again.");
+    wrapped.cause = error;
+    throw wrapped;
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const wrapped = new Error(body.message || "Could not validate the reservation code.");
+    wrapped.code = body.error || "internal";
+    wrapped.lockedUntil = body.lockedUntil ?? null;
+    wrapped.retryAfterSeconds = body.retryAfterSeconds ?? null;
+    wrapped.cause = body;
+    throw wrapped;
+  }
+  const reservation = body.reservation || null;
+  if (!reservation?.id || !reservation.scheduleId) return null;
+  const scheduleReservations = await getReservationsBySchedule(reservation.scheduleId);
+  return scheduleReservations.find((res) => res.id === reservation.id) || reservation;
+};
 
-  await update(ref(getDb(), `reservations/${reservationId}`), {
-    checkedIn: true,
-    checkedInAt: Date.now(),
-    checkedInBy: secretaryUid,
-    status: "checked_in",
-    penaltyTimerExpiresAt: null,
-    penaltyTimerStartedAt: null,
-    becameCurrentTurnAt: null,
-    penaltyTimerClearedAt: Date.now(),
+/**
+ * Atomically apply a reservation field patch when the current status still allows it.
+ * Returning undefined from the updater aborts (no write / no queued offline replay).
+ */
+const commitReservationIf = async (reservationId, updater, failMessage) => {
+  const resRef = ref(getDb(), `reservations/${reservationId}`);
+  const result = await runTransaction(resRef, (current) => {
+    if (!current) return;
+    return updater(current);
   });
+  if (!result.committed || !result.snapshot.exists()) {
+    throw new Error(failMessage || "This reservation could not be updated. Refresh and try again.");
+  }
+  return { id: reservationId, ...result.snapshot.val() };
+};
+
+export const checkInReservation = async (reservationId, secretaryUid) => {
+  assertCanMutateRealtime();
+  const now = Date.now();
+  const reservation = await commitReservationIf(
+    reservationId,
+    (current) => {
+      const gate = assertCanCheckIn(current);
+      if (!gate.ok) return;
+      return {
+        ...current,
+        checkedIn: true,
+        checkedInAt: now,
+        checkedInBy: secretaryUid,
+        status: "checked_in",
+        penaltyTimerExpiresAt: null,
+        penaltyTimerStartedAt: null,
+        becameCurrentTurnAt: null,
+        penaltyTimerClearedAt: now,
+      };
+    },
+    "This reservation cannot be checked in (it may already be checked in)."
+  );
   await recalculateQueueBestEffort(reservation.scheduleId);
 };
 
 export const startConsultation = async (reservationId) => {
-  const reservation = await requireReservation(reservationId);
-  const gate = assertCanStartConsultation(reservation);
-  if (!gate.ok) throw new Error(gate.message);
-
-  await update(ref(getDb(), `reservations/${reservationId}`), {
-    status: "in_consultation",
-    consultationStartedAt: Date.now(),
-  });
+  assertCanMutateRealtime();
+  const now = Date.now();
+  const reservation = await commitReservationIf(
+    reservationId,
+    (current) => {
+      const gate = assertCanStartConsultation(current);
+      if (!gate.ok) return;
+      return {
+        ...current,
+        status: "in_consultation",
+        consultationStartedAt: now,
+      };
+    },
+    "Consultation can only start for a checked-in patient."
+  );
   await recalculateQueueBestEffort(reservation.scheduleId);
 };
 
 export const sendToDoctor = async (reservationId) => {
-  const reservation = await requireReservation(reservationId);
-  const gate = assertCanSendToDoctor(reservation);
-  if (!gate.ok) throw new Error(gate.message);
-
-  await update(ref(getDb(), `reservations/${reservationId}`), {
-    status: "with_doctor",
-    sentToDoctorAt: Date.now(),
-    consultationStartedAt: Date.now(),
-  });
+  assertCanMutateRealtime();
+  const now = Date.now();
+  const reservation = await commitReservationIf(
+    reservationId,
+    (current) => {
+      const gate = assertCanSendToDoctor(current);
+      if (!gate.ok) return;
+      return {
+        ...current,
+        status: "with_doctor",
+        sentToDoctorAt: now,
+        consultationStartedAt: now,
+      };
+    },
+    "Patient must be checked in before being sent to the doctor."
+  );
   await recalculateQueueBestEffort(reservation.scheduleId);
 };
 
 export const completeConsultation = async (reservationId, doctorNotes) => {
-  const reservation = await requireReservation(reservationId);
-  const gate = assertCanCompleteConsultation(reservation);
-  if (!gate.ok) throw new Error(gate.message);
-
-  await update(ref(getDb(), `reservations/${reservationId}`), {
-    status: "consultation_completed",
-    consultationCompletedAt: Date.now(),
-    doctorNotes: doctorNotes || "",
-  });
+  assertCanMutateRealtime();
+  const now = Date.now();
+  const reservation = await commitReservationIf(
+    reservationId,
+    (current) => {
+      const gate = assertCanCompleteConsultation(current);
+      if (!gate.ok) return;
+      return {
+        ...current,
+        status: "consultation_completed",
+        consultationCompletedAt: now,
+        doctorNotes: doctorNotes || "",
+      };
+    },
+    "Only an active consultation can be completed."
+  );
   await recalculateQueueBestEffort(reservation.scheduleId);
 };
 
@@ -633,12 +718,15 @@ const applyForfeitFields = (current, { forfeitureReason, penaltyCount, now }) =>
   becameCurrentTurnAt: null,
 });
 
-export const penalizeReservation = async (reservationId, schedule, allScheduleReservations = [], penaltyMoveBack) => {
-  const snap = await get(ref(getDb(), `reservations/${reservationId}`));
-  if (!snap.exists()) return;
-  const val = snap.val();
+const PENALIZE_ALLOWED_STATUSES = new Set([
+  "reserved",
+  "waiting",
+  "validation_open",
+  "waiting_for_window",
+]);
 
-  const currentPenaltyCount = (val.penaltyCount || 0) + 1;
+export const penalizeReservation = async (reservationId, schedule, allScheduleReservations = [], penaltyMoveBack) => {
+  assertCanMutateRealtime();
   const branchId = await resolveScheduleBranchId(schedule);
   const queueConfig = await getQueueConfiguration(branchId);
   const moveBack = Number.isInteger(penaltyMoveBack) ? penaltyMoveBack : queueConfig.penaltyMoveBack;
@@ -646,86 +734,101 @@ export const penalizeReservation = async (reservationId, schedule, allScheduleRe
   const now = Date.now();
   const forfeitOnZeroMoveBack = moveBack === 0;
 
-  if (forfeitOnZeroMoveBack) {
-    await update(ref(getDb(), `reservations/${reservationId}`), applyForfeitFields(val, {
-      forfeitureReason: "Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent.",
-      penaltyCount: currentPenaltyCount,
-      now,
-    }));
-    await requestSlotRelease(reservationId);
-
-    logAuditEvent({
-      action: AUDIT_ACTIONS.PATIENT_FORFEITED,
-      category: AUDIT_CATEGORIES.QUEUE_INTERVENTION,
-      description: `Forfeited Queue #${val.queueNumber} because Penalty Move-Back is 0`,
-      targetType: "reservation",
-      targetId: reservationId,
-      branchId: schedule?.branch
-    });
-  } else {
-    const activePipeline = allScheduleReservations
-      .filter(r => r.scheduleId === val.scheduleId && ["reserved", "checked_in", "waiting", "validation_open", "waiting_for_window"].includes(r.status))
-      .sort((a, b) => {
-        const timeA = a.sortTimestamp || a.createdAt || 0;
-        const timeB = b.sortTimestamp || b.createdAt || 0;
-        return timeA - timeB;
-      });
-
-    const index = activePipeline.findIndex(r => r.id === reservationId);
-    let newSortTimestamp = now;
-
-    if (index >= 0 && activePipeline.length > 1) {
-      const targetBehindIndex = Math.min(activePipeline.length - 1, index + moveBack);
-      const targetBehind = activePipeline[targetBehindIndex];
-      const nextAfterTarget = activePipeline[targetBehindIndex + 1];
-
-      const targetTime = targetBehind.sortTimestamp || targetBehind.createdAt || 0;
-      if (nextAfterTarget) {
-        const nextTime = nextAfterTarget.sortTimestamp || nextAfterTarget.createdAt || 0;
-        newSortTimestamp = (targetTime + nextTime) / 2;
-      } else {
-        newSortTimestamp = targetTime + 60000;
-      }
-    }
-
-    const pipelineAfterMove = activePipeline.map((r) =>
-      r.id === reservationId ? { ...r, sortTimestamp: newSortTimestamp } : r
-    ).sort((a, b) => {
+  const scheduleIdHint = schedule?.id || null;
+  const activePipeline = (allScheduleReservations || [])
+    .filter(
+      (r) =>
+        (!scheduleIdHint || r.scheduleId === scheduleIdHint) &&
+        ["reserved", "checked_in", "waiting", "validation_open", "waiting_for_window"].includes(r.status)
+    )
+    .sort((a, b) => {
       const timeA = a.sortTimestamp || a.createdAt || 0;
       const timeB = b.sortTimestamp || b.createdAt || 0;
       return timeA - timeB;
     });
-    const newOrderIndex = pipelineAfterMove.findIndex((r) => r.id === reservationId);
-    const newQueuePosition = newOrderIndex >= 0 ? newOrderIndex + 1 : (val.queueOrder || val.queuePosition || 1);
 
-    const existingExpiry = Number(val.penaltyTimerExpiresAt) || 0;
-    const keepFirstExpiry = existingExpiry > now;
-    const penaltyTimerStartedAt = keepFirstExpiry ? (val.penaltyTimerStartedAt || now) : now;
-    const penaltyTimerExpiresAt = keepFirstExpiry
-      ? existingExpiry
-      : now + timerMinutes * 60 * 1000;
+  const index = activePipeline.findIndex((r) => r.id === reservationId);
+  let newSortTimestamp = now;
+  if (index >= 0 && activePipeline.length > 1 && !forfeitOnZeroMoveBack) {
+    const targetBehindIndex = Math.min(activePipeline.length - 1, index + moveBack);
+    const targetBehind = activePipeline[targetBehindIndex];
+    const nextAfterTarget = activePipeline[targetBehindIndex + 1];
+    const targetTime = targetBehind.sortTimestamp || targetBehind.createdAt || 0;
+    if (nextAfterTarget) {
+      const nextTime = nextAfterTarget.sortTimestamp || nextAfterTarget.createdAt || 0;
+      newSortTimestamp = (targetTime + nextTime) / 2;
+    } else {
+      newSortTimestamp = targetTime + 60000;
+    }
+  }
 
-    await update(ref(getDb(), `reservations/${reservationId}`), {
-      penaltyCount: currentPenaltyCount,
-      sortTimestamp: newSortTimestamp,
-      lastPenalizedAt: now,
-      queueOrder: newQueuePosition,
-      queuePosition: newQueuePosition,
-      penaltyTimerStartedAt,
-      penaltyTimerExpiresAt,
-      becameCurrentTurnAt: null,
+  const pipelineAfterMove = activePipeline
+    .map((r) => (r.id === reservationId ? { ...r, sortTimestamp: newSortTimestamp } : r))
+    .sort((a, b) => {
+      const timeA = a.sortTimestamp || a.createdAt || 0;
+      const timeB = b.sortTimestamp || b.createdAt || 0;
+      return timeA - timeB;
     });
+  const newOrderIndex = pipelineAfterMove.findIndex((r) => r.id === reservationId);
+  const plannedQueuePosition = newOrderIndex >= 0 ? newOrderIndex + 1 : null;
 
+  const after = await commitReservationIf(
+    reservationId,
+    (current) => {
+      if (!current || !PENALIZE_ALLOWED_STATUSES.has(current.status)) return;
+      const nextCount = (current.penaltyCount || 0) + 1;
+      if (forfeitOnZeroMoveBack) {
+        return applyForfeitFields(current, {
+          forfeitureReason:
+            "Setting the Penalty Move-Back count to 0 results in an automatic forfeit for the parent.",
+          penaltyCount: nextCount,
+          now,
+        });
+      }
+      const existingExpiry = Number(current.penaltyTimerExpiresAt) || 0;
+      const keepFirstExpiry = existingExpiry > now;
+      const penaltyTimerStartedAt = keepFirstExpiry ? current.penaltyTimerStartedAt || now : now;
+      const penaltyTimerExpiresAt = keepFirstExpiry
+        ? existingExpiry
+        : now + timerMinutes * 60 * 1000;
+      return {
+        ...current,
+        penaltyCount: nextCount,
+        sortTimestamp: newSortTimestamp,
+        lastPenalizedAt: now,
+        queueOrder: plannedQueuePosition ?? current.queueOrder ?? current.queuePosition ?? 1,
+        queuePosition: plannedQueuePosition ?? current.queueOrder ?? current.queuePosition ?? 1,
+        penaltyTimerStartedAt,
+        penaltyTimerExpiresAt,
+        becameCurrentTurnAt: null,
+      };
+    },
+    "This patient can no longer be penalized (status may have changed)."
+  );
+
+  if (after.status === "forfeited") {
+    await requestSlotRelease(reservationId);
+    logAuditEvent({
+      action: AUDIT_ACTIONS.PATIENT_FORFEITED,
+      category: AUDIT_CATEGORIES.QUEUE_INTERVENTION,
+      description: `Forfeited Queue #${after.queueNumber} because Penalty Move-Back is 0`,
+      targetType: "reservation",
+      targetId: reservationId,
+      branchId: schedule?.branch,
+    });
+  } else {
     logAuditEvent({
       action: AUDIT_ACTIONS.PATIENT_PENALIZED,
       category: AUDIT_CATEGORIES.QUEUE_INTERVENTION,
-      description: `Penalized Queue #${val.queueNumber} and started/kept late timer (expires ${new Date(penaltyTimerExpiresAt).toLocaleTimeString()})`,
+      description: `Penalized Queue #${after.queueNumber} and started/kept late timer (expires ${new Date(after.penaltyTimerExpiresAt).toLocaleTimeString()})`,
       targetType: "reservation",
       targetId: reservationId,
-      branchId: schedule?.branch
+      branchId: schedule?.branch,
     });
   }
-  await recalculateEntireQueue(val.scheduleId);
+  if (after.scheduleId) {
+    await recalculateEntireQueue(after.scheduleId);
+  }
 };
 
 /**
@@ -772,6 +875,7 @@ export const forfeitReservationIfTimerExpired = async (reservationId) => {
 
 export const requestCheckInReminder = async (reservationId) => {
   if (!reservationId) return;
+  assertCanMutateRealtime();
   await update(ref(getDb(), `reservations/${reservationId}`), {
     checkInRequestedAt: Date.now(),
   });

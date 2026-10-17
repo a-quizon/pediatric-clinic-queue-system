@@ -110,7 +110,7 @@ export const SECRETARY_TOUR_STEPS = [
     targets: ["walkin-form"],
     title: "Fill in the walk-in",
     description:
-      "Enter the child's name, age, sex, and visit concern. Optional phone-in details and extra children stay collapsed. This is a walkthrough only — Check In Walk-in is disabled.",
+      "Enter the child's name, age, and sex. Visit concern is optional. Optional phone-in details and extra children stay collapsed. This is a walkthrough only — Check In Walk-in is disabled.",
     disableActiveInteraction: true,
     onNextNavigate: "/secretary/validate",
   },

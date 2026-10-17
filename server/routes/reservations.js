@@ -9,6 +9,16 @@ const {
 const { claimReservationSlot } = require("../../client/functions/claimReservationRuntime");
 const { releaseReservationForCaller } = require("../../client/functions/slotRelease");
 const { publishClinicDays } = require("../../client/functions/schedulePublishRuntime");
+const { validateReservationCode } = require("../../client/functions/validateReservationCodeRuntime");
+const {
+  updateQueueRules,
+  updateSmsRules,
+} = require("../../client/functions/systemConfigurationRuntime");
+const {
+  updateQueueSessionStatus,
+  endClinicSession,
+  updateScheduleSlotCapacity,
+} = require("../../client/functions/queueSessionRuntime");
 const { runWithDatabase } = require("../../client/functions/rtdbRouter");
 const { notifyParentsScheduleAvailable } = require("../services/notificationEngine");
 
@@ -26,9 +36,48 @@ const STATUS_BY_CODE = {
   "invalid-argument": 400,
   "failed-precondition": 409,
   "not-found": 404,
+  "resource-exhausted": 429,
 };
 
 const STAFF_ROLES = new Set(["doctor", "secretary"]);
+
+router.post("/reservations/validate-code", async (req, res) => {
+  try {
+    initFirebaseAdmin();
+    const decoded = await verifyIdToken(req.headers.authorization);
+    if (!decoded?.uid) {
+      return res.status(401).json({
+        success: false,
+        error: "unauthenticated",
+        message: "You must be signed in.",
+      });
+    }
+
+    const result = await runForCaller(decoded, () =>
+      validateReservationCode({
+        admin,
+        callerUid: decoded.uid,
+        code: req.body?.code,
+        source: req.body?.source === "qr" ? "qr" : "manual",
+      })
+    );
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    const code = STATUS_BY_CODE[err.code] ? err.code : "internal";
+    console.error("[reservations/validate-code]", err.message);
+    const status = STATUS_BY_CODE[code] || 500;
+    if (status === 429 && err.retryAfterSeconds != null) {
+      res.set("Retry-After", String(err.retryAfterSeconds));
+    }
+    return res.status(status).json({
+      success: false,
+      error: code,
+      message: err.message || "Could not validate the reservation code.",
+      ...(err.lockedUntil != null ? { lockedUntil: err.lockedUntil } : {}),
+      ...(err.retryAfterSeconds != null ? { retryAfterSeconds: err.retryAfterSeconds } : {}),
+    });
+  }
+});
 
 router.post("/reservations/claim", async (req, res) => {
   try {
@@ -119,6 +168,165 @@ router.post("/schedules/publish", async (req, res) => {
       success: false,
       error: code,
       message: err.message || "Could not post this day.",
+    });
+  }
+});
+
+router.post("/schedules/queue-status", async (req, res) => {
+  try {
+    initFirebaseAdmin();
+    const decoded = await verifyIdToken(req.headers.authorization);
+    if (!decoded?.uid) {
+      return res.status(401).json({
+        success: false,
+        error: "unauthenticated",
+        message: "You must be signed in.",
+      });
+    }
+
+    const result = await runForCaller(decoded, () =>
+      updateQueueSessionStatus({
+        admin,
+        callerUid: decoded.uid,
+        scheduleId: req.body?.scheduleId,
+        queueStatus: req.body?.queueStatus,
+      })
+    );
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    const code = STATUS_BY_CODE[err.code] ? err.code : "internal";
+    console.error("[schedules/queue-status]", err.message);
+    return res.status(STATUS_BY_CODE[code] || 500).json({
+      success: false,
+      error: code,
+      message: err.message || "Could not update queue status.",
+    });
+  }
+});
+
+router.post("/schedules/end-session", async (req, res) => {
+  try {
+    initFirebaseAdmin();
+    const decoded = await verifyIdToken(req.headers.authorization);
+    if (!decoded?.uid) {
+      return res.status(401).json({
+        success: false,
+        error: "unauthenticated",
+        message: "You must be signed in.",
+      });
+    }
+
+    const result = await runForCaller(decoded, () =>
+      endClinicSession({
+        admin,
+        callerUid: decoded.uid,
+        scheduleId: req.body?.scheduleId,
+      })
+    );
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    const code = STATUS_BY_CODE[err.code] ? err.code : "internal";
+    console.error("[schedules/end-session]", err.message);
+    return res.status(STATUS_BY_CODE[code] || 500).json({
+      success: false,
+      error: code,
+      message: err.message || "Could not end the clinic session.",
+    });
+  }
+});
+
+router.post("/schedules/slot-capacity", async (req, res) => {
+  try {
+    initFirebaseAdmin();
+    const decoded = await verifyIdToken(req.headers.authorization);
+    if (!decoded?.uid) {
+      return res.status(401).json({
+        success: false,
+        error: "unauthenticated",
+        message: "You must be signed in.",
+      });
+    }
+
+    const result = await runForCaller(decoded, () =>
+      updateScheduleSlotCapacity({
+        admin,
+        callerUid: decoded.uid,
+        scheduleId: req.body?.scheduleId,
+        slotCapacity: req.body?.slotCapacity,
+      })
+    );
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    const code = STATUS_BY_CODE[err.code] ? err.code : "internal";
+    console.error("[schedules/slot-capacity]", err.message);
+    return res.status(STATUS_BY_CODE[code] || 500).json({
+      success: false,
+      error: code,
+      message: err.message || "Could not update slot capacity.",
+    });
+  }
+});
+
+router.post("/system-configuration/queue-rules", async (req, res) => {
+  try {
+    initFirebaseAdmin();
+    const decoded = await verifyIdToken(req.headers.authorization);
+    if (!decoded?.uid) {
+      return res.status(401).json({
+        success: false,
+        error: "unauthenticated",
+        message: "You must be signed in.",
+      });
+    }
+
+    const result = await runForCaller(decoded, () =>
+      updateQueueRules({
+        admin,
+        callerUid: decoded.uid,
+        branchId: req.body?.branchId,
+        queueRules: req.body?.queueRules || req.body,
+      })
+    );
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    const code = STATUS_BY_CODE[err.code] ? err.code : "internal";
+    console.error("[system-configuration/queue-rules]", err.message);
+    return res.status(STATUS_BY_CODE[code] || 500).json({
+      success: false,
+      error: code,
+      message: err.message || "Could not update queue rules.",
+    });
+  }
+});
+
+router.post("/system-configuration/sms-rules", async (req, res) => {
+  try {
+    initFirebaseAdmin();
+    const decoded = await verifyIdToken(req.headers.authorization);
+    if (!decoded?.uid) {
+      return res.status(401).json({
+        success: false,
+        error: "unauthenticated",
+        message: "You must be signed in.",
+      });
+    }
+
+    const result = await runForCaller(decoded, () =>
+      updateSmsRules({
+        admin,
+        callerUid: decoded.uid,
+        branchId: req.body?.branchId,
+        sms: req.body?.sms || req.body,
+      })
+    );
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    const code = STATUS_BY_CODE[err.code] ? err.code : "internal";
+    console.error("[system-configuration/sms-rules]", err.message);
+    return res.status(STATUS_BY_CODE[code] || 500).json({
+      success: false,
+      error: code,
+      message: err.message || "Could not update SMS rules.",
     });
   }
 });

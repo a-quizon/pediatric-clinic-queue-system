@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, Shield, Stethoscope, UserCog, User, MapPin, Mail, Phone, Trash2, AlertCircle } from "lucide-react";
+import { Search, Shield, Stethoscope, UserCog, User, MapPin, Mail, Phone, Trash2, AlertCircle, Filter, ChevronDown } from "lucide-react";
 import { ref } from "firebase/database";
 import { getDb } from "../../firebase/database";
 import { subscribeOnValue } from "../../firebase/rtdbSubscribe";
@@ -9,6 +9,7 @@ import ConfirmationModal from "../../components/common/ConfirmationModal";
 import { deleteUserAccount } from "../../services/adminService";
 import { useAuth } from "../../hooks/useAuth";
 import { PqSpinner } from "../../components/parent/pqUi";
+import EmptyState from "../../components/common/EmptyState";
 import toast from "react-hot-toast";
 import Pagination from "../../components/common/Pagination";
 import { getUserRowActions } from "../../utils/adminUserManagementPolicy";
@@ -30,6 +31,12 @@ const statusChip = (status) => (
   status === "active" ? "pq-chip pq-chip-live" : "pq-chip pq-chip-alert"
 );
 
+const SelectChevron = () => (
+  <div className="pq-field-icon" style={{ left: "auto", right: "0.85rem" }} aria-hidden="true">
+    <ChevronDown className="w-4 h-4" />
+  </div>
+);
+
 export default function UserManagement() {
   const { user: currentUser } = useAuth();
   const [searchParams] = useSearchParams();
@@ -39,6 +46,7 @@ export default function UserManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState(() => parseUserRoleParam(searchParams.get("role")) || "all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [selectedUser, setSelectedUser] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -154,7 +162,7 @@ export default function UserManagement() {
     : `This will permanently remove ${userToDelete?.name || "this user"} (${userToDelete?.email || "no email"}) and revoke their login. Historical reservations will be kept. This cannot be undone.`;
 
   const confirmDeleteUser = async () => {
-    if (!userToDelete?.id) return;
+    if (!userToDelete?.id || isDeleting) return;
     setIsDeleting(true);
     try {
       await deleteUserAccount(userToDelete.id);
@@ -172,56 +180,91 @@ export default function UserManagement() {
     }
   };
 
+  const activeFilterCount = [
+    searchQuery ? 1 : 0,
+    roleFilter !== "all" ? 1 : 0,
+    statusFilter !== "all" ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
+
   return (
-    <div className="space-y-4 pb-4 md:pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col">
-      <div className="pq-filter-bar p-3 sm:p-4 flex flex-col md:flex-row gap-3">
-        <div className="relative flex-1">
-          <div className="pq-field-icon">
-            <Search className="w-5 h-5" aria-hidden="true" />
-          </div>
-          <label htmlFor="user-search" className="sr-only">Search by name or email</label>
-          <input
-            id="user-search"
-            type="text"
-            placeholder="Search by name or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pq-input pl-10"
-          />
+    <div className="space-y-4 pb-4 md:pb-8 md:h-[calc(100vh-140px)] md:flex md:flex-col min-w-0 max-w-full">
+      <div className="pq-filter-bar p-3 sm:p-4 min-w-0 overflow-visible">
+        <div className="md:hidden">
+          <button
+            type="button"
+            className="pq-btn-secondary w-full min-h-[44px] justify-between"
+            aria-expanded={filtersOpen}
+            aria-controls="user-filters-panel"
+            onClick={() => setFiltersOpen((open) => !open)}
+          >
+            <span className="inline-flex items-center gap-2">
+              <Filter className="w-4 h-4" aria-hidden="true" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="pq-chip text-xs">{activeFilterCount}</span>
+              )}
+            </span>
+            <ChevronDown
+              className={`w-4 h-4 transition-transform ${filtersOpen ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            />
+          </button>
         </div>
 
-        <div className="flex gap-3">
-          <div className="relative flex-1 md:flex-none">
-            <label htmlFor="user-role-filter" className="sr-only">Filter by role</label>
-            <select
-              id="user-role-filter"
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="pq-input appearance-none cursor-pointer min-w-[10rem]"
-            >
-              {USER_ROLE_FILTER_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
+        <div
+          id="user-filters-panel"
+          className={`${filtersOpen ? "mt-3 flex" : "hidden"} md:mt-0 md:flex flex-col gap-3 min-w-0`}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,1fr))] gap-3 min-w-0 items-end">
+            <div className="relative min-w-0 md:col-span-2 lg:col-span-1">
+              <div className="pq-field-icon">
+                <Search className="w-5 h-5" aria-hidden="true" />
+              </div>
+              <label htmlFor="user-search" className="sr-only">Search by name or email</label>
+              <input
+                id="user-search"
+                type="text"
+                placeholder="Search by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pq-input pl-10 min-h-[44px] w-full"
+              />
+            </div>
 
-          <div className="relative flex-1 md:flex-none">
-            <label htmlFor="user-status-filter" className="sr-only">Filter by status</label>
-            <select
-              id="user-status-filter"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="pq-input appearance-none cursor-pointer min-w-[9rem]"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+            <div className="relative min-w-0">
+              <label htmlFor="user-role-filter" className="sr-only">Filter by role</label>
+              <select
+                id="user-role-filter"
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="pq-input pr-10 appearance-none cursor-pointer w-full min-h-[44px]"
+              >
+                {USER_ROLE_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <SelectChevron />
+            </div>
+
+            <div className="relative min-w-0">
+              <label htmlFor="user-status-filter" className="sr-only">Filter by status</label>
+              <select
+                id="user-status-filter"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="pq-input pr-10 appearance-none cursor-pointer w-full min-h-[44px]"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+              <SelectChevron />
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="pq-glass overflow-hidden min-h-[300px] md:flex-1 md:flex md:flex-col md:min-h-0">
+      <div className="pq-glass overflow-hidden min-h-[300px] md:flex-1 md:flex md:flex-col md:min-h-0 min-w-0 max-w-full">
         {loading ? (
           <PqSpinner label="Loading users" />
         ) : error ? (
@@ -394,17 +437,30 @@ export default function UserManagement() {
             />
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center p-12 text-center md:flex-1">
-            <User className="w-12 h-12 pq-faint mb-3" aria-hidden="true" />
-            <p className="font-extrabold tracking-tight">No users found matching your filters.</p>
-            <button
-              type="button"
-              onClick={() => { setSearchQuery(""); setRoleFilter("all"); setStatusFilter("all"); }}
-              className="pq-btn-ghost mt-4"
-            >
-              Clear Filters
-            </button>
-          </div>
+          <EmptyState
+            className="p-12 md:flex-1"
+            title={users.length === 0 ? "No users yet" : "No users match these filters"}
+            description={
+              users.length === 0
+                ? "Staff and parent accounts will appear in this list."
+                : "Nothing matches your search, role, or status filters."
+            }
+            nextStep={
+              users.length === 0
+                ? "Use Add Staff to create a secretary or doctor account."
+                : "Clear filters to see all listed accounts."
+            }
+            actionLabel={users.length === 0 ? undefined : "Clear filters"}
+            onAction={
+              users.length === 0
+                ? undefined
+                : () => {
+                    setSearchQuery("");
+                    setRoleFilter("all");
+                    setStatusFilter("all");
+                  }
+            }
+          />
         )}
       </div>
 

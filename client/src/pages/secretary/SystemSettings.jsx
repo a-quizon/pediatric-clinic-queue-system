@@ -6,16 +6,13 @@ import { useTourSample } from "../../hooks/useTourPreview";
 import { formatBranchLabel } from "../../utils/stringUtils";
 import {
   getDefaultSlotCapacity,
-  updateDefaultSlotCapacity,
   validateSlotCapacity,
   MIN_SLOT_CAPACITY,
   MAX_SLOT_CAPACITY,
   getQueueConfiguration,
-  updatePenaltyMoveBack,
+  updateQueueRules,
   validatePenaltyMoveBack,
-  updatePenaltyTimerMinutes,
   validatePenaltyTimerMinutes,
-  updatePenaltyGraceMinutes,
   validatePenaltyGraceMinutes,
   getSmsConfiguration,
   updateSmsConfiguration,
@@ -182,12 +179,12 @@ export default function SystemSettings() {
     try {
       setSavingQueue(true);
       setQueueError(null);
-      await Promise.all([
-        updatePenaltyMoveBack(branchId, penalty.value),
-        updatePenaltyTimerMinutes(branchId, timer.value),
-        updatePenaltyGraceMinutes(branchId, grace.value),
-        updateDefaultSlotCapacity(branchId, capacity.value),
-      ]);
+      await updateQueueRules(branchId, {
+        penaltyMoveBack: penalty.value,
+        penaltyTimerMinutes: timer.value,
+        penaltyGraceMinutes: grace.value,
+        defaultSlotCapacity: capacity.value,
+      });
       toast.success("Queue rules updated for this branch.");
       setPenaltyMoveBack(penalty.value.toString());
       setPenaltyTimerMinutes(timer.value.toString());

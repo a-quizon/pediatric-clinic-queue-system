@@ -18,7 +18,7 @@ Read when modifying Firebase data, server routes, or environment setup.
   createdAt, updatedAt,           // epoch ms
   assignedBranch: "Angeles",       // secretaries only
   children/{childId}: {            // parent-saved child profiles
-    childName, age, sex, createdAt
+    childName, birthdate, sex, createdAt  // legacy: age (until parent backfills birthdate)
   },
   pushSubscriptions/{hash}: { endpoint, keys: { p256dh, auth } },
   nearTurnSms: { sentAt, reservationId, backfilled? },  // parents; server-only; Near Turn SMS once per account, never reset
@@ -30,16 +30,28 @@ Read when modifying Firebase data, server routes, or environment setup.
 ```
 
 ### `passwordResetLimits/{emailKey}`
-Server-only daily cap for Forgot Password + the admin's parent reset email (reset emails are parents-only). Email key is lowercase with `. # $ [ ]` replaced by `_`. Counter resets on a new **Asia/Manila** calendar date.
+Server-only daily cap for Forgot Password + the admin's parent reset email (reset emails are parents-only). Email key is lowercase with `. # $ [ ]` replaced by `_`. Counter resets on a new **Asia/Manila** calendar date. Also stores `lastSentAt` for the **30-second** resend cooldown.
 ```js
 {
   email,                 // normalized lowercase
   date: "YYYY-MM-DD",    // Asia/Manila
   count: 1,              // 1–5; 5th claim is last allowed that day
+  lastSentAt,            // epoch ms — short resend cooldown
   updatedAt              // epoch ms
 }
 ```
-Daily limit: **5** requests per email. Client R/W denied in rules.
+Daily limit: **5** requests per email. Resend cooldown: **30 seconds**. Client R/W denied in rules.
+
+### `emailVerificationLimits/{uid}`
+Server-only short cooldown before `sendEmailVerification` (register + Verify Email resend). Client R/W denied in rules.
+```js
+{
+  uid,
+  lastSentAt,            // epoch ms
+  updatedAt
+}
+```
+Resend cooldown: **30 seconds** (independent of OTP / password-reset).
 
 ### `branchConfigurations/{branchId}`
 ```js
@@ -107,9 +119,9 @@ Server-only lock `{ scheduleId, at }` (legacy: bare scheduleId string) so one pa
   status: "reserved" | "waiting" | "checked_in" | "with_doctor" |
           "in_consultation" | "consultation_completed" | "cancelled" |
           "cancelled_by_clinic" | "forfeited" | "expired" | ...,
-  childName, age, sex, concern,    // legacy mirrors (first selected child + shared concern)
+  childName, birthdate, sex, concern,    // mirrors (first selected child + shared concern; legacy age may remain)
   children: [                      // 1+ patients on this reservation (1 slot)
-    { childId, childName, age, sex }
+    { childId, childName, birthdate, sex }  // legacy snapshots may include age
   ],
   source,                          // "walk_in" for secretary-created tickets
   createdBy,                       // secretary uid for walk-ins
@@ -170,7 +182,7 @@ Each branch (Angeles, Magalang, …) has an independent node keyed by `branchCon
 | `adminAlerts/{uid}` | Owning admin | Owning active admin (mark read); Admin SDK writes alerts |
 | `systemConfiguration/{branchId}` | Admin, doctor, parent; secretary own branch | Doctor; secretary own branch |
 | `systemConfiguration/{branchId}/sms` | + parents | (same write as parent node) |
-| `smsOtps`, `phoneVerifications`, `passwordResetLimits` | denied | denied (Admin SDK only) |
+| `smsOtps`, `phoneVerifications`, `passwordResetLimits`, `emailVerificationLimits` | denied | denied (Admin SDK only) |
 
 Rules file: `client/database.rules.json` is the single source of truth (`client/firebase.json` deploys it to the `main` database target; `client/database.demo.rules.json` mirrors it for the demo target). There is no repo-root copy. `client/tests/adminRoleRules.test.js` pins the admin/doctor split.
 
@@ -204,8 +216,9 @@ Create the `{projectId}-demo` database in the Firebase console before deploying 
 | POST | `/api/admin/create-doctor` | Bearer admin ID token | Create the Doctor (one-active-doctor rule) |
 | POST | `/api/admin/doctor-status` | Bearer admin ID token | Deactivate / reactivate the Doctor (`{ uid, status }`) |
 | POST | `/api/auth/resolve-identifier` | None | Resolve email or phone → account email for password login |
-| POST | `/api/auth/password-reset/claim` | None | Consume 1 of 5 daily reset slots per email (Asia/Manila) before `sendPasswordResetEmail`; 403 `auth_denied` for doctor, secretary, and admin emails |
-| POST | `/api/auth/sms/send-otp` | None | Generate + SMS-deliver 6-digit OTP (textbee) |
+| POST | `/api/auth/password-reset/claim` | None | Consume 1 of 5 daily reset slots per email (Asia/Manila) before `sendPasswordResetEmail`; enforces 30s resend cooldown (`retryAfterSeconds` / `Retry-After` on 429); 403 `auth_denied` for doctor, secretary, and admin emails |
+| POST | `/api/auth/email-verification/claim` | Bearer Firebase ID token | Claim 30s cooldown slot before `sendEmailVerification` |
+| POST | `/api/auth/sms/send-otp` | None | Generate + SMS-deliver 6-digit OTP (textbee); 30s resend cooldown |
 | POST | `/api/auth/sms/verify-otp` | None | Validate OTP → custom token (login) or verificationId (register) |
 
 Listeners: `server/services/pushListeners.js` watches `reservations` and `schedules`.
@@ -213,8 +226,9 @@ Listeners: `server/services/pushListeners.js` watches `reservations` and `schedu
 ### SMS (textbee.dev)
 - Utility: `server/services/smsService.js` (mirrored in `client/functions/smsService.js`)
 - Queue SMS events: `SLOT_RESERVED` (on Save Information / `patientInfoCompleted`; once via `slotReservedSmsSent`), `QUEUE_STARTED`, `NEARING_TURN` (at **queue start only**; patients-ahead from `systemConfiguration/{branchId}/sms`, default 3; fires when `0 < aheadOfYou <=` count; SMS once per parent account, ever, via `users/{uid}/nearTurnSms` transaction in `nearTurnSmsGuard.js` (push/in-app still once per reservation via `reservations/{id}/nearTurnSmsSent`); Secretary-editable per branch), `PENALIZED` (once per increment via `penaltySmsSent/{count}`), `FORFEITED`. TextBee credentials remain env-global.
-- OTP store: `smsOtps/{phoneKey}` — bcrypt-hashed code, 5-minute `expiresAt`; client R/W denied in rules
-- Password reset cap: `passwordResetLimits/{emailKey}` — 5 claims per email per Asia/Manila day; client R/W denied; Forgot Password and the admin's parent reset email share the same counter; staff are refused
+- OTP store: `smsOtps/{phoneKey}` — bcrypt-hashed code, 5-minute `expiresAt`; **30s** resend cooldown; client R/W denied in rules
+- Password reset cap: `passwordResetLimits/{emailKey}` — 5 claims per email per Asia/Manila day + **30s** `lastSentAt` cooldown; client R/W denied; Forgot Password and the admin's parent reset email share the same counter; staff are refused
+- Email verification cooldown: `emailVerificationLimits/{uid}` — **30s** between sends; client R/W denied
 
 ## Cloud Functions (`client/functions/index.js`)
 
@@ -257,6 +271,7 @@ FIREBASE_PROJECT_ID=pediatric-clinic-queue-testing
 FIREBASE_DATABASE_URL=https://...firebasedatabase.app
 TEXTBEE_API_KEY=
 # TEXTBEE_DEVICE_ID=
+# TEXTBEE_WEBHOOK_SECRET=   # ≥20 chars; TextBee dashboard Webhooks signing secret
 # GOOGLE_APPLICATION_CREDENTIALS=./serviceAccountKey.json
 # FIREBASE_SERVICE_ACCOUNT={"type":"service_account",...}
 # PUSH_DISPATCH_SECRET=

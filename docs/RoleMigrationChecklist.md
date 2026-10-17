@@ -6,15 +6,23 @@ The System Admin (`/admin`) and the Doctor (`/doctor`) are separate roles. The a
 
 Done:
 
-- [x] Phase 1: separate `/admin` module (Dashboard, Users, Branches, Audit Logs, Reports with Clinic Overview + read-only Session History); doctor nav has no Users/Branches/Audit Logs; admin has no Profile page.
+- [x] Phase 1: separate `/admin` module (Dashboard, Users, Branches, Audit Logs, Reports with Clinic Overview + read-only Session History; System Health added in panel-admin-features); doctor nav has no Users/Branches/Audit Logs; admin has no Profile page.
 - [x] Phase 2: admin-only guards in the server runtimes (`assertActiveAdmin`) and RTDB rules; admin is not clinical staff; admin creates/deactivates/reactivates/deletes secretaries and the doctor (one active doctor); staff password reset by temporary password; suspicious-account alerts moved to `adminAlerts` + admin Web Push.
 - [x] Phase 3: admin accounts listed read-only in Users ("You" marker, no row actions); rules block any client from removing an admin profile or changing its `role`, `status`, or `isDeleted`; admin policy rename and audit text.
 - [x] Phase 4: doctor tour has no admin steps and every step has a rendered target (test-enforced); docs updated; `npm test` passes.
 - [x] Phase 5 (staging, 2026-10-16): staging redeployed (rules, functions, hosting); 92 server and rules checks passed (see "Staging verification evidence"); admin password rotation documented in [AdminBreakGlass.md](AdminBreakGlass.md).
 
+Panel admin features (`feature/panel-admin-features`, staging):
+
+- [x] System Health page + `systemHealth` / `rateLimits` rules (admin read health; server-only writes).
+- [x] Manual reservation-code rate limit + server audit (`MANUAL_CODE_FAILED` / `MANUAL_CODE_LOCKED`) + Audit Logs action filter.
+- [x] Admin empty states + analytics honesty (`docs/ImplementedAnalytics.md`).
+- [x] `docs/BackupAndRestorePlan.md`, `docs/ProjectTurnover.md`.
+- [ ] Items 3–4 (delete/archive policy; admin password recovery) waiting on owner decision.
+
 Remaining:
 
-- [ ] Manual UI walkthrough on staging (items marked "UI pending" below), including a real suspicious-account push to the admin.
+- [ ] Manual UI walkthrough on staging (items marked "UI pending" below), including a real suspicious-account push to the admin, System Health, and manual-code lockout.
 - [ ] Decide who the production admin is and build a production-safe create script (the current one is staging-only).
 - [ ] Production deploy only with explicit owner approval (see "Production").
 

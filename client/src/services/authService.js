@@ -1,10 +1,11 @@
-import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendEmailVerification, deleteUser } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider, deleteUser } from "firebase/auth";
 import { ref, set, update, get } from "firebase/database";
 
 import { auth } from "../firebase/auth";
 import { getDb } from "../firebase/database";
 import { cleanupPushSubscriptionOnLogout } from "./pushService";
 import { closeActiveReservationsForParent } from "./reservationService";
+import { sendVerificationEmail } from "./emailVerificationService";
 
 let accountLifecycleInProgress = false;
 
@@ -44,9 +45,9 @@ export const registerUser = async (
     throw { code: "auth/phone-not-verified" };
   }
 
-  // Server-side gate: phone must have a valid registration OTP proof
+  // Server-side gate: phone must have a valid registration OTP proof + uniqueness check
   const { assertPhoneVerified } = await import("./smsAuthService");
-  await assertPhoneVerified(phone, phoneVerificationId);
+  await assertPhoneVerified(phone, phoneVerificationId, "register");
 
   const userCredential =
     await createUserWithEmailAndPassword(
@@ -78,10 +79,10 @@ export const registerUser = async (
     }
 
     try {
-      await sendEmailVerification(user);
+      await sendVerificationEmail(user);
     } catch (err) {
       console.error("Could not send verification email:", err);
-      throw { code: 'auth/verification-email-failed', originalError: err };
+      throw { code: 'auth/verification-email-failed', originalError: err, retryAfterSeconds: err?.retryAfterSeconds };
     }
 
   return user;
@@ -102,6 +103,7 @@ export const completeParentRegistration = async (user) => {
     name: user.displayName || "Parent",
     email: user.email,
     phone: pendingData.phone || "",
+    phoneNumber: pendingData.phone || "",
     isPhoneVerified: pendingData.isPhoneVerified === true,
     dataPrivacyConsent: pendingData.dataPrivacyConsent === true,
     dataPrivacyConsentVersion: pendingData.dataPrivacyConsentVersion || null,
@@ -116,14 +118,14 @@ export const completeParentRegistration = async (user) => {
   });
 
   if (pendingData.phone && pendingData.phoneVerificationId) {
-    try {
-      const { consumePhoneVerification } = await import("./smsAuthService");
-      await consumePhoneVerification(pendingData.phone, pendingData.phoneVerificationId);
-    } catch (err) {
-      console.warn("Could not consume phone verification proof:", err.message);
-    }
+    const { consumePhoneVerification } = await import("./smsAuthService");
+    await consumePhoneVerification(
+      pendingData.phone,
+      pendingData.phoneVerificationId,
+      "register"
+    );
   }
-  
+
   localStorage.removeItem(`pending_registration_${user.uid}`);
 };
 
@@ -213,7 +215,10 @@ export const updateUserProfile = async (uid, data) => {
   if (!uid || !data) return;
   const updates = { updatedAt: Date.now() };
   if (data.name !== undefined) updates.name = data.name;
-  if (data.phone !== undefined) updates.phone = data.phone;
+  if (data.phone !== undefined) {
+    updates.phone = data.phone;
+    updates.phoneNumber = data.phone;
+  }
   if (data.isPhoneVerified !== undefined) updates.isPhoneVerified = data.isPhoneVerified;
   if (data.contactNumber !== undefined) updates.contactNumber = data.contactNumber;
   if (data.professionalTitle !== undefined) updates.professionalTitle = data.professionalTitle;

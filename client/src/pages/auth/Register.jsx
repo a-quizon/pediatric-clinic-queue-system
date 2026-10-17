@@ -11,9 +11,10 @@ import { mapAuthError } from "../../utils/authErrors";
 import { usePasswordValidation } from "../../utils/passwordUtils";
 import { formatName } from "../../utils/stringUtils";
 import { formatToE164 } from "../../utils/phoneUtils";
-import { formatOtpCountdown, startOtpAutofill } from "../../utils/loginIdentifier";
-
-const RESEND_COOLDOWN_SEC = 90;
+import { startOtpAutofill } from "../../utils/loginIdentifier";
+import { RESEND_FLOW } from "../../utils/resendCooldown";
+import { useResendCooldown } from "../../hooks/useResendCooldown";
+import ModalScrim from "../../components/common/ModalScrim";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -42,7 +43,9 @@ export default function Register() {
   const [otpSent, setOtpSent] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [verificationId, setVerificationId] = useState("");
-  const [cooldownLeft, setCooldownLeft] = useState(0);
+  const [phoneError, setPhoneError] = useState("");
+  const otpIdentity = formData.number.length === 10 ? formatToE164(formData.number) : "";
+  const { cooldownLeft, beginCooldown, syncCooldown } = useResendCooldown(RESEND_FLOW.OTP, otpIdentity);
   const otpInputRef = useRef(null);
 
   const { isValid: isPasswordValid, errors: passwordErrors, isChecking } = usePasswordValidation(formData.password);
@@ -57,14 +60,6 @@ export default function Register() {
     isPasswordValid &&
     formData.password === formData.confirmPassword &&
     !isChecking;
-
-  useEffect(() => {
-    if (cooldownLeft <= 0) return undefined;
-    const id = setInterval(() => {
-      setCooldownLeft((s) => (s <= 1 ? 0 : s - 1));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [cooldownLeft]);
 
   useEffect(() => {
     if (!showConsentModal || !modalRef.current) return;
@@ -108,6 +103,7 @@ export default function Register() {
     setOtpSent(false);
     setPhoneVerified(false);
     setVerificationId("");
+    setPhoneError("");
     setFormData((prev) => ({ ...prev, otp: "" }));
   };
 
@@ -116,6 +112,7 @@ export default function Register() {
     if (name === "number") {
       const sanitized = value.replace(/\D/g, "").slice(0, 10);
       setFormData((prev) => ({ ...prev, number: sanitized }));
+      setPhoneError("");
       // Reset verification for new digits, but keep resend cooldown
       // tied to time since last OTP send (not the phone field value).
       if (sanitized !== formData.number) {
@@ -135,28 +132,34 @@ export default function Register() {
 
   const handleSendCode = async () => {
     if (formData.number.length !== 10) {
-      toast.error("Enter a valid 10-digit mobile number first.");
+      setPhoneError("Enter a valid 10-digit mobile number first.");
       return;
     }
     if (cooldownLeft > 0) return;
 
     setOtpBusy(true);
+    setPhoneError("");
     try {
       await sendSmsOtp(formData.number, "register");
       setOtpSent(true);
       setPhoneVerified(false);
       setVerificationId("");
       setFormData((prev) => ({ ...prev, otp: "" }));
-      setCooldownLeft(RESEND_COOLDOWN_SEC);
+      beginCooldown();
       toast.success("Verification code sent via SMS.");
       setTimeout(() => otpInputRef.current?.focus(), 50);
     } catch (err) {
-      toast.error(
-        err.code === "rate_limited" && err.message
-          ? err.message
-          : err.message || "Failed to send OTP, please try again."
-      );
-      if (err.retryAfterSeconds) setCooldownLeft(err.retryAfterSeconds);
+      if (err.code === "phone_in_use") {
+        setPhoneError("This mobile number is already registered.");
+      } else {
+        const message =
+          err.code === "rate_limited" && err.message
+            ? err.message
+            : err.message || "Failed to send OTP, please try again.";
+        setPhoneError(message);
+        toast.error(message);
+      }
+      if (err.retryAfterSeconds) syncCooldown(err.retryAfterSeconds);
     } finally {
       setOtpBusy(false);
     }
@@ -168,13 +171,18 @@ export default function Register() {
       return;
     }
     setOtpBusy(true);
+    setPhoneError("");
     try {
       const result = await verifySmsOtp(formData.number, formData.otp, "register");
       setPhoneVerified(true);
       setVerificationId(result.verificationId || "");
       toast.success("Phone number verified.");
     } catch (err) {
-      toast.error(err.message || "Verification failed.");
+      if (err.code === "phone_in_use") {
+        setPhoneError("This mobile number is already registered.");
+      } else {
+        toast.error(err.message || "Verification failed.");
+      }
     } finally {
       setOtpBusy(false);
     }
@@ -320,13 +328,17 @@ export default function Register() {
                   required
                   disabled={loading || phoneVerified}
                   autoComplete="tel-national"
-                  className="pq-input pl-20"
+                  className={`pq-input pl-20 ${phoneError ? "pq-input-error" : ""}`}
                   placeholder="9123456789"
+                  aria-invalid={Boolean(phoneError)}
                 />
                 {phoneVerified && (
                   <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: "var(--pq-live)" }} />
                 )}
               </div>
+              {phoneError && (
+                <p className="pq-error-text mt-1 leading-tight">{phoneError}</p>
+              )}
             </div>
 
             <div>
@@ -378,7 +390,7 @@ export default function Register() {
                   <p className="pq-ok-text">Phone verified. You can continue registration.</p>
                 ) : cooldownLeft > 0 ? (
                   <p className="text-xs font-medium pq-muted">
-                    Resend code in {formatOtpCountdown(cooldownLeft)}
+                    Resend in {cooldownLeft}s
                   </p>
                 ) : otpSent ? (
                   <button
@@ -529,18 +541,28 @@ export default function Register() {
       </div>
 
       {showConsentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
+        <ModalScrim
+          className="z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowConsentModal(false);
+              setConsentCancelled(true);
+            }
+          }}
+        >
           <div
             ref={modalRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="consent-modal-title"
-            className="pq-modal max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
+            className="pq-modal pq-modal--lg"
           >
-            <div className="p-6 overflow-y-auto flex-1">
+            <div className="pq-modal-header p-6 pb-0">
               <h2 id="consent-modal-title" className="text-xl font-bold mb-4">
                 Plus Queue Data Privacy Consent
               </h2>
+            </div>
+            <div className="pq-modal-body pq-scroll-y px-6">
               <div className="space-y-4 text-sm" style={{ color: "var(--pq-ink)" }}>
                 <p>
                   Welcome to Plus Queue! We value your privacy and want to be clear about how we handle your information under the Data Privacy Act of 2012.
@@ -551,14 +573,14 @@ export default function Register() {
                   <p>We only collect the following information:</p>
                   <ul className="list-disc pl-5 mt-1 space-y-1">
                     <li>From you (Parent/Guardian): Full name, phone number, and email address.</li>
-                    <li>From your child/children: Name, sex, and age.</li>
+                    <li>From your child/children: Name, sex, and birthdate.</li>
                   </ul>
                 </div>
 
                 <div>
                   <h3 className="font-semibold mb-1">Why we collect it</h3>
                   <p>
-                    We use this information to create and manage your account, register your child's profile for the queuing service, and contact you about your appointments. Because your child's age is considered sensitive personal information under the law, we ask for your explicit consent to process it. By agreeing to this notice, you confirm that you are the parent or legal guardian giving consent on their behalf.
+                    We use this information to create and manage your account, register your child's profile for the queuing service, and contact you about your appointments. Because your child's birthdate is considered sensitive personal information under the law, we ask for your explicit consent to process it. By agreeing to this notice, you confirm that you are the parent or legal guardian giving consent on their behalf.
                   </p>
                 </div>
 
@@ -600,7 +622,7 @@ export default function Register() {
               </div>
             </div>
 
-            <div className="p-4 flex flex-col sm:flex-row gap-3 sm:justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)", background: "rgba(22,52,74,0.04)" }}>
+            <div className="pq-modal-footer p-4 flex flex-col sm:flex-row gap-3 sm:justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)", background: "rgba(22,52,74,0.04)" }}>
               <button
                 type="button"
                 onClick={() => {
@@ -632,7 +654,7 @@ export default function Register() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
     </PqAuthShell>

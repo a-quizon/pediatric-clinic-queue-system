@@ -1,14 +1,19 @@
 import { useState, useEffect } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { CalendarDays, MapPin, Users, User, Activity, Clock } from "lucide-react";
-import { ref, query, orderByChild, limitToLast } from "firebase/database";
+import { ref, query, orderByChild, limitToLast, onValue } from "firebase/database";
 import { getDb } from "../../firebase/database";
 import { subscribeOnValue } from "../../firebase/rtdbSubscribe";
 import { PqSpinner } from "../../components/parent/pqUi";
+import EmptyState from "../../components/common/EmptyState";
 import { manilaDateString } from "../../utils/manilaDate";
 import { countActiveClinicStaff } from "../../utils/staffCounts";
+import { smsServiceStatusLabel } from "../../utils/systemHealth";
+import { filterAdminAuditLogs } from "../../utils/auditLogFilters";
 
 const PREVIEW_LOG_COUNT = 10;
+/** Fetch extra so excluded floor-ops audits do not empty the recent feed. */
+const PREVIEW_LOG_FETCH = 40;
 const PREVIEW_BRANCH_COUNT = 4;
 
 const formatTime = (timeStr) => {
@@ -112,6 +117,7 @@ const formatOperation = (schedule, branchName) => {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
@@ -125,6 +131,20 @@ export default function Dashboard() {
   const [recentLogs, setRecentLogs] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityError, setActivityError] = useState(null);
+  const [smsServiceStatus, setSmsServiceStatus] = useState(null);
+
+  useEffect(() => {
+    const gatewayRef = ref(getDb(), "systemHealth/smsGateway");
+    const unsub = onValue(
+      gatewayRef,
+      (snap) => {
+        const val = snap.exists() ? snap.val() : null;
+        setSmsServiceStatus(val?.serviceStatus || null);
+      },
+      () => setSmsServiceStatus(null)
+    );
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     const usersRef = ref(getDb(), "users");
@@ -211,7 +231,7 @@ export default function Dashboard() {
     const auditRef = query(
       ref(getDb(), "auditLogs"),
       orderByChild("timestamp"),
-      limitToLast(PREVIEW_LOG_COUNT)
+      limitToLast(PREVIEW_LOG_FETCH)
     );
     const unsubscribe = subscribeOnValue(auditRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -221,7 +241,7 @@ export default function Dashboard() {
           ...data[key]
         }));
         logsList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        setRecentLogs(logsList);
+        setRecentLogs(filterAdminAuditLogs(logsList).slice(0, PREVIEW_LOG_COUNT));
       } else {
         setRecentLogs([]);
       }
@@ -259,12 +279,35 @@ export default function Dashboard() {
     );
   }
 
+  const smsStatusLabel = smsServiceStatusLabel(smsServiceStatus);
+  const smsUnhealthy = smsServiceStatus === "degraded" || smsServiceStatus === "down";
+
   return (
     <div className="space-y-6 pb-8">
       {error && (
         <div className="pq-note pq-note-alert flex items-center gap-3">
           <Activity className="w-5 h-5 shrink-0" aria-hidden="true" />
           <p className="font-medium text-sm leading-snug">{error}</p>
+        </div>
+      )}
+
+      {smsUnhealthy && (
+        <div className="pq-note pq-note-alert flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <Activity className="w-5 h-5 shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="font-medium text-sm leading-snug">
+              SMS service is {smsStatusLabel}. TextBee delivery failures may be delaying parent
+              notifications. Check the gateway phone (default SMS app, signal, airplane mode) on
+              System Health.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="pq-btn pq-btn-secondary shrink-0"
+            onClick={() => navigate("/admin/system-health")}
+          >
+            Open System Health
+          </button>
         </div>
       )}
 
@@ -287,18 +330,14 @@ export default function Dashboard() {
         <section className="pq-glass p-6 lg:p-8">
           <h2 className="text-lg font-extrabold tracking-tight mb-5">Current Clinic Operation</h2>
           {branchOperations.length === 0 ? (
-            <div className="text-center py-8">
-              <div
-                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ background: "color-mix(in srgb, #ffffff 55%, transparent)", color: "var(--pq-ink-faint)" }}
-              >
-                <Activity className="w-8 h-8" aria-hidden="true" />
-              </div>
-              <h3 className="text-xl font-extrabold tracking-tight mb-2">No branches yet</h3>
-              <p className="pq-muted max-w-md mx-auto">
-                Add a branch to see clinic sessions here.
-              </p>
-            </div>
+            <EmptyState
+              title="No branches yet"
+              description="Clinic operation status appears once at least one branch exists."
+              nextStep="Open Branches and add a clinic branch."
+              actionLabel="Go to Branches"
+              onAction={() => navigate("/admin/branches")}
+              className="py-8"
+            />
           ) : (
             <div className="space-y-2">
               {branchOperations.map((operation) => (
@@ -346,11 +385,14 @@ export default function Dashboard() {
           </div>
 
           {previewBranches.length === 0 ? (
-            <div className="pq-row flex-col items-center text-center min-h-0 py-8 flex-1 justify-center">
-              <MapPin className="w-8 h-8 pq-faint mb-3" aria-hidden="true" />
-              <p className="font-extrabold tracking-tight">No branches yet</p>
-              <p className="text-sm pq-muted mt-1">Add a branch to start clinic operations.</p>
-            </div>
+            <EmptyState
+              title="No branches yet"
+              description="Branches you add will show here."
+              nextStep="Open Branches and add your first clinic location."
+              actionLabel="Manage branches"
+              onAction={() => navigate("/admin/branches")}
+              className="py-8 flex-1"
+            />
           ) : (
             <div className="space-y-2 flex-1">
               {previewBranches.map((branch) => (
@@ -388,13 +430,14 @@ export default function Dashboard() {
         ) : activityLoading ? (
           <PqSpinner label="Loading recent audit logs" />
         ) : recentLogs.length === 0 ? (
-          <div className="pq-row flex-col items-center text-center min-h-0 py-10">
-            <Activity className="w-8 h-8 pq-faint mb-3" aria-hidden="true" />
-            <p className="font-extrabold tracking-tight">No audit logs yet</p>
-            <p className="text-sm pq-muted mt-1 max-w-sm">
-              Staff and admin actions will appear here as they happen.
-            </p>
-          </div>
+          <EmptyState
+            title="No audit logs yet"
+            description="Staff and admin actions appear here as they happen."
+            nextStep="Create a staff account or change a branch to generate the first entry, then open Audit Logs for the full list."
+            actionLabel="Open Audit Logs"
+            onAction={() => navigate("/admin/audit-logs")}
+            className="py-10"
+          />
         ) : (
           <ul className="space-y-2">
             {recentLogs.map((log) => (

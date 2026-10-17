@@ -6,16 +6,17 @@ import { sendSmsOtp, verifySmsOtp, consumePhoneVerification } from "../../servic
 import { User, Mail, Phone, Save, Lock, Shield, Key, Eye, EyeOff, KeyRound, CheckCircle2 } from "lucide-react";
 import { handlePasswordChangeRequest, usePasswordValidation } from "../../utils/passwordUtils";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
-import { formatOtpCountdown, startOtpAutofill } from "../../utils/loginIdentifier";
+import { startOtpAutofill } from "../../utils/loginIdentifier";
 import { useNavigate } from "react-router-dom";
 import InformationModal from "../../components/common/InformationModal";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import DeleteAccountModal from "../../components/common/DeleteAccountModal";
+import ModalScrim from "../../components/common/ModalScrim";
 import { mapAuthError } from "../../utils/authErrors";
 import toast from "react-hot-toast";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
-
-const RESEND_COOLDOWN_SEC = 90;
+import { RESEND_FLOW } from "../../utils/resendCooldown";
+import { useResendCooldown } from "../../hooks/useResendCooldown";
 
 export default function PersonalInformation() {
   const { user, updateContextUser } = useAuth();
@@ -28,9 +29,10 @@ export default function PersonalInformation() {
   const [otpSent, setOtpSent] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [verificationId, setVerificationId] = useState("");
-  const [cooldownLeft, setCooldownLeft] = useState(0);
   const [otpBusy, setOtpBusy] = useState(false);
   const otpInputRef = useRef(null);
+  const otpIdentity = phone.length === 10 ? formatToE164(phone) : "";
+  const { cooldownLeft, beginCooldown, syncCooldown } = useResendCooldown(RESEND_FLOW.OTP, otpIdentity);
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
@@ -82,16 +84,7 @@ export default function PersonalInformation() {
     setOtpSent(false);
     setPhoneVerified(false);
     setVerificationId("");
-    setCooldownLeft(0);
   }, [user]);
-
-  useEffect(() => {
-    if (cooldownLeft <= 0) return undefined;
-    const id = setInterval(() => {
-      setCooldownLeft((s) => (s <= 1 ? 0 : s - 1));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [cooldownLeft]);
 
   useEffect(() => {
     if (!otpSent || phoneVerified || !phoneChanged) return undefined;
@@ -144,17 +137,19 @@ export default function PersonalInformation() {
       setPhoneVerified(false);
       setVerificationId("");
       setOtp("");
-      setCooldownLeft(RESEND_COOLDOWN_SEC);
+      beginCooldown();
       toast.success("Verification code sent via SMS.");
       setTimeout(() => otpInputRef.current?.focus(), 50);
     } catch (err) {
       const message =
-        err.code === "rate_limited" && err.message
-          ? err.message
-          : err.message || "Failed to send OTP, please try again.";
+        err.code === "phone_in_use"
+          ? "This mobile number is already registered."
+          : err.code === "rate_limited" && err.message
+            ? err.message
+            : err.message || "Failed to send OTP, please try again.";
       setError(message);
-      toast.error(message);
-      if (err.retryAfterSeconds) setCooldownLeft(err.retryAfterSeconds);
+      if (err.code !== "phone_in_use") toast.error(message);
+      if (err.retryAfterSeconds) syncCooldown(err.retryAfterSeconds);
     } finally {
       setOtpBusy(false);
     }
@@ -173,7 +168,11 @@ export default function PersonalInformation() {
       setVerificationId(result.verificationId || "");
       toast.success("Phone number verified.");
     } catch (err) {
-      setError(err.message || "Verification failed.");
+      setError(
+        err.code === "phone_in_use"
+          ? "This mobile number is already registered."
+          : err.message || "Verification failed."
+      );
     } finally {
       setOtpBusy(false);
     }
@@ -219,7 +218,6 @@ export default function PersonalInformation() {
       if (phoneChanged) {
         setOriginalPhoneLocal(phone);
         resetPhoneVerification();
-        setCooldownLeft(0);
       }
       setSuccessModalOpen(true);
     } catch (err) {
@@ -409,7 +407,7 @@ export default function PersonalInformation() {
                   </p>
                 ) : cooldownLeft > 0 ? (
                   <p className="text-xs font-semibold pq-muted">
-                    Resend code in {formatOtpCountdown(cooldownLeft)}
+                    Resend in {cooldownLeft}s
                   </p>
                 ) : otpSent ? (
                   <button
@@ -503,9 +501,8 @@ export default function PersonalInformation() {
       />
 
       {passwordModalOpen && (
-        <div
-          className="pq-modal-scrim"
-          style={{ zIndex: 60 }}
+        <ModalScrim
+          className="z-[60]"
           onClick={(e) => {
             if (e.target === e.currentTarget && !isChangingPassword) {
               setPasswordModalOpen(false);
@@ -513,11 +510,11 @@ export default function PersonalInformation() {
           }}
         >
           <div
-            className="pq-modal w-full max-w-md overflow-hidden flex flex-col"
+            className="pq-modal pq-modal--md"
             role="dialog"
             aria-modal="true"
           >
-            <div className="p-6">
+            <div className="pq-modal-header p-6 pb-0">
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-full shrink-0" style={{ background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue-deep)" }}>
                   <Shield className="w-6 h-6" />
@@ -528,94 +525,94 @@ export default function PersonalInformation() {
                   <p className="mt-1 pq-muted text-sm">Update your account security.</p>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-6 space-y-4">
-                {passwordError && (
-                  <div className="pq-note pq-note-alert">
-                    {passwordError}
-                  </div>
-                )}
+            <div className="pq-modal-body pq-scroll-y px-6 pt-6 space-y-4">
+              {passwordError && (
+                <div className="pq-note pq-note-alert">
+                  {passwordError}
+                </div>
+              )}
 
+              <div className="relative">
+                <div className="pq-field-icon">
+                  <Key className="h-4 w-4" />
+                </div>
+                <input
+                  type={showCurrentPassword ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="pq-input pl-10 pr-11 text-sm"
+                  placeholder="Current Password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint min-w-[44px] justify-end"
+                  aria-label={showCurrentPassword ? "Hide current password" : "Show current password"}
+                >
+                  {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+
+              <div>
                 <div className="relative">
                   <div className="pq-field-icon">
-                    <Key className="h-4 w-4" />
+                    <Lock className="h-4 w-4" />
                   </div>
                   <input
-                    type={showCurrentPassword ? "text" : "password"}
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="pq-input pl-10 pr-11 text-sm"
-                    placeholder="Current Password"
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className={`pq-input pl-10 pr-11 text-sm ${passwordInvalid ? "pq-input-error" : ""}`}
+                    placeholder="New Password"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    onClick={() => setShowNewPassword(!showNewPassword)}
                     className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint min-w-[44px] justify-end"
-                    aria-label={showCurrentPassword ? "Hide current password" : "Show current password"}
+                    aria-label={showNewPassword ? "Hide new password" : "Show new password"}
                   >
-                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {passwordInvalid && passwordErrors.length > 0 && (
+                  <p className="pq-error-text px-1 pt-1.5">
+                    {passwordErrors[0]}
+                  </p>
+                )}
+              </div>
 
-                <div>
-                  <div className="relative">
-                    <div className="pq-field-icon">
-                      <Lock className="h-4 w-4" />
-                    </div>
-                    <input
-                      type={showNewPassword ? "text" : "password"}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className={`pq-input pl-10 pr-11 text-sm ${passwordInvalid ? "pq-input-error" : ""}`}
-                      placeholder="New Password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint min-w-[44px] justify-end"
-                      aria-label={showNewPassword ? "Hide new password" : "Show new password"}
-                    >
-                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+              <div>
+                <div className="relative">
+                  <div className="pq-field-icon">
+                    <Lock className="h-4 w-4" />
                   </div>
-                  {passwordInvalid && passwordErrors.length > 0 && (
-                    <p className="pq-error-text px-1 pt-1.5">
-                      {passwordErrors[0]}
-                    </p>
-                  )}
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={`pq-input pl-10 pr-11 text-sm ${confirmInvalid ? "pq-input-error" : ""}`}
+                    placeholder="Confirm New Password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint min-w-[44px] justify-end"
+                    aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
-
-                <div>
-                  <div className="relative">
-                    <div className="pq-field-icon">
-                      <Lock className="h-4 w-4" />
-                    </div>
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className={`pq-input pl-10 pr-11 text-sm ${confirmInvalid ? "pq-input-error" : ""}`}
-                      placeholder="Confirm New Password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center pq-faint min-w-[44px] justify-end"
-                      aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  {confirmInvalid && (
-                    <p className="pq-error-text px-1 pt-1.5">
-                      Passwords do not match.
-                    </p>
-                  )}
-                </div>
+                {confirmInvalid && (
+                  <p className="pq-error-text px-1 pt-1.5">
+                    Passwords do not match.
+                  </p>
+                )}
               </div>
             </div>
 
-            <div className="p-5 flex justify-end gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer p-5 flex justify-end gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button
                 onClick={() => setPasswordModalOpen(false)}
                 disabled={isChangingPassword}
@@ -636,7 +633,7 @@ export default function PersonalInformation() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       <ConfirmationModal

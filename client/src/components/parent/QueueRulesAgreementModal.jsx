@@ -6,6 +6,7 @@ import {
   subscribeToQueueRulesForSchedule,
 } from "../../services/systemConfigurationService";
 import { formatBranchLabel } from "../../utils/stringUtils";
+import ModalScrim from "../common/ModalScrim";
 
 const countLabel = (count, singular, pluralWord) =>
   `${count} ${count === 1 ? singular : pluralWord}`;
@@ -82,9 +83,9 @@ export default function QueueRulesAgreementModal({
   const instantForfeit = queueRules?.penaltyMoveBack === 0;
 
   return (
-    <div className="pq-modal-scrim">
-      <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+    <ModalScrim onClick={(e) => e.target === e.currentTarget && !isSubmitting && onCancel?.()}>
+      <div className="pq-modal pq-modal--md" role="dialog" aria-modal="true">
+        <div className="pq-modal-header flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
           <h2 className="text-lg font-bold flex items-center min-w-0 pr-3">
             <ScrollText className="w-5 h-5 mr-2 shrink-0" style={{ color: "var(--pq-mark-blue)" }} />
             <span className="truncate">Queue Rules for {branchLabel}</span>
@@ -93,14 +94,14 @@ export default function QueueRulesAgreementModal({
             type="button"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="pq-icon-btn"
+            className="pq-icon-btn shrink-0"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto pq-scroll-y overscroll-contain min-h-0 flex-1">
+        <div className="pq-modal-body p-6 pq-scroll-y">
           {(isLoading || (!queueRules && !loadError)) && (
             <div className="flex flex-col items-center justify-center py-10">
               <span className="pq-spinner mb-3" />
@@ -168,7 +169,7 @@ export default function QueueRulesAgreementModal({
           )}
         </div>
 
-        <div className="p-5 space-y-4" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+        <div className="pq-modal-footer p-5 space-y-4" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
           {queueRules && !isLoading && (
             <label className="flex items-start gap-3 cursor-pointer text-sm leading-snug">
               <input
@@ -176,14 +177,14 @@ export default function QueueRulesAgreementModal({
                 checked={hasAgreed}
                 onChange={(event) => setHasAgreed(event.target.checked)}
                 disabled={isSubmitting}
-                className="mt-0.5 w-4 h-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="mt-0.5 w-4 h-4 min-w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               <span>
                 I understand these queue rules for {branchLabel} and agree to follow them for this reservation.
               </span>
             </label>
           )}
-          <div className="flex gap-3 justify-end">
+          <div className="flex flex-col-reverse sm:flex-row gap-3 justify-end">
             <button
               type="button"
               onClick={onCancel}
@@ -199,7 +200,7 @@ export default function QueueRulesAgreementModal({
                 onAgree();
               }}
               disabled={!canProceed}
-              className="pq-btn-primary w-full text-sm"
+              className="pq-btn-primary w-full sm:w-auto text-sm"
             >
               {isSubmitting ? (
                 <>
@@ -213,6 +214,6 @@ export default function QueueRulesAgreementModal({
           </div>
         </div>
       </div>
-    </div>
+    </ModalScrim>
   );
 }

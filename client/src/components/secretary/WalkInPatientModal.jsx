@@ -6,16 +6,19 @@ import {
   createWalkInReservation,
 } from "../../services/reservationService";
 import { slotsTaken } from "../../utils/scheduleCalendar";
-import { getChildAgeError } from "../parent/ChildProfileForm";
+import { getBirthdateError } from "../parent/ChildProfileForm";
+import { manilaDateString } from "../../utils/manilaDate";
 import { formatBranchLabel } from "../../utils/stringUtils";
 import { formatToE164 } from "../../utils/phoneUtils";
 import MessageModal from "../common/MessageModal";
 import ModalScrim from "../common/ModalScrim";
+import OfflineMutationNote from "../common/OfflineMutationNote";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
+import { useRtdbConnection } from "../../hooks/useRtdbConnection";
 
 const MAX_CHILDREN = 10;
 
-const emptyChild = () => ({ childName: "", age: "", sex: "" });
+const emptyChild = () => ({ childName: "", birthdate: "", sex: "" });
 
 const initialFormState = () => ({
   childCountInput: "1",
@@ -73,6 +76,7 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
   const { user } = useAuth();
   const nameInputRef = useRef(null);
   const submitLockRef = useRef(false);
+  const { canMutateRealtime } = useRtdbConnection();
 
   const [activeCount, setActiveCount] = useState(0);
   const [form, setForm] = useState(initialFormState);
@@ -178,8 +182,8 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
     }));
   };
 
-  const handleAgeChange = (index, rawVal) => {
-    updateChild(index, { age: rawVal.replace(/[^0-9]/g, "") });
+  const handleBirthdateChange = (index, rawVal) => {
+    updateChild(index, { birthdate: rawVal });
   };
 
   const capacity = Number(schedule?.slotCapacity || 0);
@@ -204,36 +208,30 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
     fieldsMatchCount &&
     children.every((c) => {
       const nameOk = Boolean(c.childName?.trim());
-      const age = c.age?.trim() || "";
+      const birthdate = c.birthdate?.trim() || "";
       const sexOk = Boolean(c.sex);
-      return nameOk && /^\d+$/.test(age) && !getChildAgeError(age) && sexOk;
+      return nameOk && !getBirthdateError(birthdate) && sexOk;
     });
 
-  const concernValid = Boolean(concern.trim());
   const parentPhoneValid = parentPhoneLocal === "" || parentPhoneLocal.length === 10;
 
   const canSubmit =
+    canMutateRealtime &&
     accepting &&
     !isFull &&
     childCountValid &&
     fieldsMatchCount &&
     childrenValid &&
-    concernValid &&
     parentPhoneValid &&
     !isSubmitting;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!user?.uid || !schedule?.id || isSubmitting || submitLockRef.current) return;
+    if (!user?.uid || !schedule?.id || isSubmitting || submitLockRef.current || !canMutateRealtime) return;
 
     const n = parseChildCount(childCountInput);
     if (n == null) {
       patchForm({ childCountError: `Enter a whole number from 1 to ${MAX_CHILDREN}.` });
-      return;
-    }
-
-    if (!concern.trim()) {
-      patchForm({ concernError: "A visit concern is required.", childCountError: "", childCountInput: String(n) });
       return;
     }
 
@@ -249,9 +247,9 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
 
     const allValid = finalChildren.every((c) => {
       const nameOk = Boolean(c.childName?.trim());
-      const age = c.age?.trim() || "";
+      const birthdate = c.birthdate?.trim() || "";
       const sexOk = Boolean(c.sex);
-      return nameOk && /^\d+$/.test(age) && !getChildAgeError(age) && sexOk;
+      return nameOk && !getBirthdateError(birthdate) && sexOk;
     });
     if (!allValid) return;
 
@@ -310,13 +308,13 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
     <>
       <ModalScrim className="z-50" onClick={(e) => e.target === e.currentTarget && !isSubmitting && handleClose()}>
         <div
-          className="pq-modal w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden"
+          className="pq-modal pq-modal--lg"
           role="dialog"
           aria-modal="true"
           aria-labelledby="walkin-title"
           data-tour="walkin-form"
         >
-          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+          <div className="pq-modal-header flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
             <h2 id="walkin-title" className="text-lg font-extrabold tracking-tight">
               Add Walk-in
             </h2>
@@ -330,9 +328,12 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
               <X className="w-5 h-5" />
             </button>
           </div>
+          <div className="px-6 pt-3">
+            <OfflineMutationNote />
+          </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-            <div className="px-6 py-5 space-y-5 overflow-y-auto pq-scroll-y flex-1">
+            <div className="pq-modal-body pq-scroll-y px-6 py-5 space-y-5">
               {schedule && (
                 <div className="pq-row min-h-0 flex-col items-stretch gap-1.5 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
@@ -382,26 +383,21 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
                       disabled={Boolean(blockReason)}
                     />
                   </div>
-                  <div className="grid gap-3" style={{ gridTemplateColumns: "5.75rem minmax(0, 1fr)" }}>
+                  <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(9.5rem, 1fr) minmax(0, 1fr)" }}>
                     <div className="min-w-0">
-                      <label htmlFor="walkin-child-0-age" className="pq-label">
-                        Age <span style={{ color: "var(--pq-alert)" }}>*</span>
+                      <label htmlFor="walkin-child-0-birthdate" className="pq-label">Birthdate <span style={{ color: "var(--pq-alert)" }}>*</span>
                       </label>
                       <input
-                        id="walkin-child-0-age"
-                        type="text"
-                        inputMode="numeric"
-                        value={children[0]?.age || ""}
-                        onChange={(e) => handleAgeChange(0, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
-                        }}
-                        placeholder="Yrs"
-                        className={`pq-input ${getChildAgeError(children[0]?.age || "") ? "pq-input-error" : ""}`}
+                        id="walkin-child-0-birthdate"
+                        type="date"
+                        max={manilaDateString()}
+                        value={children[0]?.birthdate || ""}
+                        onChange={(e) => handleBirthdateChange(0, e.target.value)}
+                        className={`pq-input ${getBirthdateError(children[0]?.birthdate || "") ? "pq-input-error" : ""}`}
                         disabled={Boolean(blockReason)}
                       />
-                      {getChildAgeError(children[0]?.age || "") && (
-                        <p className="mt-1 pq-error-text">{getChildAgeError(children[0]?.age || "")}</p>
+                      {getBirthdateError(children[0]?.birthdate || "") && (
+                        <p className="mt-1 pq-error-text">{getBirthdateError(children[0]?.birthdate || "")}</p>
                       )}
                     </div>
                     <div className="min-w-0">
@@ -425,17 +421,16 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
 
                 <div>
                   <label htmlFor="walkin-concern" className="pq-label">
-                    Concern / reason <span style={{ color: "var(--pq-alert)" }}>*</span>
+                    Concern / reason <span className="pq-muted font-normal">(optional)</span>
                   </label>
                   <textarea
                     id="walkin-concern"
                     value={concern}
                     onChange={(e) => patchForm({ concern: e.target.value, concernError: "" })}
-                    placeholder="Brief reason for the visit"
+                    placeholder="Optional — brief reason for the visit"
                     rows={2}
                     className={`pq-input resize-none ${concernError ? "pq-input-error" : ""}`}
                     disabled={Boolean(blockReason)}
-                    required
                   />
                   {concernError && (
                     <p className="mt-1.5 pq-error-text flex items-center gap-1">
@@ -560,7 +555,7 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
                     {fieldsMatchCount &&
                       children.slice(1).map((child, offset) => {
                         const index = offset + 1;
-                        const ageError = getChildAgeError(child.age || "");
+                        const birthdateError = getBirthdateError(child.birthdate || "");
                         return (
                           <div
                             key={index}
@@ -588,24 +583,19 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
                                 className="pq-input"
                               />
                             </div>
-                            <div className="grid gap-3" style={{ gridTemplateColumns: "5.75rem minmax(0, 1fr)" }}>
+                            <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(9.5rem, 1fr) minmax(0, 1fr)" }}>
                               <div className="min-w-0">
-                                <label htmlFor={`walkin-child-${index}-age`} className="pq-label">
-                                  Age <span style={{ color: "var(--pq-alert)" }}>*</span>
+                                <label htmlFor={`walkin-child-${index}-birthdate`} className="pq-label">Birthdate <span style={{ color: "var(--pq-alert)" }}>*</span>
                                 </label>
                                 <input
-                                  id={`walkin-child-${index}-age`}
-                                  type="text"
-                                  inputMode="numeric"
-                                  value={child.age}
-                                  onChange={(e) => handleAgeChange(index, e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
-                                  }}
-                                  placeholder="Yrs"
-                                  className={`pq-input ${ageError ? "pq-input-error" : ""}`}
+                                  id={`walkin-child-${index}-birthdate`}
+                                  type="date"
+                                  max={manilaDateString()}
+                                  value={child.birthdate}
+                                  onChange={(e) => handleBirthdateChange(index, e.target.value)}
+                                  className={`pq-input ${birthdateError ? "pq-input-error" : ""}`}
                                 />
-                                {ageError && <p className="mt-1 pq-error-text">{ageError}</p>}
+                                {birthdateError && <p className="mt-1 pq-error-text">{birthdateError}</p>}
                               </div>
                               <div className="min-w-0">
                                 <label htmlFor={`walkin-child-${index}-sex`} className="pq-label">
@@ -631,7 +621,7 @@ export default function WalkInPatientModal({ isOpen, onClose, schedule = null })
               </div>
             </div>
 
-            <div className="px-6 py-4 flex gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer px-6 py-4 flex gap-3" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button type="button" onClick={handleClose} disabled={isSubmitting} className="pq-btn-secondary flex-1">
                 Cancel
               </button>

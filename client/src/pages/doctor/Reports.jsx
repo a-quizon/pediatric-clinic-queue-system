@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate, useOutletContext } from "react-router-dom";
-import { Users, AlertCircle, Activity, CheckCircle, XCircle, Inbox, BarChart3, Building2 } from "lucide-react";
+import { Users, AlertCircle, Activity, CheckCircle, XCircle, Inbox } from "lucide-react";
 import { useReportsData } from "../../hooks/useReportsData";
 import { useReportFilters } from "../../hooks/useReportFilters";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, Legend } from 'recharts';
 import { PqSpinner } from "../../components/parent/pqUi";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleDoctorReports } from "../../components/onboarding/DoctorTourSampleViews";
-import ClinicOverviewReports from "../../components/admin/ClinicOverviewReports";
 import ReservationsByDate from "../../components/reports/ReservationsByDate";
 import SessionReservationsDrawer from "../../components/reports/SessionReservationsDrawer";
 import ReportDateRangeFilter from "../../components/reports/ReportDateRangeFilter";
@@ -17,6 +16,7 @@ import { aggregateSessionMetrics } from "../../utils/reportSessions";
 import { goBackOr } from "../../utils/navigationRoots";
 
 const MD_QUERY = "(min-width: 768px)";
+const REPORTS_FALLBACK = "/doctor/reports";
 
 const CHART_INK = "#16344a";
 const CHART_MUTED = "#5a7a88";
@@ -30,12 +30,6 @@ function formatClinicDate(dateStr) {
     day: "numeric",
     year: "numeric",
   });
-}
-
-function reportsFallbackPath(searchParams) {
-  return searchParams.get("tab") === "overview"
-    ? "/doctor/reports?tab=overview"
-    : "/doctor/reports";
 }
 
 function useIsDesktop() {
@@ -72,7 +66,7 @@ function ClinicSessionsReports({ filters }) {
     null;
 
   const closeSession = () => {
-    goBackOr(navigate, reportsFallbackPath(searchParams));
+    goBackOr(navigate, REPORTS_FALLBACK);
   };
 
   const openSession = (id) => {
@@ -107,7 +101,7 @@ function ClinicSessionsReports({ filters }) {
       title: sessionTitle,
       subtitle: sessionSubtitle,
       showBack: true,
-      onBack: () => goBackOr(navigate, reportsFallbackPath(searchParams)),
+      onBack: () => goBackOr(navigate, REPORTS_FALLBACK),
     });
 
     return undefined;
@@ -118,7 +112,6 @@ function ClinicSessionsReports({ filters }) {
     sessionSubtitle,
     setHeaderOverride,
     navigate,
-    searchParams,
   ]);
 
   useEffect(() => {
@@ -193,8 +186,8 @@ function ClinicSessionsReports({ filters }) {
       ) : (
         <>
           <div className="pq-glass p-5">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-              <div className="pq-stat pq-stat-info col-span-2 md:col-span-1">
+            <div className="grid grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 min-w-0">
+              <div className="pq-stat pq-stat-info min-[360px]:col-span-2 md:col-span-1 min-w-0">
                 <span className="pq-stat-label flex items-center gap-1"><Users className="w-3.5 h-3.5" aria-hidden="true" /> Total</span>
                 <span className="pq-stat-value">{aggregated.totalReservations}</span>
               </div>
@@ -315,22 +308,22 @@ function ClinicSessionsReports({ filters }) {
 }
 
 export default function Reports() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") === "overview" ? "overview" : "sessions";
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session");
   const isDesktop = useIsDesktop();
   const filters = useReportFilters();
 
-  const setTab = (tab) => {
-    if (tab === "overview") {
-      setSearchParams({ tab: "overview" }, { replace: true });
-    } else {
-      setSearchParams({}, { replace: true });
-    }
-  };
+  useEffect(() => {
+    if (searchParams.get("tab") !== "overview") return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("tab");
+    const qs = next.toString();
+    navigate(qs ? `${REPORTS_FALLBACK}?${qs}` : REPORTS_FALLBACK, { replace: true });
+  }, [searchParams, navigate]);
 
   const showReportsSample = useTourSample(["doctor-reports-filters", "doctor-reports-history"]);
-  const showMobileSession = Boolean(sessionId) && !isDesktop && activeTab === "sessions";
+  const showMobileSession = Boolean(sessionId) && !isDesktop;
 
   if (showReportsSample) {
     return <TourSampleDoctorReports />;
@@ -342,40 +335,11 @@ export default function Reports() {
 
   return (
     <div className="space-y-4">
-      <div className="pq-tablist" role="tablist" aria-label="Reports views">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "sessions"}
-          className="pq-tab"
-          onClick={() => setTab("sessions")}
-        >
-          <BarChart3 className="w-4 h-4" aria-hidden="true" />
-          Clinic Sessions
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "overview"}
-          className="pq-tab"
-          onClick={() => setTab("overview")}
-        >
-          <Building2 className="w-4 h-4" aria-hidden="true" />
-          Clinic Overview
-        </button>
-      </div>
-
       <ReportDateRangeFilter filters={filters} idPrefix="doctor-reports">
-        {activeTab === "sessions" ? (
-          <BranchChipFilter value={filters.branch} onChange={filters.setBranch} />
-        ) : null}
+        <BranchChipFilter value={filters.branch} onChange={filters.setBranch} />
       </ReportDateRangeFilter>
 
-      {activeTab === "overview" ? (
-        <ClinicOverviewReports range={filters.activeRange} />
-      ) : (
-        <ClinicSessionsReports filters={filters} />
-      )}
+      <ClinicSessionsReports filters={filters} />
     </div>
   );
 }

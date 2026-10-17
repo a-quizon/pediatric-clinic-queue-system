@@ -7,6 +7,7 @@ import ChildProfileForm, {
 } from "../../components/parent/ChildProfileForm";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
 import MessageModal from "../../components/common/MessageModal";
+import ModalScrim from "../../components/common/ModalScrim";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import {
   addChild,
@@ -14,6 +15,7 @@ import {
   subscribeToChildren,
   updateChild
 } from "../../services/childProfileService";
+import { presentChildForRole } from "../../utils/pediatricAge";
 
 export default function ChildProfiles() {
   const { user } = useAuth();
@@ -56,7 +58,7 @@ export default function ChildProfiles() {
     setEditingChild(child);
     setFormValue({
       childName: child.childName || "",
-      age: child.age || "",
+      birthdate: child.birthdate || "",
       sex: child.sex || ""
     });
     setIsFormOpen(true);
@@ -140,7 +142,7 @@ export default function ChildProfiles() {
           </div>
           <h3 className="text-lg font-bold mb-2">No children added yet</h3>
           <p className="text-sm pq-muted mb-6 max-w-sm mx-auto">
-            Add a child profile with their name, age, and sex to use it on your next reservation.
+            Add a child profile with their name, birthdate, and sex to use it on your next reservation.
           </p>
           <button
             type="button"
@@ -165,7 +167,10 @@ export default function ChildProfiles() {
                 <div className="min-w-0">
                   <h3 className="font-extrabold truncate">{child.childName}</h3>
                   <p className="text-sm pq-muted mt-0.5">
-                    {child.age ? `${child.age} years` : "Age N/A"} • {child.sex || "N/A"}
+                    {presentChildForRole(child, "parent").birthdateDisplay || (
+                      <span className="pq-error-text">Add birthdate</span>
+                    )}{" "}
+                    • {child.sex || "N/A"}
                   </p>
                 </div>
               </div>
@@ -194,17 +199,17 @@ export default function ChildProfiles() {
       )}
 
       {isFormOpen && (
-        <div className="pq-modal-scrim">
-          <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <ModalScrim onClick={(e) => e.target === e.currentTarget && !isSaving && closeForm()}>
+          <div className="pq-modal pq-modal--md">
+            <div className="pq-modal-header flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 className="text-lg font-bold">
                 {editingChild ? "Edit Child" : "Add a Child"}
               </h2>
             </div>
-            <div className="p-6 overflow-y-auto pq-scroll-y">
+            <div className="pq-modal-body pq-scroll-y p-6">
               <ChildProfileForm value={formValue} onChange={setFormValue} idPrefix="profile-child" />
             </div>
-            <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button
                 type="button"
                 onClick={closeForm}
@@ -223,7 +228,7 @@ export default function ChildProfiles() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       <ConfirmationModal

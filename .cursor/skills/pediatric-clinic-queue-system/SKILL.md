@@ -10,7 +10,7 @@ description: >-
 
 # Pediatric Clinic Queue System
 
-Capstone app that digitizes pediatric clinic patient flow across branches. Parents reserve slots and monitor queue position; secretaries and doctors publish clinic days, start the floor (check-in, penalties, send-to-doctor), and configure per-branch queue/SMS rules; doctors also start queues, control the live session, and complete consultations. A separate System Admin role (`/admin`) manages staff, branches, audit logs, and clinic-wide reports.
+Capstone app that digitizes pediatric clinic patient flow across branches. Parents reserve slots and monitor queue position; secretaries and doctors publish clinic days, start the floor (check-in, penalties, send-to-doctor), and configure per-branch queue/SMS rules; doctors also start queues, control the live session, and complete consultations. A separate System Admin role (`/admin`) manages staff, branches, audit logs, clinic-wide reports, and System Health.
 
 ## Before You Code
 
@@ -87,7 +87,7 @@ UI (pages/components)
 | parent | `/parent/*` | Required (`VerifiedRoute`) plus `OnboardingRoute` (`onboardingComplete`) |
 | secretary | `/secretary/*` | No |
 | doctor | `/doctor/*` (Dashboard, Queue, Schedules, Reports, Profile) | No |
-| admin | `/admin/*` (Dashboard, Users, Branches, Audit Logs, Reports — no Profile; `/admin/profile` → `/admin`) | No |
+| admin | `/admin/*` (Dashboard, Users, Branches, Audit Logs, Reports, System Health — no Profile; `/admin/profile` → `/admin`) | No |
 
 Guard chain: `ProtectedRoute` → `VerifiedRoute` (parents) → `OnboardingRoute` (parents) → `RoleRoute`.
 Admin accounts are Admin SDK only (`server/scripts/create-admin.js`, staging-guarded). Admins cannot edit their own profile or password in-app; the password-reset claim endpoint refuses admin emails. Reset emails are parents-only: the claim also refuses doctor and secretary emails, and the admin resets those with a temporary password (`resetSecretaryPassword` accepts secretary and doctor targets, sets `mustChangePassword`; forced change at `/{role}/change-password` via `MustChangePasswordRoute`).
@@ -105,7 +105,7 @@ Entry points: `client/src/routes/AppRoutes.jsx`, `client/src/context/AuthContext
 7. **No physical deletes** — reservations and audit records are permanent.
 8. **Parent cannot cancel after check-in.**
 9. **Slot counting** — only active statuses consume slots; terminal states release them.
-10. **Admin / Doctor role split** — enforced at UI, server, and rules. Admin-only: user management runtimes (active admin = `role: "admin"`, `status: "active"`, not `isDeleted`), `users` list read, other-user profile writes, `branchConfigurations` write, `auditLogs` read. Admin is never clinical staff: no reservation claim/release/cancel/write, no `systemConfiguration` writes, no clinical push. Documented deviations: admin reads reservations/locks/caps (reports), client-side audit writes, admin may write only `schedules/{id}/branch|branchId` (branch rename). Never reintroduce an `admin || doctor` check.
+10. **Admin / Doctor role split** — enforced at UI, server, and rules. Admin-only: user management runtimes (active admin = `role: "admin"`, `status: "active"`, not `isDeleted`), `users` list read, other-user profile writes, `branchConfigurations` write, `auditLogs` read, `systemHealth` read. Admin is never clinical staff: no reservation claim/release/cancel/write, no `systemConfiguration` writes, no clinical push. Documented deviations: admin reads reservations/locks/caps (reports), client-side audit writes, admin may write only `schedules/{id}/branch|branchId` (branch rename). Never reintroduce an `admin || doctor` check. Manual reservation-code validation is server-rate-limited (`POST /api/reservations/validate-code`); counters under `rateLimits` are server-write only.
 
 ## Reservation Lifecycle
 
@@ -162,6 +162,9 @@ Server push listeners require `serviceAccountKey.json` or `FIREBASE_SERVICE_ACCO
 
 ### Suspicious-account alerts
 `client/functions/suspiciousAccountRuntime.js` flags the parent (transaction on `users/{id}/suspiciousFlag`), writes the audit entry, then `notifyAdmins` writes `adminAlerts/{adminUid}` and calls `sendPushToAdmin` for every active admin. Cloud Functions use the defaults; the Express engine (`server/services/notificationEngine.js`) reuses the same runtime with `{ db, sendPush }` injected. The client toast fallback lives in `NotificationObserver.jsx` (admins only).
+
+### System Health and manual-code rate limits
+Server writers in `client/functions/systemHealthRuntime.js` record SMS gateway results, push/SMS failures, and scheduled job last-run markers under `systemHealth` (admin read, no client write). Admin UI: `/admin/system-health`. Manual code attempts: `validateReservationCodeRuntime.js` (5 fails / 15 min → 5 min lockout; audit + optional `MANUAL_CODE_LOCKOUT` adminAlerts).
 
 ### Reports
 Doctor and Admin Reports share `useReportFilters` plus `components/reports/*`: branch chips default to **All**, the date range is inclusive From/To with presets **All Time** (default), Today, This Week (Sunday–Saturday), This Month, This Year, built in `utils/reportDateRange.js` (Asia/Manila days). Editing a date clears the preset. Only the Date range filter has an icon. Session rows come from `utils/reportSessions.js`. On both Doctor and Admin, Session History rows open the shared read-only `components/reports/SessionReservationsDrawer.jsx` (row keyboard handling in `utils/sessionRowInteraction.js`).

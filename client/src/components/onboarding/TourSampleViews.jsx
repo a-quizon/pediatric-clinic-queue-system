@@ -279,7 +279,7 @@ export function TourSampleReservationForm() {
               <input type="checkbox" checked readOnly onChange={() => {}} className="w-4 h-4 shrink-0 rounded" />
               <span className="min-w-0 flex-1 text-left">
                 <span className="block text-sm font-bold truncate">{TOUR_SAMPLE_CHILD.childName}</span>
-                <span className="block text-xs pq-muted">{TOUR_SAMPLE_CHILD.age} • {TOUR_SAMPLE_CHILD.sex}</span>
+                <span className="block text-xs pq-muted">March 5, 2022 • {TOUR_SAMPLE_CHILD.sex}</span>
               </span>
             </label>
           </div>

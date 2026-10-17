@@ -131,6 +131,45 @@ async function publishClinicDays({ admin, callerUid, payload, now = new Date() }
   }
   await db.ref().update(updates);
 
+  const postedDates = posted.map((item) => item.dateStr);
+  const slotCount = posted.reduce((sum, item) => sum + Number(item.slotCapacity || 0), 0);
+  const dateRange =
+    postedDates.length === 1
+      ? postedDates[0]
+      : `${postedDates[0]} to ${postedDates[postedDates.length - 1]}`;
+  const action = mode === "single" ? "SCHEDULE_PUBLISHED" : "SCHEDULE_RANGE_PUBLISHED";
+  const description =
+    mode === "single"
+      ? `Published schedule for ${branch.name} on ${postedDates[0]} (${slotCount} slots)`
+      : `Published ${posted.length} day(s) for ${branch.name} from ${dateRange} (${slotCount} total slots)`;
+
+  const auditEntry = {
+    action,
+    category: "schedule_management",
+    actorUid: callerUid,
+    actorName: user.name || user.displayName || "Unknown User",
+    actorRole: user.role,
+    description,
+    targetType: "schedule",
+    branchId: branch.id,
+    timestamp: publishedAt,
+    metadata: {
+      branchName: branch.name,
+      postedDates,
+      dateRange,
+      postedCount: posted.length,
+      slotCount,
+      doctorId: doctor.doctorId || null,
+      doctorEmail: doctor.doctorEmail || null,
+      mode,
+    },
+  };
+  if (mode === "single") auditEntry.targetId = posted[0].scheduleId;
+  if (skipped.length) auditEntry.metadata.skipped = skipped;
+
+  const auditRef = db.ref("auditLogs").push();
+  await auditRef.set(auditEntry);
+
   return { branchId: branch.id, branchName: branch.name, posted, skipped };
 }
 

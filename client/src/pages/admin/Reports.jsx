@@ -8,6 +8,7 @@ import SessionHistoryTable from "../../components/reports/SessionHistoryTable";
 import SessionReservationsDrawer from "../../components/reports/SessionReservationsDrawer";
 import { sessionPanelLabels } from "../../utils/reportSessions";
 import { PqSpinner } from "../../components/parent/pqUi";
+import EmptyState from "../../components/common/EmptyState";
 import { useReportFilters } from "../../hooks/useReportFilters";
 import { useReportsData } from "../../hooks/useReportsData";
 
@@ -64,7 +65,7 @@ function AdminSessionHistory({ filters }) {
         emptyMessage={
           filters.rangeError
             ? "Fix the date range above to see results."
-            : "No completed clinic sessions match the selected filters."
+            : "No completed clinic sessions match the selected filters. Widen the date range or choose All branches."
         }
       />
       <SessionReservationsDrawer

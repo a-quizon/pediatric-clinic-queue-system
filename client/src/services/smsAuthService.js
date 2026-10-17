@@ -154,6 +154,18 @@ export async function consumePhoneVerification(phoneLocalOrE164, verificationId,
       verificationId,
       ...(purpose ? { purpose } : {}),
     },
-    { withAuth: purpose === "update" }
+    { withAuth: purpose === "update" || purpose === "register" }
+  );
+}
+
+/** Claim a phone in phoneRegistry for staff create/update or doctor self-profile. */
+export async function claimPhoneNumber(phoneLocalOrE164, targetUid = null) {
+  return postJson(
+    "/api/phones/claim",
+    {
+      phone: toE164(phoneLocalOrE164),
+      ...(targetUid ? { uid: targetUid } : {}),
+    },
+    { withAuth: true }
   );
 }

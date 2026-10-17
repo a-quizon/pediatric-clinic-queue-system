@@ -1,31 +1,46 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, ArrowRight } from "lucide-react";
+import { Mail, ArrowRight, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 import { PqAuthShell, PqBrand } from "../../components/parent/pqUi";
 import { sendPasswordResetLink } from "../../services/passwordResetService";
 import { getPasswordResetActionSettings } from "../../utils/appUrl";
 import { mapPasswordResetError } from "../../utils/authErrors";
+import { RESEND_FLOW } from "../../utils/resendCooldown";
+import { useResendCooldown } from "../../hooks/useResendCooldown";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const cooldownIdentity = String(email || "").trim().toLowerCase();
+  const { cooldownLeft, beginCooldown, syncCooldown } = useResendCooldown(
+    RESEND_FLOW.PASSWORD_RESET,
+    cooldownIdentity
+  );
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const sendReset = async () => {
+    if (cooldownLeft > 0) return;
     setLoading(true);
-
     try {
       await sendPasswordResetLink(email, getPasswordResetActionSettings({ handleCodeInApp: true }));
       setIsSuccess(true);
+      beginCooldown();
       toast.success("Password reset email sent.");
     } catch (err) {
       console.error('Password reset failed:', err?.code, err);
+      if (err.retryAfterSeconds) {
+        syncCooldown(err.retryAfterSeconds);
+      }
       toast.error(mapPasswordResetError(err));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await sendReset();
   };
 
   return (
@@ -46,6 +61,23 @@ export default function ForgotPassword() {
               <div className="pq-note pq-note-ok mb-6">
                 A password reset link has been sent to {email}. Please check your inbox.
               </div>
+              <button
+                type="button"
+                onClick={sendReset}
+                disabled={loading || cooldownLeft > 0}
+                className="pq-btn-secondary w-full mb-3"
+              >
+                {loading ? (
+                  "Sending..."
+                ) : cooldownLeft > 0 ? (
+                  `Resend in ${cooldownLeft}s`
+                ) : (
+                  <>
+                    <RefreshCw className="w-5 h-5" />
+                    Resend Reset Email
+                  </>
+                )}
+              </button>
               <Link to="/" className="pq-btn-primary w-full">
                 Return to Login
               </Link>
@@ -73,11 +105,19 @@ export default function ForgotPassword() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || cooldownLeft > 0}
                 className="pq-btn-primary w-full mt-2"
               >
-                {loading ? 'Sending...' : 'Send Reset Link'}
-                {!loading && <ArrowRight className="w-5 h-5" />}
+                {loading ? (
+                  'Sending...'
+                ) : cooldownLeft > 0 ? (
+                  `Resend in ${cooldownLeft}s`
+                ) : (
+                  <>
+                    Send Reset Link
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
               </button>
             </form>
           )}

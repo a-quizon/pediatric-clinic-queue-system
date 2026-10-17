@@ -141,13 +141,49 @@ exports.expirePenaltyTimers = functions
   .timeZone("Asia/Manila")
   .onRun(async () => {
     const { expirePenaltyTimers } = require("./expirePenaltyTimers");
+    const { recordJobRun } = require("./systemHealthRuntime");
     try {
       const result = await expirePenaltyTimers();
       if (result.forfeited) {
         console.log(`expirePenaltyTimers forfeited ${result.forfeited} reservation(s)`);
       }
+      await recordJobRun("expirePenaltyTimers", {
+        success: true,
+        meta: { forfeited: result.forfeited || 0 },
+      });
     } catch (err) {
       console.error("expirePenaltyTimers failed:", err);
+      await recordJobRun("expirePenaltyTimers", {
+        success: false,
+        error: err.message,
+      });
+    }
+    return null;
+  });
+
+/**
+ * Fallback: poll TextBee for SMS stuck in queued when webhooks are delayed.
+ */
+exports.pollTextBeeSmsStatus = functions
+  .region("asia-southeast1")
+  .pubsub.schedule("every 5 minutes")
+  .timeZone("Asia/Manila")
+  .onRun(async () => {
+    const { pollTextBeeSmsStatus } = require("./pollTextBeeSmsStatus");
+    try {
+      const result = await pollTextBeeSmsStatus();
+      if (result.updated) {
+        console.log(
+          `pollTextBeeSmsStatus checked=${result.checked} updated=${result.updated}`
+        );
+      }
+    } catch (err) {
+      console.error("pollTextBeeSmsStatus failed:", err);
+      const { recordJobRun } = require("./systemHealthRuntime");
+      await recordJobRun("pollTextBeeSmsStatus", {
+        success: false,
+        error: err.message,
+      });
     }
     return null;
   });
@@ -161,13 +197,51 @@ exports.evaluateSuspiciousAccounts = functions
   .timeZone("Asia/Manila")
   .onRun(async () => {
     const { evaluateAllSuspiciousParents } = require("./suspiciousAccountRuntime");
+    const { recordJobRun } = require("./systemHealthRuntime");
     try {
       const result = await evaluateAllSuspiciousParents();
       console.log(
         `evaluateSuspiciousAccounts evaluated=${result.evaluated} flagged=${result.flagged}`
       );
+      await recordJobRun("evaluateSuspiciousAccounts", {
+        success: true,
+        meta: { evaluated: result.evaluated || 0, flagged: result.flagged || 0 },
+      });
     } catch (err) {
       console.error("evaluateSuspiciousAccounts failed:", err);
+      await recordJobRun("evaluateSuspiciousAccounts", {
+        success: false,
+        error: err.message,
+      });
+    }
+    return null;
+  });
+
+/**
+ * Soft-expire past unused reservations (never checked in) and release their slots.
+ */
+exports.expirePastUnusedReservations = functions
+  .region("asia-southeast1")
+  .pubsub.schedule("15 0 * * *")
+  .timeZone("Asia/Manila")
+  .onRun(async () => {
+    const { expirePastUnusedReservations } = require("./expirePastUnusedReservations");
+    const { recordJobRun } = require("./systemHealthRuntime");
+    try {
+      const result = await expirePastUnusedReservations();
+      if (result.expired) {
+        console.log(`expirePastUnusedReservations expired ${result.expired} reservation(s)`);
+      }
+      await recordJobRun("expirePastUnusedReservations", {
+        success: true,
+        meta: { expired: result.expired || 0, skipped: result.skipped || 0 },
+      });
+    } catch (err) {
+      console.error("expirePastUnusedReservations failed:", err);
+      await recordJobRun("expirePastUnusedReservations", {
+        success: false,
+        error: err.message,
+      });
     }
     return null;
   });
@@ -358,6 +432,30 @@ exports.evaluateDemoSuspiciousAccounts = functions
       );
     } catch (err) {
       console.error("evaluateDemoSuspiciousAccounts failed:", err);
+    }
+    return null;
+  });
+
+/**
+ * Demo-only soft-expiry of past unused reservations.
+ */
+exports.expireDemoPastUnusedReservations = functions
+  .region("asia-southeast1")
+  .pubsub.schedule("15 0 * * *")
+  .timeZone("Asia/Manila")
+  .onRun(async () => {
+    const { demoDatabaseUrl } = require("./rtdbRouter");
+    if (!demoDatabaseUrl()) return null;
+    const { expirePastUnusedReservations } = require("./expirePastUnusedReservations");
+    try {
+      const result = await runWithDatabase(demoDatabase(), () => expirePastUnusedReservations(), {
+        suppressSms: true,
+      });
+      if (result.expired) {
+        console.log(`expireDemoPastUnusedReservations expired ${result.expired} reservation(s)`);
+      }
+    } catch (err) {
+      console.error("expireDemoPastUnusedReservations failed:", err);
     }
     return null;
   });

@@ -1,5 +1,6 @@
 const { databaseFor } = require("./rtdbRouter");
 const { assertActiveAdmin } = require("./doctorAccountShared");
+const { claimPhoneForUid, normalizePhoneE164, PHONE_IN_USE_MESSAGE } = require("./phoneRegistry");
 
 function makeError(message, status, code) {
   const err = new Error(message);
@@ -59,6 +60,28 @@ async function updateUserAccount({ admin, callerUid, targetUid, updates }) {
   if (target.role !== "secretary") {
     delete sanitized.assignedBranch;
     delete sanitized.assignedBranchId;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(sanitized, "phone")) {
+    const phone = normalizePhoneE164(sanitized.phone);
+    if (!phone) {
+      throw makeError("Phone number must be a valid PH mobile number.", 400, "invalid-argument");
+    }
+    try {
+      await claimPhoneForUid(db, phone, targetUid, {
+        previousPhone: target.phone || target.phoneNumber || target.contactNumber || null,
+      });
+    } catch (err) {
+      if (err.code === "phone_in_use") {
+        throw makeError(PHONE_IN_USE_MESSAGE, 409, "phone_in_use");
+      }
+      throw err;
+    }
+    sanitized.phone = phone;
+    sanitized.phoneNumber = phone;
+    if (target.role === "doctor") {
+      sanitized.contactNumber = phone;
+    }
   }
 
   await db.ref(`users/${targetUid}`).update({

@@ -114,16 +114,24 @@ export default function Profile() {
 
     setIsSaving(true);
     try {
+      const e164 = formatToE164(contactNumber.trim());
+      const { claimPhoneNumber } = await import("../../services/smsAuthService");
+      await claimPhoneNumber(e164, user.uid);
       await updateUserProfile(user.uid, {
         name: formatName(fullName.trim()),
-        contactNumber: formatToE164(contactNumber.trim()),
+        contactNumber: e164,
+        phone: e164,
         professionalTitle: professionalTitle.trim(),
         clinicName: clinicName.trim()
       });
       toast.success("Profile updated successfully!");
     } catch (err) {
       console.error(err);
-      toast.error("Failed to update profile.");
+      toast.error(
+        err.code === "phone_in_use"
+          ? "This mobile number is already registered."
+          : err.message || "Failed to update profile."
+      );
     } finally {
       setIsSaving(false);
     }

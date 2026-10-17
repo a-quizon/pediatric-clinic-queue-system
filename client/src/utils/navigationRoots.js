@@ -59,9 +59,7 @@ export function getNestedFallback(pathname, search = "") {
   if (path === "/secretary/settings") return "/secretary/profile";
   if (path === "/secretary/monitor") return "/secretary/queue";
   if (path === "/doctor/reports" && params.get("session")) {
-    return params.get("tab") === "overview"
-      ? "/doctor/reports?tab=overview"
-      : "/doctor/reports";
+    return "/doctor/reports";
   }
   if (path === "/doctor/reports") return "/doctor";
   if (path === "/onboarding/child") return "/parent";

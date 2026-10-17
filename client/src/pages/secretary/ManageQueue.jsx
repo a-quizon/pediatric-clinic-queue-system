@@ -23,6 +23,8 @@ import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { useTourSample } from "../../hooks/useTourPreview";
 import { TourSampleManageQueue, TourSampleWalkInModal } from "../../components/onboarding/SecretaryTourSampleViews";
 import { getServerTime, formatRemainingTime } from "../../services/timeService";
+import { useRtdbConnection } from "../../hooks/useRtdbConnection";
+import OfflineMutationNote from "../../components/common/OfflineMutationNote";
 import {
   getPenaltyTimerRemainingMs,
   getPenaltyGraceRemainingMs,
@@ -80,6 +82,7 @@ function SessionDurationMeter({ startedAt, nowTs, className = "" }) {
 
 export default function ManageQueue({ hideHeader = false }) {
   const { user } = useAuth();
+  const { canMutateRealtime } = useRtdbConnection();
   const showQueueSample = useTourSample([
     "queue-start",
     "queue-list",
@@ -383,8 +386,10 @@ export default function ManageQueue({ hideHeader = false }) {
   const walkInQueueOpen = ["active", "paused"].includes(activeStartedSchedule.queueStatus);
   const walkInDayClosed = Boolean(activeStartedSchedule.dayClosed);
   const walkInFull = slotCapacity > 0 && activeSlotCount >= slotCapacity;
-  const canAddWalkIn = walkInQueueOpen && !walkInDayClosed && !walkInFull;
-  const walkInDisabledReason = walkInDayClosed
+  const canAddWalkIn = canMutateRealtime && walkInQueueOpen && !walkInDayClosed && !walkInFull;
+  const walkInDisabledReason = !canMutateRealtime
+    ? "Reconnect to add a walk-in."
+    : walkInDayClosed
     ? "This clinic day is closed."
     : !walkInQueueOpen
       ? "Walk-ins are only available while the queue is active or paused."
@@ -449,7 +454,7 @@ export default function ManageQueue({ hideHeader = false }) {
   };
 
   const handleCancelWalkIn = async () => {
-    if (!contactReservation?.id || isCancelling) return;
+    if (!contactReservation?.id || isCancelling || !canMutateRealtime) return;
     if (!isWalkInReservation(contactReservation)) return;
 
     setIsCancelling(true);
@@ -486,11 +491,13 @@ export default function ManageQueue({ hideHeader = false }) {
             layout="cluster"
             schedule={activeStartedSchedule}
             canEndSession={waitingQueue.length === 0 && inConsultationPatients.length === 0}
+            mutationsEnabled={canMutateRealtime}
           />
           <SessionDurationMeter
             startedAt={activeStartedSchedule.queueStartedAt}
             nowTs={nowTs}
           />
+          <OfflineMutationNote />
           <div className="flex flex-col gap-3 @2xl:flex-row @2xl:items-center">
             <button
               type="button"
@@ -501,22 +508,24 @@ export default function ManageQueue({ hideHeader = false }) {
               title={walkInDisabledReason || "Add a walk-in patient to this queue"}
             >
               <UserPlus className="w-4 h-4 shrink-0" aria-hidden="true" />
-              <span className="whitespace-nowrap">Add Walk-in</span>
+              <span className="truncate">Add Walk-in</span>
             </button>
             <button
               type="button"
               data-tour="queue-request-checkin"
               onClick={handleRequestCheckIn}
-              disabled={requestingCheckIn || nextEligibleCooldownSec > 0}
-              className="pq-btn-secondary pq-btn-pill w-full @2xl:flex-1"
+              disabled={!canMutateRealtime || requestingCheckIn || nextEligibleCooldownSec > 0}
+              className="pq-btn-secondary pq-btn-pill w-full @2xl:flex-1 min-w-0"
               title={
-                nextEligibleCooldownSec > 0
+                !canMutateRealtime
+                  ? "Reconnect to request check-in"
+                  : nextEligibleCooldownSec > 0
                   ? "Check-in request already sent. Please wait before sending another reminder."
                   : "Remind the next awaiting patient to proceed to the clinic for QR validation"
               }
             >
               <UserCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
-              <span className="whitespace-nowrap">
+              <span className="truncate">
                 {nextEligibleCooldownSec > 0
                   ? `Request Check-In (${nextEligibleCooldownSec}s)`
                   : "Request Check-In"}
@@ -672,9 +681,9 @@ export default function ManageQueue({ hideHeader = false }) {
                             e.stopPropagation();
                             handleSendToDoctor(res);
                           }}
-                          disabled={actionLoading === res.id}
+                          disabled={!canMutateRealtime || actionLoading === res.id}
                           className="pq-btn-primary flex-1"
-                          title="Send patient to Doctor room"
+                          title={canMutateRealtime ? "Send patient to Doctor room" : "Reconnect to send patient"}
                         >
                           <PlayCircle className="w-4 h-4" aria-hidden="true" />
                           Send to Doctor
@@ -689,10 +698,12 @@ export default function ManageQueue({ hideHeader = false }) {
                             e.stopPropagation();
                             handlePenalize(res);
                           }}
-                          disabled={actionLoading === res.id || !canPenalize}
+                          disabled={!canMutateRealtime || actionLoading === res.id || !canPenalize}
                           className="pq-btn-warn flex-1"
                           title={
-                            canPenalize
+                            !canMutateRealtime
+                              ? "Reconnect to penalize"
+                              : canPenalize
                               ? "Penalize absent patient (#1 waiting patient)"
                               : graceRemainingMs == null
                                 ? "Preparing grace timer…"
@@ -729,15 +740,17 @@ export default function ManageQueue({ hideHeader = false }) {
           }}
         >
           <div
-            className="pq-modal w-full max-w-sm overflow-hidden flex flex-col"
+            className="pq-modal pq-modal--sm"
             role="dialog"
             aria-modal="true"
             aria-labelledby="contact-modal-title"
           >
-            <div className="p-6">
+            <div className="pq-modal-header p-6 pb-0">
               <h2 id="contact-modal-title" className="text-xl font-extrabold tracking-tight mb-1">
                 {contactIsWalkIn ? "Walk-in Patient" : "Parent / Guardian"}
               </h2>
+            </div>
+            <div className="pq-modal-body pq-scroll-y px-6 pb-6">
               {loadingContactInfo ? (
                 <PqSpinner label="Loading contact" />
               ) : contactIsWalkIn ? (
@@ -798,12 +811,12 @@ export default function ManageQueue({ hideHeader = false }) {
                 </div>
               )}
             </div>
-            <div className="p-4 flex flex-col-reverse sm:flex-row justify-end gap-2" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer p-4 flex flex-col-reverse sm:flex-row justify-end gap-2" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               {isWalkInReservation(contactReservation) && (
                 <button
                   type="button"
                   onClick={() => setIsCancelConfirmOpen(true)}
-                  disabled={isCancelling}
+                  disabled={!canMutateRealtime || isCancelling}
                   className="pq-btn-danger"
                 >
                   Cancel Reservation

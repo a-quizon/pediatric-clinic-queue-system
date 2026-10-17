@@ -119,13 +119,17 @@ export const createStaffAccount = async (staffData) => {
       await updateProfile(user, { displayName: staffData.name }).catch(err => console.error("Could not update profile:", err));
     }
 
+    const { claimPhoneNumber } = await import("./smsAuthService");
+    const claimed = await claimPhoneNumber(staffData.phone, user.uid);
+
     // Save user details to Realtime Database
     const now = Date.now();
     const dbPayload = {
       uid: user.uid,
       name: staffData.name,
       email: staffData.email,
-      phone: staffData.phone || "",
+      phone: claimed.phone || staffData.phone || "",
+      phoneNumber: claimed.phone || staffData.phone || "",
       role: "secretary",
       status: "active",
       createdAt: now,

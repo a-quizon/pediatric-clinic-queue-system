@@ -16,9 +16,12 @@ import WalkInPatientModal from "../secretary/WalkInPatientModal";
 import toast from "react-hot-toast";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
+import { presentChildForRole } from "../../utils/pediatricAge";
 import ReservationPatientNames from "../common/ReservationPatientNames";
 import { PqSpinner } from "../parent/pqUi";
 import { useTourSample } from "../../hooks/useTourPreview";
+import { useRtdbConnection } from "../../hooks/useRtdbConnection";
+import OfflineMutationNote from "../common/OfflineMutationNote";
 import { TourSampleDoctorQueue } from "../onboarding/DoctorTourSampleViews";
 
 function WalkInChip({ reservation }) {
@@ -28,6 +31,7 @@ function WalkInChip({ reservation }) {
 
 export default function QueueControlCenter() {
   const navigate = useNavigate();
+  const { canMutateRealtime } = useRtdbConnection();
   const [schedules, setSchedules] = useState([]);
   const [schedulesLoaded, setSchedulesLoaded] = useState(false);
   const [reservations, setReservations] = useState([]);
@@ -109,8 +113,11 @@ export default function QueueControlCenter() {
   const walkInQueueOpen = ["active", "paused"].includes(activeSchedule?.queueStatus);
   const walkInDayClosed = Boolean(activeSchedule?.dayClosed);
   const walkInFull = slotCapacity > 0 && activeSlotCount >= slotCapacity;
-  const canAddWalkIn = Boolean(activeSchedule) && walkInQueueOpen && !walkInDayClosed && !walkInFull;
-  const walkInDisabledReason = !activeSchedule
+  const canAddWalkIn =
+    canMutateRealtime && Boolean(activeSchedule) && walkInQueueOpen && !walkInDayClosed && !walkInFull;
+  const walkInDisabledReason = !canMutateRealtime
+    ? "Reconnect to add a walk-in."
+    : !activeSchedule
     ? "No live queue is running."
     : walkInDayClosed
       ? "This clinic day is closed."
@@ -143,7 +150,7 @@ export default function QueueControlCenter() {
   };
 
   const handleComplete = async () => {
-    if (!selectedPatient) return;
+    if (!selectedPatient || !canMutateRealtime || isSubmitting) return;
     setIsSubmitting(true);
     try {
       const isWalkIn = selectedPatient.source === "walk_in";
@@ -156,7 +163,7 @@ export default function QueueControlCenter() {
       setSelectedPatient(null);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to complete consultation.");
+      toast.error(err?.message || "Failed to complete consultation.");
     } finally {
       setIsSubmitting(false);
     }
@@ -210,8 +217,10 @@ export default function QueueControlCenter() {
           <QueueSessionControls
             schedule={activeSchedule}
             canEndSession={canEndSession}
+            mutationsEnabled={canMutateRealtime}
           />
         </div>
+        <OfflineMutationNote className="mt-3" />
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           <button
             type="button"
@@ -276,15 +285,18 @@ export default function QueueControlCenter() {
               </div>
               <div className="text-sm pq-muted flex flex-col gap-1 mt-2">
                 {getReservationChildren(inConsultation).length > 0 ? (
-                  getReservationChildren(inConsultation).map((child, index) => (
+                  getReservationChildren(inConsultation).map((child, index) => {
+                    const presented = presentChildForRole(child, "doctor");
+                    return (
                     <span key={child.childId || index} className="flex items-center">
                       <User className="w-4 h-4 mr-1.5" aria-hidden="true" />
-                      {child.childName}: {child.age || "N/A"} • {child.sex || "N/A"}
+                      {child.childName}: {presented.ageDisplay || "N/A"} • {child.sex || "N/A"}
                     </span>
-                  ))
+                    );
+                  })
                 ) : (
                   <>
-                    <span className="flex items-center"><User className="w-4 h-4 mr-1.5" aria-hidden="true" /> Age: {inConsultation.age || "N/A"}</span>
+                    <span className="flex items-center"><User className="w-4 h-4 mr-1.5" aria-hidden="true" /> Age: {presentChildForRole(inConsultation, "doctor").ageDisplay || "N/A"}</span>
                     <span className="flex items-center">Sex: {inConsultation.sex || "N/A"}</span>
                   </>
                 )}
@@ -306,7 +318,9 @@ export default function QueueControlCenter() {
                 e.stopPropagation();
                 handleOpenCompleteModal(inConsultation);
               }}
+              disabled={!canMutateRealtime}
               className="pq-btn-live w-full relative z-10"
+              title={canMutateRealtime ? undefined : "Reconnect to complete consultation"}
             >
               <CheckCircle className="w-5 h-5" aria-hidden="true" /> Complete Consultation
             </button>
@@ -370,9 +384,9 @@ export default function QueueControlCenter() {
       </div>
 
       {isInfoModalOpen && infoPatient && (
-        <ModalScrim className="z-[60]">
-          <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="patient-details-title">
-            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <ModalScrim className="z-[60]" onClick={(e) => e.target === e.currentTarget && setIsInfoModalOpen(false)}>
+          <div className="pq-modal pq-modal--md" role="dialog" aria-modal="true" aria-labelledby="patient-details-title">
+            <div className="pq-modal-header flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="patient-details-title" className="text-lg font-extrabold tracking-tight flex items-center">
                 <FileText className="w-5 h-5 mr-2" style={{ color: "var(--pq-mark-blue)" }} aria-hidden="true" />
                 Patient Details
@@ -382,7 +396,7 @@ export default function QueueControlCenter() {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto pq-scroll-y flex-1">
+            <div className="pq-modal-body pq-scroll-y p-6">
               <div className="flex justify-between items-start mb-6 gap-3">
                 <div>
                   <div className="text-xs pq-faint font-extrabold uppercase tracking-wider mb-1">Patient</div>
@@ -397,7 +411,9 @@ export default function QueueControlCenter() {
               <div className="space-y-4">
                 <div className="space-y-3">
                   {getReservationChildren(infoPatient).length > 0 ? (
-                    getReservationChildren(infoPatient).map((child, index) => (
+                    getReservationChildren(infoPatient).map((child, index) => {
+                      const presented = presentChildForRole(child, "doctor");
+                      return (
                       <div key={child.childId || index} className="grid grid-cols-2 gap-3">
                         <div className="col-span-2 pq-row" style={{ minHeight: 0, display: "block" }}>
                           <div className="text-[10px] pq-faint font-extrabold uppercase tracking-wider mb-1">Child</div>
@@ -405,19 +421,20 @@ export default function QueueControlCenter() {
                         </div>
                         <div className="pq-row" style={{ minHeight: 0, display: "block" }}>
                           <div className="text-[10px] pq-faint font-extrabold uppercase tracking-wider mb-1">Age</div>
-                          <div className="font-semibold text-sm">{child.age || "N/A"}</div>
+                          <div className="font-semibold text-sm">{presented.ageDisplay || "N/A"}</div>
                         </div>
                         <div className="pq-row" style={{ minHeight: 0, display: "block" }}>
                           <div className="text-[10px] pq-faint font-extrabold uppercase tracking-wider mb-1">Sex</div>
                           <div className="font-semibold text-sm">{child.sex || "N/A"}</div>
                         </div>
                       </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
                       <div className="pq-row" style={{ minHeight: 0, display: "block" }}>
                         <div className="text-[10px] pq-faint font-extrabold uppercase tracking-wider mb-1">Age</div>
-                        <div className="font-semibold text-sm">{infoPatient.age || "N/A"}</div>
+                        <div className="font-semibold text-sm">{presentChildForRole(infoPatient, "doctor").ageDisplay || "N/A"}</div>
                       </div>
                       <div className="pq-row" style={{ minHeight: 0, display: "block" }}>
                         <div className="text-[10px] pq-faint font-extrabold uppercase tracking-wider mb-1">Sex</div>
@@ -438,7 +455,7 @@ export default function QueueControlCenter() {
               </div>
             </div>
 
-            <div className="p-5 flex justify-end shrink-0" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer p-5 flex justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button 
                 type="button"
                 onClick={() => setIsInfoModalOpen(false)}
@@ -452,9 +469,9 @@ export default function QueueControlCenter() {
       )}
 
       {isCompleteModalOpen && selectedPatient && (
-        <ModalScrim className="z-[60]">
-          <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="complete-consult-title">
-            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <ModalScrim className="z-[60]" onClick={(e) => e.target === e.currentTarget && !isSubmitting && setIsCompleteModalOpen(false)}>
+          <div className="pq-modal pq-modal--md" role="dialog" aria-modal="true" aria-labelledby="complete-consult-title">
+            <div className="pq-modal-header flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 id="complete-consult-title" className="text-lg font-extrabold tracking-tight flex items-center">
                 <CheckCircle className="w-5 h-5 mr-2" style={{ color: "var(--pq-live)" }} aria-hidden="true" />
                 Complete Consultation
@@ -464,7 +481,7 @@ export default function QueueControlCenter() {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto pq-scroll-y">
+            <div className="pq-modal-body pq-scroll-y p-6">
               <div className="pq-row mb-6">
                 <div>
                   <div className="text-xs pq-faint font-extrabold uppercase tracking-wider mb-1">Patient</div>
@@ -508,7 +525,7 @@ export default function QueueControlCenter() {
               </div>
             </div>
 
-            <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button 
                 type="button"
                 onClick={() => setIsCompleteModalOpen(false)}
@@ -520,7 +537,7 @@ export default function QueueControlCenter() {
               <button 
                 type="button"
                 onClick={handleComplete}
-                disabled={isSubmitting}
+                disabled={!canMutateRealtime || isSubmitting}
                 className="pq-btn-live"
               >
                 {isSubmitting ? (

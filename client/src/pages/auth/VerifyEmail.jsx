@@ -4,27 +4,23 @@ import { useAuth } from "../../hooks/useAuth";
 import { Mail, RefreshCw, LogOut, CheckCircle } from "lucide-react";
 import { PqAuthShell, PqSpinner } from "../../components/parent/pqUi";
 import toast from "react-hot-toast";
-import { sendEmailVerification } from "firebase/auth";
 import { auth } from "../../firebase/auth";
 import { logoutUser, completeParentRegistration } from "../../services/authService";
+import { sendVerificationEmail } from "../../services/emailVerificationService";
 import OnboardingStepper from "../../components/auth/OnboardingStepper";
+import { RESEND_FLOW } from "../../utils/resendCooldown";
+import { useResendCooldown } from "../../hooks/useResendCooldown";
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
   const { user, role, loading } = useAuth();
   const [isChecking, setIsChecking] = useState(false);
   const [isResending, setIsResending] = useState(false);
-  const [cooldown, setCooldown] = useState(0);
-
-  useEffect(() => {
-    let timer;
-    if (cooldown > 0) {
-      timer = setInterval(() => {
-        setCooldown((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [cooldown]);
+  const cooldownIdentity = user?.uid || auth.currentUser?.uid || "";
+  const { cooldownLeft, beginCooldown, syncCooldown } = useResendCooldown(
+    RESEND_FLOW.EMAIL_VERIFICATION,
+    cooldownIdentity
+  );
 
   useEffect(() => {
     if (!loading && user) {
@@ -80,6 +76,7 @@ export default function VerifyEmail() {
       navigate('/');
       return;
     }
+    if (cooldownLeft > 0) return;
     setIsResending(true);
     try {
       if (firebaseUser.emailVerified) {
@@ -89,13 +86,16 @@ export default function VerifyEmail() {
           navigate("/onboarding/child");
           return;
       }
-      await sendEmailVerification(firebaseUser);
+      await sendVerificationEmail(firebaseUser);
       toast.success("Verification email sent!");
-      setCooldown(60);
+      beginCooldown();
     } catch (error) {
       console.error("Error resending email:", error);
-      if (error.code === 'auth/too-many-requests') {
-        toast.error("Too many requests. Please wait a moment before trying again.");
+      if (error.retryAfterSeconds) {
+        syncCooldown(error.retryAfterSeconds);
+        toast.error(error.message || `Please wait ${error.retryAfterSeconds}s before trying again.`);
+      } else if (error.code === 'auth/too-many-requests' || error.code === 'rate_limited') {
+        toast.error(error.message || "Too many requests. Please wait a moment before trying again.");
       } else {
         toast.error("Failed to resend verification email.");
       }
@@ -158,13 +158,13 @@ export default function VerifyEmail() {
           
           <button
             onClick={handleResendEmail}
-            disabled={isResending || cooldown > 0}
+            disabled={isResending || cooldownLeft > 0}
             className="pq-btn-secondary w-full"
           >
             {isResending ? (
               "Sending..."
-            ) : cooldown > 0 ? (
-              `Resend available in ${cooldown}s`
+            ) : cooldownLeft > 0 ? (
+              `Resend in ${cooldownLeft}s`
             ) : (
               <>
                 <RefreshCw className="w-5 h-5" />

@@ -3,13 +3,24 @@ import { QrCode, CheckCircle, X, CameraOff, AlertCircle, AlertTriangle, StopCirc
 import toast from "react-hot-toast";
 import { Html5Qrcode } from "html5-qrcode";
 import { useAuth } from "../../hooks/useAuth";
-import { validateReservationByCode, checkInReservation } from "../../services/reservationService";
+import { validateReservationByCodeOnServer, checkInReservation } from "../../services/reservationService";
 import { getScheduleById } from "../../services/scheduleService";
 import { getReservationChildDisplayName, getReservationChildren } from "../../utils/reservationPatients";
 import { scheduleMatchesAssignedBranch } from "../../utils/stringUtils";
+import {
+  MANUAL_CODE_LOCKOUT_TOAST_ID,
+  MANUAL_CODE_LOCKOUT_TOAST_MS,
+  saveManualCodeLockout,
+  loadManualCodeLockout,
+  clearManualCodeLockout,
+  formatLockCountdown,
+} from "../../utils/manualCodeLockoutUi";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
 import { useTourSample } from "../../hooks/useTourPreview";
+import { useRtdbConnection } from "../../hooks/useRtdbConnection";
 import { TourSampleValidate } from "../../components/onboarding/SecretaryTourSampleViews";
+import ModalScrim from "../../components/common/ModalScrim";
+import OfflineMutationNote from "../../components/common/OfflineMutationNote";
 
 const CODE_LENGTH = 6;
 
@@ -36,26 +47,33 @@ function ValidateResultModal({
           : { background: "color-mix(in srgb, var(--pq-mark-blue) 12%, white)", color: "var(--pq-mark-blue)" };
 
   return (
-    <div className="pq-modal-scrim z-50">
-      <div className="pq-modal w-full max-w-sm overflow-hidden text-center p-8" role="dialog" aria-modal="true" aria-labelledby="validate-result-title">
-        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={iconStyle}>
-          <Icon className="w-8 h-8" aria-hidden="true" />
+    <ModalScrim className="z-50" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="pq-modal pq-modal--sm text-center" role="dialog" aria-modal="true" aria-labelledby="validate-result-title">
+        <div className="pq-modal-body pq-scroll-y p-8 pb-4">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={iconStyle}>
+            <Icon className="w-8 h-8" aria-hidden="true" />
+          </div>
+          <h2 id="validate-result-title" className="text-xl font-extrabold tracking-tight mb-2">{title}</h2>
+          <div className="pq-muted">{children}</div>
         </div>
-        <h2 id="validate-result-title" className="text-xl font-extrabold tracking-tight mb-2">{title}</h2>
-        <div className="pq-muted mb-6">{children}</div>
-        <button type="button" onClick={onClose} className={`${actionClass} w-full`}>
-          {actionLabel}
-        </button>
+        <div className="pq-modal-footer px-8 pb-8">
+          <button type="button" onClick={onClose} className={`${actionClass} w-full`}>
+            {actionLabel}
+          </button>
+        </div>
       </div>
-    </div>
+    </ModalScrim>
   );
 }
 
 export default function ValidateReservation() {
   const { user } = useAuth();
+  const { canMutateRealtime } = useRtdbConnection();
   const showSampleValidate = useTourSample("validate-qr");
   const [reservationCode, setReservationCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [lockedUntil, setLockedUntil] = useState(null);
+  const [lockCountdown, setLockCountdown] = useState("");
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showInvalidModal, setShowInvalidModal] = useState(false);
@@ -77,6 +95,7 @@ export default function ValidateReservation() {
   const isLoadingRef = useRef(false);
   const processRef = useRef(null);
   const autoStartedRef = useRef(false);
+  const isManualLocked = lockedUntil != null && lockedUntil > Date.now();
 
   const anyModalOpen =
     showSuccessModal ||
@@ -96,6 +115,55 @@ export default function ValidateReservation() {
     isScanningRef.current = isScanning;
   }, [isScanning]);
 
+  // Restore lock UI from sessionStorage after refresh (server still enforces).
+  useEffect(() => {
+    if (!user?.uid) return;
+    const saved = loadManualCodeLockout(user.uid);
+    if (saved?.lockedUntil) {
+      setLockedUntil(saved.lockedUntil);
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!lockedUntil) {
+      setLockCountdown("");
+      return undefined;
+    }
+    const tick = () => {
+      const now = Date.now();
+      if (lockedUntil <= now) {
+        setLockedUntil(null);
+        setLockCountdown("");
+        if (user?.uid) clearManualCodeLockout(user.uid);
+        return;
+      }
+      setLockCountdown(formatLockCountdown(lockedUntil, now));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [lockedUntil, user?.uid]);
+
+  const applyManualCodeLockout = useCallback(
+    (error) => {
+      const until = Number(error?.lockedUntil) || 0;
+      const message =
+        error?.message ||
+        "Manual reservation-code entry locked after repeated failures.";
+      if (until > Date.now()) {
+        setLockedUntil(until);
+        if (user?.uid) {
+          saveManualCodeLockout(user.uid, { lockedUntil: until, message });
+        }
+      }
+      toast.error(message, {
+        id: MANUAL_CODE_LOCKOUT_TOAST_ID,
+        duration: MANUAL_CODE_LOCKOUT_TOAST_MS,
+      });
+    },
+    [user?.uid]
+  );
+
   const stopScanner = useCallback(async () => {
     if (html5QrCodeRef.current && isScanningRef.current) {
       try {
@@ -111,6 +179,10 @@ export default function ValidateReservation() {
   const processReservation = useCallback(async (reservation) => {
     if (!reservation) {
       setShowInvalidModal(true);
+      return;
+    }
+    if (!canMutateRealtime) {
+      toast.error("Reconnect before checking in patients.");
       return;
     }
 
@@ -154,10 +226,10 @@ export default function ValidateReservation() {
         setReservationCode("");
       } catch (error) {
         console.error(error);
-        toast.error("Failed to check in reservation.");
+        toast.error(error?.message || "Failed to check in reservation.");
       }
     }
-  }, [user]);
+  }, [user, canMutateRealtime]);
 
   processRef.current = processReservation;
 
@@ -180,15 +252,20 @@ export default function ValidateReservation() {
         return;
       }
 
-      const reservation = await validateReservationByCode(payload.reservationCode);
+      const reservation = await validateReservationByCodeOnServer(payload.reservationCode, {
+        source: "qr",
+      });
       await processRef.current?.(reservation);
     } catch (error) {
       console.error(error);
+      if (error?.code === "resource-exhausted") {
+        applyManualCodeLockout(error);
+      }
       setShowInvalidModal(true);
     } finally {
       setIsLoading(false);
     }
-  }, [stopScanner]);
+  }, [stopScanner, applyManualCodeLockout]);
 
   const startScanner = useCallback(async (cameraId = selectedCameraId) => {
     if (!cameraId) {
@@ -273,25 +350,45 @@ export default function ValidateReservation() {
     const trimmed = (code || "").toUpperCase().trim();
     if (trimmed.length !== CODE_LENGTH || isLoadingRef.current) return;
 
+    if (lockedUntil && lockedUntil > Date.now()) {
+      applyManualCodeLockout({
+        lockedUntil,
+        message:
+          loadManualCodeLockout(user?.uid)?.message ||
+          "Manual reservation-code entry locked after repeated failures.",
+      });
+      setReservationCode("");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const reservation = await validateReservationByCode(trimmed);
+      const reservation = await validateReservationByCodeOnServer(trimmed, { source: "manual" });
       await processRef.current?.(reservation);
     } catch (error) {
       console.error("Validation error:", error);
-      toast.error("An error occurred during validation.");
+      if (error?.code === "resource-exhausted") {
+        applyManualCodeLockout(error);
+      } else {
+        toast.error(error?.message || "An error occurred during validation.");
+      }
     } finally {
       setIsLoading(false);
       setReservationCode("");
     }
-  }, []);
+  }, [lockedUntil, applyManualCodeLockout, user?.uid]);
 
   // Auto-submit when code reaches expected length
   useEffect(() => {
-    if (reservationCode.trim().length === CODE_LENGTH && !isLoading && !anyModalOpen) {
+    if (
+      reservationCode.trim().length === CODE_LENGTH &&
+      !isLoading &&
+      !anyModalOpen &&
+      !isManualLocked
+    ) {
       handleManualValidate(reservationCode);
     }
-  }, [reservationCode, isLoading, anyModalOpen, handleManualValidate]);
+  }, [reservationCode, isLoading, anyModalOpen, isManualLocked, handleManualValidate]);
 
   const closeAllModals = async () => {
     setShowSuccessModal(false);
@@ -318,6 +415,7 @@ export default function ValidateReservation() {
 
   return (
     <div className="space-y-6 max-w-lg mx-auto pb-8 relative">
+      <OfflineMutationNote className="text-center" />
       <section className="pq-glass p-5 md:p-6 flex flex-col items-center text-center">
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
@@ -405,7 +503,8 @@ export default function ValidateReservation() {
                 )
               }
               maxLength={CODE_LENGTH}
-              disabled={isLoading}
+              disabled={!canMutateRealtime || isLoading || isManualLocked}
+              aria-disabled={!canMutateRealtime || isManualLocked}
               className="pq-input text-center font-mono text-xl tracking-[0.35em] uppercase"
             />
             {isLoading && (
@@ -414,9 +513,19 @@ export default function ValidateReservation() {
               </div>
             )}
           </div>
-          <p className="mt-2 text-xs pq-faint text-center">
-            Validates automatically when all {CODE_LENGTH} characters are entered
-          </p>
+          {!canMutateRealtime ? (
+            <p className="mt-2 text-xs text-center font-medium pq-muted" role="status">
+              Reconnect before checking in patients.
+            </p>
+          ) : isManualLocked && lockCountdown ? (
+            <p className="mt-2 text-xs text-center font-medium" style={{ color: "var(--pq-alert)" }} role="status">
+              Try again in {lockCountdown}
+            </p>
+          ) : (
+            <p className="mt-2 text-xs pq-faint text-center">
+              Validates automatically when all {CODE_LENGTH} characters are entered
+            </p>
+          )}
         </div>
       </section>
 
@@ -433,31 +542,35 @@ export default function ValidateReservation() {
       </ValidateResultModal>
 
       {showSuccessModal && validatedDetails && (
-        <div className="pq-modal-scrim z-50">
-          <div className="pq-modal w-full max-w-sm overflow-hidden text-center p-8" role="dialog" aria-modal="true" aria-labelledby="checkin-success-title">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "var(--pq-live-wash)", color: "var(--pq-live)" }}>
-              <CheckCircle className="w-8 h-8" aria-hidden="true" />
-            </div>
-            <h2 id="checkin-success-title" className="text-xl font-extrabold tracking-tight mb-6">Patient Checked In Successfully</h2>
-            <div className="text-left space-y-3 mb-6 pq-row block min-h-0">
-              <div className="flex justify-between items-center">
-                <span className="text-sm pq-muted">Child Name</span>
-                <span className="font-extrabold">
-                  {getReservationChildDisplayName(validatedDetails.reservation)}
-                </span>
+        <ModalScrim className="z-50" onClick={(e) => e.target === e.currentTarget && closeAllModals()}>
+          <div className="pq-modal pq-modal--sm text-center" role="dialog" aria-modal="true" aria-labelledby="checkin-success-title">
+            <div className="pq-modal-body pq-scroll-y p-8 pb-4">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "var(--pq-live-wash)", color: "var(--pq-live)" }}>
+                <CheckCircle className="w-8 h-8" aria-hidden="true" />
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm pq-muted">Queue Number</span>
-                <span className="font-extrabold pq-num">
-                  #{validatedDetails.reservation.queuePosition ?? validatedDetails.reservation.queueNumber}
-                </span>
+              <h2 id="checkin-success-title" className="text-xl font-extrabold tracking-tight mb-6">Patient Checked In Successfully</h2>
+              <div className="text-left space-y-3 pq-row block min-h-0">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm pq-muted">Child Name</span>
+                  <span className="font-extrabold">
+                    {getReservationChildDisplayName(validatedDetails.reservation)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm pq-muted">Queue Number</span>
+                  <span className="font-extrabold pq-num">
+                    #{validatedDetails.reservation.queuePosition ?? validatedDetails.reservation.queueNumber}
+                  </span>
+                </div>
               </div>
             </div>
-            <button type="button" onClick={closeAllModals} className="pq-btn-primary w-full">
-              OK
-            </button>
+            <div className="pq-modal-footer px-8 pb-8">
+              <button type="button" onClick={closeAllModals} className="pq-btn-primary w-full">
+                OK
+              </button>
+            </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       <ValidateResultModal

@@ -63,8 +63,24 @@
       ".read": false,
       ".write": false
     },
+    "phoneRegistry": {
+      ".read": false,
+      ".write": false
+    },
     "passwordResetLimits": {
       ".read": false,
+      ".write": false
+    },
+    "emailVerificationLimits": {
+      ".read": false,
+      ".write": false
+    },
+    "rateLimits": {
+      ".read": false,
+      ".write": false
+    },
+    "systemHealth": {
+      ".read": "auth.token.isDemo != true && (auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('status').val() === 'active')",
       ".write": false
     },
     "branchConfigurations": {
@@ -150,7 +166,7 @@
       },
       "$branchId": {
         ".read": "auth.token.isDemo != true && (auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'parent' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('assignedBranchId').val() === $branchId)))",
-        ".write": "auth.token.isDemo != true && (auth != null && root.child('users').child(auth.uid).child('status').val() === 'active' && root.child('branchConfigurations').child($branchId).exists() && (root.child('users').child(auth.uid).child('role').val() === 'doctor' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('assignedBranchId').val() === $branchId)))",
+        ".write": false,
         "sms": {
           ".read": "auth.token.isDemo != true && (auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'doctor' || root.child('users').child(auth.uid).child('role').val() === 'parent' || (root.child('users').child(auth.uid).child('role').val() === 'secretary' && root.child('users').child(auth.uid).child('assignedBranchId').val() === $branchId)))"
         }

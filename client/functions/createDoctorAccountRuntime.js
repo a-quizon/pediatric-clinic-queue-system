@@ -11,6 +11,7 @@ const {
   releaseDoctorLock,
   writeAdminAudit,
 } = require("./doctorAccountShared");
+const { claimPhoneForUid, PHONE_IN_USE_MESSAGE } = require("./phoneRegistry");
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -75,9 +76,13 @@ async function createDoctorAccount({ admin, callerUid, payload, now = Date.now }
     };
 
     try {
+      await claimPhoneForUid(db, input.phone, createdUid);
       await db.ref(`users/${createdUid}`).set(profile);
     } catch (err) {
       await admin.auth().deleteUser(createdUid).catch(() => {});
+      if (err?.code === "phone_in_use") {
+        throw makeError(PHONE_IN_USE_MESSAGE, 409, "phone_in_use");
+      }
       throw err;
     }
 

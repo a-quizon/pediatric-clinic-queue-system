@@ -65,12 +65,19 @@ Routine clinic events do not notify the doctor, and the doctor receives no Web P
 **Persistent Notification Center remains parent-only.**
 Secretaries and doctors receive local toasts only.
 
-**System Admin exception: suspicious-account abuse alerts only.** Admins receive no clinical notifications or pushes. When a parent is flagged as suspicious (Cloud Functions `onReservationWrite`, the nightly job, or the Express mirror in `server/services/notificationEngine.js`, all through `client/functions/suspiciousAccountRuntime.js`), every **active** admin receives:
-* Web Push (`SUSPICIOUS_ACCOUNT`) if they granted notification permission (subscription under `users/{adminUid}/pushSubscriptions`; `sendPushToAdmin` in `pushRuntime.js` / `webPushService.js`)
-* In-app toast via `adminAlerts/{adminUid}` when the admin app is open (RTDB rules: only that admin can read or mark it read)
-* Audit Logs entry with evidence and Deactivate / Dismiss actions (`/admin/audit-logs?highlight={logId}`)
+**System Admin exceptions (no clinical pushes).** Admins receive no routine clinic notifications. Two admin-only alert types exist:
 
-The flag on `users/{parentId}/suspiciousFlag` is claimed in a transaction, so Cloud Functions and the Express mirror running against the same database produce one audit entry and one round of alerts. The system never auto-deactivates the parent.
+1. **Suspicious account** — When a parent is flagged (Cloud Functions `onReservationWrite`, the nightly job, or the Express mirror in `server/services/notificationEngine.js`, all through `client/functions/suspiciousAccountRuntime.js`), every **active** admin receives:
+   * Web Push (`SUSPICIOUS_ACCOUNT`) if they granted notification permission (subscription under `users/{adminUid}/pushSubscriptions`; `sendPushToAdmin` in `pushRuntime.js` / `webPushService.js`)
+   * In-app toast via `adminAlerts/{adminUid}` when the admin app is open (RTDB rules: only that admin can read or mark it read)
+   * Audit Logs entry with evidence and Deactivate / Dismiss actions (`/admin/audit-logs?highlight={logId}`)
+   The flag on `users/{parentId}/suspiciousFlag` is claimed in a transaction. The system never auto-deactivates the parent.
+
+2. **Manual code lockout** — When secretary/doctor manual reservation-code entry hits the rate-limit lockout (`validateReservationCodeRuntime.js`), every active admin receives an `adminAlerts` row (`type: MANUAL_CODE_LOCKOUT`) linking to the lockout audit entry. No Web Push is required for this alert.
+
+**System Health recording (not parent-facing):** On push/SMS send failure and after scheduled jobs (`expirePenaltyTimers`, `pollTextBeeSmsStatus`, `evaluateSuspiciousAccounts`), the server writes under `systemHealth` (Admin SDK only). Active admins may read this tree on `/admin/system-health`. Clients cannot write it.
+
+**SMS delivery tracking (TextBee):** `POST /gateway/send-sms` only means the message was **queued**. The backend stores each attempt under `systemHealth/smsMessages` with status `queued` and the TextBee `smsBatchId`. Real outcomes arrive via the signed webhook `POST /api/webhooks/textbee` (`MESSAGE_SENT`, `MESSAGE_DELIVERED`, `MESSAGE_FAILED`, `UNKNOWN_STATE`; HMAC `X-Signature` with `TEXTBEE_WEBHOOK_SECRET`). A 5-minute job polls stuck `queued` batches as a fallback. Gateway aggregate `systemHealth/smsGateway.serviceStatus` is `healthy` / `degraded` / `down` from failure-rate and consecutive-failure thresholds. Transitions to Degraded/Down write an audit log and a debounced `adminAlerts` row (`SMS_SERVICE_STATUS`). Phone numbers are masked in health records and the admin UI.
 
 ---
 

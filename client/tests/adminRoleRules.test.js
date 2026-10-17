@@ -91,10 +91,12 @@ test("auditLogs read is admin only; write stays for admin and doctor", () => {
   assert.ok(rules.auditLogs[".write"].includes(IS_DOCTOR));
 });
 
-test("branch queue/SMS settings are writable by doctor and branch secretary, not admin", () => {
-  const expr = rules.systemConfiguration.$branchId[".write"];
-  assert.ok(expr.includes(IS_DOCTOR) && expr.includes(IS_SECRETARY));
-  assert.ok(!expr.includes(IS_ADMIN));
+test("branch queue/SMS settings are server-write only (audited via API)", () => {
+  assert.equal(rules.systemConfiguration.$branchId[".write"], false);
+  const demoRules = JSON.parse(
+    fs.readFileSync(path.join(clientRoot, "database.demo.rules.json"), "utf8")
+  ).rules;
+  assert.equal(demoRules.systemConfiguration.$branchId[".write"], false);
 });
 
 test("notifications to non-parent targets: only admin among staff", () => {
@@ -118,6 +120,17 @@ test("reservations: admin may read (documented deviation) but never write", () =
   assert.ok(!rules.reservations.$reservationId[".write"].includes(IS_ADMIN));
   assert.equal(rules.bookingLocks.$uid[".write"], false);
   assert.equal(rules.parentBookingCaps.$uid[".write"], false);
+});
+
+test("systemHealth is active-admin read only; rateLimits are server-only", () => {
+  const demoRules = JSON.parse(fs.readFileSync(path.join(clientRoot, "database.demo.rules.json"), "utf8")).rules;
+  for (const [label, set] of [["main", rules], ["demo", demoRules]]) {
+    assert.ok(set.systemHealth[".read"].includes(IS_ADMIN), label);
+    assert.ok(set.systemHealth[".read"].includes(IS_ACTIVE), label);
+    assert.equal(set.systemHealth[".write"], false, label);
+    assert.equal(set.rateLimits[".read"], false, label);
+    assert.equal(set.rateLimits[".write"], false, label);
+  }
 });
 
 function escape(text) {

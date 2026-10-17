@@ -5,7 +5,7 @@ This document is the highest-level business specification for the Pediatric Clin
 ---
 
 ## 1. Overview
-The Pediatric Clinic Queue Management System is designed to digitize and orchestrate the flow of patients through a multi-branch physical clinic. The primary business goals are to eliminate chaotic physical waiting rooms, enforce strict capacity and consultation rules, provide real-time transparency to parents regarding their turn, and empower clinic staff with isolated, branch-specific control over operations.
+The Pediatric Clinic Queue Management System is designed to digitize and orchestrate the flow of patients through a multi-branch physical clinic. The primary business goals are to help organize the queue and clinic day, enforce strict capacity and consultation rules, provide real-time transparency to parents regarding their turn, and empower clinic staff with isolated, branch-specific control over operations. The system does not measure waiting-time reduction unless a separate study collects before/after data.
 
 ---
 
@@ -14,10 +14,11 @@ The Pediatric Clinic Queue Management System is designed to digitize and orchest
 * **Parent / Guardian**: The end-user who consumes clinic services. They browse available schedules, reserve slots, monitor their dynamic queue position remotely, and bring the patient to the clinic for QR validation.
 * **Secretary**: The frontline branch manager. They manage open clinic days for their assigned branch (hold/close/resume, capacity overrides), start the clinic queue, physically verify patient arrivals (Check In), enforce attendance policies (Penalize, including walk-ins already marked checked-in), control the flow of patients into the doctor's room (Send to Doctor), and can pause/resume/close/end the live session from Manage Queue.
 * **Doctor**: The primary medical provider, and exactly one active doctor exists system-wide. They work in `/doctor/*` (Dashboard, Queue, Schedules, Reports, Profile). They can manage open clinic days for any branch (hold/close/resume, capacity overrides), start the clinic queue, control the live consultation room (pause/resume/close queue via Queue Control — Secretary can trigger the same four session actions), add optional consultation notes, and finalize medical visits (Complete Consultation). The doctor has no staff, branch, or audit-log management and receives no suspicious-account alerts.
-* **System Admin**: A separate, non-clinical role (`role: "admin"`, no `assignedBranch`) with its own `/admin` module: Dashboard, Users, Branches, Audit Logs, and Reports. One or two admins may exist. In short, the admin:
+* **System Admin**: A separate, non-clinical role (`role: "admin"`, no `assignedBranch`) with its own `/admin` module: Dashboard, Users, Branches, Audit Logs, Reports, and System Health. One or two admins may exist. In short, the admin:
   * creates, deactivates, reactivates, and deletes **Secretary and Doctor** accounts (and deactivates, reactivates, or deletes Parents), under the one-active-doctor rule (Section 10);
-  * manages branches, reads the full audit log, and receives suspicious-account alerts;
-  * sees Reports as **Clinic Overview** plus a **read-only Session History**;
+  * manages branches, reads the full audit log, and receives suspicious-account and manual-code-lockout alerts;
+  * sees Reports as **Clinic Overview** plus a **read-only Session History** (metrics listed in `docs/ImplementedAnalytics.md`);
+  * reads **System Health** (notification failures, TextBee SMS delivery records and Healthy/Degraded/Down status, background job last-run times, own realtime connection) — read-only; data under `systemHealth` is written only by the server;
   * has accounts created only with the Admin SDK (`docs/AdminBreakGlass.md`), has **no Profile page**, and cannot change their own profile or password in the app (Forgot Password is refused for admin emails, as it is for all staff);
   * never runs the clinic: no schedules, queue, reservations, or consultations.
 
@@ -39,7 +40,7 @@ The complete business workflow follows this sequence:
 1. **Schedule Published** → The Secretary (assigned branch) or Doctor (any branch) opens a clinic day (and later starts the queue).
 2. **Parent Reserves** → Parent books an available slot, securing a permanent Ticket Number.
 3. **Check-In Requested** → (Optional) Secretary pings the parent to approach the desk.
-4. **Secretary Checks In** → Parent arrives at the physical clinic and the Secretary scans their QR code (or enters the 6-character code).
+4. **Secretary Checks In** → Parent arrives at the physical clinic and the Secretary scans their QR code (or enters the 6-character code). Manual code lookup goes through the server (`POST /api/reservations/validate-code`) with rate limiting (see Section 13b).
 5. **Patient Waits** → Patient waits in the physical lobby while monitoring their live Queue State.
 6. **Secretary Sends to Doctor** → The Secretary permits the #1 checked-in patient to enter the consultation room.
 7. **Consultation** → The Doctor examines the patient.
@@ -103,20 +104,20 @@ User Management ensures role-based access control.
 * **No active doctor**: Secretaries can still publish days, start the queue, check in, and send a patient to the doctor, and parents can still reserve. Nobody can complete a consultation until a doctor is created or reactivated, so the secretary should end the session. Newly published days have no `doctorId`; SMS falls back to "your doctor".
 * **Secretary**: Staff accounts created by the System Admin.
 * **Parent**: Self-registering consumer accounts that authenticate via the public-facing app. New parents must verify their **phone number via SMS OTP** before account creation, then verify their email and create at least one child profile before entering the parent portal. Login uses a single **Email or Phone Number** field plus **Password** (phone is resolved to the account email server-side). Existing parents without that onboarding flag are grandfathered. Parents may self-deactivate (`status: inactive`, `deactivationSource: self`); logging in reactivates the account. Parents may soft-delete their account: Firebase Auth is revoked, the profile is marked `isDeleted`, and historical queue/appointment records are retained for analytics. Active reservations are cancelled on deactivate and forfeited on delete so they do not hold clinic slots.
-* **Password reset**: Reset **emails are for parents only**. Forgot Password and the admin's parent “Reset Password” email share a **5-request daily cap per email**, using server time in **Asia/Manila**. The 6th request that day is blocked with a “try again tomorrow” message. Completing a reset from the email link does not count. This is separate from the SMS OTP resend cooldown. The reset claim endpoint refuses emails that belong to a doctor, secretary, or admin account (403); doctors and secretaries are told to ask the System Admin, and admin credentials are reset with the Admin SDK only.
+* **Password reset**: Reset **emails are for parents only**. Forgot Password and the admin's parent “Reset Password” email share a **5-request daily cap per email**, using server time in **Asia/Manila**. The 6th request that day is blocked with a “try again tomorrow” message. Completing a reset from the email link does not count. A **30-second resend cooldown** also applies between reset emails (independent of SMS OTP and email-verification cooldowns). The reset claim endpoint refuses emails that belong to a doctor, secretary, or admin account (403); doctors and secretaries are told to ask the System Admin, and admin credentials are reset with the Admin SDK only.
 * **Staff password reset**: In **Admin → Users**, “Reset Password” on a **doctor or secretary** generates a one-time temporary password (shown once to the admin, never emailed or logged), revokes the user's sessions, and sets `mustChangePassword`. On next login the doctor (`/doctor/change-password`) or secretary (`/secretary/change-password`) must set a new password before using their dashboard. The deployed callable and route keep the `resetSecretaryPassword` / `reset-secretary-password` names for compatibility.
 * **Dashboard “Active Staff”**: Counts only active `doctor` and `secretary` accounts (excludes admins, parents, inactive, and deleted accounts).
 
 ---
 
 ## 11. Notification Workflow
-Notifications provide real-time transparency, reducing physical clinic congestion.
+Notifications provide real-time transparency so parents can track their turn without crowding the desk.
 * **Reservation Confirmation**: SMS (+ Notification Center) when a parent successfully reserves a slot, including date, clinic hours, queue number, doctor, and branch.
 * **Queue Updates**: When the queue starts, parents who are approaching but not already first (`0 < aheadOfYou <=` the branch Near Turn threshold; default 3 via `systemConfiguration/{branchId}/sms`) get the `NEARING_TURN` alert once per reservation (`nearTurnSmsSent`). The Near Turn **SMS** goes to each parent account only once, ever (`users/{parentId}/nearTurnSms`); later reservations, other children, and re-queues after a penalty do not re-send it. Later line movement does not re-send it. Also pings when state shifts to "Almost Next" or "You're Next", or when the Secretary requests they approach the desk.
 * **Consultation Updates**: Confirms when they enter and exit the consultation room.
 * **Penalty Updates**: Alerts parents if they are penalized for absence (including SMS that the countdown has started) or permanently forfeited for not checking in on time.
 * **Schedule Updates**: Informs parents when a reservation schedule is published (once per publish batch), when the queue starts, pauses, closes, and when the session ends. Queue start also sends SMS via textbee.dev.
-* **SMS Authentication**: Parents may sign in with a 6-digit OTP delivered by textbee; OTP records live under `smsOtps` (Admin SDK only) and expire after 5 minutes.
+* **SMS Authentication**: Parents may sign in with a 6-digit OTP delivered by textbee; OTP records live under `smsOtps` (Admin SDK only) and expire after 5 minutes. Resending an OTP requires a **30-second cooldown** (server-enforced; UI shows a countdown). Email verification resend uses the same 30-second cooldown under `emailVerificationLimits/{uid}`, independent of OTP and password-reset cooldowns.
 * **Suspicious account alerts (System Admin)**: When Rules A/B/C detect repeated reservation no-shows (past clinic dates without QR check-in), the system flags the parent, writes an audit log, and notifies every active System Admin via Web Push plus an in-app toast fallback (`adminAlerts/{adminUid}`). The alert opens `/admin/audit-logs?highlight={logId}`. The doctor is not notified. The system never auto-deactivates; the admin reviews and may dismiss or deactivate.
 
 ---
@@ -150,7 +151,25 @@ When conflicting business operations arise, the system obeys this hierarchy:
 * **One Active Consultation**: Only one patient may be `with_doctor` at a time.
 * **Secretary Branch Isolation**: A Secretary can only view and manage the queue for their assigned branch.
 * **Schedule Ownership**: Secretary and Doctor may hold, close, resume, adjust capacity, and start clinic schedules. Secretaries are locked to their assigned branch; Doctors may operate on any branch. The Doctor also retains live Queue Control (pause/resume/close) and Complete Consultation.
-* **Admin Exclusivity**: Only the System Admin can create or modify staff accounts and branches, and read the full audit log (filterable by actor role, including Admin).
+* **Admin Exclusivity**: Only the System Admin can create or modify staff accounts and branches, read the full audit log (filterable by actor role, action type, and Admin), and read `systemHealth` (System Health page).
+
+---
+
+## 13b. Manual reservation-code rate limiting
+
+Secretary (and doctor) check-in may enter a 6-character `reservationCode`. **Manual** lookups call `POST /api/reservations/validate-code` (Cloud Functions `api` + Express mirror, shared `validateReservationCodeRuntime.js`). Client-only `orderByChild("reservationCode")` is no longer used by the Validate Reservation UI.
+
+| Rule | Value |
+|------|--------|
+| Scope | Failed **manual** lookups only (code not found). Valid codes that fail check-in for status reasons do not count. QR lookups use the same endpoint with `source: "qr"` and are **not** rate-limited. |
+| Key | Per secretary/doctor **uid** (and stores `assignedBranch` / branch id on the counter) |
+| Allowance | **5** failures per rolling **15 minutes** |
+| Lockout | **5 minutes** from the attempt that crosses the limit |
+| Storage | `rateLimits/manualCode/{uid}` — server (Admin SDK) write only; clients cannot read or write |
+| Audit | Server writes `MANUAL_CODE_FAILED` and `MANUAL_CODE_LOCKED` to `auditLogs` with `actorRole`, branch, **masked** code (e.g. `A****Z`), and timestamp |
+| Admin alert | On lockout, every active admin gets an `adminAlerts` entry (`type: MANUAL_CODE_LOCKOUT`) linking to Audit Logs |
+
+---
 * **Admin / Doctor role split (enforced at UI, server, and RTDB rules)**:
   * **Server**: `deleteUserAccount` (every target), `updateUserAccount`, `resetSecretaryPassword`, `createDoctorAccount`, and `setDoctorAccountStatus` require an **active admin** (profile exists, `role: "admin"`, `status: "active"`, not `isDeleted`); a deactivated admin gets 403. The Express routes in `server/routes/admin.js` call the same runtimes, so both paths behave identically. Admins can never delete or edit admin accounts or themselves in the app.
   * **Clinical endpoints** (reservation claim/release, schedule notify-available, staff sends through `/api/send-notification`) accept doctor and secretary only. Admin cannot claim, release, cancel, or modify reservations and receives no clinical notifications or pushes.
@@ -185,6 +204,6 @@ Future system modifications must ensure the following business behaviors remain 
 - [ ] ✓ Queue recalculation never changes Ticket Numbers.
 - [ ] ✓ Reservation History remains immutable.
 - [ ] ✓ Queue Engine remains perfectly synchronized with Reservation state transitions.
-- [ ] ✓ Notification delivery remains bound exclusively to Parent accounts, except the System Admin `SUSPICIOUS_ACCOUNT` alert (`adminAlerts` + admin Web Push). The doctor receives none.
+- [ ] ✓ Notification delivery remains bound exclusively to Parent accounts, except System Admin `SUSPICIOUS_ACCOUNT` and `MANUAL_CODE_LOCKOUT` alerts (`adminAlerts`; suspicious also uses admin Web Push). The doctor receives none.
 - [ ] ✓ User role permissions strictly prevent Parents from accessing staff routes and vice versa.
 - [ ] ✓ Updates to Branch Management configurations instantly propagate to Secretary Dashboards and Parent UI cards.

@@ -17,9 +17,17 @@ const {
 } = require("./otpService");
 const { resolveAccountByIdentifier } = require("./phoneLookup");
 const { claimPasswordResetSlot } = require("./passwordResetLimitService");
+const { claimEmailVerificationSlot } = require("./emailVerificationLimitService");
 const { claimReservationSlot } = require("./claimReservationRuntime");
 const { releaseReservationForCaller } = require("./slotRelease");
 const { publishClinicDays } = require("./schedulePublishRuntime");
+const { validateReservationCode } = require("./validateReservationCodeRuntime");
+const { updateQueueRules, updateSmsRules } = require("./systemConfigurationRuntime");
+const {
+  updateQueueSessionStatus,
+  endClinicSession,
+  updateScheduleSlotCapacity,
+} = require("./queueSessionRuntime");
 const { notifyParentsScheduleAvailable } = require("./pushRuntime");
 const { defaultDatabase, getRtdb, runForToken } = require("./rtdbRouter");
 
@@ -53,6 +61,9 @@ function mapOtpError(err) {
 function sendError(res, err) {
   console.error("[functions/api]", err.message);
   const mapped = mapOtpError(err);
+  if (mapped.status === 429 && mapped.retryAfterSeconds != null) {
+    res.set("Retry-After", String(mapped.retryAfterSeconds));
+  }
   return res.status(mapped.status).json({
     success: false,
     error: mapped.code,
@@ -106,10 +117,33 @@ function createApiApp() {
         : { origin: true }
     )
   );
-  app.use(express.json({ limit: "256kb" }));
+  app.use(
+    express.json({
+      limit: "256kb",
+      verify: (req, _res, buf) => {
+        req.rawBody = buf;
+      },
+    })
+  );
 
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", service: "functions-api" });
+  });
+
+  /**
+   * TextBee delivery webhooks (signed). Public endpoint — no Firebase auth.
+   * Configure deliveryUrl to https://<host>/api/webhooks/textbee
+   */
+  app.post("/api/webhooks/textbee", async (req, res) => {
+    try {
+      const { processTextBeeWebhookRequest } = require("./textbeeWebhookRuntime");
+      const { getRtdb } = require("./rtdbRouter");
+      const outcome = await processTextBeeWebhookRequest(req, { db: getRtdb() });
+      return res.status(outcome.status).json(outcome.body);
+    } catch (err) {
+      console.error("[functions/api] textbee webhook failed:", err.message);
+      return res.status(500).json({ success: false, error: "webhook_handler_error" });
+    }
   });
 
   app.post("/api/auth/resolve-identifier", async (req, res) => {
@@ -140,6 +174,17 @@ function createApiApp() {
   app.post("/api/auth/password-reset/claim", async (req, res) => {
     try {
       const result = await claimPasswordResetSlot(req.body?.email);
+      return res.json(result);
+    } catch (err) {
+      return sendError(res, err);
+    }
+  });
+
+  app.post("/api/auth/email-verification/claim", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return undefined;
+      const result = await claimEmailVerificationSlot(decoded.uid);
       return res.json(result);
     } catch (err) {
       return sendError(res, err);
@@ -214,6 +259,44 @@ function createApiApp() {
       return res.json(result);
     } catch (err) {
       return sendError(res, err);
+    }
+  });
+
+  app.post("/api/reservations/validate-code", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await runForToken(decoded, () =>
+        validateReservationCode({
+          admin,
+          callerUid: decoded.uid,
+          code: req.body?.code,
+          source: req.body?.source === "qr" ? "qr" : "manual",
+        })
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+        "resource-exhausted": 429,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] reservations/validate-code:", err.message);
+      const status = statusByCode[code] || 500;
+      if (status === 429 && err.retryAfterSeconds != null) {
+        res.set("Retry-After", String(err.retryAfterSeconds));
+      }
+      return res.status(status).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not validate the reservation code.",
+        ...(err.lockedUntil != null ? { lockedUntil: err.lockedUntil } : {}),
+        ...(err.retryAfterSeconds != null ? { retryAfterSeconds: err.retryAfterSeconds } : {}),
+      });
     }
   });
 
@@ -307,6 +390,160 @@ function createApiApp() {
     }
   });
 
+  app.post("/api/schedules/queue-status", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await runForToken(decoded, () =>
+        updateQueueSessionStatus({
+          admin,
+          callerUid: decoded.uid,
+          scheduleId: req.body?.scheduleId,
+          queueStatus: req.body?.queueStatus,
+        })
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] schedules/queue-status:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not update queue status.",
+      });
+    }
+  });
+
+  app.post("/api/schedules/end-session", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await runForToken(decoded, () =>
+        endClinicSession({
+          admin,
+          callerUid: decoded.uid,
+          scheduleId: req.body?.scheduleId,
+        })
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] schedules/end-session:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not end the clinic session.",
+      });
+    }
+  });
+
+  app.post("/api/schedules/slot-capacity", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await runForToken(decoded, () =>
+        updateScheduleSlotCapacity({
+          admin,
+          callerUid: decoded.uid,
+          scheduleId: req.body?.scheduleId,
+          slotCapacity: req.body?.slotCapacity,
+        })
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] schedules/slot-capacity:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not update slot capacity.",
+      });
+    }
+  });
+
+  app.post("/api/system-configuration/queue-rules", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await runForToken(decoded, () =>
+        updateQueueRules({
+          admin,
+          callerUid: decoded.uid,
+          branchId: req.body?.branchId,
+          queueRules: req.body?.queueRules || req.body,
+        })
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] system-configuration/queue-rules:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not update queue rules.",
+      });
+    }
+  });
+
+  app.post("/api/system-configuration/sms-rules", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const result = await runForToken(decoded, () =>
+        updateSmsRules({
+          admin,
+          callerUid: decoded.uid,
+          branchId: req.body?.branchId,
+          sms: req.body?.sms || req.body,
+        })
+      );
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      const statusByCode = {
+        unauthenticated: 401,
+        "permission-denied": 403,
+        "invalid-argument": 400,
+        "failed-precondition": 409,
+        "not-found": 404,
+      };
+      const code = statusByCode[err.code] ? err.code : "internal";
+      console.error("[functions/api] system-configuration/sms-rules:", err.message);
+      return res.status(statusByCode[code] || 500).json({
+        success: false,
+        error: code,
+        message: err.message || "Could not update SMS rules.",
+      });
+    }
+  });
+
   app.post("/api/schedules/notify-available", async (req, res) => {
     try {
       const decoded = await requireAuth(req, res);
@@ -349,12 +586,36 @@ function createApiApp() {
     }
   });
 
+  app.post("/api/phones/claim", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const { claimStaffPhone } = require("./claimStaffPhoneRuntime");
+      const result = await runForToken(decoded, () =>
+        claimStaffPhone({
+          admin,
+          callerUid: decoded.uid,
+          targetUid: req.body?.uid || decoded.uid,
+          phone: req.body?.phone,
+        })
+      );
+      return res.json(result);
+    } catch (err) {
+      const status = err.status || (err.code === "phone_in_use" ? 409 : 500);
+      return res.status(status).json({
+        success: false,
+        error: err.code || "internal",
+        message: err.message || "Could not claim phone number.",
+      });
+    }
+  });
+
   app.post("/api/auth/sms/consume-phone-verification", async (req, res) => {
     try {
       const purpose = req.body?.purpose || null;
       const options = {};
       if (purpose) options.purpose = purpose;
-      if (purpose === "update") {
+      if (purpose === "update" || purpose === "register") {
         const decoded = await requireAuth(req, res);
         if (!decoded) return;
         options.uid = decoded.uid;

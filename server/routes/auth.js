@@ -1,7 +1,8 @@
 const express = require("express");
-const { initFirebaseAdmin, getDb } = require("../services/firebaseAdmin");
+const { initFirebaseAdmin, getDb, verifyIdToken } = require("../services/firebaseAdmin");
 const { resolveAccountByIdentifier } = require("../services/phoneLookup");
 const { claimPasswordResetSlot } = require("../services/passwordResetLimitService");
+const { claimEmailVerificationSlot } = require("../services/emailVerificationLimitService");
 const { createRateLimiter, clientIp } = require("../middleware/rateLimit");
 
 const router = express.Router();
@@ -20,6 +21,13 @@ const passwordResetClaimLimiter = createRateLimiter({
   message: "Too many password reset attempts. Please wait and try again.",
 });
 
+const emailVerificationClaimLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  keyFn: (req) => `emailVerify:${clientIp(req)}`,
+  message: "Too many verification email requests. Please wait and try again.",
+});
+
 function mapAuthHelperError(err) {
   const code = err.code || "internal";
   const statusByCode = {
@@ -33,7 +41,23 @@ function mapAuthHelperError(err) {
     status: statusByCode[code] || 500,
     code,
     message: err.message || "Request failed.",
+    retryAfterSeconds: err.retryAfterSeconds,
   };
+}
+
+function sendMappedError(res, err) {
+  const mapped = mapAuthHelperError(err);
+  if (mapped.status === 429 && mapped.retryAfterSeconds != null) {
+    res.set("Retry-After", String(mapped.retryAfterSeconds));
+  }
+  return res.status(mapped.status).json({
+    success: false,
+    error: mapped.code,
+    message: mapped.message,
+    ...(mapped.retryAfterSeconds != null
+      ? { retryAfterSeconds: mapped.retryAfterSeconds }
+      : {}),
+  });
 }
 
 /**
@@ -53,12 +77,7 @@ router.post("/auth/resolve-identifier", resolveIdentifierLimiter, async (req, re
     });
   } catch (err) {
     console.error("[auth] resolve-identifier:", err.message);
-    const mapped = mapAuthHelperError(err);
-    return res.status(mapped.status).json({
-      success: false,
-      error: mapped.code,
-      message: mapped.message || "Unable to resolve login identifier.",
-    });
+    return sendMappedError(res, err);
   }
 });
 
@@ -66,6 +85,7 @@ router.post("/auth/resolve-identifier", resolveIdentifierLimiter, async (req, re
  * POST /api/auth/password-reset/claim
  * Body: { email }
  * Consumes one daily reset slot (Asia/Manila) before sendPasswordResetEmail.
+ * Also enforces a short resend cooldown (Retry-After / retryAfterSeconds on 429).
  */
 router.post("/auth/password-reset/claim", passwordResetClaimLimiter, async (req, res) => {
   try {
@@ -76,12 +96,32 @@ router.post("/auth/password-reset/claim", passwordResetClaimLimiter, async (req,
     if (err.code !== "rate_limited" && err.code !== "invalid_email" && err.code !== "auth_denied") {
       console.error("[auth] password-reset/claim:", err.message);
     }
-    const mapped = mapAuthHelperError(err);
-    return res.status(mapped.status).json({
-      success: false,
-      error: mapped.code,
-      message: mapped.message,
-    });
+    return sendMappedError(res, err);
+  }
+});
+
+/**
+ * POST /api/auth/email-verification/claim
+ * Requires Bearer token. Claims a short cooldown slot before sendEmailVerification.
+ */
+router.post("/auth/email-verification/claim", emailVerificationClaimLimiter, async (req, res) => {
+  try {
+    initFirebaseAdmin();
+    const decoded = await verifyIdToken(req.headers.authorization);
+    if (!decoded?.uid) {
+      return res.status(401).json({
+        success: false,
+        error: "auth_denied",
+        message: "You must be signed in.",
+      });
+    }
+    const result = await claimEmailVerificationSlot(decoded.uid);
+    return res.json(result);
+  } catch (err) {
+    if (err.code !== "rate_limited" && err.code !== "auth_denied") {
+      console.error("[auth] email-verification/claim:", err.message);
+    }
+    return sendMappedError(res, err);
   }
 });
 

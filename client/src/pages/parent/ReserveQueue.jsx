@@ -21,6 +21,7 @@ import { slotsTaken } from "../../utils/scheduleCalendar";
 import { getBranchConfigurations } from "../../services/branchConfigurationService";
 import { useAuth } from "../../hooks/useAuth";
 import MessageModal from "../../components/common/MessageModal";
+import ModalScrim from "../../components/common/ModalScrim";
 import QueueRulesAgreementModal from "../../components/parent/QueueRulesAgreementModal";
 import ParentScheduleCalendar from "../../components/parent/ParentScheduleCalendar";
 import ChildProfileForm, {
@@ -303,6 +304,16 @@ export default function ReserveQueue() {
   };
 
   const toggleChildSelection = (childId) => {
+    const child = savedChildren.find((c) => c.id === childId);
+    if (child && !child.birthdate) {
+      setMessageModalState({
+        isOpen: true,
+        type: "error",
+        title: "Birthdate Required",
+        message: "Add this child's birthdate in Child Profiles before selecting them for a reservation.",
+      });
+      return;
+    }
     setSelectedChildIds((prev) =>
       prev.includes(childId) ? prev.filter((id) => id !== childId) : [...prev, childId]
     );
@@ -419,13 +430,13 @@ export default function ReserveQueue() {
 
       {/* Complete Patient Info Modal */}
       {isPatientInfoModalOpen && selectedSchedule && (
-        <div className="pq-modal-scrim">
-          <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <ModalScrim onClick={(e) => e.target === e.currentTarget && !isSubmitting && setIsPatientInfoModalOpen(false)}>
+          <div className="pq-modal pq-modal--md">
+            <div className="pq-modal-header flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 className="text-lg font-bold">Select Patients</h2>
             </div>
             
-            <div className="p-6 overflow-y-auto pq-scroll-y">
+            <div className="pq-modal-body pq-scroll-y p-6">
               <div className="flex items-start pq-note pq-note-info mb-6">
                 <CheckCircle2 className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
                 <p className="text-sm font-medium">Your slot is reserved. Choose one or more children this visit is for, then add the reason for the visit.</p>
@@ -481,7 +492,16 @@ export default function ReserveQueue() {
                               />
                               <span className="min-w-0 flex-1 text-left">
                                 <span className="block text-sm font-bold truncate">{child.childName}</span>
-                                <span className="block text-xs pq-muted">{child.age} • {child.sex}</span>
+                                <span className="block text-xs pq-muted">
+                                  {child.birthdate
+                                    ? `${new Intl.DateTimeFormat("en-US", {
+                                        month: "long",
+                                        day: "numeric",
+                                        year: "numeric",
+                                        timeZone: "Asia/Manila",
+                                      }).format(new Date(`${child.birthdate}T04:00:00Z`))} • ${child.sex}`
+                                    : "Birthdate required — edit this child profile first"}
+                                </span>
                               </span>
                             </label>
                           </li>
@@ -504,7 +524,7 @@ export default function ReserveQueue() {
               </div>
             </div>
 
-            <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button 
                 onClick={handleCancelReservation}
                 disabled={isSubmitting}
@@ -526,19 +546,22 @@ export default function ReserveQueue() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       {isAddChildOpen && (
-        <div className="pq-modal-scrim" style={{ zIndex: 60 }}>
-          <div className="pq-modal w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
+        <ModalScrim
+          className="z-[60]"
+          onClick={(e) => e.target === e.currentTarget && !isSavingChild && setIsAddChildOpen(false)}
+        >
+          <div className="pq-modal pq-modal--md">
+            <div className="pq-modal-header flex justify-between items-center p-5" style={{ borderBottom: "1px solid var(--pq-glass-line)" }}>
               <h2 className="text-lg font-bold">Add a Child</h2>
             </div>
-            <div className="p-6 overflow-y-auto pq-scroll-y">
+            <div className="pq-modal-body pq-scroll-y p-6">
               <ChildProfileForm value={newChildForm} onChange={setNewChildForm} idPrefix="reserve-child" />
             </div>
-            <div className="p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
+            <div className="pq-modal-footer p-5 flex gap-3 justify-end" style={{ borderTop: "1px solid var(--pq-glass-line)" }}>
               <button
                 type="button"
                 onClick={() => !isSavingChild && setIsAddChildOpen(false)}
@@ -557,21 +580,21 @@ export default function ReserveQueue() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
       {/* Success Modal */}
       {isSuccessModalOpen && selectedSchedule && (
-        <div className="pq-modal-scrim">
-          <div className="pq-modal w-full max-w-sm overflow-hidden flex flex-col text-center">
-            <div className="p-8">
+        <ModalScrim onClick={(e) => e.target === e.currentTarget && closeSuccessModal()}>
+          <div className="pq-modal pq-modal--sm text-center">
+            <div className="pq-modal-body pq-scroll-y p-8 pb-4">
               <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-5" style={{ background: "var(--pq-live-wash)", color: "var(--pq-live)" }}>
                 <CheckCircle2 className="w-8 h-8" />
               </div>
               <h2 className="text-xl font-bold mb-2">Reservation Successful</h2>
               <p className="pq-muted text-sm mb-6">You have successfully reserved a slot.</p>
               
-              <div className="pq-row flex-col items-stretch text-left p-5 mb-6">
+              <div className="pq-row flex-col items-stretch text-left p-5">
                 <div className="text-sm pq-muted mb-1 text-center">Queue Position</div>
                 <div className="pq-num text-4xl text-center mb-4" style={{ color: "var(--pq-mark-blue-deep)" }}>{generatedQueuePosition}</div>
                 
@@ -591,24 +614,23 @@ export default function ReserveQueue() {
                   </div>
                 </div>
               </div>
-
-              <div className="space-y-3">
-                <button 
-                  onClick={() => { closeSuccessModal(); navigate('/parent/reservations'); }}
-                  className="pq-btn-primary w-full"
-                >
-                  View My Reservation
-                </button>
-                <button 
-                  onClick={closeSuccessModal}
-                  className="pq-btn-secondary w-full"
-                >
-                  Close
-                </button>
-              </div>
+            </div>
+            <div className="pq-modal-footer px-8 pb-8 space-y-3">
+              <button 
+                onClick={() => { closeSuccessModal(); navigate('/parent/reservations'); }}
+                className="pq-btn-primary w-full"
+              >
+                View My Reservation
+              </button>
+              <button 
+                onClick={closeSuccessModal}
+                className="pq-btn-secondary w-full"
+              >
+                Close
+              </button>
             </div>
           </div>
-        </div>
+        </ModalScrim>
       )}
 
 

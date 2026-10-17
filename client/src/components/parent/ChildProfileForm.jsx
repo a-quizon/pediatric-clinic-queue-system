@@ -1,60 +1,27 @@
 import React from "react";
+import { getBirthdateError } from "../../utils/pediatricAge";
+import { manilaDateString } from "../../utils/manilaDate";
 
 export const emptyChildProfile = () => ({
   childName: "",
-  age: "",
-  sex: ""
+  birthdate: "",
+  sex: "",
 });
-
-export const getChildAgeError = (age) => {
-  if (!age) return "";
-  if (/[^0-9]/.test(age)) {
-    return "Please enter numbers only (no letters, decimals, or negative signs).";
-  }
-  const numVal = parseInt(age, 10);
-  if (numVal <= 0 || numVal > 25) {
-    return "Please enter a valid pediatric age (1 - 25).";
-  }
-  return "";
-};
 
 export const isChildProfileValid = (value) => {
   if (!value) return false;
   const nameOk = Boolean(value.childName?.trim());
-  const age = value.age?.trim() || "";
-  const ageOk = /^\d+$/.test(age) && !getChildAgeError(age);
+  const birthOk = !getBirthdateError(value.birthdate?.trim() || "");
   const sexOk = Boolean(value.sex);
-  return nameOk && ageOk && sexOk;
+  return nameOk && birthOk && sexOk;
 };
 
 export default function ChildProfileForm({ value, onChange, idPrefix = "child" }) {
-  const ageError = getChildAgeError(value?.age || "");
+  const birthdateError = getBirthdateError(value?.birthdate || "");
+  const maxDate = manilaDateString();
 
   const patch = (partial) => {
     onChange({ ...value, ...partial });
-  };
-
-  const handleAgeChange = (e) => {
-    const rawVal = e.target.value;
-    if (/[^0-9]/.test(rawVal)) {
-      patch({ age: rawVal.replace(/[^0-9]/g, "") });
-    } else {
-      patch({ age: rawVal });
-    }
-  };
-
-  const handleAgePaste = (e) => {
-    const pasteData = e.clipboardData.getData("text");
-    if (/[^0-9]/.test(pasteData)) {
-      e.preventDefault();
-      patch({ age: pasteData.replace(/[^0-9]/g, "") });
-    }
-  };
-
-  const handleAgeKeyDown = (e) => {
-    if (["e", "E", "+", "-", "."].includes(e.key)) {
-      e.preventDefault();
-    }
   };
 
   return (
@@ -75,23 +42,22 @@ export default function ChildProfileForm({ value, onChange, idPrefix = "child" }
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor={`${idPrefix}-age`} className="pq-label">
-            Age (numeric) *
+          <label htmlFor={`${idPrefix}-birthdate`} className="pq-label">
+            Birthdate *
           </label>
           <input
-            id={`${idPrefix}-age`}
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={value?.age || ""}
-            onChange={handleAgeChange}
-            onPaste={handleAgePaste}
-            onKeyDown={handleAgeKeyDown}
-            placeholder="e.g. 5"
-            className={`pq-input ${ageError ? "pq-input-error" : ""}`}
+            id={`${idPrefix}-birthdate`}
+            type="date"
+            value={value?.birthdate || ""}
+            max={maxDate}
+            onChange={(e) => patch({ birthdate: e.target.value })}
+            className={`pq-input ${birthdateError && value?.birthdate ? "pq-input-error" : ""}`}
           />
-          {ageError && (
-            <p className="pq-error-text mt-1 leading-tight">{ageError}</p>
+          {value?.birthdate && birthdateError && (
+            <p className="pq-error-text mt-1 leading-tight">{birthdateError}</p>
+          )}
+          {!value?.birthdate && (
+            <p className="text-xs pq-muted mt-1 leading-tight">Required. Age is calculated automatically for clinic staff.</p>
           )}
         </div>
         <div>
@@ -113,3 +79,6 @@ export default function ChildProfileForm({ value, onChange, idPrefix = "child" }
     </div>
   );
 }
+
+// Re-export for walk-in validation callers that previously used getChildAgeError
+export { getBirthdateError };

@@ -6,6 +6,7 @@ const { resetSecretaryPassword } = require(path.join(__dirname, "../../client/fu
 const { updateUserAccount } = require(path.join(__dirname, "../../client/functions/updateUserAccountRuntime"));
 const { createDoctorAccount } = require(path.join(__dirname, "../../client/functions/createDoctorAccountRuntime"));
 const { setDoctorAccountStatus } = require(path.join(__dirname, "../../client/functions/doctorStatusRuntime"));
+const { claimStaffPhone } = require(path.join(__dirname, "../../client/functions/claimStaffPhoneRuntime"));
 
 const router = express.Router();
 
@@ -152,6 +153,33 @@ router.post("/admin/reset-secretary-password", async (req, res) => {
     return res.status(status).json({
       success: false,
       error: err.message || "Failed to reset staff password.",
+    });
+  }
+});
+
+router.post("/phones/claim", async (req, res) => {
+  if (!requireAdminSdk(res)) return;
+
+  const decoded = await verifyIdToken(req.headers.authorization);
+  if (!decoded?.uid) {
+    return res.status(401).json({ success: false, error: "Authentication required." });
+  }
+
+  try {
+    const result = await claimStaffPhone({
+      admin,
+      callerUid: decoded.uid,
+      targetUid: req.body?.uid || decoded.uid,
+      phone: req.body?.phone,
+    });
+    return res.json(result);
+  } catch (err) {
+    console.error("[admin] phones/claim failed:", err.message);
+    const status = err.status || 500;
+    return res.status(status).json({
+      success: false,
+      error: err.code || "internal",
+      message: err.message || "Could not claim phone number.",
     });
   }
 });
