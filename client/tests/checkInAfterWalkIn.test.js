@@ -142,8 +142,10 @@ async function claimWalkIn(db, secretaryUid = "sec1") {
 /**
  * Mirrors checkInReservation: status-path CAS then field patch.
  * Shared by QR and manual entry in production (both call checkInReservation).
+ * @param {{ nullFirst?: boolean }} [options] When nullFirst, simulate RTDB's first
+ *   transaction callback with null (must still succeed using the primed status).
  */
-async function checkInById(db, reservationId, secretaryUid = "sec1") {
+async function checkInById(db, reservationId, secretaryUid = "sec1", options = {}) {
   const row = db.read(`reservations/${reservationId}`);
   if (!row) throw new Error("Reservation not found.");
   const gate = assertCanCheckIn(row);
@@ -151,12 +153,19 @@ async function checkInById(db, reservationId, secretaryUid = "sec1") {
 
   const statusRef = db.ref(`reservations/${reservationId}/status`);
   let abortMessage = null;
+  let sawNullFirst = false;
   const statusResult = await statusRef.transaction((currentStatus) => {
-    if (currentStatus == null) {
+    // Mirror production: first RTDB pass may be null even when the child exists.
+    const injected =
+      options.nullFirst && !sawNullFirst
+        ? ((sawNullFirst = true), null)
+        : currentStatus;
+    const status = injected != null ? injected : row.status;
+    if (status == null) {
       abortMessage = "Reservation not found.";
       return;
     }
-    const transition = applyCheckInStatusTransition(currentStatus);
+    const transition = applyCheckInStatusTransition(status);
     if (!transition.ok) {
       abortMessage = transition.message;
       return;
@@ -207,7 +216,8 @@ describe("check-in after walk-in", () => {
     assert.equal(afterWalkIn.checkedIn, false);
 
     // Manual-code and QR both use this shared check-in-by-id path.
-    const checkedIn = await checkInById(db, parent.reservationId);
+    // nullFirst reproduces the RTDB pitfall that previously threw "Reservation not found."
+    const checkedIn = await checkInById(db, parent.reservationId, "sec1", { nullFirst: true });
     assert.equal(checkedIn.status, "checked_in");
     assert.equal(checkedIn.checkedIn, true);
     assert.equal(checkedIn.checkedInBy, "sec1");
@@ -216,6 +226,18 @@ describe("check-in after walk-in", () => {
     const walkInRow = db.read(`reservations/${walkIn.reservationId}`);
     assert.equal(walkInRow.status, "checked_in");
     assert.equal(walkInRow.source, "walk_in");
+  });
+
+  it("does not report Reservation not found when the status CAS first sees null", async () => {
+    const db = createMemoryDb(seed());
+    const parent = await claimParent(db, "p1");
+    await claimWalkIn(db);
+    await simulateQueueRecalcTouch(db, parent.reservationId, 1);
+
+    await assert.doesNotReject(() =>
+      checkInById(db, parent.reservationId, "sec1", { nullFirst: true })
+    );
+    assert.equal(db.read(`reservations/${parent.reservationId}`).status, "checked_in");
   });
 
   it("checks in a parent reservation after several walk-ins were added", async () => {

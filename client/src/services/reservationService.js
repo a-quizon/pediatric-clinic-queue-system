@@ -611,14 +611,17 @@ const commitReservationIf = async (reservationId, updater, failMessage) => {
     throw new Error("Reservation not found.");
   }
 
+  const primedVal = primed.val();
   const abortMessage = { current: null };
   const result = await runTransaction(resRef, (current) => {
-    if (current == null) {
-      // After a successful prime, null usually means a concurrent delete — abort as not found.
+    // RTDB often invokes the handler with null even when the node exists. Use the
+    // primed snapshot for that pass; a stale write conflicts and retries with server data.
+    const base = current != null ? current : primedVal;
+    if (base == null) {
       abortMessage.current = "Reservation not found.";
       return;
     }
-    return updater(current, abortMessage);
+    return updater(base, abortMessage);
   });
   if (!result.committed || !result.snapshot.exists()) {
     const message =
@@ -673,12 +676,14 @@ export const checkInReservation = async (reservationId, secretaryUid) => {
   let statusResult;
   try {
     statusResult = await runTransaction(statusRef, (currentStatus) => {
-      if (currentStatus == null) {
-        // After priming, null means the status child is gone (or reservation deleted).
+      // First callback is often null even when status exists. Fall back to the value
+      // we just read; if the server differs, RTDB conflicts and retries with truth.
+      const status = currentStatus != null ? currentStatus : existing.status;
+      if (status == null) {
         abortMessage.current = "Reservation not found.";
         return;
       }
-      const transition = applyCheckInStatusTransition(currentStatus);
+      const transition = applyCheckInStatusTransition(status);
       if (!transition.ok) {
         abortMessage.current = transition.message;
         return;
