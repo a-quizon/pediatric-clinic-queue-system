@@ -253,22 +253,15 @@ describe("updateSmsRules audit", () => {
 });
 
 describe("audit action filters for new types", () => {
-  it("includes readable labels for the new secretary actions", () => {
+  it("includes Update and Publish groups for secretary config/schedule actions", () => {
     const values = AUDIT_ACTION_FILTER_OPTIONS.map((opt) => opt.value);
-    assert.ok(values.includes("QUEUE_RULES_UPDATED"));
-    assert.ok(values.includes("SMS_RULES_UPDATED"));
-    assert.ok(values.includes("SCHEDULE_PUBLISHED"));
-    assert.ok(values.includes("SCHEDULE_RANGE_PUBLISHED"));
+    assert.ok(values.includes("update"));
+    assert.ok(values.includes("publish"));
   });
 
-  it("matches the new action filters", () => {
-    assert.equal(
-      matchesAuditActionFilter({ action: "QUEUE_RULES_UPDATED" }, "QUEUE_RULES_UPDATED"),
-      true
-    );
-    assert.equal(
-      matchesAuditActionFilter({ action: "SMS_RULES_UPDATED" }, "SCHEDULE_PUBLISHED"),
-      false
-    );
+  it("matches the new action filters by group", () => {
+    assert.equal(matchesAuditActionFilter({ action: "QUEUE_RULES_UPDATED" }, "update"), true);
+    assert.equal(matchesAuditActionFilter({ action: "SMS_RULES_UPDATED" }, "publish"), false);
+    assert.equal(matchesAuditActionFilter({ action: "SCHEDULE_PUBLISHED" }, "publish"), true);
   });
 });

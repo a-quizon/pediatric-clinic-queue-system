@@ -211,11 +211,11 @@ describe("nextFailedAttemptState", () => {
 });
 
 describe("matchesAuditActionFilter", () => {
-  it("matches specific actions and all", () => {
+  it("matches security group for manual-code actions and all", () => {
     assert.equal(matchesAuditActionFilter({ action: "MANUAL_CODE_FAILED" }, "all"), true);
-    assert.equal(matchesAuditActionFilter({ action: "MANUAL_CODE_FAILED" }, "MANUAL_CODE_FAILED"), true);
-    assert.equal(matchesAuditActionFilter({ action: "MANUAL_CODE_FAILED" }, "MANUAL_CODE_LOCKED"), false);
-    assert.ok(AUDIT_ACTION_FILTER_OPTIONS.some((o) => o.value === "MANUAL_CODE_LOCKED"));
+    assert.equal(matchesAuditActionFilter({ action: "MANUAL_CODE_FAILED" }, "security"), true);
+    assert.equal(matchesAuditActionFilter({ action: "MANUAL_CODE_FAILED" }, "queue"), false);
+    assert.ok(AUDIT_ACTION_FILTER_OPTIONS.some((o) => o.value === "security"));
   });
 });
 

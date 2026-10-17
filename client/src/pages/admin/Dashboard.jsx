@@ -9,8 +9,11 @@ import EmptyState from "../../components/common/EmptyState";
 import { manilaDateString } from "../../utils/manilaDate";
 import { countActiveClinicStaff } from "../../utils/staffCounts";
 import { smsServiceStatusLabel } from "../../utils/systemHealth";
+import { filterAdminAuditLogs } from "../../utils/auditLogFilters";
 
 const PREVIEW_LOG_COUNT = 10;
+/** Fetch extra so excluded floor-ops audits do not empty the recent feed. */
+const PREVIEW_LOG_FETCH = 40;
 const PREVIEW_BRANCH_COUNT = 4;
 
 const formatTime = (timeStr) => {
@@ -228,7 +231,7 @@ export default function Dashboard() {
     const auditRef = query(
       ref(getDb(), "auditLogs"),
       orderByChild("timestamp"),
-      limitToLast(PREVIEW_LOG_COUNT)
+      limitToLast(PREVIEW_LOG_FETCH)
     );
     const unsubscribe = subscribeOnValue(auditRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -238,7 +241,7 @@ export default function Dashboard() {
           ...data[key]
         }));
         logsList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        setRecentLogs(logsList);
+        setRecentLogs(filterAdminAuditLogs(logsList).slice(0, PREVIEW_LOG_COUNT));
       } else {
         setRecentLogs([]);
       }

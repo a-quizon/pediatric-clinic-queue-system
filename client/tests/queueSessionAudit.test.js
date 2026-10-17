@@ -305,17 +305,13 @@ describe("updateScheduleSlotCapacity audit", () => {
 });
 
 describe("session and slot filter labels", () => {
-  it("exposes labels for session and slot actions", () => {
+  it("maps session actions to Queue and slot capacity to Update", () => {
     const values = AUDIT_ACTION_FILTER_OPTIONS.map((opt) => opt.value);
-    for (const action of [
-      "QUEUE_PAUSED",
-      "QUEUE_RESUMED",
-      "QUEUE_CLOSED",
-      "SCHEDULE_COMPLETED",
-      "SLOT_CAPACITY_UPDATED",
-    ]) {
-      assert.ok(values.includes(action), action);
-      assert.equal(matchesAuditActionFilter({ action }, action), true);
+    assert.ok(values.includes("queue"));
+    assert.ok(values.includes("update"));
+    for (const action of ["QUEUE_PAUSED", "QUEUE_RESUMED", "QUEUE_CLOSED", "SCHEDULE_COMPLETED"]) {
+      assert.equal(matchesAuditActionFilter({ action }, "queue"), true);
     }
+    assert.equal(matchesAuditActionFilter({ action: "SLOT_CAPACITY_UPDATED" }, "update"), true);
   });
 });

@@ -7,6 +7,7 @@ import {
 } from "../src/utils/auditCategories.js";
 import {
   AUDIT_CATEGORY_FILTER_OPTIONS,
+  filterAdminAuditLogs,
   formatAuditCategoryLabel,
   matchesAuditActionFilter,
   matchesAuditCategoryFilter,
@@ -26,7 +27,7 @@ const SAMPLE_LOGS = [
 
 function applyFilters(logs, { category = "all", role = "all", action = "all", search = "" } = {}) {
   const term = search.toLowerCase();
-  return logs.filter((log) => {
+  return filterAdminAuditLogs(logs).filter((log) => {
     const matchesSearch =
       !term ||
       (log.actorName && log.actorName.toLowerCase().includes(term)) ||
@@ -84,9 +85,10 @@ describe("matchesAuditCategoryFilter", () => {
   });
 
   it("filters each canonical category to only matching entries", () => {
+    const visible = filterAdminAuditLogs(SAMPLE_LOGS);
     for (const { key } of AUDIT_CATEGORY_DEFS) {
-      const ids = SAMPLE_LOGS.filter((l) => matchesAuditCategoryFilter(l, key)).map((l) => l.id);
-      const expected = SAMPLE_LOGS
+      const ids = visible.filter((l) => matchesAuditCategoryFilter(l, key)).map((l) => l.id);
+      const expected = visible
         .filter((l) => normalizeAuditCategory(l.category) === key)
         .map((l) => l.id);
       assert.deepEqual(ids, expected, `category ${key}`);
@@ -94,7 +96,7 @@ describe("matchesAuditCategoryFilter", () => {
   });
 
   it("matches System Management for both new and legacy stored formats", () => {
-    const ids = SAMPLE_LOGS
+    const ids = filterAdminAuditLogs(SAMPLE_LOGS)
       .filter((l) => matchesAuditCategoryFilter(l, AUDIT_CATEGORIES.SYSTEM_MANAGEMENT))
       .map((l) => l.id);
     assert.deepEqual(ids, [6, 7]);
@@ -118,7 +120,7 @@ describe("formatAuditCategoryLabel", () => {
 });
 
 describe("category filter with other filters", () => {
-  it("combines category with role, action, and search", () => {
+  it("combines category with role, action group, and search", () => {
     const systemOnly = applyFilters(SAMPLE_LOGS, {
       category: "system_management",
       role: "system",
@@ -129,15 +131,23 @@ describe("category filter with other filters", () => {
     const adminRules = applyFilters(SAMPLE_LOGS, {
       category: "system_management",
       role: "admin",
-      action: "QUEUE_RULES_UPDATED",
+      action: "update",
     });
     assert.deepEqual(adminRules.map((l) => l.id), [6]);
 
-    const walkIn = applyFilters(SAMPLE_LOGS, {
+    const createUser = applyFilters(SAMPLE_LOGS, {
+      category: "user_management",
+      role: "admin",
+      action: "create",
+      search: "nurse",
+    });
+    assert.deepEqual(createUser.map((l) => l.id), [1]);
+
+    const walkInHidden = applyFilters(SAMPLE_LOGS, {
       category: "queue_intervention",
       role: "secretary",
       search: "ana",
     });
-    assert.deepEqual(walkIn.map((l) => l.id), [5]);
+    assert.deepEqual(walkInHidden.map((l) => l.id), []);
   });
 });
