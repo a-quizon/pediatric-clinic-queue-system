@@ -3,9 +3,10 @@ const bcrypt = require("bcryptjs");
 const { admin, getDb } = require("./firebaseAdmin");
 const { sendSms, normalizePhoneE164 } = require("./smsService");
 const { findUserByPhoneFlexible } = require("./phoneLookup");
+const { RESEND_COOLDOWN_MS, evaluateResendCooldown } = require("../constants/resendCooldown");
 
 const OTP_TTL_MS = 5 * 60 * 1000;
-const OTP_RESEND_COOLDOWN_MS = 90 * 1000; // 1 minute 30 seconds
+const OTP_RESEND_COOLDOWN_MS = RESEND_COOLDOWN_MS;
 const PHONE_VERIFICATION_TTL_MS = 30 * 60 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
 const BCRYPT_ROUNDS = 10;
@@ -43,13 +44,17 @@ async function findAnyUserByPhone(phoneE164, excludeUid = null) {
   });
 }
 
-async function enforceResendCooldown(otpRef) {
+function evaluateOtpResendCooldown(createdAt, nowMs = Date.now()) {
+  return evaluateResendCooldown(createdAt, nowMs);
+}
+
+async function enforceResendCooldown(otpRef, nowMs = Date.now()) {
   const existing = await otpRef.once("value");
   if (!existing.exists()) return;
   const prev = existing.val() || {};
-  const age = Date.now() - (prev.createdAt || 0);
-  if (age < OTP_RESEND_COOLDOWN_MS) {
-    const waitSec = Math.ceil((OTP_RESEND_COOLDOWN_MS - age) / 1000);
+  const check = evaluateOtpResendCooldown(prev.createdAt, nowMs);
+  if (!check.allowed) {
+    const waitSec = check.retryAfterSeconds;
     const err = new Error(`Please wait ${waitSec}s before requesting another code.`);
     err.code = "rate_limited";
     err.retryAfterSeconds = waitSec;
@@ -439,6 +444,7 @@ module.exports = {
   normalizePhoneE164,
   OTP_TTL_MS,
   OTP_RESEND_COOLDOWN_MS,
+  evaluateOtpResendCooldown,
   PURPOSE_LOGIN,
   PURPOSE_REGISTER,
   PURPOSE_UPDATE,

@@ -15,6 +15,19 @@ function apiBase() {
   return (getPushApiBase() || "").replace(/\/$/, "");
 }
 
+function parseRetryAfter(res, data) {
+  if (data?.retryAfterSeconds != null) {
+    const n = Number(data.retryAfterSeconds);
+    if (Number.isFinite(n) && n > 0) return Math.ceil(n);
+  }
+  const header = res.headers.get("Retry-After");
+  if (header) {
+    const n = Number(header);
+    if (Number.isFinite(n) && n > 0) return Math.ceil(n);
+  }
+  return null;
+}
+
 async function claimPasswordResetSlot(email) {
   const trimmed = String(email || "").trim();
   let res;
@@ -55,6 +68,7 @@ async function claimPasswordResetSlot(email) {
   }
 
   if (!res.ok || data.success === false) {
+    const retryAfterSeconds = parseRetryAfter(res, data);
     const err = new Error(
       data.message ||
         (res.status === 429
@@ -62,6 +76,7 @@ async function claimPasswordResetSlot(email) {
           : "Unable to send reset email. Please try again.")
     );
     err.code = data.error || (res.status === 429 ? "rate_limited" : "request_failed");
+    if (retryAfterSeconds != null) err.retryAfterSeconds = retryAfterSeconds;
     throw err;
   }
 

@@ -67,6 +67,10 @@
       ".read": false,
       ".write": false
     },
+    "emailVerificationLimits": {
+      ".read": false,
+      ".write": false
+    },
     "rateLimits": {
       ".read": false,
       ".write": false

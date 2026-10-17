@@ -17,6 +17,7 @@ const {
 } = require("./otpService");
 const { resolveAccountByIdentifier } = require("./phoneLookup");
 const { claimPasswordResetSlot } = require("./passwordResetLimitService");
+const { claimEmailVerificationSlot } = require("./emailVerificationLimitService");
 const { claimReservationSlot } = require("./claimReservationRuntime");
 const { releaseReservationForCaller } = require("./slotRelease");
 const { publishClinicDays } = require("./schedulePublishRuntime");
@@ -54,6 +55,9 @@ function mapOtpError(err) {
 function sendError(res, err) {
   console.error("[functions/api]", err.message);
   const mapped = mapOtpError(err);
+  if (mapped.status === 429 && mapped.retryAfterSeconds != null) {
+    res.set("Retry-After", String(mapped.retryAfterSeconds));
+  }
   return res.status(mapped.status).json({
     success: false,
     error: mapped.code,
@@ -141,6 +145,17 @@ function createApiApp() {
   app.post("/api/auth/password-reset/claim", async (req, res) => {
     try {
       const result = await claimPasswordResetSlot(req.body?.email);
+      return res.json(result);
+    } catch (err) {
+      return sendError(res, err);
+    }
+  });
+
+  app.post("/api/auth/email-verification/claim", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return undefined;
+      const result = await claimEmailVerificationSlot(decoded.uid);
       return res.json(result);
     } catch (err) {
       return sendError(res, err);

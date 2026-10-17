@@ -11,9 +11,9 @@ import { mapAuthError } from "../../utils/authErrors";
 import { usePasswordValidation } from "../../utils/passwordUtils";
 import { formatName } from "../../utils/stringUtils";
 import { formatToE164 } from "../../utils/phoneUtils";
-import { formatOtpCountdown, startOtpAutofill } from "../../utils/loginIdentifier";
-
-const RESEND_COOLDOWN_SEC = 90;
+import { startOtpAutofill } from "../../utils/loginIdentifier";
+import { RESEND_FLOW } from "../../utils/resendCooldown";
+import { useResendCooldown } from "../../hooks/useResendCooldown";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -42,7 +42,8 @@ export default function Register() {
   const [otpSent, setOtpSent] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [verificationId, setVerificationId] = useState("");
-  const [cooldownLeft, setCooldownLeft] = useState(0);
+  const otpIdentity = formData.number.length === 10 ? formatToE164(formData.number) : "";
+  const { cooldownLeft, beginCooldown, syncCooldown } = useResendCooldown(RESEND_FLOW.OTP, otpIdentity);
   const otpInputRef = useRef(null);
 
   const { isValid: isPasswordValid, errors: passwordErrors, isChecking } = usePasswordValidation(formData.password);
@@ -57,14 +58,6 @@ export default function Register() {
     isPasswordValid &&
     formData.password === formData.confirmPassword &&
     !isChecking;
-
-  useEffect(() => {
-    if (cooldownLeft <= 0) return undefined;
-    const id = setInterval(() => {
-      setCooldownLeft((s) => (s <= 1 ? 0 : s - 1));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [cooldownLeft]);
 
   useEffect(() => {
     if (!showConsentModal || !modalRef.current) return;
@@ -147,7 +140,7 @@ export default function Register() {
       setPhoneVerified(false);
       setVerificationId("");
       setFormData((prev) => ({ ...prev, otp: "" }));
-      setCooldownLeft(RESEND_COOLDOWN_SEC);
+      beginCooldown();
       toast.success("Verification code sent via SMS.");
       setTimeout(() => otpInputRef.current?.focus(), 50);
     } catch (err) {
@@ -156,7 +149,7 @@ export default function Register() {
           ? err.message
           : err.message || "Failed to send OTP, please try again."
       );
-      if (err.retryAfterSeconds) setCooldownLeft(err.retryAfterSeconds);
+      if (err.retryAfterSeconds) syncCooldown(err.retryAfterSeconds);
     } finally {
       setOtpBusy(false);
     }
@@ -378,7 +371,7 @@ export default function Register() {
                   <p className="pq-ok-text">Phone verified. You can continue registration.</p>
                 ) : cooldownLeft > 0 ? (
                   <p className="text-xs font-medium pq-muted">
-                    Resend code in {formatOtpCountdown(cooldownLeft)}
+                    Resend in {cooldownLeft}s
                   </p>
                 ) : otpSent ? (
                   <button

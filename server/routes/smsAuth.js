@@ -42,6 +42,9 @@ function mapOtpError(err) {
 function sendError(res, err) {
   console.error("[smsAuth]", err.message);
   const mapped = mapOtpError(err);
+  if (mapped.status === 429 && mapped.retryAfterSeconds != null) {
+    res.set("Retry-After", String(mapped.retryAfterSeconds));
+  }
   return res.status(mapped.status).json({
     success: false,
     error: mapped.code,

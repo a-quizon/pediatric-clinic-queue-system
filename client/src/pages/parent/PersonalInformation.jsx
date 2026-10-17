@@ -6,7 +6,7 @@ import { sendSmsOtp, verifySmsOtp, consumePhoneVerification } from "../../servic
 import { User, Mail, Phone, Save, Lock, Shield, Key, Eye, EyeOff, KeyRound, CheckCircle2 } from "lucide-react";
 import { handlePasswordChangeRequest, usePasswordValidation } from "../../utils/passwordUtils";
 import { formatToE164, parseToLocal } from "../../utils/phoneUtils";
-import { formatOtpCountdown, startOtpAutofill } from "../../utils/loginIdentifier";
+import { startOtpAutofill } from "../../utils/loginIdentifier";
 import { useNavigate } from "react-router-dom";
 import InformationModal from "../../components/common/InformationModal";
 import ConfirmationModal from "../../components/common/ConfirmationModal";
@@ -14,8 +14,8 @@ import DeleteAccountModal from "../../components/common/DeleteAccountModal";
 import { mapAuthError } from "../../utils/authErrors";
 import toast from "react-hot-toast";
 import { useHistoryOverlay } from "../../hooks/useHistoryOverlay";
-
-const RESEND_COOLDOWN_SEC = 90;
+import { RESEND_FLOW } from "../../utils/resendCooldown";
+import { useResendCooldown } from "../../hooks/useResendCooldown";
 
 export default function PersonalInformation() {
   const { user, updateContextUser } = useAuth();
@@ -28,9 +28,10 @@ export default function PersonalInformation() {
   const [otpSent, setOtpSent] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [verificationId, setVerificationId] = useState("");
-  const [cooldownLeft, setCooldownLeft] = useState(0);
   const [otpBusy, setOtpBusy] = useState(false);
   const otpInputRef = useRef(null);
+  const otpIdentity = phone.length === 10 ? formatToE164(phone) : "";
+  const { cooldownLeft, beginCooldown, syncCooldown } = useResendCooldown(RESEND_FLOW.OTP, otpIdentity);
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
@@ -82,16 +83,7 @@ export default function PersonalInformation() {
     setOtpSent(false);
     setPhoneVerified(false);
     setVerificationId("");
-    setCooldownLeft(0);
   }, [user]);
-
-  useEffect(() => {
-    if (cooldownLeft <= 0) return undefined;
-    const id = setInterval(() => {
-      setCooldownLeft((s) => (s <= 1 ? 0 : s - 1));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [cooldownLeft]);
 
   useEffect(() => {
     if (!otpSent || phoneVerified || !phoneChanged) return undefined;
@@ -144,7 +136,7 @@ export default function PersonalInformation() {
       setPhoneVerified(false);
       setVerificationId("");
       setOtp("");
-      setCooldownLeft(RESEND_COOLDOWN_SEC);
+      beginCooldown();
       toast.success("Verification code sent via SMS.");
       setTimeout(() => otpInputRef.current?.focus(), 50);
     } catch (err) {
@@ -154,7 +146,7 @@ export default function PersonalInformation() {
           : err.message || "Failed to send OTP, please try again.";
       setError(message);
       toast.error(message);
-      if (err.retryAfterSeconds) setCooldownLeft(err.retryAfterSeconds);
+      if (err.retryAfterSeconds) syncCooldown(err.retryAfterSeconds);
     } finally {
       setOtpBusy(false);
     }
@@ -219,7 +211,6 @@ export default function PersonalInformation() {
       if (phoneChanged) {
         setOriginalPhoneLocal(phone);
         resetPhoneVerification();
-        setCooldownLeft(0);
       }
       setSuccessModalOpen(true);
     } catch (err) {
@@ -409,7 +400,7 @@ export default function PersonalInformation() {
                   </p>
                 ) : cooldownLeft > 0 ? (
                   <p className="text-xs font-semibold pq-muted">
-                    Resend code in {formatOtpCountdown(cooldownLeft)}
+                    Resend in {cooldownLeft}s
                   </p>
                 ) : otpSent ? (
                   <button

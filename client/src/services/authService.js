@@ -1,10 +1,11 @@
-import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendEmailVerification, deleteUser } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider, deleteUser } from "firebase/auth";
 import { ref, set, update, get } from "firebase/database";
 
 import { auth } from "../firebase/auth";
 import { getDb } from "../firebase/database";
 import { cleanupPushSubscriptionOnLogout } from "./pushService";
 import { closeActiveReservationsForParent } from "./reservationService";
+import { sendVerificationEmail } from "./emailVerificationService";
 
 let accountLifecycleInProgress = false;
 
@@ -78,10 +79,10 @@ export const registerUser = async (
     }
 
     try {
-      await sendEmailVerification(user);
+      await sendVerificationEmail(user);
     } catch (err) {
       console.error("Could not send verification email:", err);
-      throw { code: 'auth/verification-email-failed', originalError: err };
+      throw { code: 'auth/verification-email-failed', originalError: err, retryAfterSeconds: err?.retryAfterSeconds };
     }
 
   return user;
