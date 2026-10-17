@@ -140,44 +140,21 @@ async function claimWalkIn(db, secretaryUid = "sec1") {
 }
 
 /**
- * Mirrors checkInReservation: status-path CAS then field patch.
- * Shared by QR and manual entry in production (both call checkInReservation).
- * @param {{ nullFirst?: boolean }} [options] When nullFirst, simulate RTDB's first
- *   transaction callback with null (must still succeed using the primed status).
+ * Mirrors production checkInReservation: read → gate → child-field update.
+ * Shared by QR and manual entry (both call checkInReservation).
  */
-async function checkInById(db, reservationId, secretaryUid = "sec1", options = {}) {
+async function checkInById(db, reservationId, secretaryUid = "sec1") {
   const row = db.read(`reservations/${reservationId}`);
   if (!row) throw new Error("Reservation not found.");
   const gate = assertCanCheckIn(row);
   if (!gate.ok) throw new Error(gate.message);
 
-  const statusRef = db.ref(`reservations/${reservationId}/status`);
-  let abortMessage = null;
-  let sawNullFirst = false;
-  const statusResult = await statusRef.transaction((currentStatus) => {
-    // Mirror production: first RTDB pass may be null even when the child exists.
-    const injected =
-      options.nullFirst && !sawNullFirst
-        ? ((sawNullFirst = true), null)
-        : currentStatus;
-    const status = injected != null ? injected : row.status;
-    if (status == null) {
-      abortMessage = "Reservation not found.";
-      return;
-    }
-    const transition = applyCheckInStatusTransition(status);
-    if (!transition.ok) {
-      abortMessage = transition.message;
-      return;
-    }
-    return transition.nextStatus;
-  });
-  if (!statusResult.committed) {
-    throw new Error(abortMessage || "Temporary error updating this reservation. Please try again.");
-  }
+  const transition = applyCheckInStatusTransition(row.status);
+  if (!transition.ok) throw new Error(transition.message);
 
   const now = Date.now();
   await db.ref(`reservations/${reservationId}`).update({
+    status: transition.nextStatus,
     checkedIn: true,
     checkedInAt: now,
     checkedInBy: secretaryUid,
@@ -216,8 +193,7 @@ describe("check-in after walk-in", () => {
     assert.equal(afterWalkIn.checkedIn, false);
 
     // Manual-code and QR both use this shared check-in-by-id path.
-    // nullFirst reproduces the RTDB pitfall that previously threw "Reservation not found."
-    const checkedIn = await checkInById(db, parent.reservationId, "sec1", { nullFirst: true });
+    const checkedIn = await checkInById(db, parent.reservationId, "sec1");
     assert.equal(checkedIn.status, "checked_in");
     assert.equal(checkedIn.checkedIn, true);
     assert.equal(checkedIn.checkedInBy, "sec1");
@@ -228,15 +204,14 @@ describe("check-in after walk-in", () => {
     assert.equal(walkInRow.source, "walk_in");
   });
 
-  it("does not report Reservation not found when the status CAS first sees null", async () => {
+  it("succeeds even when queue recalc touches the parent node first", async () => {
     const db = createMemoryDb(seed());
     const parent = await claimParent(db, "p1");
     await claimWalkIn(db);
     await simulateQueueRecalcTouch(db, parent.reservationId, 1);
+    await simulateQueueRecalcTouch(db, parent.reservationId, 1);
 
-    await assert.doesNotReject(() =>
-      checkInById(db, parent.reservationId, "sec1", { nullFirst: true })
-    );
+    await assert.doesNotReject(() => checkInById(db, parent.reservationId));
     assert.equal(db.read(`reservations/${parent.reservationId}`).status, "checked_in");
   });
 
@@ -307,24 +282,22 @@ describe("check-in after walk-in", () => {
     assert.equal(second.checkedInBy, first.checkedInBy);
   });
 
-  it("double-submit only one status transition wins", async () => {
+  it("retry after a successful check-in does not create a duplicate state", async () => {
     const db = createMemoryDb(seed());
     const parent = await claimParent(db, "p1");
 
-    const results = await Promise.allSettled([
-      checkInById(db, parent.reservationId, "sec1"),
-      checkInById(db, parent.reservationId, "sec1"),
-    ]);
+    await checkInById(db, parent.reservationId, "sec1");
+    const first = db.read(`reservations/${parent.reservationId}`);
 
-    const fulfilled = results.filter((r) => r.status === "fulfilled");
-    const rejected = results.filter((r) => r.status === "rejected");
-    assert.equal(fulfilled.length, 1);
-    assert.equal(rejected.length, 1);
-    assert.match(rejected[0].reason.message, /already checked in/i);
+    await assert.rejects(
+      () => checkInById(db, parent.reservationId, "sec1"),
+      (err) => /already checked in/i.test(err.message)
+    );
 
-    const row = db.read(`reservations/${parent.reservationId}`);
-    assert.equal(row.status, "checked_in");
-    assert.equal(row.checkedIn, true);
+    const second = db.read(`reservations/${parent.reservationId}`);
+    assert.equal(second.status, "checked_in");
+    assert.equal(second.checkedInAt, first.checkedInAt);
+    assert.equal(second.checkedInBy, first.checkedInBy);
   });
 
   it("each failure case returns its own message, not the generic catch-all", () => {

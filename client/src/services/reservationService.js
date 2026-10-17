@@ -633,8 +633,10 @@ const commitReservationIf = async (reservationId, updater, failMessage) => {
 };
 
 /**
- * Check in by reservation id only. Uses a status-path CAS so concurrent queue
- * recalculation (queueOrder / aheadOfYou child writes) cannot abort the whole node.
+ * Check in by reservation id only.
+ * Uses a child-field `update()` (not a whole-node or status-path transaction) so
+ * concurrent queue recalculation cannot abort check-in, and RTDB's null-first
+ * transaction callback cannot false-fail as "Reservation not found."
  * QR scan and manual code entry both call this after code→id lookup.
  */
 export const checkInReservation = async (reservationId, secretaryUid) => {
@@ -644,7 +646,6 @@ export const checkInReservation = async (reservationId, secretaryUid) => {
   }
 
   const resRef = ref(getDb(), `reservations/${reservationId}`);
-  const statusRef = ref(getDb(), `reservations/${reservationId}/status`);
 
   let existing;
   try {
@@ -664,46 +665,18 @@ export const checkInReservation = async (reservationId, secretaryUid) => {
     throw new Error(gate.message);
   }
 
-  // Prime the status child so the transaction is unlikely to start from a null guess.
-  try {
-    await get(statusRef);
-  } catch (error) {
-    console.error("[checkInReservation] status prime failed", { reservationId, error });
-    throw new Error(TEMPORARY_RESERVATION_UPDATE_MESSAGE);
-  }
-
-  const abortMessage = { current: null };
-  let statusResult;
-  try {
-    statusResult = await runTransaction(statusRef, (currentStatus) => {
-      // First callback is often null even when status exists. Fall back to the value
-      // we just read; if the server differs, RTDB conflicts and retries with truth.
-      const status = currentStatus != null ? currentStatus : existing.status;
-      if (status == null) {
-        abortMessage.current = "Reservation not found.";
-        return;
-      }
-      const transition = applyCheckInStatusTransition(status);
-      if (!transition.ok) {
-        abortMessage.current = transition.message;
-        return;
-      }
-      return transition.nextStatus;
-    });
-  } catch (error) {
-    console.error("[checkInReservation] status CAS failed", { reservationId, error });
-    throw new Error(TEMPORARY_RESERVATION_UPDATE_MESSAGE);
-  }
-
-  if (!statusResult.committed) {
-    const message = abortMessage.current || TEMPORARY_RESERVATION_UPDATE_MESSAGE;
-    console.error("[checkInReservation] status CAS aborted", { reservationId, message });
-    throw new Error(message);
+  // Re-validate status immediately before write (covers a concurrent check-in).
+  const transition = applyCheckInStatusTransition(existing.status);
+  if (!transition.ok) {
+    throw new Error(transition.message);
   }
 
   const now = Date.now();
   try {
+    // Patch only check-in fields — does not replace the node, so queueOrder /
+    // aheadOfYou / queueState writes from recalculateEntireQueue do not conflict.
     await update(resRef, {
+      status: transition.nextStatus,
       checkedIn: true,
       checkedInAt: now,
       checkedInBy: secretaryUid,
@@ -713,12 +686,28 @@ export const checkInReservation = async (reservationId, secretaryUid) => {
       penaltyTimerClearedAt: now,
     });
   } catch (error) {
-    // Status already flipped; surface a retryable error without inventing "already checked in".
-    console.error("[checkInReservation] field patch failed after status CAS", {
-      reservationId,
-      error,
-    });
+    console.error("[checkInReservation] update failed", { reservationId, error });
     throw new Error(TEMPORARY_RESERVATION_UPDATE_MESSAGE);
+  }
+
+  // Idempotent confirm: if a parallel writer won, surface the true state.
+  try {
+    const confirm = await get(resRef);
+    if (confirm.exists()) {
+      const latest = confirm.val();
+      if (latest.status === "checked_in" || latest.checkedIn) {
+        const reservation = {
+          id: reservationId,
+          ...latest,
+          status: "checked_in",
+          checkedIn: true,
+        };
+        await recalculateQueueBestEffort(reservation.scheduleId);
+        return reservation;
+      }
+    }
+  } catch (error) {
+    console.warn("[checkInReservation] confirm read failed", error?.message || error);
   }
 
   const reservation = { id: reservationId, ...existing, status: "checked_in", checkedIn: true };
