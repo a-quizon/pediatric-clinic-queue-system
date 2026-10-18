@@ -398,31 +398,29 @@ export const resetStaffPasswordDirect = async (uid) => {
       },
       body: JSON.stringify({ uid }),
     });
-
-    if (res.ok) {
+    const isJson = (res.headers.get("content-type") || "").includes("application/json");
+    if (res.ok && isJson) {
       result = await res.json();
-    } else {
+    } else if (isJson && SERVER_CLIENT_ERRORS.has(res.status)) {
       const body = await res.json().catch(() => ({}));
-      if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 404) {
-        const err = new Error(body.error || "Failed to reset staff password.");
-        err.status = res.status;
-        err.code = res.status === 403 ? "permission-denied" : "request_failed";
-        throw err;
-      }
-    }
-  } catch (err) {
-    if (err instanceof TypeError) {
-      result = null;
-    } else {
+      const err = new Error(body.error || "Failed to reset staff password.");
+      err.status = res.status;
+      err.code = res.status === 403 ? "permission-denied" : "request_failed";
       throw err;
     }
+  } catch (err) {
+    if (!(err instanceof TypeError)) throw err;
   }
 
   if (!result?.temporaryPassword) {
     const functions = getFunctions(app, "asia-southeast1");
     const callReset = httpsCallable(functions, "resetSecretaryPassword");
-    const response = await callReset({ uid });
-    result = response?.data || response;
+    try {
+      const response = await callReset({ uid });
+      result = response?.data || response;
+    } catch (err) {
+      throw new Error(err?.message || "Failed to reset staff password.", { cause: err });
+    }
   }
 
   if (!result?.temporaryPassword) {

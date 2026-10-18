@@ -1,6 +1,6 @@
 /**
  * HTTPS Express app for Hosting /api/** rewrites.
- * Mirrors server SMS auth, identifier resolve, and password-reset claim endpoints.
+ * Mirrors server SMS auth, identifier resolve, password-reset claim, and admin user-management endpoints.
  */
 const express = require("express");
 const cors = require("cors");
@@ -582,6 +582,130 @@ function createApiApp() {
         success: false,
         error: "internal",
         message: err.message || "Could not notify parents.",
+      });
+    }
+  });
+
+  app.post("/api/admin/delete-user", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const { deleteUserAccount } = require("./deleteUserAccountRuntime");
+      await runForToken(decoded, () =>
+        deleteUserAccount({
+          admin,
+          callerUid: decoded.uid,
+          targetUid: req.body?.uid,
+        })
+      );
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("[functions/api] admin/delete-user:", err.message);
+      const status = err.status || 500;
+      return res.status(status).json({
+        success: false,
+        error: err.message || "Failed to delete user.",
+      });
+    }
+  });
+
+  app.post("/api/admin/update-user", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const { updateUserAccount } = require("./updateUserAccountRuntime");
+      await runForToken(decoded, () =>
+        updateUserAccount({
+          admin,
+          callerUid: decoded.uid,
+          targetUid: req.body?.uid,
+          updates: req.body?.updates,
+        })
+      );
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("[functions/api] admin/update-user:", err.message);
+      const status = err.status || 500;
+      return res.status(status).json({
+        success: false,
+        error: err.message || "Failed to update user.",
+      });
+    }
+  });
+
+  app.post("/api/admin/create-doctor", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const { createDoctorAccount } = require("./createDoctorAccountRuntime");
+      const result = await runForToken(decoded, () =>
+        createDoctorAccount({
+          admin,
+          callerUid: decoded.uid,
+          payload: req.body,
+        })
+      );
+      return res.json(result);
+    } catch (err) {
+      console.error("[functions/api] admin/create-doctor:", err.message);
+      const status = err.status || 500;
+      return res.status(status).json({
+        success: false,
+        error: err.message || "Failed to create doctor account.",
+      });
+    }
+  });
+
+  app.post("/api/admin/doctor-status", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const { setDoctorAccountStatus } = require("./doctorStatusRuntime");
+      const result = await runForToken(decoded, () =>
+        setDoctorAccountStatus({
+          admin,
+          callerUid: decoded.uid,
+          targetUid: req.body?.uid,
+          status: req.body?.status,
+        })
+      );
+      return res.json(result);
+    } catch (err) {
+      console.error("[functions/api] admin/doctor-status:", err.message);
+      const status = err.status || 500;
+      return res.status(status).json({
+        success: false,
+        error: err.message || "Failed to change doctor status.",
+      });
+    }
+  });
+
+  app.post("/api/admin/reset-secretary-password", async (req, res) => {
+    try {
+      const decoded = await requireAuth(req, res);
+      if (!decoded) return;
+      const { resetSecretaryPassword } = require("./resetSecretaryPasswordRuntime");
+      const result = await runForToken(decoded, () =>
+        resetSecretaryPassword({
+          admin,
+          callerUid: decoded.uid,
+          targetUid: req.body?.uid,
+        })
+      );
+      // temporaryPassword is returned once to the authenticated admin; never logged.
+      return res.json({
+        success: true,
+        uid: result.uid,
+        temporaryPassword: result.temporaryPassword,
+        staffName: result.staffName,
+        role: result.role,
+      });
+    } catch (err) {
+      console.error("[functions/api] admin/reset-secretary-password:", err.message);
+      const status = err.status || 500;
+      return res.status(status).json({
+        success: false,
+        error: err.message || "Failed to reset staff password.",
       });
     }
   });
