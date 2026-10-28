@@ -1,11 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { subscribeToAllSchedules } from '../../services/scheduleService';
+import { subscribeToAllSchedules, subscribeToUpcomingPublishedSchedules } from '../../services/scheduleService';
 import { subscribeToParentReservations, subscribeToScheduleReservations, ACTIVE_RESERVATION_STATUSES } from '../../services/reservationService';
+import { getBranchConfigurations } from '../../services/branchConfigurationService';
 import notificationService, { NOTIFICATION_EVENTS } from '../../services/notificationService';
 import { evaluatePositionEvents } from '../../services/positionEventEngine';
 import { cleanupOwnStaffNotifications } from '../../services/notificationCenterService';
 import { safeUnsub } from '../../firebase/rtdbSubscribe';
+import { buildSecretaryRecentActivities } from '../../utils/secretaryRecentActivity';
+import { pickUpcomingPublishedSchedule } from '../../utils/upcomingSchedule';
+import { branchesMatch } from '../../utils/stringUtils';
+import { manilaDateString, manilaNowMinutes } from '../../utils/manilaDate';
 
 /**
  * Global Notification Observer
@@ -20,6 +25,99 @@ export default function NotificationObserver() {
       cleanupOwnStaffNotifications();
     }
   }, [role]);
+
+  // Secretary: in-app toasts for the same events shown in Dashboard Recent Activity (no push).
+  useEffect(() => {
+    if (!user?.uid || role !== 'secretary') return undefined;
+
+    let cancelled = false;
+    let branchConfig = null;
+    let latestSchedules = [];
+    let unsubSchedules = () => {};
+    let unsubReservations = () => {};
+    let activeScheduleId = null;
+    let isInitialReservationsLoad = true;
+    const seenActivityKeys = new Set();
+
+    const syncReservationListener = (scheduleId) => {
+      safeUnsub(unsubReservations);
+      unsubReservations = () => {};
+      activeScheduleId = scheduleId || null;
+      isInitialReservationsLoad = true;
+
+      if (!scheduleId) return;
+
+      unsubReservations = subscribeToScheduleReservations(scheduleId, (reservations) => {
+        const activities = buildSecretaryRecentActivities(reservations || []);
+
+        if (isInitialReservationsLoad) {
+          activities.forEach((act) => seenActivityKeys.add(act.key));
+          isInitialReservationsLoad = false;
+          return;
+        }
+
+        activities.forEach((act) => {
+          if (seenActivityKeys.has(act.key)) return;
+          seenActivityKeys.add(act.key);
+          notificationService.notify(NOTIFICATION_EVENTS.SECRETARY_ACTIVITY, {
+            dedupeKey: `secretary_activity_${act.key}`,
+            customTitle: act.title,
+            customMessage: act.text,
+            severity: act.severity,
+            skipPush: true,
+            showToast: true,
+          });
+        });
+      });
+    };
+
+    const refreshUpcoming = () => {
+      if (cancelled) return;
+      const upcoming = pickUpcomingPublishedSchedule({
+        schedules: latestSchedules,
+        user,
+        branch: branchConfig,
+        today: manilaDateString(),
+        nowMinutes: manilaNowMinutes(),
+      });
+      const nextId = upcoming?.schedule?.id || null;
+      if (nextId !== activeScheduleId) {
+        syncReservationListener(nextId);
+      }
+    };
+
+    const tickMs = 60 * 1000;
+    const interval = setInterval(refreshUpcoming, tickMs);
+
+    (async () => {
+      try {
+        const branches = await getBranchConfigurations();
+        if (cancelled) return;
+        branchConfig =
+          branches.find(
+            (b) =>
+              (user.assignedBranchId && b.id === user.assignedBranchId) ||
+              branchesMatch(b.name, user.assignedBranch)
+          ) || null;
+      } catch {
+        branchConfig = null;
+      }
+
+      if (cancelled) return;
+
+      unsubSchedules = subscribeToUpcomingPublishedSchedules(manilaDateString(), (schedules) => {
+        latestSchedules = schedules || [];
+        refreshUpcoming();
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      safeUnsub(unsubSchedules);
+      safeUnsub(unsubReservations);
+    };
+  }, [user?.uid, user?.assignedBranch, user?.assignedBranchId, role]);
 
   // In-app fallback for admin suspicious-account alerts (when push is denied / offline).
   useEffect(() => {

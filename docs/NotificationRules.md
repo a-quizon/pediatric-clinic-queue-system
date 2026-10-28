@@ -41,6 +41,7 @@ The system uses strict `NOTIFICATION_EVENTS` as the single source of truth for t
 | **FORFEITED** | Patient did not check in before the late timer expired, or Move-Back is 0. | Secretary Penalize or timer auto-expiry. | Specific Parent |
 | **RESERVATION_CANCELLED_BY_CLINIC** | The clinic closed the reserved day. The parent rebooks on another open day. | Secretary or doctor closes that date while the reservation is still `reserved` or `waiting`. | Specific Parent |
 | **SUSPICIOUS_ACCOUNT** | Parent flagged for repeated no-shows (no QR validation after past clinic dates). Deep link opens Audit Logs. | Cloud Function detector (forfeit/expiry or nightly 20:00 Manila); Express mirror on forfeit/expiry. | Active System Admins (Web Push + `adminAlerts` toast fallback) |
+| **SECRETARY_ACTIVITY** | In-app toast mirroring secretary Dashboard Recent Activity (reserve, cancel, check-in, etc.). Never push / Notification Center. | Reservation timestamp transitions on the secretary’s upcoming published schedule while the secretary app is open. | Assigned-branch Secretary (toast only) |
 
 ---
 
@@ -50,8 +51,8 @@ Parents are the **primary** recipients of persistent Notification Center records
 ---
 
 ## 5. Secretary Notifications
-**None.** 
-The Secretary does not receive any persistent database notifications or push notifications. They only receive transient, local, browser-level Toast messages (e.g., "Schedule Published", "Penalty Applied successfully") when they perform direct actions on the dashboard.
+**In-app activity toasts only (no push, no Notification Center).**
+The Secretary does not receive persistent database notifications or Web Push. While signed in with the app open, `NotificationObserver` watches the same upcoming published schedule as Dashboard **Recent Activity** and shows a local toast whenever a new activity row would appear (new reservation, check-in, sent to doctor, consultation completed, cancel, forfeit, penalty). Toast copy matches the Recent Activity feed. Secretaries also still get transient success/error toasts for actions they perform themselves (e.g., "Schedule Published", "Penalty Applied successfully").
 
 ---
 
@@ -63,7 +64,7 @@ Routine clinic events do not notify the doctor, and the doctor receives no Web P
 
 ## 7. Staff Notifications
 **Persistent Notification Center remains parent-only.**
-Secretaries and doctors receive local toasts only.
+Secretaries and doctors receive local toasts only. Secretaries additionally receive `SECRETARY_ACTIVITY` toasts (Section 5) while the app is open; doctors do not.
 
 **System Admin exceptions (no clinical pushes).** Admins receive no routine clinic notifications. Two admin-only alert types exist:
 
@@ -173,6 +174,7 @@ When modifying the Notification System, developers must verify the following con
 - [ ] ✓ Push subscription for this device is wiped from the database upon logout.
 - [ ] ✓ Closed-browser push still delivers via `/sw.js` + `web-push`.
 - [ ] ✓ Role filtering correctly blocks Doctors and Secretaries from receiving persistent notifications.
+- [ ] ✓ Secretary `SECRETARY_ACTIVITY` toasts match Dashboard Recent Activity copy and never send Web Push or write `notifications/{uid}`.
 - [ ] ✓ `SUSPICIOUS_ACCOUNT` alerts reach active System Admins only (`adminAlerts/{adminUid}` + admin Web Push, link `/admin/audit-logs?highlight={logId}`); the doctor receives no alert or push.
 - [ ] ✓ `NEARING_TURN` SMS threshold and templates come from `systemConfiguration/{branchId}/sms` (defaults when missing). Push/in-app position text ignores that threshold and uses the fixed waiting-line map (1/2/3).
 - [ ] ✓ `NEARING_TURN` SMS sends once per parent account, ever (`users/{parentId}/nearTurnSms`, claimed by transaction, set only after the provider accepts; failed sends release the claim). A later reservation, another child, another branch, or a post-penalty re-queue does not get a second SMS. SMS fires **only when the queue starts**, for tickets with `0 < aheadOfYou <=` that branch’s count (not when already first; not on later position changes), via reservation claim `nearTurnSmsSent` and SMS-only delivery.

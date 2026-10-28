@@ -5,6 +5,7 @@ import { getBranchConfigurations } from "../../services/branchConfigurationServi
 import { subscribeToScheduleReservations } from "../../services/reservationService";
 import { subscribeToUpcomingPublishedSchedules } from "../../services/scheduleService";
 import { getReservationChildDisplayName } from "../../utils/reservationPatients";
+import { buildSecretaryRecentActivities } from "../../utils/secretaryRecentActivity";
 import ManageQueue from "./ManageQueue";
 import { branchesMatch } from "../../utils/stringUtils";
 import { formatManilaLong, manilaDateString, manilaNowMinutes } from "../../utils/manilaDate";
@@ -123,21 +124,7 @@ export default function Dashboard() {
   const nextWaiting = sortedWaitingQueue.find(r => ["reserved", "waiting", "validation_open", "waiting_for_window"].includes(r.status));
   const currentWithDoctor = withDoctorPatients[0];
 
-  let activities = [];
-  activeReservations.forEach(res => {
-    const name = getReservationChildDisplayName(res, "Patient");
-    
-    if (res.createdAt) activities.push({ time: res.createdAt, text: `Parent/Guardian reserved a slot.` });
-    if (res.checkedInAt) activities.push({ time: res.checkedInAt, text: `${name} checked in` });
-    if (res.sentToDoctorAt) activities.push({ time: res.sentToDoctorAt, text: `${name} sent to Doctor` });
-    if (res.consultationCompletedAt) activities.push({ time: res.consultationCompletedAt, text: `${name} consultation completed` });
-    if (res.cancelledAt) activities.push({ time: res.cancelledAt, text: `${name} cancelled reservation` });
-    if (res.forfeitedAt) activities.push({ time: res.forfeitedAt, text: `${name} was forfeited` });
-    if (res.penalizedAt || res.lastPenalizedAt) activities.push({ time: res.lastPenalizedAt || res.penalizedAt, text: `${name} penalized` });
-  });
-
-  activities.sort((a, b) => b.time - a.time);
-  const recentActivities = activities.slice(0, 15);
+  const recentActivities = buildSecretaryRecentActivities(activeReservations).slice(0, 15);
 
   const formatTime = (timestamp) => {
     if (!timestamp) return "";
@@ -283,8 +270,8 @@ export default function Dashboard() {
                   <p className="text-xs pq-muted mt-1 max-w-[180px] mx-auto">Clinic activity will appear here throughout the day.</p>
                 </div>
               ) : (
-                recentActivities.map((act, i) => (
-                  <div key={`${act.time}-${i}`} className="pq-row items-start">
+                recentActivities.map((act) => (
+                  <div key={act.key} className="pq-row items-start">
                     <div className="min-w-0">
                       <p className="text-[10px] font-extrabold pq-faint uppercase tracking-wider mb-0.5">{formatTime(act.time)}</p>
                       <p className="text-sm font-medium break-words">{act.text}</p>

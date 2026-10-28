@@ -27,6 +27,8 @@ export const NOTIFICATION_EVENTS = {
   RESERVATION_CANCELLED_BY_CLINIC: 'RESERVATION_CANCELLED_BY_CLINIC',
   CHECK_IN_REQUESTED: 'CHECK_IN_REQUESTED',
   SUSPICIOUS_ACCOUNT: 'SUSPICIOUS_ACCOUNT',
+  /** Secretary in-app toast only — mirrors Dashboard Recent Activity; never push / Notification Center. */
+  SECRETARY_ACTIVITY: 'SECRETARY_ACTIVITY',
 };
 
 /**
@@ -141,6 +143,12 @@ const NOTIFICATION_CONFIG = {
     message: 'A parent account was flagged for repeated reservation no-shows. Review Audit Logs.',
     duration: 6000,
   },
+  [NOTIFICATION_EVENTS.SECRETARY_ACTIVITY]: {
+    type: 'info',
+    title: 'Recent Activity',
+    message: 'Clinic activity updated.',
+    duration: 5000,
+  },
 };
 
 // In-memory cache for deduplication during the active JS session
@@ -210,7 +218,7 @@ class NotificationService {
 
     const body = context.customMessage || config.message;
     const title = context.customTitle || config.title;
-    const severity = config.type;
+    const severity = context.severity || config.type;
     const duration = config.duration || 3000;
 
     // Step 1: Standardized Notification Object conforming to system schema
@@ -261,10 +269,13 @@ class NotificationService {
     // Step 4: Push Notification Channel
     // Closed-browser delivery is owned by the Express RTDB listeners / Cloud Functions.
     // This client call is a fallback for when the page is open and the API is reachable.
-    try {
-      this.dispatchPushNotification(eventId, notificationObject, context);
-    } catch (pushError) {
-      console.error("[NotificationService] Push delivery exception:", pushError);
+    // Secretary activity toasts never push (no parentId; skipPush also honored).
+    if (!context.skipPush) {
+      try {
+        this.dispatchPushNotification(eventId, notificationObject, context);
+      } catch (pushError) {
+        console.error("[NotificationService] Push delivery exception:", pushError);
+      }
     }
 
     return true;

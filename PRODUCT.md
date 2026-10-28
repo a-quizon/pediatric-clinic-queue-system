@@ -48,7 +48,7 @@ Used across physical pediatric clinic branches (product defaults include Angeles
 - Secretary branch isolation; one active doctor account.
 - No physical deletes of reservations or audit history.
 - Parent cannot cancel after check-in.
-- Parents only receive persistent notifications; staff get local toasts.
+- Parents only receive persistent notifications; staff get local toasts (secretaries also get in-app toasts mirroring Dashboard Recent Activity — no push).
 - Business logic belongs in `client/src/services/`; UI must not own domain rules.
 - Stack is the existing React 19 + Vite + Firebase Auth/RTDB + Express/Cloud Functions push path (JavaScript, not TypeScript).
 
