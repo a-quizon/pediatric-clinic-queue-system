@@ -9,14 +9,15 @@ import {
 
 /**
  * On the native APK, request the OS notification permission if it was never decided
- * (cold start with an existing parent session). Does not render UI.
+ * (cold start with an existing parent or secretary session). Does not render UI.
  */
 export default function PushPermissionGate() {
   const { user, loading } = useAuth();
   const attemptedRef = useRef(false);
 
   useEffect(() => {
-    if (loading || !user || user.role !== "parent") return;
+    if (loading || !user) return;
+    if (user.role !== "parent" && user.role !== "secretary") return;
     if (!Capacitor.isNativePlatform()) return;
 
     const run = async () => {

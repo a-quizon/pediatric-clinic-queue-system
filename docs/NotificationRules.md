@@ -11,7 +11,7 @@ The Notification System keeps users informed of real-time clinic events and queu
 
 ## 2. Notification Architecture
 - **Notification Entity**: A normalized JSON object containing `title`, `body`, `type` (Event ID), `severity`, `createdAt`, `read` (boolean), and optional context like `reservationId` or `branchId`.
-- **Notification Storage**: Persisted in the Firebase Realtime Database exclusively under `notifications/${parentId}`.
+- **Notification Storage**: Persisted in the Firebase Realtime Database under `notifications/${uid}` (parents for clinic events; secretaries for reserve/cancel alerts).
 - **Push Subscriptions**: Native Web Push subscriptions (endpoint + `p256dh`/`auth` keys) are stored under `users/${uid}/pushSubscriptions/{hash}` together with `notificationPermission`.
 - **Push Notification Flow**: Clinic events are observed server-side (Express RTDB listeners and Cloud Functions `onWrite`). The server writes the Notification Center record and dispatches a Web Push payload with the `web-push` library and VAPID keys. The root service worker (`/sw.js`) receives the `push` event and calls `self.registration.showNotification`. Clicking a notification opens `/parent/notifications` (or a context-specific URL).
 - **SMS Channel (textbee.dev)**: For `SLOT_RESERVED`, `QUEUE_STARTED`, `NEARING_TURN`, `PENALIZED`, `FORFEITED`, and `RESERVATION_CANCELLED_BY_CLINIC`, the same server/Functions dispatcher also sends an SMS via the textbee REST API (`TEXTBEE_API_KEY`, global env — not per-branch). `SLOT_RESERVED` SMS fires when the parent finalizes patient info (`patientInfoCompleted` → true / Save Information), not on bare reservation create. If that schedule’s queue is already `active` / `paused` / `closed`, the **Active Queue Reservation** template is used instead of the normal confirmed-reservation template. **Phone-in walk-ins** are an isolated exception: on create, if `source === "walk_in"`, `parentPhone` is set, and there is no `parentId`, the engines send **one** SMS to `parentPhone` (same `slotReservedSmsSent` claim). If the queue is still `not_started`, that SMS uses `templateSlotReserved`. If the queue is already `active` / `paused`, it reuses the parent-side **Active Queue Reservation** template (`templateSlotReservedActiveQueue`) via the same `buildSmsMessage` live-queue path. They do **not** receive Queue Started, Near Turn, Penalized, or Forfeited SMS (`parentPhone` is never used as a broadcast recipient). Closed / ended / completed queues send no walk-in SMS. In-person walk-ins with no phone receive none. `SLOT_RESERVED` is locked on the reservation (`slotReservedSmsSent`, transaction claim) so dual Express + Cloud Functions dispatch and Save Information retries cannot send twice. `QUEUE_STARTED` is sent once per parent with an active reservation on that schedule (branch + date). Duplicate SMS is also marked with `smsDispatchedAt` on the notification record (same pattern as `pushDispatchedAt`; the claim succeeds only for the writer that stored that timestamp). `NEARING_TURN` SMS fires **only when the queue first starts** (`queueStatus` becomes `active`), and only for tickets with `0 < aheadOfYou <=` that branch’s `nearingTurnAheadCount` (position 1 / `aheadOfYou === 0` is already their turn, so it does not send). Later recalculation, penalties, pause/resume, and new bookings do not send Near Turn SMS. It is locked by `reservations/{reservationId}/nearTurnSmsSent` (transaction claim). SMS uses dedupe key `nearing_turn_sms_{reservationId}` and does **not** write the push/Notification Center body. `PENALIZED` SMS fires once per penalty increment that does not instantly forfeit, locked by `reservations/{reservationId}/penaltySmsSent/{penaltyCount}`. `FORFEITED` SMS fires when status becomes `forfeited` (timer expiry or move-back 0). SMS message templates and the near-turn patients-ahead threshold are Secretary-configurable per branch under `systemConfiguration/{branchId}/sms` (defaults: count `3`, seeded templates). **Push / in-app** queue-position copy is system-managed and **decoupled** from that threshold: waiting-line places 1→`"You are next."`, 2→`"Your Almost Next"`, 3→`"Your turn is near."` (no notify beyond 3), once per reservation per position per clinic day via `push_queue_pos_{reservationId}_{position}_{clinicDate}`.
@@ -42,17 +42,19 @@ The system uses strict `NOTIFICATION_EVENTS` as the single source of truth for t
 | **RESERVATION_CANCELLED_BY_CLINIC** | The clinic closed the reserved day. The parent rebooks on another open day. | Secretary or doctor closes that date while the reservation is still `reserved` or `waiting`. | Specific Parent |
 | **SUSPICIOUS_ACCOUNT** | Parent flagged for repeated no-shows (no QR validation after past clinic dates). Deep link opens Audit Logs. | Cloud Function detector (forfeit/expiry or nightly 20:00 Manila); Express mirror on forfeit/expiry. | Active System Admins (Web Push + `adminAlerts` toast fallback) |
 | **SECRETARY_ACTIVITY** | In-app toast mirroring secretary Dashboard Recent Activity (reserve, cancel, check-in, etc.). Never push / Notification Center. | Reservation timestamp transitions on the secretary’s upcoming published schedule while the secretary app is open. | Assigned-branch Secretary (toast only) |
+| **SECRETARY_SLOT_RESERVED** | Persistent alert that a parent reserved a slot (includes clinic date). Notification Center + Web Push. | New reservation node with `parentId` (walk-ins without `parentId` excluded). | Active secretaries assigned to that reservation’s branch |
+| **SECRETARY_SLOT_CANCELLED** | Persistent alert that a parent cancelled their slot (includes clinic date). Notification Center + Web Push. | Reservation `status` → `cancelled` (not `cancelled_by_clinic`). | Active secretaries assigned to that reservation’s branch |
 
 ---
 
 ## 4. Parent Notifications
-Parents are the **primary** recipients of persistent Notification Center records and routine clinic Web Push. All parent-facing events in Section 3 are routed to the relevant Parent. The Notification Center actively subscribes to `notifications/${parentId}` to render these alerts.
+Parents are the **primary** recipients of routine clinic Notification Center records and Web Push. All parent-facing events in Section 3 are routed to the relevant Parent. The Notification Center actively subscribes to `notifications/${parentId}` to render these alerts. Secretary reserve/cancel alerts are separate (Section 5).
 
 ---
 
 ## 5. Secretary Notifications
-**In-app activity toasts only (no push, no Notification Center).**
-The Secretary does not receive persistent database notifications or Web Push. While signed in with the app open, `NotificationObserver` watches the same upcoming published schedule as Dashboard **Recent Activity** and shows a local toast whenever a new activity row would appear (new reservation, check-in, sent to doctor, consultation completed, cancel, forfeit, penalty). Toast copy matches the Recent Activity feed. Secretaries also still get transient success/error toasts for actions they perform themselves (e.g., "Schedule Published", "Penalty Applied successfully").
+**Notification Center + Web Push for parent reserve/cancel; in-app activity toasts for desk feed events.**
+Assigned-branch secretaries receive persistent records under `notifications/{secretaryUid}` and Web Push for `SECRETARY_SLOT_RESERVED` and `SECRETARY_SLOT_CANCELLED` (server/Functions fan-out; message includes the clinic date). While signed in with the app open, `NotificationObserver` also watches the same upcoming published schedule as Dashboard **Recent Activity** and shows a local `SECRETARY_ACTIVITY` toast whenever a new activity row would appear (new reservation, check-in, sent to doctor, consultation completed, cancel, forfeit, penalty). Those activity toasts never write the Notification Center and never send push. Secretaries also still get transient success/error toasts for actions they perform themselves (e.g., "Schedule Published", "Penalty Applied successfully").
 
 ---
 
@@ -63,8 +65,7 @@ Routine clinic events do not notify the doctor, and the doctor receives no Web P
 ---
 
 ## 7. Staff Notifications
-**Persistent Notification Center remains parent-only.**
-Secretaries and doctors receive local toasts only. Secretaries additionally receive `SECRETARY_ACTIVITY` toasts (Section 5) while the app is open; doctors do not.
+**Doctors remain toast-only.** Secretaries receive the reserve/cancel Notification Center + Web Push channel in Section 5, plus `SECRETARY_ACTIVITY` toasts while the app is open. Doctors do not receive persistent clinic notifications or Web Push.
 
 **System Admin exceptions (no clinical pushes).** Admins receive no routine clinic notifications. Two admin-only alert types exist:
 
@@ -146,7 +147,7 @@ A notification transitions from `read: false` to `read: true` via a direct datab
 
 ## 14. Rule Priority Order
 1. **Role Restriction Rule (Highest)**
-   * *Routine persistent notifications and clinic Web Push are parent-only. The sole staff exception is System Admin `SUSPICIOUS_ACCOUNT` abuse alerts (`adminAlerts` + optional admin push subscription).*
+   * *Routine clinic persistent notifications and Web Push are parent-facing. Staff exceptions: assigned-branch secretaries for `SECRETARY_SLOT_RESERVED` / `SECRETARY_SLOT_CANCELLED` (`notifications/{secretaryUid}` + push), and System Admin `SUSPICIOUS_ACCOUNT` abuse alerts (`adminAlerts` + optional admin push). Doctors never receive clinic push.*
 2. **Deduplication Rule**
    * *A notification event will be entirely dropped if it matches a recently cached signature or an existing `dedupeKey` record.*
 3. **Database Storage Rule**
@@ -168,13 +169,14 @@ When modifying the Notification System, developers must verify the following con
 - [ ] ✓ Permanent Ticket Numbers never change.
 - [ ] ✓ Queue recalculation never changes Ticket Numbers.
 - [ ] ✓ Reservation History remains immutable.
-- [ ] ✓ Notification metadata is strictly stored under `notifications/${parentId}`.
+- [ ] ✓ Parent notification metadata is stored under `notifications/${parentId}`; secretary reserve/cancel under `notifications/${secretaryUid}`.
 - [ ] ✓ Web Push subscription is saved under `users/${uid}/pushSubscriptions` upon permission grant.
 - [ ] ✓ Parent `inAppNotificationsEnabled` / `devicePushEnabled` match Profile toggles; OS Allow/Deny updates device-level push.
 - [ ] ✓ Push subscription for this device is wiped from the database upon logout.
 - [ ] ✓ Closed-browser push still delivers via `/sw.js` + `web-push`.
-- [ ] ✓ Role filtering correctly blocks Doctors and Secretaries from receiving persistent notifications.
+- [ ] ✓ Role filtering blocks Doctors from persistent clinic notifications; secretaries only receive `SECRETARY_SLOT_RESERVED` / `SECRETARY_SLOT_CANCELLED` in the Notification Center.
 - [ ] ✓ Secretary `SECRETARY_ACTIVITY` toasts match Dashboard Recent Activity copy and never send Web Push or write `notifications/{uid}`.
+- [ ] ✓ `SECRETARY_SLOT_RESERVED` / `SECRETARY_SLOT_CANCELLED` fan out to active assigned-branch secretaries (Notification Center + Web Push, date in body).
 - [ ] ✓ `SUSPICIOUS_ACCOUNT` alerts reach active System Admins only (`adminAlerts/{adminUid}` + admin Web Push, link `/admin/audit-logs?highlight={logId}`); the doctor receives no alert or push.
 - [ ] ✓ `NEARING_TURN` SMS threshold and templates come from `systemConfiguration/{branchId}/sms` (defaults when missing). Push/in-app position text ignores that threshold and uses the fixed waiting-line map (1/2/3).
 - [ ] ✓ `NEARING_TURN` SMS sends once per parent account, ever (`users/{parentId}/nearTurnSms`, claimed by transaction, set only after the provider accepts; failed sends release the claim). A later reservation, another child, another branch, or a post-penalty re-queue does not get a second SMS. SMS fires **only when the queue starts**, for tickets with `0 < aheadOfYou <=` that branch’s count (not when already first; not on later position changes), via reservation claim `nearTurnSmsSent` and SMS-only delivery.

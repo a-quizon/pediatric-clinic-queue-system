@@ -92,16 +92,16 @@ export default function Login() {
           role: "parent",
           devicePushEnabled: userData.devicePushEnabled,
         });
-      } else if (userData.role === "admin") {
+      } else if ((userData.role === "secretary" || userData.role === "doctor") && userData.mustChangePassword) {
+        navigate(`/${userData.role}/change-password`, { replace: true });
+        return;
+      } else if (userData.role === "admin" || userData.role === "secretary") {
         const { requestPushPermissionAfterLogin } = await import("../../services/pushService");
         await requestPushPermissionAfterLogin({
           uid: authUser.uid,
           role: userData.role,
           devicePushEnabled: userData.devicePushEnabled,
         });
-      } else if ((userData.role === "secretary" || userData.role === "doctor") && userData.mustChangePassword) {
-        navigate(`/${userData.role}/change-password`, { replace: true });
-        return;
       }
     } else {
       if (!authUser.emailVerified) {

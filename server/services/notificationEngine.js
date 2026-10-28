@@ -1,6 +1,6 @@
 const path = require("path");
 const { getDb } = require("./firebaseAdmin");
-const { sendPushToParent, sendPushToAdmin, sanitizeKey } = require("./webPushService");
+const { sendPushToParent, sendPushToAdmin, sendPushToSecretary, sanitizeKey } = require("./webPushService");
 const {
   deliverSmsForNotification,
   deliverWalkInReservationSms,
@@ -15,6 +15,10 @@ const {
   buildPushQueuePositionDedupeKey,
   PUSH_QUEUE_POSITION_MESSAGES,
 } = require(path.join(__dirname, "../../client/functions/pushQueuePositionRules"));
+const {
+  listActiveSecretaryIdsForBranch,
+  secretaryEventsFromReservationChange,
+} = require(path.join(__dirname, "../../client/functions/secretarySlotNotificationRules"));
 
 const ACTIVE_RESERVATION_STATUSES = [
   "reserved",
@@ -128,6 +132,18 @@ const NOTIFICATION_CONFIG = {
     title: "Check-In Requested",
     message: "Please proceed to the clinic and have your QR Code validated by the secretary.",
     url: "/parent/reservations",
+  },
+  SECRETARY_SLOT_RESERVED: {
+    type: "success",
+    title: "New Reservation",
+    message: "A parent reserved a slot.",
+    url: "/secretary/notifications",
+  },
+  SECRETARY_SLOT_CANCELLED: {
+    type: "warning",
+    title: "Reservation Cancelled",
+    message: "A parent cancelled their slot.",
+    url: "/secretary/notifications",
   },
 };
 
@@ -533,6 +549,79 @@ async function evaluateSuspiciousAfterReservationChange(before, after) {
   });
 }
 
+async function listActiveSecretaryIds(branchInfo) {
+  const snap = await getDb().ref("users").once("value");
+  if (!snap.exists()) return [];
+  return listActiveSecretaryIdsForBranch(snap.val(), branchInfo);
+}
+
+async function deliverSecretaryNotification(eventId, context = {}) {
+  const config = NOTIFICATION_CONFIG[eventId];
+  if (!config || !context.secretaryId) return false;
+
+  const key = sanitizeKey(context.dedupeKey || `${eventId}_${Date.now()}`);
+  const body = context.customMessage || config.message;
+  const title = context.customTitle || config.title;
+  const notification = {
+    id: key,
+    secretaryId: context.secretaryId,
+    type: eventId,
+    title,
+    body,
+    message: body,
+    severity: config.type,
+    createdAt: Date.now(),
+    read: false,
+    reservationId: context.reservationId || context.entityId || null,
+    branchId: context.branchId || null,
+    metadata: {
+      ...(context.metadata || {}),
+      parentId: context.parentId || null,
+      clinicDate: context.clinicDate || null,
+    },
+    dedupeKey: context.dedupeKey || key,
+    url: config.url,
+  };
+
+  const notifRef = getDb().ref(`notifications/${context.secretaryId}/${key}`);
+  const existing = await notifRef.once("value");
+  if (!existing.exists()) {
+    await notifRef.update(notification);
+  }
+  await sendPushToSecretary(context.secretaryId, existing.exists() ? existing.val() : notification, {
+    notificationId: key,
+  });
+  return true;
+}
+
+async function notifySecretariesForReservationChange(before, after) {
+  const events = secretaryEventsFromReservationChange(before, after);
+  if (!events.length) return;
+
+  const branchInfo = {
+    branchId: after.branchId || null,
+    branch: after.branch || null,
+  };
+  const secretaryIds = await listActiveSecretaryIds(branchInfo);
+  if (!secretaryIds.length) return;
+
+  for (const event of events) {
+    for (const secretaryId of secretaryIds) {
+      try {
+        await deliverSecretaryNotification(event.eventId, {
+          ...event,
+          secretaryId,
+        });
+      } catch (err) {
+        console.error(
+          `[notificationEngine] Secretary notify failed for ${secretaryId} ${event.eventId}:`,
+          err.message
+        );
+      }
+    }
+  }
+}
+
 async function handleReservationChange(before, after) {
   if (!after) return;
 
@@ -549,6 +638,12 @@ async function handleReservationChange(before, after) {
   const events = eventsFromReservationChange(before, after);
   for (const event of events) {
     await deliverNotification(event.eventId, event);
+  }
+
+  try {
+    await notifySecretariesForReservationChange(before, after);
+  } catch (err) {
+    console.error("[notificationEngine] Secretary slot notifications failed:", err.message);
   }
 
   try {
@@ -647,9 +742,11 @@ module.exports = {
   NOTIFICATION_CONFIG,
   ACTIVE_RESERVATION_STATUSES,
   deliverNotification,
+  deliverSecretaryNotification,
   handleReservationChange,
   handleScheduleChange,
   eventsFromReservationChange,
   computeReservationState,
   notifyParentsScheduleAvailable,
+  notifySecretariesForReservationChange,
 };

@@ -29,6 +29,9 @@ export const NOTIFICATION_EVENTS = {
   SUSPICIOUS_ACCOUNT: 'SUSPICIOUS_ACCOUNT',
   /** Secretary in-app toast only — mirrors Dashboard Recent Activity; never push / Notification Center. */
   SECRETARY_ACTIVITY: 'SECRETARY_ACTIVITY',
+  /** Persistent Notification Center + Web Push for assigned-branch secretaries (server-owned). */
+  SECRETARY_SLOT_RESERVED: 'SECRETARY_SLOT_RESERVED',
+  SECRETARY_SLOT_CANCELLED: 'SECRETARY_SLOT_CANCELLED',
 };
 
 /**
@@ -147,6 +150,18 @@ const NOTIFICATION_CONFIG = {
     type: 'info',
     title: 'Recent Activity',
     message: 'Clinic activity updated.',
+    duration: 5000,
+  },
+  [NOTIFICATION_EVENTS.SECRETARY_SLOT_RESERVED]: {
+    type: 'success',
+    title: 'New Reservation',
+    message: 'A parent reserved a slot.',
+    duration: 5000,
+  },
+  [NOTIFICATION_EVENTS.SECRETARY_SLOT_CANCELLED]: {
+    type: 'warning',
+    title: 'Reservation Cancelled',
+    message: 'A parent cancelled their slot.',
     duration: 5000,
   },
 };

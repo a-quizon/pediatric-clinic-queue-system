@@ -26,7 +26,8 @@ export default function NotificationObserver() {
     }
   }, [role]);
 
-  // Secretary: in-app toasts for the same events shown in Dashboard Recent Activity (no push).
+  // Secretary: in-app toasts for the same events shown in Dashboard Recent Activity
+  // (toast-only; reserve/cancel Notification Center + Web Push are server-owned).
   useEffect(() => {
     if (!user?.uid || role !== 'secretary') return undefined;
 

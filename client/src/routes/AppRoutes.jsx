@@ -31,6 +31,7 @@ import SecretarySchedules from "../pages/secretary/Schedules";
 
 import SecretaryProfile from "../pages/secretary/Profile";
 import SecretarySystemSettings from "../pages/secretary/SystemSettings";
+import SecretaryNotifications from "../pages/secretary/SecretaryNotifications";
 // Doctor Layout and Pages
 import DoctorLayout from "../components/doctor/Layout";
 import DoctorHome from "../pages/doctor/Home";
@@ -107,6 +108,7 @@ export default function AppRoutes() {
           <Route path="schedules" element={<SecretarySchedules />} />
           <Route path="validate" element={<SecretaryValidateReservation />} />
           <Route path="queue" element={<SecretaryManageQueue />} />
+          <Route path="notifications" element={<SecretaryNotifications />} />
           <Route path="profile" element={<SecretaryProfile />} />
           <Route path="settings" element={<SecretarySystemSettings />} />
         </Route>

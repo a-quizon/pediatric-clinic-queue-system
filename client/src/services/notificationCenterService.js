@@ -6,12 +6,13 @@ import { subscribeOnValue } from "../firebase/rtdbSubscribe";
 /**
  * Notification Center Service
  * Manages persistent storage and real-time synchronization of notifications
- * in Firebase Realtime Database at `notifications/${parentId}`.
+ * in Firebase Realtime Database at `notifications/${uid}` (parents and secretaries).
  */
 
 /**
- * Staff never keep Notification Center records. Each signed-in non-parent clears only
- * its own leftovers (no `users` list read, so it works under per-role rules).
+ * Doctors (and other non-parent / non-secretary staff) never keep Notification Center
+ * records. Secretaries keep reserve/cancel records under `notifications/{uid}`.
+ * Each signed-in user clears only its own leftovers (no `users` list read).
  */
 export const cleanupOwnStaffNotifications = async () => {
   try {
@@ -21,7 +22,7 @@ export const cleanupOwnStaffNotifications = async () => {
     const userSnapshot = await get(ref(getDb(), `users/${uid}`));
     if (!userSnapshot.exists()) return;
     const userData = userSnapshot.val();
-    if (!userData.role || userData.role === "parent") return;
+    if (!userData.role || userData.role === "parent" || userData.role === "secretary") return;
 
     const updates = {};
     if (userData.notifications) {
@@ -81,10 +82,13 @@ export const migrateUserNotifications = async (parentId) => {
 export const saveNotification = async (parentId, notificationData) => {
   if (!parentId) return null;
   try {
-    // Parent-Only Phase guard: verify user role is 'parent' before creating notification records
+    // Parents and secretaries may keep Notification Center records (server owns secretary fan-out).
     const roleSnapshot = await get(ref(getDb(), `users/${parentId}/role`));
-    if (roleSnapshot.exists() && roleSnapshot.val() !== "parent") {
-      return null;
+    if (roleSnapshot.exists()) {
+      const role = roleSnapshot.val();
+      if (role !== "parent" && role !== "secretary") {
+        return null;
+      }
     }
 
     // Use dedupeKey for cross-device idempotency, falling back to push() if none exists

@@ -1,13 +1,27 @@
+import { useEffect, useState } from "react";
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, QrCode, Users, User, CalendarDays, ChevronLeft } from "lucide-react";
+import { Home, QrCode, Users, User, CalendarDays, ChevronLeft, Bell } from "lucide-react";
 import { PqBrand } from "../parent/pqUi";
 import { goBackOr } from "../../utils/navigationRoots";
 import LogoutButton from "../common/LogoutButton";
 import ConnectionStatusPill from "../common/ConnectionStatusPill";
+import { useAuth } from "../../hooks/useAuth";
+import { subscribeToUserNotifications } from "../../services/notificationCenterService";
 
 export default function SecretaryLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = subscribeToUserNotifications(user.uid, (list) => {
+      const count = list.filter((n) => !n.read).length;
+      setUnreadCount(count);
+    });
+    return () => unsub();
+  }, [user]);
 
   const getHeaderInfo = () => {
     const path = location.pathname;
@@ -28,6 +42,9 @@ export default function SecretaryLayout() {
     }
     if (path.startsWith("/secretary/settings")) {
       return { title: "System Configuration", backTo: "/secretary/profile" };
+    }
+    if (path === "/secretary/notifications" || path.startsWith("/secretary/notifications/")) {
+      return { title: "Notifications", backTo: "/secretary" };
     }
 
     return { title: "Dashboard" };
@@ -87,7 +104,7 @@ export default function SecretaryLayout() {
                   type="button"
                   onClick={() => goBackOr(navigate, headerInfo.backTo)}
                   className="pq-icon-btn shrink-0"
-                  aria-label="Back to profile"
+                  aria-label={headerInfo.backTo === "/secretary/profile" ? "Back to profile" : "Go back"}
                 >
                   <ChevronLeft className="w-5 h-5" aria-hidden="true" />
                 </button>
@@ -100,7 +117,26 @@ export default function SecretaryLayout() {
                 {headerInfo.title}
               </h1>
             </div>
-            <ConnectionStatusPill />
+            <div className="flex items-center gap-2 shrink-0">
+              <ConnectionStatusPill />
+              <button
+                type="button"
+                onClick={() => navigate("/secretary/notifications")}
+                className="pq-icon-btn relative flex-shrink-0"
+                aria-label="Notifications"
+                data-tour="nav-notifications"
+              >
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span
+                    className="absolute top-0.5 right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white rounded-full border-2 border-white"
+                    style={{ background: "var(--pq-alert)" }}
+                  >
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </header>
         </div>
 

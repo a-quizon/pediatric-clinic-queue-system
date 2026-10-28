@@ -201,13 +201,13 @@ async function removeSubscriptionFromDatabase(uid, subscriptionJson) {
 }
 
 function isPushEligibleRole(role) {
-  return role === "parent" || role === "admin";
+  return role === "parent" || role === "admin" || role === "secretary";
 }
 
 /**
  * Request permission (must be called from a user gesture), subscribe with VAPID,
  * and persist the subscription to RTDB + the Express backend.
- * Parents: clinic workflow pushes. Admins: suspicious-account abuse alerts only.
+ * Parents: clinic workflow pushes. Secretaries: parent reserve/cancel. Admins: abuse alerts only.
  */
 export async function registerPushSubscription(user) {
   try {

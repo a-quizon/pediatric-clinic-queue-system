@@ -13,6 +13,10 @@ const {
   buildPushQueuePositionDedupeKey,
   PUSH_QUEUE_POSITION_MESSAGES,
 } = require("./pushQueuePositionRules");
+const {
+  listActiveSecretaryIdsForBranch,
+  secretaryEventsFromReservationChange,
+} = require("./secretarySlotNotificationRules");
 
 const ACTIVE_RESERVATION_STATUSES = [
   "reserved",
@@ -126,6 +130,18 @@ const NOTIFICATION_CONFIG = {
     title: "Check-In Requested",
     message: "Please proceed to the clinic and have your QR Code validated by the secretary.",
     url: "/parent/reservations",
+  },
+  SECRETARY_SLOT_RESERVED: {
+    type: "success",
+    title: "New Reservation",
+    message: "A parent reserved a slot.",
+    url: "/secretary/notifications",
+  },
+  SECRETARY_SLOT_CANCELLED: {
+    type: "warning",
+    title: "Reservation Cancelled",
+    message: "A parent cancelled their slot.",
+    url: "/secretary/notifications",
   },
 };
 
@@ -347,6 +363,96 @@ async function sendPushToAdmin(adminId, notification, notificationId) {
     console.log(`[functions/push] sent=${sent} adminId=${adminId} type=${payload.type}`);
   } else if (sent === 0) {
     console.warn(`[functions/push] zero sends adminId=${adminId} type=${payload.type}`);
+  }
+
+  return { sent, pruned: Object.keys(gone).length };
+}
+
+/**
+ * Assigned-branch secretaries: parent reserve / cancel only.
+ */
+async function sendPushToSecretary(secretaryId, notification, notificationId) {
+  if (!configureVapid()) {
+    console.warn("[functions/push] VAPID not configured");
+    return { sent: 0, failed: 0, reason: "vapid_not_configured" };
+  }
+
+  const safeNotificationId = notificationId ? sanitizeKey(notificationId) : null;
+  if (safeNotificationId) {
+    const flagSnap = await db()
+      .ref(`notifications/${secretaryId}/${safeNotificationId}/pushDispatchedAt`)
+      .once("value");
+    if (flagSnap.exists()) {
+      return { sent: 0, failed: 0, reason: "already_dispatched" };
+    }
+  }
+
+  const userSnap = await db().ref(`users/${secretaryId}`).once("value");
+  const user = userSnap.val();
+  if (!user || user.role !== "secretary") {
+    return { sent: 0, failed: 0, reason: "not_secretary" };
+  }
+  if (user.status === "inactive" || user.isDeleted === true) {
+    return { sent: 0, failed: 0, reason: "inactive_or_deleted" };
+  }
+
+  const entries = collectSubscriptions(user.pushSubscriptions);
+  if (!entries.length) {
+    console.warn(`[functions/push] no_subscriptions secretaryId=${secretaryId}`);
+    return { sent: 0, failed: 0, reason: "no_subscriptions" };
+  }
+
+  const payload = {
+    title: notification.title,
+    body: notification.body || notification.message,
+    type: notification.type || "SECRETARY_SLOT_RESERVED",
+    tag: notification.dedupeKey || notification.id || notification.type || "SECRETARY_SLOT_RESERVED",
+    url: notification.url || "/secretary/notifications",
+    icon: "/brand/plusqueue-logo.png",
+    reservationId: notification.reservationId || null,
+  };
+
+  let sent = 0;
+  const gone = {};
+  await Promise.all(
+    entries.map(async ({ key, subscription }) => {
+      try {
+        await webpush.sendNotification(subscription, JSON.stringify(payload), {
+          TTL: 60 * 60,
+          urgency: "normal",
+        });
+        sent += 1;
+      } catch (err) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          gone[key] = null;
+        } else {
+          console.error(`[functions/push] send failed secretaryId=${secretaryId}:`, err.message);
+          try {
+            const { recordNotificationFailure } = require("./systemHealthRuntime");
+            await recordNotificationFailure({
+              channel: "push",
+              targetRole: "secretary",
+              targetId: secretaryId,
+              error: err.message,
+              notificationType: payload.type,
+            });
+          } catch (_) {
+            /* health write is best-effort */
+          }
+        }
+      }
+    })
+  );
+
+  if (Object.keys(gone).length) {
+    await db().ref(`users/${secretaryId}/pushSubscriptions`).update(gone);
+  }
+
+  if (sent > 0 && safeNotificationId) {
+    await db().ref(`notifications/${secretaryId}/${safeNotificationId}/pushDispatchedAt`).set(Date.now());
+    console.log(`[functions/push] sent=${sent} secretaryId=${secretaryId} type=${payload.type}`);
+  } else if (sent === 0) {
+    console.warn(`[functions/push] zero sends secretaryId=${secretaryId} type=${payload.type}`);
   }
 
   return { sent, pruned: Object.keys(gone).length };
@@ -622,6 +728,77 @@ async function evaluatePositionEvents(schedule, reservations, options = {}) {
   }
 }
 
+async function listActiveSecretaryIds(branchInfo) {
+  const snap = await db().ref("users").once("value");
+  if (!snap.exists()) return [];
+  return listActiveSecretaryIdsForBranch(snap.val(), branchInfo);
+}
+
+async function deliverSecretaryNotification(eventId, context = {}) {
+  const config = NOTIFICATION_CONFIG[eventId];
+  if (!config || !context.secretaryId) return false;
+
+  const key = sanitizeKey(context.dedupeKey || `${eventId}_${Date.now()}`);
+  const body = context.customMessage || config.message;
+  const title = context.customTitle || config.title;
+  const notification = {
+    id: key,
+    secretaryId: context.secretaryId,
+    type: eventId,
+    title,
+    body,
+    message: body,
+    severity: config.type,
+    createdAt: Date.now(),
+    read: false,
+    reservationId: context.reservationId || context.entityId || null,
+    branchId: context.branchId || null,
+    metadata: {
+      ...(context.metadata || {}),
+      parentId: context.parentId || null,
+      clinicDate: context.clinicDate || null,
+    },
+    dedupeKey: context.dedupeKey || key,
+    url: config.url,
+  };
+
+  const notifRef = db().ref(`notifications/${context.secretaryId}/${key}`);
+  const existing = await notifRef.once("value");
+  if (!existing.exists()) {
+    await notifRef.update(notification);
+  }
+  await sendPushToSecretary(context.secretaryId, existing.exists() ? existing.val() : notification, key);
+  return true;
+}
+
+async function notifySecretariesForReservationChange(before, after) {
+  const events = secretaryEventsFromReservationChange(before, after);
+  if (!events.length) return;
+
+  const branchInfo = {
+    branchId: after.branchId || null,
+    branch: after.branch || null,
+  };
+  const secretaryIds = await listActiveSecretaryIds(branchInfo);
+  if (!secretaryIds.length) return;
+
+  for (const event of events) {
+    for (const secretaryId of secretaryIds) {
+      try {
+        await deliverSecretaryNotification(event.eventId, {
+          ...event,
+          secretaryId,
+        });
+      } catch (err) {
+        console.error(
+          `[functions/push] Secretary notify failed for ${secretaryId} ${event.eventId}:`,
+          err.message
+        );
+      }
+    }
+  }
+}
+
 async function handleReservationChange(before, after) {
   if (!after) return;
 
@@ -638,6 +815,13 @@ async function handleReservationChange(before, after) {
   for (const event of eventsFromReservationChange(before, after)) {
     await deliverNotification(event.eventId, event);
   }
+
+  try {
+    await notifySecretariesForReservationChange(before, after);
+  } catch (err) {
+    console.error("[functions/push] Secretary slot notifications failed:", err.message);
+  }
+
   if (!after.scheduleId) return;
   const scheduleSnap = await db().ref(`schedules/${after.scheduleId}`).once("value");
   if (!scheduleSnap.exists()) return;
@@ -782,6 +966,8 @@ module.exports = {
   handleScheduleChange,
   sendPushToParent,
   sendPushToAdmin,
+  sendPushToSecretary,
   configureVapid,
   notifyParentsScheduleAvailable,
+  notifySecretariesForReservationChange,
 };

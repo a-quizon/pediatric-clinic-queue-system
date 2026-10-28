@@ -288,6 +288,101 @@ async function sendPushToAdmin(adminId, notification, options = {}) {
   return { success: sent > 0 || failed === 0, sent, failed, pruned: goneKeys.length };
 }
 
+async function sendPushToSecretary(secretaryId, notification, options = {}) {
+  if (!secretaryId) {
+    return { success: false, sent: 0, failed: 0, reason: "missing_secretary" };
+  }
+  if (!isVapidReady()) {
+    return { success: false, sent: 0, failed: 0, reason: "vapid_not_configured" };
+  }
+
+  const notificationId = options.notificationId || notification.id || notification.dedupeKey;
+  const safeNotificationId = notificationId ? sanitizeKey(notificationId) : null;
+  if (safeNotificationId && options.claim !== false) {
+    const flagSnap = await getDb()
+      .ref(`notifications/${secretaryId}/${safeNotificationId}/pushDispatchedAt`)
+      .once("value");
+    if (flagSnap.exists()) {
+      return { success: true, sent: 0, failed: 0, reason: "already_dispatched" };
+    }
+  }
+
+  const snap = await getDb().ref(`users/${secretaryId}`).once("value");
+  if (!snap.exists()) {
+    return { success: false, sent: 0, failed: 0, reason: "user_not_found" };
+  }
+
+  const user = snap.val() || {};
+  if (user.role !== "secretary") {
+    return { success: false, sent: 0, failed: 0, reason: "not_secretary" };
+  }
+  if (user.status === "inactive" || user.isDeleted === true) {
+    return { success: false, sent: 0, failed: 0, reason: "inactive_or_deleted" };
+  }
+
+  const entries = collectSubscriptions(user.pushSubscriptions);
+  if (!entries.length) {
+    console.warn(`[webPush] no_subscriptions secretaryId=${secretaryId}`);
+    return { success: true, sent: 0, failed: 0, reason: "no_subscriptions" };
+  }
+
+  const payload = {
+    ...buildPayload(notification),
+    url: notification.url || "/secretary/notifications",
+    type: notification.type || notification.eventId || "SECRETARY_SLOT_RESERVED",
+  };
+
+  let sent = 0;
+  let failed = 0;
+  const goneKeys = [];
+
+  await Promise.all(
+    entries.map(async ({ key, subscription }) => {
+      try {
+        await sendToSubscription(subscription, payload, {
+          urgency: "normal",
+          topic: payload.tag,
+        });
+        sent += 1;
+      } catch (err) {
+        failed += 1;
+        const statusCode = err.statusCode || err.status;
+        if (statusCode === 404 || statusCode === 410) {
+          goneKeys.push(key);
+        } else {
+          console.error(`[webPush] send failed for secretary ${secretaryId}:`, err.message);
+          try {
+            const { recordNotificationFailure } = require("../../client/functions/systemHealthRuntime");
+            await recordNotificationFailure({
+              channel: "push",
+              targetRole: "secretary",
+              targetId: secretaryId,
+              error: err.message,
+              notificationType: payload.type,
+            }, { db: getDb() });
+          } catch (_) {
+            /* health write is best-effort */
+          }
+        }
+      }
+    })
+  );
+
+  if (goneKeys.length) {
+    await deleteGoneSubscriptions(secretaryId, goneKeys).catch((err) => {
+      console.error("[webPush] failed to prune expired subscriptions:", err.message);
+    });
+  }
+
+  if (sent > 0 && safeNotificationId && options.claim !== false) {
+    await getDb()
+      .ref(`notifications/${secretaryId}/${safeNotificationId}/pushDispatchedAt`)
+      .set(Date.now());
+  }
+
+  return { success: sent > 0 || failed === 0, sent, failed, pruned: goneKeys.length };
+}
+
 async function saveSubscription(userId, subscription) {
   if (!userId || !subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
     throw new Error("Invalid subscription payload");
@@ -322,6 +417,7 @@ module.exports = {
   getPublicVapidKey,
   sendPushToParent,
   sendPushToAdmin,
+  sendPushToSecretary,
   sendToSubscription,
   saveSubscription,
   deleteSubscription,
